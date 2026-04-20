@@ -24,9 +24,14 @@
     margin-bottom: 28px;
     border-bottom: 2px solid #e0e0e0;
     padding-bottom: 20px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
   }
 
-  h1 {
+  .header-left h1 {
     font-family: 'Bebas Neue', sans-serif;
     font-size: 38px;
     text-transform: uppercase;
@@ -35,13 +40,31 @@
     margin-bottom: 6px;
   }
 
-  h1 span { color: #2494e0; }
+  .header-left h1 span { color: #2494e0; }
 
   .subtitle {
     font-size: 13px;
     color: #888;
     line-height: 1.5;
   }
+
+  .btn-reset {
+    background: none;
+    border: 2px solid #e0e0e0;
+    color: #aaa;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+    white-space: nowrap;
+    align-self: center;
+  }
+
+  .btn-reset:hover { border-color: #dd6b00; color: #dd6b00; }
 
   .section-label {
     font-family: 'Bebas Neue', sans-serif;
@@ -76,6 +99,12 @@
 
   .api-row input::placeholder { color: #aaa; }
   .api-row input:focus { border-color: #2494e0; }
+
+  .api-hint {
+    font-size: 11px;
+    color: #ccc;
+    margin-top: 6px;
+  }
 
   .toggle-key {
     background: none;
@@ -146,22 +175,6 @@
   .btn-generate:hover { opacity: 0.85; }
   .btn-generate:disabled { opacity: 0.35; cursor: not-allowed; }
 
-  .btn-clear {
-    background: none;
-    border: 1px solid #ccc;
-    color: #999;
-    border-radius: 8px;
-    padding: 13px 20px;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 16px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
-  }
-
-  .btn-clear:hover { border-color: #dd6b00; color: #dd6b00; }
-
   .global-status {
     font-size: 12px;
     color: #999;
@@ -200,6 +213,8 @@
     justify-content: space-between;
     padding: 12px 16px;
     border-bottom: 1px solid #e0e0e0;
+    gap: 10px;
+    flex-wrap: wrap;
   }
 
   .result-label {
@@ -208,6 +223,12 @@
     text-transform: uppercase;
     letter-spacing: 1.5px;
     color: #2494e0;
+  }
+
+  .result-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .status-badge {
@@ -220,17 +241,120 @@
   }
 
   .status-waiting { background: #ececec; color: #aaa; }
-  .status-generating { background: rgba(36,148,224,0.2); color: #2494e0; }
-  .status-done { background: rgba(36,148,224,0.15); color: #2494e0; }
-  .status-error { background: rgba(221,107,0,0.2); color: #dd6b00; }
+  .status-generating { background: rgba(36,148,224,0.15); color: #2494e0; }
+  .status-done { background: rgba(36,148,224,0.1); color: #2494e0; }
+  .status-error { background: rgba(221,107,0,0.15); color: #dd6b00; }
 
-  .result-prompt {
+  .btn-regen {
+    background: none;
+    border: 1px solid #ddd;
+    color: #bbb;
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .btn-regen:hover:not(:disabled) { border-color: #2494e0; color: #2494e0; }
+  .btn-regen:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .result-prompt-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
     padding: 10px 16px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .result-prompt-text {
     font-size: 11px;
     color: #aaa;
     line-height: 1.5;
-    border-bottom: 1px solid #e0e0e0;
+    flex: 1;
   }
+
+  .btn-edit {
+    background: none;
+    border: 1px solid #e0e0e0;
+    color: #ccc;
+    border-radius: 5px;
+    padding: 3px 10px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color 0.2s, color 0.2s;
+    flex-shrink: 0;
+  }
+
+  .btn-edit:hover { border-color: #2494e0; color: #2494e0; }
+
+  .prompt-edit-area {
+    display: none;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e0e0e0;
+    background: #fff;
+  }
+
+  .prompt-edit-area textarea {
+    width: 100%;
+    background: #f2f2f2;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: #063a6c;
+    font-family: 'Lexend', sans-serif;
+    font-weight: 300;
+    font-size: 11px;
+    line-height: 1.6;
+    outline: none;
+    resize: vertical;
+    min-height: 80px;
+    margin-bottom: 8px;
+    transition: border-color 0.2s;
+  }
+
+  .prompt-edit-area textarea:focus { border-color: #2494e0; }
+
+  .edit-actions { display: flex; gap: 8px; }
+
+  .btn-save-edit {
+    background: #2494e0;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .btn-save-edit:hover { opacity: 0.85; }
+
+  .btn-cancel-edit {
+    background: none;
+    border: 1px solid #ddd;
+    color: #999;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .btn-cancel-edit:hover { border-color: #dd6b00; color: #dd6b00; }
 
   .result-body { padding: 14px 16px; }
 
@@ -266,9 +390,18 @@
 
   .btn-download:hover { opacity: 0.85; }
 
-  .file-info {
+  .file-info { font-size: 11px; color: #999; }
+
+  .format-badge {
     font-size: 11px;
-    color: #999;
+    background: rgba(36,148,224,0.15);
+    color: #2494e0;
+    border: 1px solid rgba(36,148,224,0.3);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-family: 'Bebas Neue', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 1px;
   }
 
   .error-msg {
@@ -287,79 +420,88 @@
     border-radius: 10px;
     font-family: 'Lexend', sans-serif;
   }
-
-  .format-badge {
-    font-size: 11px;
-    background: rgba(36,148,224,0.15);
-    color: #2494e0;
-    border: 1px solid rgba(36,148,224,0.3);
-    border-radius: 4px;
-    padding: 3px 8px;
-    font-family: 'Bebas Neue', sans-serif;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>AEO <span>Image</span> Generator</h1>
-  <p class="subtitle">iTech Valet · Paste prompts below · One per line · Hit Generate · All images run automatically</p>
+  <div class="header-left">
+    <h1>AEO <span>Image</span> Generator</h1>
+    <p class="subtitle">iTech Valet · Paste PROMPT/ALT pairs from V1 · Hit Generate · All images run automatically</p>
+  </div>
+  <button class="btn-reset" onclick="resetAll()">↺ Reset</button>
 </header>
 
-<!-- API KEY -->
 <div class="api-section">
   <div class="section-label">Google AI API Key</div>
   <div class="api-row">
-    <input type="password" id="apiKey" placeholder="Paste your Google AI API key..." />
+    <input type="password" id="apiKey" placeholder="Paste your Google AI API key..." oninput="saveKey()" />
     <button class="toggle-key" onclick="toggleKey()">Show</button>
   </div>
+  <div class="api-hint">Saved for this tab session only — clears automatically when you close the tab.</div>
 </div>
 
-<!-- PROMPTS -->
 <div class="prompts-section">
-  <div class="section-label">Image Prompts — One Per Line</div>
-  <textarea id="promptsInput" placeholder="Paste the combined prompt+alt block from V1. Format — two lines per image:
+  <div class="section-label">Image Prompts</div>
+  <textarea id="promptsInput" placeholder="Paste the combined PROMPT/ALT block from V1:
+
 PROMPT: Modern flat illustration showing...
 ALT: chiropractic billing workflow showing claims processing
 
 PROMPT: Minimalist line art illustration showing...
 ALT: post-migration billing recovery process showing unlinked claim queue"></textarea>
-  <div class="prompt-hint">Paste PROMPT/ALT pairs from V1. Blank lines between pairs are ignored. Output: WebP at 85% quality · 16:9 aspect ratio · filename = number + alt text.</div>
+  <div class="prompt-hint">Paste PROMPT/ALT pairs from V1. Blank lines ignored. Filename = number + alt text. Output: WebP 85% · 16:9.</div>
 </div>
 
-<!-- CONTROLS -->
 <div class="controls-row">
   <button class="btn-generate" id="generateBtn" onclick="startGeneration()">⚡ Generate All</button>
-  <button class="btn-clear" onclick="clearResults()">Clear</button>
   <div class="global-status" id="globalStatus"></div>
 </div>
 
-<!-- RESULTS -->
 <div class="results-section" id="resultsSection">
   <div class="empty-state" id="emptyState">Images will appear here after generation</div>
 </div>
 
 <script>
   let isRunning = false;
+  const cardData = {};
+
+  // Session key persistence
+  window.addEventListener('load', () => {
+    const saved = sessionStorage.getItem('aeo_api_key');
+    if (saved) document.getElementById('apiKey').value = saved;
+  });
+
+  function saveKey() {
+    sessionStorage.setItem('aeo_api_key', document.getElementById('apiKey').value);
+  }
 
   function toggleKey() {
     const input = document.getElementById('apiKey');
     const btn = event.target;
-    if (input.type === 'password') {
-      input.type = 'text';
-      btn.textContent = 'Hide';
-    } else {
-      input.type = 'password';
-      btn.textContent = 'Show';
-    }
+    input.type = input.type === 'password' ? 'text' : 'password';
+    btn.textContent = input.type === 'password' ? 'Show' : 'Hide';
+  }
+
+  function resetAll() {
+    if (isRunning) return;
+    document.getElementById('promptsInput').value = '';
+    document.getElementById('resultsSection').innerHTML = '<div class="empty-state" id="emptyState">Images will appear here after generation</div>';
+    document.getElementById('generateBtn').textContent = '⚡ Generate All';
+    document.getElementById('generateBtn').disabled = false;
+    setGlobal('');
+    Object.keys(cardData).forEach(k => delete cardData[k]);
   }
 
   function setGlobal(text, active = false) {
     const el = document.getElementById('globalStatus');
     el.className = 'global-status' + (active ? ' active' : '');
     el.innerHTML = active ? `<span class="spinner"></span>${text}` : text;
+  }
+
+  function setStatus(index, type, text) {
+    const el = document.getElementById(`status-${index}`);
+    if (el) { el.className = `status-badge status-${type}`; el.textContent = text; }
   }
 
   function parsePrompts() {
@@ -375,7 +517,6 @@ ALT: post-migration billing recovery process showing unlinked claim queue"></tex
         currentPrompt = null;
       }
     }
-    // Fallback: if no PROMPT/ALT format detected, treat each line as a prompt with no alt
     if (pairs.length === 0) {
       lines.forEach(l => pairs.push({ prompt: l, alt: l.substring(0, 80) }));
     }
@@ -387,7 +528,7 @@ ALT: post-migration billing recovery process showing unlinked claim queue"></tex
     return `${index + 1} ${clean}`;
   }
 
-  function buildResultCard(index, prompt) {
+  function buildResultCard(index, promptText) {
     const section = document.getElementById('resultsSection');
     const empty = document.getElementById('emptyState');
     if (empty) empty.remove();
@@ -398,18 +539,71 @@ ALT: post-migration billing recovery process showing unlinked claim queue"></tex
     card.innerHTML = `
       <div class="result-header">
         <div class="result-label">Image ${index + 1}</div>
-        <span class="status-badge status-waiting" id="status-${index}">Waiting</span>
+        <div class="result-header-right">
+          <span class="status-badge status-waiting" id="status-${index}">Waiting</span>
+          <button class="btn-regen" id="regen-${index}" onclick="regenImage(${index})" disabled>↻ Regenerate</button>
+        </div>
       </div>
-      <div class="result-prompt">${prompt.substring(0, 120)}${prompt.length > 120 ? '...' : ''}</div>
+      <div class="result-prompt-row">
+        <div class="result-prompt-text" id="prompt-display-${index}">${promptText.substring(0, 120)}${promptText.length > 120 ? '...' : ''}</div>
+        <button class="btn-edit" onclick="toggleEdit(${index})">Edit</button>
+      </div>
+      <div class="prompt-edit-area" id="edit-area-${index}">
+        <textarea id="edit-textarea-${index}"></textarea>
+        <div class="edit-actions">
+          <button class="btn-save-edit" onclick="saveEdit(${index})">Save &amp; Regenerate</button>
+          <button class="btn-cancel-edit" onclick="cancelEdit(${index})">Cancel</button>
+        </div>
+      </div>
       <div class="result-body" id="body-${index}"></div>
     `;
     section.appendChild(card);
   }
 
-  function setStatus(index, type, text) {
-    const el = document.getElementById(`status-${index}`);
-    el.className = `status-badge status-${type}`;
-    el.textContent = text;
+  function toggleEdit(index) {
+    const area = document.getElementById(`edit-area-${index}`);
+    const isOpen = area.style.display === 'block';
+    area.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen && cardData[index]) {
+      document.getElementById(`edit-textarea-${index}`).value = cardData[index].prompt;
+    }
+  }
+
+  function cancelEdit(index) {
+    document.getElementById(`edit-area-${index}`).style.display = 'none';
+  }
+
+  function saveEdit(index) {
+    const newPrompt = document.getElementById(`edit-textarea-${index}`).value.trim();
+    if (!newPrompt) return;
+    cardData[index].prompt = newPrompt;
+    document.getElementById(`prompt-display-${index}`).textContent = newPrompt.substring(0, 120) + (newPrompt.length > 120 ? '...' : '');
+    document.getElementById(`edit-area-${index}`).style.display = 'none';
+    regenImage(index);
+  }
+
+  async function regenImage(index) {
+    if (isRunning) return;
+    const apiKey = document.getElementById('apiKey').value.trim();
+    if (!apiKey) { alert('Please enter your Google AI API key.'); return; }
+    if (!cardData[index]) return;
+
+    const regenBtn = document.getElementById(`regen-${index}`);
+    regenBtn.disabled = true;
+    document.getElementById('generateBtn').disabled = true;
+    setGlobal(`Regenerating image ${index + 1}...`, true);
+
+    try {
+      await generateImage(cardData[index].prompt, cardData[index].alt, index, apiKey);
+      setGlobal(`Image ${index + 1} regenerated successfully.`);
+    } catch (err) {
+      setStatus(index, 'error', 'Failed');
+      document.getElementById(`body-${index}`).innerHTML = `<div class="error-msg">⚠ ${err.message}</div>`;
+      setGlobal(`Image ${index + 1} failed. Try again.`);
+    }
+
+    regenBtn.disabled = false;
+    document.getElementById('generateBtn').disabled = false;
   }
 
   async function convertToWebP(base64Data, mimeType, quality = 0.85) {
@@ -422,12 +616,10 @@ ALT: post-migration billing recovery process showing unlinked claim queue"></tex
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0);
         const webpData = canvas.toDataURL('image/webp', quality);
-        if (webpData.startsWith('data:image/webp')) {
-          resolve({ data: webpData, ext: 'webp' });
-        } else {
-          const jpgData = canvas.toDataURL('image/jpeg', quality);
-          resolve({ data: jpgData, ext: 'jpg' });
-        }
+        resolve(webpData.startsWith('data:image/webp')
+          ? { data: webpData, ext: 'webp' }
+          : { data: canvas.toDataURL('image/jpeg', quality), ext: 'jpg' }
+        );
       };
       img.onerror = reject;
       img.src = `data:${mimeType};base64,${base64Data}`;
@@ -435,8 +627,7 @@ ALT: post-migration billing recovery process showing unlinked claim queue"></tex
   }
 
   function estimateFileSize(dataUrl) {
-    const base64 = dataUrl.split(',')[1];
-    const bytes = Math.round(base64.length * 0.75);
+    const bytes = Math.round(dataUrl.split(',')[1].length * 0.75);
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -444,6 +635,7 @@ ALT: post-migration billing recovery process showing unlinked claim queue"></tex
 
   async function generateImage(prompt, alt, index, apiKey) {
     setStatus(index, 'generating', 'Generating...');
+    document.getElementById(`body-${index}`).innerHTML = '';
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${apiKey}`,
@@ -451,51 +643,39 @@ ALT: post-migration billing recovery process showing unlinked claim queue"></tex
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{
-            parts: [{ text: prompt }]
-          }],
-          generationConfig: {
-            responseModalities: ["Text", "Image"]
-          }
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseModalities: ['Text', 'Image'] }
         })
       }
     );
 
     const data = await response.json();
-
-    if (data.error) {
-      throw new Error(data.error.message || 'API returned an error');
-    }
+    if (data.error) throw new Error(data.error.message || 'API error');
 
     const parts = data.candidates?.[0]?.content?.parts || [];
     const imagePart = parts.find(p => p.inlineData);
-    if (!imagePart) {
-      throw new Error('No image returned. Check your API key and quota.');
-    }
+    if (!imagePart) throw new Error('No image returned. Check your API key and quota.');
 
-    const mimeType = imagePart.inlineData.mimeType || 'image/png';
-    const converted = await convertToWebP(imagePart.inlineData.data, mimeType, 0.85);
+    const converted = await convertToWebP(imagePart.inlineData.data, imagePart.inlineData.mimeType || 'image/png', 0.85);
     const filename = sanitizeFilename(alt, index);
     const fileSize = estimateFileSize(converted.data);
 
-    const body = document.getElementById(`body-${index}`);
-    body.innerHTML = `
+    document.getElementById(`body-${index}`).innerHTML = `
       <img src="${converted.data}" alt="Generated image ${index + 1}" />
       <div class="result-actions">
-        <a class="btn-download" href="${converted.data}" download="${filename}.${converted.ext}">
-          ↓ Download .${converted.ext.toUpperCase()}
-        </a>
+        <a class="btn-download" href="${converted.data}" download="${filename}.${converted.ext}">↓ Download .${converted.ext.toUpperCase()}</a>
         <span class="format-badge">${converted.ext.toUpperCase()}</span>
         <span class="file-info">~${fileSize} · 16:9</span>
       </div>
     `;
 
     setStatus(index, 'done', 'Done ✓');
+    const regenBtn = document.getElementById(`regen-${index}`);
+    if (regenBtn) regenBtn.disabled = false;
   }
 
   async function startGeneration() {
     if (isRunning) return;
-
     const apiKey = document.getElementById('apiKey').value.trim();
     if (!apiKey) { alert('Please enter your Google AI API key.'); return; }
 
@@ -504,11 +684,13 @@ ALT: post-migration billing recovery process showing unlinked claim queue"></tex
 
     isRunning = true;
     document.getElementById('generateBtn').disabled = true;
+    document.getElementById('resultsSection').innerHTML = '';
+    Object.keys(cardData).forEach(k => delete cardData[k]);
 
-    const section = document.getElementById('resultsSection');
-    section.innerHTML = '';
-
-    prompts.forEach((p, i) => buildResultCard(i, p.prompt));
+    prompts.forEach((p, i) => {
+      cardData[i] = { prompt: p.prompt, alt: p.alt };
+      buildResultCard(i, p.prompt);
+    });
 
     let successCount = 0;
     let errorCount = 0;
@@ -520,29 +702,22 @@ ALT: post-migration billing recovery process showing unlinked claim queue"></tex
         successCount++;
       } catch (err) {
         setStatus(i, 'error', 'Failed');
-        const body = document.getElementById(`body-${i}`);
-        body.innerHTML = `<div class="error-msg">⚠ ${err.message}</div>`;
+        document.getElementById(`body-${i}`).innerHTML = `<div class="error-msg">⚠ ${err.message}</div>`;
+        const regenBtn = document.getElementById(`regen-${i}`);
+        if (regenBtn) regenBtn.disabled = false;
         errorCount++;
       }
       if (i < prompts.length - 1) await new Promise(r => setTimeout(r, 1500));
     }
 
-    if (errorCount === 0) {
-      setGlobal(`✓ All ${successCount} images complete. Download and upload to WordPress.`);
-    } else {
-      setGlobal(`${successCount} done · ${errorCount} failed. Retry failed ones individually.`);
-    }
+    setGlobal(errorCount === 0
+      ? `✓ All ${successCount} images complete. Download and upload to WordPress.`
+      : `${successCount} done · ${errorCount} failed — use Regenerate on failed images.`
+    );
 
     document.getElementById('generateBtn').disabled = false;
     document.getElementById('generateBtn').textContent = '⚡ Generate Again';
     isRunning = false;
-  }
-
-  function clearResults() {
-    document.getElementById('resultsSection').innerHTML = '<div class="empty-state" id="emptyState">Images will appear here after generation</div>';
-    document.getElementById('promptsInput').value = '';
-    document.getElementById('generateBtn').textContent = '⚡ Generate All';
-    setGlobal('');
   }
 </script>
 
