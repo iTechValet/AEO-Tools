@@ -320,12 +320,13 @@
 <!-- PROMPTS -->
 <div class="prompts-section">
   <div class="section-label">Image Prompts — One Per Line</div>
-  <textarea id="promptsInput" placeholder="Paste your image prompts here, one per line. Each line = one image generated.
+  <textarea id="promptsInput" placeholder="Paste the combined prompt+alt block from V1. Format — two lines per image:
+PROMPT: Modern flat illustration showing...
+ALT: chiropractic billing workflow showing claims processing
 
-Example:
-Modern flat illustration showing stylized cartoon business owner at clean desk...
-Minimalist line art illustration showing a three-stage recovery process..."></textarea>
-  <div class="prompt-hint">Each line = one image. Blank lines ignored. Output: WebP at 85% quality · 16:9 aspect ratio · smallest file size.</div>
+PROMPT: Minimalist line art illustration showing...
+ALT: post-migration billing recovery process showing unlinked claim queue"></textarea>
+  <div class="prompt-hint">Paste PROMPT/ALT pairs from V1. Blank lines between pairs are ignored. Output: WebP at 85% quality · 16:9 aspect ratio · filename = number + alt text.</div>
 </div>
 
 <!-- CONTROLS -->
@@ -363,17 +364,27 @@ Minimalist line art illustration showing a three-stage recovery process..."></te
 
   function parsePrompts() {
     const raw = document.getElementById('promptsInput').value;
-    return raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const pairs = [];
+    let currentPrompt = null;
+    for (const line of lines) {
+      if (line.toUpperCase().startsWith('PROMPT:')) {
+        currentPrompt = line.substring(7).trim();
+      } else if (line.toUpperCase().startsWith('ALT:') && currentPrompt) {
+        pairs.push({ prompt: currentPrompt, alt: line.substring(4).trim() });
+        currentPrompt = null;
+      }
+    }
+    // Fallback: if no PROMPT/ALT format detected, treat each line as a prompt with no alt
+    if (pairs.length === 0) {
+      lines.forEach(l => pairs.push({ prompt: l, alt: l.substring(0, 80) }));
+    }
+    return pairs;
   }
 
-  function sanitizeFilename(prompt) {
-    return prompt
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .trim()
-      .replace(/\s+/g, '-')
-      .substring(0, 80)
-      .replace(/-+$/, '');
+  function sanitizeFilename(alt, index) {
+    const clean = alt.replace(/[^a-zA-Z0-9\s]/g, '').trim().substring(0, 80).trim();
+    return `${index + 1} ${clean}`;
   }
 
   function buildResultCard(index, prompt) {
@@ -431,7 +442,7 @@ Minimalist line art illustration showing a three-stage recovery process..."></te
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
-  async function generateImage(prompt, index, apiKey) {
+  async function generateImage(prompt, alt, index, apiKey) {
     setStatus(index, 'generating', 'Generating...');
 
     const response = await fetch(
@@ -464,7 +475,7 @@ Minimalist line art illustration showing a three-stage recovery process..."></te
 
     const mimeType = imagePart.inlineData.mimeType || 'image/png';
     const converted = await convertToWebP(imagePart.inlineData.data, mimeType, 0.85);
-    const filename = sanitizeFilename(prompt);
+    const filename = sanitizeFilename(alt, index);
     const fileSize = estimateFileSize(converted.data);
 
     const body = document.getElementById(`body-${index}`);
@@ -497,7 +508,7 @@ Minimalist line art illustration showing a three-stage recovery process..."></te
     const section = document.getElementById('resultsSection');
     section.innerHTML = '';
 
-    prompts.forEach((p, i) => buildResultCard(i, p));
+    prompts.forEach((p, i) => buildResultCard(i, p.prompt));
 
     let successCount = 0;
     let errorCount = 0;
@@ -505,7 +516,7 @@ Minimalist line art illustration showing a three-stage recovery process..."></te
     for (let i = 0; i < prompts.length; i++) {
       setGlobal(`Generating image ${i + 1} of ${prompts.length}...`, true);
       try {
-        await generateImage(prompts[i], i, apiKey);
+        await generateImage(prompts[i].prompt, prompts[i].alt, i, apiKey);
         successCount++;
       } catch (err) {
         setStatus(i, 'error', 'Failed');
