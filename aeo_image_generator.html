@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AEO Image Generator — iTech Valet</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Lexend', sans-serif;
+    font-weight: 300;
+    background: #ffffff;
+    color: #063a6c;
+    min-height: 100vh;
+    padding: 32px 24px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 28px;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 20px;
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 38px;
+    text-transform: uppercase;
+    color: #063a6c;
+    letter-spacing: 3px;
+    margin-bottom: 6px;
+  }
+
+  h1 span { color: #2494e0; }
+
+  .subtitle {
+    font-size: 13px;
+    color: #888;
+    line-height: 1.5;
+  }
+
+  .section-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #2494e0;
+    margin-bottom: 8px;
+  }
+
+  .api-section { margin-bottom: 24px; }
+
+  .api-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .api-row input {
+    flex: 1;
+    background: #f2f2f2;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: #063a6c;
+    font-family: 'Lexend', sans-serif;
+    font-weight: 300;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .api-row input::placeholder { color: #aaa; }
+  .api-row input:focus { border-color: #2494e0; }
+
+  .toggle-key {
+    background: none;
+    border: 1px solid #ddd;
+    color: #888;
+    border-radius: 8px;
+    padding: 12px 14px;
+    cursor: pointer;
+    font-family: 'Lexend', sans-serif;
+    font-size: 13px;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .toggle-key:hover { border-color: #2494e0; color: #2494e0; }
+
+  .prompts-section { margin-bottom: 24px; }
+
+  .prompts-section textarea {
+    width: 100%;
+    background: #f2f2f2;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 14px 16px;
+    color: #063a6c;
+    font-family: 'Lexend', sans-serif;
+    font-weight: 300;
+    font-size: 12px;
+    line-height: 1.6;
+    outline: none;
+    resize: vertical;
+    min-height: 200px;
+    transition: border-color 0.2s;
+  }
+
+  .prompts-section textarea::placeholder { color: #aaa; }
+  .prompts-section textarea:focus { border-color: #2494e0; }
+
+  .prompt-hint {
+    font-size: 11px;
+    color: #999;
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  .controls-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+
+  .btn-generate {
+    background: #dd6b00;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 13px 32px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-generate:hover { opacity: 0.85; }
+  .btn-generate:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .btn-clear {
+    background: none;
+    border: 1px solid #ccc;
+    color: #999;
+    border-radius: 8px;
+    padding: 13px 20px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .btn-clear:hover { border-color: #dd6b00; color: #dd6b00; }
+
+  .global-status {
+    font-size: 12px;
+    color: #999;
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .global-status.active { color: #2494e0; }
+
+  .spinner {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 2px solid #2494e0;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .results-section { display: flex; flex-direction: column; gap: 16px; }
+
+  .result-card {
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .result-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #2494e0;
+  }
+
+  .status-badge {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 3px 10px;
+    border-radius: 4px;
+  }
+
+  .status-waiting { background: #ececec; color: #aaa; }
+  .status-generating { background: rgba(36,148,224,0.2); color: #2494e0; }
+  .status-done { background: rgba(36,148,224,0.15); color: #2494e0; }
+  .status-error { background: rgba(221,107,0,0.2); color: #dd6b00; }
+
+  .result-prompt {
+    padding: 10px 16px;
+    font-size: 11px;
+    color: #aaa;
+    line-height: 1.5;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .result-body { padding: 14px 16px; }
+
+  .result-body img {
+    width: 100%;
+    border-radius: 6px;
+    display: block;
+    margin-bottom: 10px;
+  }
+
+  .result-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .btn-download {
+    background: #dd6b00;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: opacity 0.2s;
+  }
+
+  .btn-download:hover { opacity: 0.85; }
+
+  .file-info {
+    font-size: 11px;
+    color: #999;
+  }
+
+  .error-msg {
+    font-size: 12px;
+    color: #dd6b00;
+    line-height: 1.5;
+    padding: 8px 0;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #bbb;
+    font-size: 13px;
+    border: 1px dashed #ddd;
+    border-radius: 10px;
+    font-family: 'Lexend', sans-serif;
+  }
+
+  .format-badge {
+    font-size: 11px;
+    background: rgba(36,148,224,0.15);
+    color: #2494e0;
+    border: 1px solid rgba(36,148,224,0.3);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-family: 'Bebas Neue', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AEO <span>Image</span> Generator</h1>
+  <p class="subtitle">iTech Valet · Paste prompts below · One per line · Hit Generate · All images run automatically</p>
+</header>
+
+<!-- API KEY -->
+<div class="api-section">
+  <div class="section-label">Google AI API Key</div>
+  <div class="api-row">
+    <input type="password" id="apiKey" placeholder="Paste your Google AI API key..." />
+    <button class="toggle-key" onclick="toggleKey()">Show</button>
+  </div>
+</div>
+
+<!-- PROMPTS -->
+<div class="prompts-section">
+  <div class="section-label">Image Prompts — One Per Line</div>
+  <textarea id="promptsInput" placeholder="Paste your image prompts here, one per line. Each line = one image generated.
+
+Example:
+Modern flat illustration showing stylized cartoon business owner at clean desk...
+Minimalist line art illustration showing a three-stage recovery process..."></textarea>
+  <div class="prompt-hint">Each line = one image. Blank lines ignored. Output: WebP at 85% quality · 16:9 aspect ratio · smallest file size.</div>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls-row">
+  <button class="btn-generate" id="generateBtn" onclick="startGeneration()">⚡ Generate All</button>
+  <button class="btn-clear" onclick="clearResults()">Clear</button>
+  <div class="global-status" id="globalStatus"></div>
+</div>
+
+<!-- RESULTS -->
+<div class="results-section" id="resultsSection">
+  <div class="empty-state" id="emptyState">Images will appear here after generation</div>
+</div>
+
+<script>
+  let isRunning = false;
+
+  function toggleKey() {
+    const input = document.getElementById('apiKey');
+    const btn = event.target;
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.textContent = 'Hide';
+    } else {
+      input.type = 'password';
+      btn.textContent = 'Show';
+    }
+  }
+
+  function setGlobal(text, active = false) {
+    const el = document.getElementById('globalStatus');
+    el.className = 'global-status' + (active ? ' active' : '');
+    el.innerHTML = active ? `<span class="spinner"></span>${text}` : text;
+  }
+
+  function parsePrompts() {
+    const raw = document.getElementById('promptsInput').value;
+    return raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  }
+
+  function sanitizeFilename(prompt) {
+    return prompt
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .substring(0, 80)
+      .replace(/-+$/, '');
+  }
+
+  function buildResultCard(index, prompt) {
+    const section = document.getElementById('resultsSection');
+    const empty = document.getElementById('emptyState');
+    if (empty) empty.remove();
+
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.id = `card-${index}`;
+    card.innerHTML = `
+      <div class="result-header">
+        <div class="result-label">Image ${index + 1}</div>
+        <span class="status-badge status-waiting" id="status-${index}">Waiting</span>
+      </div>
+      <div class="result-prompt">${prompt.substring(0, 120)}${prompt.length > 120 ? '...' : ''}</div>
+      <div class="result-body" id="body-${index}"></div>
+    `;
+    section.appendChild(card);
+  }
+
+  function setStatus(index, type, text) {
+    const el = document.getElementById(`status-${index}`);
+    el.className = `status-badge status-${type}`;
+    el.textContent = text;
+  }
+
+  async function convertToWebP(base64Data, mimeType, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const webpData = canvas.toDataURL('image/webp', quality);
+        if (webpData.startsWith('data:image/webp')) {
+          resolve({ data: webpData, ext: 'webp' });
+        } else {
+          const jpgData = canvas.toDataURL('image/jpeg', quality);
+          resolve({ data: jpgData, ext: 'jpg' });
+        }
+      };
+      img.onerror = reject;
+      img.src = `data:${mimeType};base64,${base64Data}`;
+    });
+  }
+
+  function estimateFileSize(dataUrl) {
+    const base64 = dataUrl.split(',')[1];
+    const bytes = Math.round(base64.length * 0.75);
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  async function generateImage(prompt, index, apiKey) {
+    setStatus(index, 'generating', 'Generating...');
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }],
+          generationConfig: {
+            responseModalities: ["Text", "Image"]
+          }
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error(data.error.message || 'API returned an error');
+    }
+
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    const imagePart = parts.find(p => p.inlineData);
+    if (!imagePart) {
+      throw new Error('No image returned. Check your API key and quota.');
+    }
+
+    const mimeType = imagePart.inlineData.mimeType || 'image/png';
+    const converted = await convertToWebP(imagePart.inlineData.data, mimeType, 0.85);
+    const filename = sanitizeFilename(prompt);
+    const fileSize = estimateFileSize(converted.data);
+
+    const body = document.getElementById(`body-${index}`);
+    body.innerHTML = `
+      <img src="${converted.data}" alt="Generated image ${index + 1}" />
+      <div class="result-actions">
+        <a class="btn-download" href="${converted.data}" download="${filename}.${converted.ext}">
+          ↓ Download .${converted.ext.toUpperCase()}
+        </a>
+        <span class="format-badge">${converted.ext.toUpperCase()}</span>
+        <span class="file-info">~${fileSize} · 16:9</span>
+      </div>
+    `;
+
+    setStatus(index, 'done', 'Done ✓');
+  }
+
+  async function startGeneration() {
+    if (isRunning) return;
+
+    const apiKey = document.getElementById('apiKey').value.trim();
+    if (!apiKey) { alert('Please enter your Google AI API key.'); return; }
+
+    const prompts = parsePrompts();
+    if (prompts.length === 0) { alert('Please enter at least one prompt.'); return; }
+
+    isRunning = true;
+    document.getElementById('generateBtn').disabled = true;
+
+    const section = document.getElementById('resultsSection');
+    section.innerHTML = '';
+
+    prompts.forEach((p, i) => buildResultCard(i, p));
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < prompts.length; i++) {
+      setGlobal(`Generating image ${i + 1} of ${prompts.length}...`, true);
+      try {
+        await generateImage(prompts[i], i, apiKey);
+        successCount++;
+      } catch (err) {
+        setStatus(i, 'error', 'Failed');
+        const body = document.getElementById(`body-${i}`);
+        body.innerHTML = `<div class="error-msg">⚠ ${err.message}</div>`;
+        errorCount++;
+      }
+      if (i < prompts.length - 1) await new Promise(r => setTimeout(r, 1500));
+    }
+
+    if (errorCount === 0) {
+      setGlobal(`✓ All ${successCount} images complete. Download and upload to WordPress.`);
+    } else {
+      setGlobal(`${successCount} done · ${errorCount} failed. Retry failed ones individually.`);
+    }
+
+    document.getElementById('generateBtn').disabled = false;
+    document.getElementById('generateBtn').textContent = '⚡ Generate Again';
+    isRunning = false;
+  }
+
+  function clearResults() {
+    document.getElementById('resultsSection').innerHTML = '<div class="empty-state" id="emptyState">Images will appear here after generation</div>';
+    document.getElementById('promptsInput').value = '';
+    document.getElementById('generateBtn').textContent = '⚡ Generate All';
+    setGlobal('');
+  }
+</script>
+
+</body>
+</html>
