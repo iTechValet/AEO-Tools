@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iTech Valet — AEO Article Creation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue: #063a6c;
+    --accent: #2494e0;
+    --orange: #dd6b00;
+    --bg: #ffffff;
+    --surface: #f9f9f9;
+    --border: #e0e0e0;
+    --muted: #888;
+    --faint: #aaa;
+  }
+
+  body {
+    font-family: 'Lexend', sans-serif;
+    font-weight: 300;
+    background: var(--bg);
+    color: var(--blue);
+    min-height: 100vh;
+    padding: 32px 24px;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  /* HEADER */
+  header {
+    margin-bottom: 28px;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 20px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .header-left h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 38px;
+    text-transform: uppercase;
+    color: var(--blue);
+    letter-spacing: 3px;
+    margin-bottom: 6px;
+  }
+
+  .header-left h1 span { color: var(--accent); }
+  .subtitle { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  /* SECTION LABEL */
+  .section-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  /* API KEYS SECTION */
+  .keys-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+
+  .keys-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+
+  .key-group { display: flex; flex-direction: column; gap: 6px; }
+
+  .key-group label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    font-weight: 400;
+  }
+
+  .key-row { display: flex; gap: 6px; }
+
+  .key-row input {
+    flex: 1;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 12px;
+    color: var(--blue);
+    font-family: 'Lexend', sans-serif;
+    font-weight: 300;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .key-row input:focus { border-color: var(--accent); }
+  .key-row input::placeholder { color: var(--faint); }
+
+  .btn-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-family: 'Lexend', sans-serif;
+    font-size: 11px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  .key-hint { font-size: 11px; color: #ccc; }
+
+  /* SETUP SECTION */
+  .setup-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+
+  .setup-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    align-items: end;
+  }
+
+  .setup-group { display: flex; flex-direction: column; gap: 6px; }
+
+  .setup-group label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    font-weight: 400;
+  }
+
+  .setup-group select,
+  .setup-group input {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: var(--blue);
+    font-family: 'Lexend', sans-serif;
+    font-weight: 300;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+
+  .setup-group select:focus,
+  .setup-group input:focus { border-color: var(--accent); }
+
+  .setup-group input::placeholder { color: var(--faint); }
+
+  .btn-run {
+    background: var(--orange);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 28px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+    width: 100%;
+  }
+
+  .btn-run:hover { opacity: 0.85; }
+  .btn-run:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* PIPELINE STEPS */
+  .pipeline { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+
+  .step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .step-card.active { border-color: var(--accent); }
+  .step-card.done { border-color: #4caf50; }
+  .step-card.error { border-color: var(--orange); }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+  }
+
+  .step-number {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--border);
+    line-height: 1;
+    min-width: 28px;
+    transition: color 0.3s;
+  }
+
+  .step-card.active .step-number { color: var(--accent); }
+  .step-card.done .step-number { color: #4caf50; }
+  .step-card.error .step-number { color: var(--orange); }
+
+  .step-info { flex: 1; }
+
+  .step-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 1.5px;
+    color: var(--blue);
+    margin-bottom: 2px;
+  }
+
+  .step-desc { font-size: 11px; color: var(--faint); }
+
+  .step-badge {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  .badge-waiting { background: #ececec; color: var(--faint); }
+  .badge-running { background: rgba(36,148,224,0.15); color: var(--accent); }
+  .badge-done { background: rgba(76,175,80,0.15); color: #4caf50; }
+  .badge-error { background: rgba(221,107,0,0.15); color: var(--orange); }
+  .badge-waiting-input { background: rgba(221,107,0,0.1); color: var(--orange); }
+
+  .step-body {
+    display: none;
+    border-top: 1px solid var(--border);
+    padding: 16px 18px;
+  }
+
+  .step-body.open { display: block; }
+
+  .step-output {
+    font-size: 12px;
+    color: var(--blue);
+    line-height: 1.7;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: monospace;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--accent);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* CHECKPOINT */
+  .checkpoint-box {
+    background: #fff8f0;
+    border: 1px solid #f5c88a;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 12px;
+  }
+
+  .checkpoint-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 15px;
+    letter-spacing: 1.5px;
+    color: var(--orange);
+    margin-bottom: 8px;
+  }
+
+  .checkpoint-box textarea {
+    width: 100%;
+    background: #fff;
+    border: 1px solid #f5c88a;
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: var(--blue);
+    font-family: 'Lexend', sans-serif;
+    font-weight: 300;
+    font-size: 12px;
+    line-height: 1.6;
+    outline: none;
+    resize: vertical;
+    min-height: 70px;
+    margin-bottom: 10px;
+  }
+
+  .checkpoint-actions { display: flex; gap: 8px; }
+
+  .btn-checkpoint-go {
+    background: var(--orange);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 20px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .btn-checkpoint-go:hover { opacity: 0.85; }
+
+  /* HTML PREVIEW */
+  .preview-box {
+    margin-top: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .preview-label {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 14px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+  }
+
+  .preview-frame {
+    width: 100%;
+    height: 400px;
+    border: none;
+    background: #fff;
+  }
+
+  /* IMAGE SECTION */
+  .images-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    display: none;
+  }
+
+  .images-section.open { display: block; }
+
+  .image-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .image-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .image-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+  }
+
+  .image-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+  }
+
+  .image-card-body { padding: 12px 14px; }
+
+  .image-card-body img {
+    width: 100%;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .url-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+  }
+
+  .url-input-row label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--faint);
+    white-space: nowrap;
+    font-weight: 400;
+  }
+
+  .url-input-row input {
+    flex: 1;
+    background: #f9f9f9;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 7px 10px;
+    color: var(--blue);
+    font-family: 'Lexend', sans-serif;
+    font-weight: 300;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .url-input-row input:focus { border-color: var(--accent); }
+  .url-input-row input::placeholder { color: #ccc; }
+  .url-input-row input.filled { border-color: #4caf50; }
+
+  .btn-regen {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--faint);
+    border-radius: 5px;
+    padding: 5px 12px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .btn-regen:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-download-img {
+    background: var(--orange);
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 5px 12px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: opacity 0.2s;
+  }
+
+  .btn-download-img:hover { opacity: 0.85; }
+
+  .assemble-row {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .btn-assemble {
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 28px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .btn-assemble:hover { opacity: 0.85; }
+  .btn-assemble:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .assemble-hint { font-size: 12px; color: var(--faint); }
+
+  /* OUTPUTS */
+  .outputs-section {
+    background: var(--surface);
+    border: 1px solid #4caf50;
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    display: none;
+  }
+
+  .outputs-section.open { display: block; }
+
+  .outputs-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: #4caf50;
+    margin-bottom: 16px;
+  }
+
+  .output-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .btn-output {
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 24px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    text-decoration: none;
+    display: inline-block;
+  }
+
+  .btn-output:hover { opacity: 0.85; }
+  .btn-output.orange { background: var(--orange); }
+
+  /* COST TRACKER */
+  .cost-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 18px;
+    margin-bottom: 24px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+
+  .cost-item { display: flex; flex-direction: column; gap: 2px; }
+  .cost-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--faint); }
+  .cost-value { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--blue); letter-spacing: 1px; }
+  .cost-value.orange { color: var(--orange); }
+
+  /* GLOBAL STATUS */
+  .global-status {
+    font-size: 13px;
+    color: var(--accent);
+    min-height: 20px;
+    margin-bottom: 16px;
+    font-weight: 400;
+  }
+
+  .error-msg { color: var(--orange); font-size: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>iTech Valet <span>AEO Article Creation</span></h1>
+    <p class="subtitle">Select client · Drop topic · Hit Run · Article delivers itself</p>
+  </div>
+</header>
+
+<!-- API KEYS -->
+<div class="keys-section">
+  <div class="section-label">API Keys — Session Only</div>
+  <div class="keys-grid">
+    <div class="key-group">
+      <label>Google Drive API Key</label>
+      <div class="key-row">
+        <input type="password" id="keyDrive" placeholder="Paste Drive API key..." oninput="saveKeys()" />
+        <button class="btn-toggle" onclick="toggleKey('keyDrive', this)">Show</button>
+      </div>
+      <div class="key-hint">Fetches docs from Drive folders</div>
+    </div>
+    <div class="key-group">
+      <label>Gemini API Key</label>
+      <div class="key-row">
+        <input type="password" id="keyGemini" placeholder="Paste Gemini API key..." oninput="saveKeys()" />
+        <button class="btn-toggle" onclick="toggleKey('keyGemini', this)">Show</button>
+      </div>
+      <div class="key-hint">Research, validation + image generation</div>
+    </div>
+    <div class="key-group">
+      <label>Anthropic API Key</label>
+      <div class="key-row">
+        <input type="password" id="keyAnthropic" placeholder="Paste Anthropic API key..." oninput="saveKeys()" />
+        <button class="btn-toggle" onclick="toggleKey('keyAnthropic', this)">Show</button>
+      </div>
+      <div class="key-hint">V1, V2, and Final assembly</div>
+    </div>
+  </div>
+</div>
+
+<!-- SETUP -->
+<div class="setup-section">
+  <div class="section-label">New Article</div>
+  <div class="setup-row">
+    <div class="setup-group">
+      <label>Client</label>
+      <select id="clientSelect">
+        <option value="">— Select client —</option>
+      </select>
+    </div>
+    <div class="setup-group">
+      <label>Article Topic (exact match to Column D)</label>
+      <input type="text" id="topicInput" placeholder="Paste topic exactly as it appears in Monday.com..." />
+    </div>
+    <div class="setup-group">
+      <label>&nbsp;</label>
+      <button class="btn-run" id="runBtn" onclick="startPipeline()">⚡ Run Pipeline</button>
+    </div>
+  </div>
+</div>
+
+<!-- GLOBAL STATUS -->
+<div class="global-status" id="globalStatus"></div>
+
+<!-- COST TRACKER -->
+<div class="cost-bar">
+  <div class="cost-item">
+    <div class="cost-label">Gemini Tokens</div>
+    <div class="cost-value" id="costGeminiTokens">0</div>
+  </div>
+  <div class="cost-item">
+    <div class="cost-label">Claude Input Tokens</div>
+    <div class="cost-value" id="costClaudeIn">0</div>
+  </div>
+  <div class="cost-item">
+    <div class="cost-label">Claude Output Tokens</div>
+    <div class="cost-value" id="costClaudeOut">0</div>
+  </div>
+  <div class="cost-item">
+    <div class="cost-label">Images Generated</div>
+    <div class="cost-value" id="costImages">0</div>
+  </div>
+  <div class="cost-item">
+    <div class="cost-label">Est. Article Cost</div>
+    <div class="cost-value orange" id="costTotal">$0.00</div>
+  </div>
+</div>
+
+<!-- PIPELINE STEPS -->
+<div class="pipeline">
+
+  <!-- STEP 1: Load Documents -->
+  <div class="step-card" id="step1">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div class="step-info">
+        <div class="step-title">Load Documents</div>
+        <div class="step-desc">Fetching 4.3A, 4.4, 2.2, 2.3, 4.3B + sheet row from Google Drive</div>
+      </div>
+      <div class="step-badge badge-waiting" id="badge1">Waiting</div>
+    </div>
+    <div class="step-body" id="body1">
+      <div class="step-output" id="output1"></div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Gemini Research -->
+  <div class="step-card" id="step2">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div class="step-info">
+        <div class="step-title">Gemini Research Brief</div>
+        <div class="step-desc">Prompt 1 — 8 deliverables: title, sources, intent map, FAQ seeds, links, POV anchors</div>
+      </div>
+      <div class="step-badge badge-waiting" id="badge2">Waiting</div>
+    </div>
+    <div class="step-body" id="body2">
+      <div class="step-output" id="output2"></div>
+    </div>
+  </div>
+
+  <!-- STEP 3: Claude V1 -->
+  <div class="step-card" id="step3">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div class="step-info">
+        <div class="step-title">Claude V1 — Article Architecture</div>
+        <div class="step-desc">Prompt 2 — Full structure, all links, all POV slots, tables, schema, image prompts</div>
+      </div>
+      <div class="step-badge badge-waiting" id="badge3">Waiting</div>
+    </div>
+    <div class="step-body" id="body3">
+      <div class="step-output" id="output3"></div>
+    </div>
+  </div>
+
+  <!-- STEP 4: Gemini Validation -->
+  <div class="step-card" id="step4">
+    <div class="step-header">
+      <div class="step-number">4</div>
+      <div class="step-info">
+        <div class="step-title">Gemini Validation</div>
+        <div class="step-desc">Prompt 3 — Full QC pass, FAIL items only reported</div>
+      </div>
+      <div class="step-badge badge-waiting" id="badge4">Waiting</div>
+    </div>
+    <div class="step-body" id="body4">
+      <div class="step-output" id="output4"></div>
+    </div>
+  </div>
+
+  <!-- STEP 5: Claude V2 -->
+  <div class="step-card" id="step5">
+    <div class="step-header">
+      <div class="step-number">5</div>
+      <div class="step-info">
+        <div class="step-title">Claude V2 — Fix + Voice Rewrite</div>
+        <div class="step-desc">Prompt 4 — Apply Gemini fixes then blank-page voice rewrite in author's voice</div>
+      </div>
+      <div class="step-badge badge-waiting" id="badge5">Waiting</div>
+    </div>
+    <div class="step-body" id="body5">
+      <div class="step-output" id="output5"></div>
+    </div>
+  </div>
+
+  <!-- STEP 6: Human Checkpoint -->
+  <div class="step-card" id="step6">
+    <div class="step-header">
+      <div class="step-number">6</div>
+      <div class="step-info">
+        <div class="step-title">Human Checkpoint</div>
+        <div class="step-desc">Review V2 — describe any issues or leave blank to continue</div>
+      </div>
+      <div class="step-badge badge-waiting" id="badge6">Waiting</div>
+    </div>
+    <div class="step-body" id="body6">
+      <div class="step-output" id="output6" style="margin-bottom:12px;"></div>
+      <div class="checkpoint-box" id="checkpointBox" style="display:none;">
+        <div class="checkpoint-title">⚠ Review V2 Before Final Assembly</div>
+        <p style="font-size:12px;color:#888;margin-bottom:10px;">Scan the article above. Type anything that looks wrong, or leave blank if it looks good.</p>
+        <textarea id="checkpointFeedback" placeholder="e.g. 'Look at the V2 requirements again and fix the voice in the intro section' — or leave blank"></textarea>
+        <div class="checkpoint-actions">
+          <button class="btn-checkpoint-go" onclick="proceedFromCheckpoint()">Looks Good — Continue</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 7: Final Assembly -->
+  <div class="step-card" id="step7">
+    <div class="step-header">
+      <div class="step-number">7</div>
+      <div class="step-info">
+        <div class="step-title">Claude Final — Assembly + HTML QC</div>
+        <div class="step-desc">Prompt 5 — 24-item checklist, auto-fix, Final MD + Final TXT with image URLs</div>
+      </div>
+      <div class="step-badge badge-waiting" id="badge7">Waiting</div>
+    </div>
+    <div class="step-body" id="body7">
+      <div class="step-output" id="output7"></div>
+      <div class="preview-box" id="previewBox" style="display:none;margin-top:12px;">
+        <div class="preview-label">HTML Preview</div>
+        <iframe class="preview-frame" id="previewFrame"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 8: HTML QC -->
+  <div class="step-card" id="step8">
+    <div class="step-header">
+      <div class="step-number">8</div>
+      <div class="step-info">
+        <div class="step-title">Claude HTML QC — Final TXT Validation</div>
+        <div class="step-desc">Prompt 6 — 7-check HTML audit against 4.3B spec: separators, spacing, ToC colors, FAQ duplication, element order, CTA format</div>
+      </div>
+      <div class="step-badge badge-waiting" id="badge8">Waiting</div>
+    </div>
+    <div class="step-body" id="body8">
+      <div class="step-output" id="output8" style="margin-bottom:12px;"></div>
+      <div class="preview-box" id="previewBox8" style="display:none;margin-bottom:12px;">
+        <div class="preview-label">HTML Preview — Final QC Output</div>
+        <iframe class="preview-frame" id="previewFrame8"></iframe>
+      </div>
+      <div id="rerunQCRow" style="display:none;margin-top:8px;">
+        <button class="btn-checkpoint-go" onclick="rerunQC()" style="background:var(--blue);">↻ Run QC Again</button>
+        <span style="font-size:12px;color:var(--muted);margin-left:12px;">Found something in the preview? Hit Run QC Again to re-fire Prompt 6.</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- IMAGES SECTION -->
+<div class="images-section" id="imagesSection">
+  <div class="section-label">Images — Generating in Parallel</div>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:4px;" id="imageCountLabel">Waiting for V1...</p>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Download each image, upload to WordPress, paste the URL in the matching slot below.</p>
+  <div class="image-grid" id="imageGrid"></div>
+  <div class="assemble-row">
+    <div style="flex:1;display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);margin-bottom:6px;font-weight:400;">Publish Date</div>
+          <input type="date" id="publishDate" style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--blue);font-family:'Lexend',sans-serif;font-size:13px;outline:none;" />
+        </div>
+        <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);margin-bottom:6px;font-weight:400;">Featured Image</div>
+          <div style="font-size:12px;color:var(--muted);" id="featuredLabel">Select via radio button on each image card above</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="btn-assemble" id="assembleBtn" onclick="triggerFinalAssembly()" disabled>Assemble Final</button>
+        <div class="assemble-hint" id="assembleHint">Paste all image URLs above to unlock</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OUTPUTS -->
+<div class="outputs-section" id="outputsSection">
+  <div class="outputs-title">✓ Article Complete</div>
+  <div class="output-buttons">
+    <button class="btn-output" id="btnMD" onclick="downloadMD()">↓ Download Final MD</button>
+    <button class="btn-output orange" id="btnTXT" onclick="downloadTXT()">↓ Download Final TXT</button>
+  </div>
+</div>
+
+<script>
+  // ─── STATE ───────────────────────────────────────────────
+  const CLIENTS_KEY = 'aeo_clients';
+  const GLOBALS_KEY = 'aeo_globals';
+  const KEYS_KEY = 'aeo_session_keys';
+  const PROXY = 'https://anthropic-proxy.gerek.workers.dev';
+  const GEMINI_MODEL = 'gemini-2.5-pro-preview-03-25';
+  const GEMINI_IMG_MODEL = 'gemini-3.1-flash-image-preview';
+  const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+
+  let state = {
+    client: null,
+    topic: '',
+    docs: {},
+    sheetRow: '',
+    geminiResearch: '',
+    v1: '',
+    validation: '',
+    v2: '',
+    finalMD: '',
+    finalTXT: '',
+    imagePrompts: [],
+    imageUrls: {},
+    tokens: { geminiIn: 0, geminiOut: 0, claudeIn: 0, claudeOut: 0, images: 0 }
+  };
+
+  let isRunning = false;
+  let checkpointResolve = null;
+
+  // ─── INIT ────────────────────────────────────────────────
+  window.addEventListener('load', () => {
+    loadClients();
+    loadKeys();
+  });
+
+  function loadClients() {
+    const clients = JSON.parse(localStorage.getItem(CLIENTS_KEY) || '[]');
+    const sel = document.getElementById('clientSelect');
+    sel.innerHTML = '<option value="">— Select client —</option>';
+    clients.forEach((c, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    });
+  }
+
+  function loadKeys() {
+    const k = JSON.parse(sessionStorage.getItem(KEYS_KEY) || '{}');
+    if (k.drive) document.getElementById('keyDrive').value = k.drive;
+    if (k.gemini) document.getElementById('keyGemini').value = k.gemini;
+    if (k.anthropic) document.getElementById('keyAnthropic').value = k.anthropic;
+  }
+
+  function saveKeys() {
+    sessionStorage.setItem(KEYS_KEY, JSON.stringify({
+      drive: document.getElementById('keyDrive').value,
+      gemini: document.getElementById('keyGemini').value,
+      anthropic: document.getElementById('keyAnthropic').value
+    }));
+  }
+
+  function toggleKey(id, btn) {
+    const input = document.getElementById(id);
+    input.type = input.type === 'password' ? 'text' : 'password';
+    btn.textContent = input.type === 'password' ? 'Show' : 'Hide';
+  }
+
+  // ─── STEP UI ─────────────────────────────────────────────
+  function setStep(n, status, text, outputText) {
+    const card = document.getElementById(`step${n}`);
+    const badge = document.getElementById(`badge${n}`);
+    const body = document.getElementById(`body${n}`);
+    const output = document.getElementById(`output${n}`);
+
+    card.className = `step-card ${status}`;
+    badge.className = `step-badge badge-${status === 'active' ? 'running' : status === 'done' ? 'done' : status === 'error' ? 'error' : status === 'checkpoint' ? 'waiting-input' : 'waiting'}`;
+
+    const labels = { active: 'Running...', done: 'Done ✓', error: 'Failed', waiting: 'Waiting', checkpoint: 'Your Turn' };
+    badge.textContent = text || labels[status] || status;
+
+    if (outputText !== undefined) {
+      body.classList.add('open');
+      output.textContent = outputText;
+    }
+  }
+
+  function setGlobal(text, active = false) {
+    const el = document.getElementById('globalStatus');
+    el.innerHTML = active ? `<span class="spinner"></span>${text}` : text;
+  }
+
+  // ─── COST TRACKER ────────────────────────────────────────
+  function updateCost() {
+    document.getElementById('costGeminiTokens').textContent = (state.tokens.geminiIn + state.tokens.geminiOut).toLocaleString();
+    document.getElementById('costClaudeIn').textContent = state.tokens.claudeIn.toLocaleString();
+    document.getElementById('costClaudeOut').textContent = state.tokens.claudeOut.toLocaleString();
+    document.getElementById('costImages').textContent = state.tokens.images;
+    // Rough cost estimate: Claude Sonnet ~$3/MTok in, $15/MTok out
+    const claudeCost = (state.tokens.claudeIn / 1000000 * 3) + (state.tokens.claudeOut / 1000000 * 15);
+    document.getElementById('costTotal').textContent = `$${claudeCost.toFixed(3)}`;
+  }
+
+  // ─── DRIVE FETCHING ──────────────────────────────────────
+  async function fetchTxtFromFolder(folderId, driveKey) {
+    const url = `https://www.googleapis.com/drive/v3/files?q=%27${folderId}%27+in+parents+and+mimeType%3D%27text%2Fplain%27+and+trashed%3Dfalse&fields=files(id,name,parents)&key=${driveKey}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.error) throw new Error(`Drive API error: ${data.error.message}`);
+
+    // Filter out files inside subfolders (Older Versions etc)
+    // We need to check which files are directly in folderId
+    const files = (data.files || []);
+    if (files.length === 0) throw new Error(`No .txt file found in folder ${folderId}`);
+
+    // Pick the first txt file at top level
+    const file = files[0];
+    const contentUrl = `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${driveKey}`;
+    const contentRes = await fetch(contentUrl);
+    if (!contentRes.ok) throw new Error(`Failed to fetch file content: ${contentRes.status}`);
+    return await contentRes.text();
+  }
+
+  async function fetchSheetAsCSV(sheetId, driveKey) {
+    // Export as CSV
+    const url = `https://www.googleapis.com/drive/v3/files/${sheetId}/export?mimeType=text%2Fcsv&key=${driveKey}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to fetch sheet: ${res.status}`);
+    return await res.text();
+  }
+
+  function findSheetRow(csv, topic) {
+    const lines = csv.split('\n');
+    const header = lines[0];
+    const cols = parseCSVLine(header);
+    const colDIndex = cols.findIndex(c => c.toLowerCase().includes('aeo question') || c.toLowerCase().includes('question title') || c === 'D' || cols.indexOf(c) === 3);
+    const targetCol = colDIndex >= 0 ? colDIndex : 3; // default to col D (index 3)
+
+    for (let i = 1; i < lines.length; i++) {
+      const row = parseCSVLine(lines[i]);
+      if (row[targetCol] && row[targetCol].trim().toLowerCase() === topic.trim().toLowerCase()) {
+        return { row: row.join(' | '), rawLine: lines[i], index: i };
+      }
+    }
+    return null;
+  }
+
+  function parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') { inQuotes = !inQuotes; }
+      else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
+      else { current += char; }
+    }
+    result.push(current.trim());
+    return result;
+  }
+
+  // ─── EXTRACT PROMPT (updated for prompt 6) ───────────────
+  function extractPrompt(doc44, promptNum) {
+    const markers = {
+      1: ['PROMPT 1:', 'PROMPT 2:'],
+      2: ['PROMPT 2:', 'PROMPT 3:'],
+      3: ['PROMPT 3:', 'PROMPT 4:'],
+      4: ['PROMPT 4:', 'PROMPT 5:'],
+      5: ['PROMPT 5:', 'PROMPT 6:'],
+      6: ['PROMPT 6:', 'Table of Contents']
+    };
+    const [start, end] = markers[promptNum];
+    const startIdx = doc44.indexOf(start);
+    const endIdx = doc44.indexOf(end, startIdx + 1);
+    if (startIdx === -1) throw new Error(`Prompt ${promptNum} not found in 4.4`);
+    return doc44.substring(startIdx + start.length, endIdx > 0 ? endIdx : undefined).trim();
+  }
+
+  // ─── HTML QC ─────────────────────────────────────────────
+  async function runHTMLQC(claudeSystem, doc43B, anthropicKey) {
+    setStep(8, 'active', 'Running QC...');
+    setGlobal('Claude running HTML QC against 4.3B spec...', true);
+
+    const prompt6 = extractPrompt(state.docs.doc44, 6);
+    const qcUser = `${prompt6}
+
+FINAL TXT TO QC:
+${state.finalTXT}`;
+
+    const qcResult = await callClaude(
+      claudeSystem + `\n\n4.3B HTML STYLE SPEC:\n${doc43B}`,
+      qcUser,
+      anthropicKey
+    );
+
+    // Extract corrected HTML
+    const qcMatch = qcResult.match(/```(?:html)?\n([\s\S]*?)```/i);
+    if (qcMatch) state.finalTXT = qcMatch[1];
+
+    // Show preview
+    const previewBox8 = document.getElementById('previewBox8');
+    const previewFrame8 = document.getElementById('previewFrame8');
+    previewBox8.style.display = 'block';
+    const frameDoc = previewFrame8.contentDocument || previewFrame8.contentWindow.document;
+    frameDoc.open();
+    frameDoc.write(state.finalTXT);
+    frameDoc.close();
+
+    // Show rerun button
+    document.getElementById('rerunQCRow').style.display = 'flex';
+    document.getElementById('body8').classList.add('open');
+
+    setStep(8, 'done', 'Done ✓', 'QC complete. Review the HTML preview below.');
+  }
+
+  async function rerunQC() {
+    const anthropicKey = document.getElementById('keyAnthropic').value.trim();
+    const claudeSystem = `You are an expert AEO article writer for iTech Valet.\n\n4.3A — AEO ARTICLE EXECUTION RULES:\n${state.docs.doc43A}\n\n4.3B — CLIENT IDENTITY CARD:\n${state.docs.doc43B}`;
+    await runHTMLQC(claudeSystem, state.docs.doc43B, anthropicKey);
+  }
+
+  function extractImagePrompts(v1Text) {
+    const prompts = [];
+    const lines = v1Text.split('\n');
+    let currentH2 = '';
+    let currentPrompt = null;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      // Track current H2 heading
+      if (trimmed.match(/^##\s+[^#]/) || trimmed.match(/\[H2\]/i)) {
+        currentH2 = trimmed.replace(/^##\s+/, '').replace(/\[H2\]/i, '').replace(/\[.*?\]/g, '').trim();
+      }
+
+      // Capture image prompt — handles [IMAGE: ...] and PROMPT: formats
+      if (trimmed.toUpperCase().startsWith('[IMAGE:')) {
+        currentPrompt = trimmed.replace(/^\[IMAGE:\s*/i, '').replace(/\]$/, '').trim();
+      } else if (trimmed.toUpperCase().startsWith('PROMPT:')) {
+        currentPrompt = trimmed.replace(/^PROMPT:\s*/i, '').trim();
+      }
+
+      // Capture ALT text and pair with prompt
+      if ((trimmed.toUpperCase().startsWith('**ALT TEXT:') || trimmed.toUpperCase().startsWith('ALT:')) && currentPrompt) {
+        const alt = trimmed
+          .replace(/^\*\*ALT TEXT:\s*/i, '')
+          .replace(/\*\*$/, '')
+          .replace(/^ALT:\s*/i, '')
+          .trim();
+        prompts.push({ prompt: currentPrompt, alt, h2: currentH2 });
+        currentPrompt = null;
+      }
+    }
+    return prompts;
+  }
+
+  // ─── GEMINI API ──────────────────────────────────────────
+  async function callGemini(prompt, geminiKey) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 8192 }
+        })
+      }
+    );
+    const data = await res.json();
+    if (data.error) throw new Error(`Gemini error: ${data.error.message}`);
+    const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
+    const usage = data.usageMetadata || {};
+    state.tokens.geminiIn += usage.promptTokenCount || 0;
+    state.tokens.geminiOut += usage.candidatesTokenCount || 0;
+    updateCost();
+    return text;
+  }
+
+  async function generateImage(prompt, alt, index, geminiKey) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMG_MODEL}:generateContent?key=${geminiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseModalities: ['Text', 'Image'] }
+        })
+      }
+    );
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    const imagePart = parts.find(p => p.inlineData);
+    if (!imagePart) throw new Error('No image returned');
+    state.tokens.images++;
+    updateCost();
+    return await convertToWebP(imagePart.inlineData.data, imagePart.inlineData.mimeType || 'image/png');
+  }
+
+  async function convertToWebP(base64Data, mimeType) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        const webp = canvas.toDataURL('image/webp', 0.85);
+        resolve(webp.startsWith('data:image/webp') ? { data: webp, ext: 'webp' } : { data: canvas.toDataURL('image/jpeg', 0.85), ext: 'jpg' });
+      };
+      img.onerror = reject;
+      img.src = `data:${mimeType};base64,${base64Data}`;
+    });
+  }
+
+  // ─── CLAUDE API ──────────────────────────────────────────
+  async function callClaude(systemPrompt, userContent, anthropicKey) {
+    const res = await fetch(PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey },
+      body: JSON.stringify({
+        model: CLAUDE_MODEL,
+        max_tokens: 8192,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userContent }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(`Claude error: ${data.error.message}`);
+    const text = data.content?.map(b => b.text || '').join('') || '';
+    const usage = data.usage || {};
+    state.tokens.claudeIn += usage.input_tokens || 0;
+    state.tokens.claudeOut += usage.output_tokens || 0;
+    updateCost();
+    return text;
+  }
+
+  // ─── CHECKPOINT ──────────────────────────────────────────
+  function waitForCheckpoint() {
+    return new Promise(resolve => {
+      checkpointResolve = resolve;
+      document.getElementById('checkpointBox').style.display = 'block';
+      setStep(6, 'checkpoint', 'Your Turn');
+    });
+  }
+
+  function proceedFromCheckpoint() {
+    const feedback = document.getElementById('checkpointFeedback').value.trim();
+    document.getElementById('checkpointBox').style.display = 'none';
+    if (checkpointResolve) { checkpointResolve(feedback); checkpointResolve = null; }
+  }
+
+  // ─── IMAGE UI ────────────────────────────────────────────
+  function buildImageCards(prompts) {
+    const grid = document.getElementById('imageGrid');
+    grid.innerHTML = '';
+    document.getElementById('imagesSection').classList.add('open');
+
+    const count = prompts.length;
+    document.getElementById('imageCountLabel').textContent = `${count} image${count !== 1 ? 's' : ''} detected in V1`;
+
+    // Default publish date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('publishDate').value = today;
+
+    prompts.forEach((p, i) => {
+      const card = document.createElement('div');
+      card.className = 'image-card';
+      card.id = `imgCard-${i}`;
+      card.innerHTML = `
+        <div class="image-card-header">
+          <div>
+            <div class="image-label">Image ${i + 1}</div>
+            ${p.h2 ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">After: "${p.h2.substring(0, 60)}${p.h2.length > 60 ? '...' : ''}"</div>` : ''}
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--orange);cursor:pointer;font-weight:400;">
+              <input type="radio" name="featuredImage" value="${i}" id="featured-${i}" ${i === 0 ? 'checked' : ''} onchange="updateFeaturedLabel()" style="accent-color:var(--orange);" />
+              Featured
+            </label>
+            <span class="step-badge badge-running" id="imgBadge-${i}">Generating...</span>
+            <button class="btn-regen" onclick="regenImage(${i})">↻ Regen</button>
+          </div>
+        </div>
+        <div class="image-card-body" id="imgBody-${i}">
+          <div style="font-size:11px;color:#aaa;margin-bottom:6px;font-style:italic;">${p.prompt.substring(0, 120)}...</div>
+          <div style="font-size:11px;color:var(--faint);margin-bottom:8px;"><strong>ALT:</strong> ${p.alt}</div>
+          <div id="imgDisplay-${i}"></div>
+          <div class="url-input-row">
+            <label>WP URL</label>
+            <input type="text" id="imgUrl-${i}" placeholder="Paste WordPress media URL after uploading..." oninput="checkAllUrls()" />
+          </div>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+
+    updateFeaturedLabel();
+    checkAllUrls();
+  }
+
+  function updateFeaturedLabel() {
+    const selected = document.querySelector('input[name="featuredImage"]:checked');
+    const label = document.getElementById('featuredLabel');
+    if (selected) {
+      label.textContent = `Image ${parseInt(selected.value) + 1} selected as featured`;
+      label.style.color = 'var(--orange)';
+    }
+  }
+
+  function getSelectedFeaturedIndex() {
+    const selected = document.querySelector('input[name="featuredImage"]:checked');
+    return selected ? parseInt(selected.value) : 0;
+  }
+
+  function updateImageCard(index, imageData, alt) {
+    const badge = document.getElementById(`imgBadge-${index}`);
+    const display = document.getElementById(`imgDisplay-${index}`);
+    if (badge) { badge.className = 'step-badge badge-done'; badge.textContent = 'Done ✓'; }
+    if (display && imageData) {
+      const filename = `${index + 1} ${alt.replace(/[^a-zA-Z0-9\s]/g, '').trim().substring(0, 60)}`;
+      display.innerHTML = `
+        <img src="${imageData.data}" alt="Image ${index + 1}" style="width:100%;border-radius:4px;margin-bottom:8px;" />
+        <a class="btn-download-img" href="${imageData.data}" download="${filename}.${imageData.ext}">↓ Download .${imageData.ext.toUpperCase()}</a>
+      `;
+    }
+  }
+
+  function imageError(index, msg) {
+    const badge = document.getElementById(`imgBadge-${index}`);
+    if (badge) { badge.className = 'step-badge badge-error'; badge.textContent = 'Failed'; }
+    const display = document.getElementById(`imgDisplay-${index}`);
+    if (display) display.innerHTML = `<div class="error-msg">⚠ ${msg} — use Regen</div>`;
+  }
+
+  async function regenImage(index) {
+    const geminiKey = document.getElementById('keyGemini').value.trim();
+    if (!geminiKey || !state.imagePrompts[index]) return;
+    const badge = document.getElementById(`imgBadge-${index}`);
+    if (badge) { badge.className = 'step-badge badge-running'; badge.textContent = 'Generating...'; }
+    try {
+      const img = await generateImage(state.imagePrompts[index].prompt, state.imagePrompts[index].alt, index, geminiKey);
+      updateImageCard(index, img, state.imagePrompts[index].alt);
+    } catch (err) {
+      imageError(index, err.message);
+    }
+  }
+
+  function checkAllUrls() {
+    const total = state.imagePrompts.length;
+    if (total === 0) return;
+    let filled = 0;
+    const urls = {};
+    for (let i = 0; i < total; i++) {
+      const val = document.getElementById(`imgUrl-${i}`)?.value.trim();
+      if (val) { filled++; urls[i] = val; document.getElementById(`imgUrl-${i}`).classList.add('filled'); }
+      else { document.getElementById(`imgUrl-${i}`)?.classList.remove('filled'); }
+    }
+    const assembleBtn = document.getElementById('assembleBtn');
+    const hint = document.getElementById('assembleHint');
+    if (filled === total) {
+      assembleBtn.disabled = false;
+      hint.textContent = 'All image URLs entered — ready to assemble!';
+      state.imageUrls = urls;
+    } else {
+      assembleBtn.disabled = true;
+      hint.textContent = `${filled} of ${total} image URLs entered`;
+    }
+  }
+
+  function triggerFinalAssembly() {
+    if (checkpointResolve) proceedFromCheckpoint();
+  }
+
+  // ─── MAIN PIPELINE ───────────────────────────────────────
+  async function startPipeline() {
+    if (isRunning) return;
+
+    const driveKey = document.getElementById('keyDrive').value.trim();
+    const geminiKey = document.getElementById('keyGemini').value.trim();
+    const anthropicKey = document.getElementById('keyAnthropic').value.trim();
+    const clientIdx = document.getElementById('clientSelect').value;
+    const topic = document.getElementById('topicInput').value.trim();
+
+    if (!driveKey || !geminiKey || !anthropicKey) { alert('Please enter all 3 API keys.'); return; }
+    if (clientIdx === '') { alert('Please select a client.'); return; }
+    if (!topic) { alert('Please enter the article topic.'); return; }
+
+    const clients = JSON.parse(localStorage.getItem(CLIENTS_KEY) || '[]');
+    const globals = JSON.parse(localStorage.getItem(GLOBALS_KEY) || '{}');
+    state.client = clients[parseInt(clientIdx)];
+    state.topic = topic;
+
+    isRunning = true;
+    document.getElementById('runBtn').disabled = true;
+    document.getElementById('outputsSection').classList.remove('open');
+    document.getElementById('imagesSection').classList.remove('open');
+    state.tokens = { geminiIn: 0, geminiOut: 0, claudeIn: 0, claudeOut: 0, images: 0 };
+    state.imagePrompts = [];
+    state.imageUrls = {};
+
+    // Reset all steps
+    for (let i = 1; i <= 8; i++) setStep(i, 'waiting', 'Waiting');
+
+    try {
+      // ── STEP 1: LOAD DOCUMENTS ──
+      setStep(1, 'active', 'Loading...');
+      setGlobal('Fetching documents from Google Drive...', true);
+
+      const [doc43A, doc44, doc22, doc23, doc43B, sheetCSV] = await Promise.all([
+        fetchTxtFromFolder(globals.folder43A, driveKey),
+        fetchTxtFromFolder(globals.folder44, driveKey),
+        fetchTxtFromFolder(state.client.folder22, driveKey),
+        fetchTxtFromFolder(state.client.folder23, driveKey),
+        fetchTxtFromFolder(state.client.folder43B, driveKey),
+        fetchSheetAsCSV(state.client.sheet42, driveKey)
+      ]);
+
+      const rowResult = findSheetRow(sheetCSV, topic);
+      if (!rowResult) throw new Error(`Topic not found in sheet: "${topic}" — check exact spelling against Column D`);
+
+      state.docs = { doc43A, doc44, doc22, doc23, doc43B };
+      state.sheetRow = rowResult.row;
+
+      setStep(1, 'done', 'Done ✓', `✓ 4.3A loaded (${doc43A.length} chars)\n✓ 4.4 loaded (${doc44.length} chars)\n✓ 2.2 loaded (${doc22.length} chars)\n✓ 2.3 loaded (${doc23.length} chars)\n✓ 4.3B loaded (${doc43B.length} chars)\n✓ Sheet row found: Row ${rowResult.index + 1}\n\nSheet Row:\n${state.sheetRow}`);
+
+      // ── STEP 2: GEMINI RESEARCH ──
+      setStep(2, 'active', 'Researching...');
+      setGlobal('Gemini building research brief...', true);
+
+      const prompt1 = extractPrompt(doc44, 1);
+      const geminiPrompt = `You are operating inside the iTech Valet AI Authority Pipeline.
+
+CLIENT IDENTITY CARD (4.3B):
+${doc43B}
+
+BUSINESS IDENTITY LOCK (2.2):
+${doc22}
+
+BUSINESS MESSAGING & TONE PLAYBOOK (2.3):
+${doc23}
+
+MASTER INVENTORY SHEET ROW FOR THIS ARTICLE:
+${state.sheetRow}
+
+FULL 4.4 RESEARCH RULES:
+${doc44}
+
+---
+
+${prompt1.replace('[TOPIC]', topic)}
+
+Topic: ${topic}`;
+
+      state.geminiResearch = await callGemini(geminiPrompt, geminiKey);
+      setStep(2, 'done', 'Done ✓', state.geminiResearch.substring(0, 500) + '...');
+
+      // ── STEP 3: CLAUDE V1 (+ kick off images) ──
+      setStep(3, 'active', 'Building V1...');
+      setGlobal('Claude building article architecture...', true);
+
+      const prompt2 = extractPrompt(doc44, 2);
+      const claudeSystem = `You are an expert AEO article writer for iTech Valet. You have the following documents loaded:
+
+4.3A — AEO ARTICLE EXECUTION RULES:
+${doc43A}
+
+4.3B — CLIENT IDENTITY CARD:
+${doc43B}`;
+
+      const claudeUser2 = `${prompt2}
+
+---
+SHEET ROW:
+${state.sheetRow}
+
+---
+GEMINI RESEARCH BRIEF:
+${state.geminiResearch}`;
+
+      state.v1 = await callClaude(claudeSystem, claudeUser2, anthropicKey);
+      setStep(3, 'done', 'Done ✓', state.v1.substring(0, 400) + '...');
+
+      // Kick off image generation in parallel
+      state.imagePrompts = extractImagePrompts(state.v1);
+      if (state.imagePrompts.length > 0) {
+        buildImageCards(state.imagePrompts);
+        setGlobal('Images generating in parallel...', true);
+        state.imagePrompts.forEach((p, i) => {
+          generateImage(p.prompt, p.alt, i, geminiKey)
+            .then(img => updateImageCard(i, img, p.alt))
+            .catch(err => imageError(i, err.message));
+        });
+      }
+
+      // ── STEP 4: GEMINI VALIDATION ──
+      setStep(4, 'active', 'Validating...');
+      setGlobal('Gemini running validation pass...', true);
+
+      const prompt3 = extractPrompt(doc44, 3);
+      const validationPrompt = `You are operating inside the iTech Valet AI Authority Pipeline as Quality Assurance Auditor.
+
+CLIENT IDENTITY CARD (4.3B):
+${doc43B}
+
+BUSINESS IDENTITY LOCK (2.2):
+${doc22}
+
+MASTER INVENTORY SHEET ROW:
+${state.sheetRow}
+
+ROUND 1 RESEARCH BRIEF:
+${state.geminiResearch}
+
+FULL 4.4 VALIDATION RULES:
+${doc44}
+
+---
+
+${prompt3}
+
+Article text below:
+${state.v1}`;
+
+      state.validation = await callGemini(validationPrompt, geminiKey);
+      setStep(4, 'done', 'Done ✓', state.validation);
+
+      // ── STEP 5: CLAUDE V2 ──
+      setStep(5, 'active', 'Rewriting...');
+      setGlobal('Claude applying fixes and voice rewrite...', true);
+
+      const prompt4 = extractPrompt(doc44, 4);
+      const claudeUser4 = `${prompt4}
+
+${state.validation && !state.validation.includes('All items pass') ? `GEMINI VALIDATION FEEDBACK:\n${state.validation}\n\n---` : '(All validation items passed — skip to Task 2)'}`;
+
+      state.v2 = await callClaude(claudeSystem, claudeUser4, anthropicKey);
+      setStep(5, 'done', 'Done ✓', state.v2.substring(0, 400) + '...');
+      document.getElementById(`output6`).textContent = state.v2.substring(0, 600) + '\n\n[Full V2 above — scroll to review]';
+
+      // ── STEP 6: HUMAN CHECKPOINT ──
+      setStep(6, 'active', 'Your Turn');
+      setGlobal('⚠ Review V2 — describe any issues or continue to Final Assembly');
+      const feedback = await waitForCheckpoint();
+
+      if (feedback) {
+        setStep(6, 'active', 'Fixing...');
+        setGlobal('Claude applying your feedback...', true);
+        const fixPrompt = `The operator has reviewed V2 and flagged the following issue:\n\n"${feedback}"\n\nFix this specific issue in the article while preserving all structure, links, POV slots, and protected zones. Deliver the corrected V2.`;
+        state.v2 = await callClaude(claudeSystem, fixPrompt + '\n\nCurrent V2:\n' + state.v2, anthropicKey);
+      }
+
+      setStep(6, 'done', 'Done ✓');
+      setGlobal('⚠ Upload images to WordPress, paste URLs below, then click Assemble Final');
+
+      // ── WAIT FOR IMAGE URLS ──
+      // The assemble button calls triggerFinalAssembly which resolves when clicked
+
+      // ── STEP 7: FINAL ASSEMBLY ──
+      // This fires when assembleBtn is clicked
+      await waitForAssemble();
+
+      setStep(7, 'active', 'Assembling...');
+      setGlobal('Claude running final checklist and assembling output files...', true);
+
+      const prompt5 = extractPrompt(doc44, 5);
+      const imageLines = [];
+      for (let i = 0; i < state.imagePrompts.length; i++) {
+        const url = state.imageUrls[i] || '';
+        if (url) imageLines.push(`Image ${i + 1} URL — ${url}`);
+      }
+      const imageBlock = imageLines.join('\n');
+      const featuredIndex = getSelectedFeaturedIndex();
+      const featuredNum = featuredIndex + 1;
+      const today = document.getElementById('publishDate').value || new Date().toISOString().split('T')[0];
+
+      const claudeUser5 = `${imageBlock}
+
+Featured image — Image ${featuredNum}
+Publish date — ${today}
+
+${prompt5}
+
+V2 ARTICLE:
+${state.v2}`;
+
+      state.finalMD = await callClaude(claudeSystem, claudeUser5, anthropicKey);
+
+      // Extract TXT (HTML) portion
+      const txtMatch = state.finalMD.match(/FINAL TXT[\s\S]*?```(?:html)?\n([\s\S]*?)```/i);
+      state.finalTXT = txtMatch ? txtMatch[1] : state.finalMD;
+
+      setStep(7, 'done', 'Done ✓', 'Final MD and Final TXT generated.');
+
+      // ── STEP 8: HTML QC ──
+      await runHTMLQC(claudeSystem, state.docs.doc43B, anthropicKey);
+
+      // Show outputs after QC passes
+      document.getElementById('outputsSection').classList.add('open');
+      setGlobal('✓ Article complete — download your files below.');
+
+    } catch (err) {
+      setGlobal(`⚠ Error: ${err.message}`);
+      console.error(err);
+    }
+
+    isRunning = false;
+    document.getElementById('runBtn').disabled = false;
+  }
+
+  // Wait for assemble button
+  function waitForAssemble() {
+    return new Promise(resolve => {
+      const btn = document.getElementById('assembleBtn');
+      const handler = () => { btn.removeEventListener('click', handler); resolve(); };
+      btn.addEventListener('click', handler);
+    });
+  }
+
+  // ─── DOWNLOADS ───────────────────────────────────────────
+  function downloadMD() {
+    if (!state.finalMD) return;
+    const blob = new Blob([state.finalMD], { type: 'text/markdown' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `AEO - ${state.client?.name || 'Article'} - ${state.topic.substring(0, 40)} - FINAL.md`;
+    a.click();
+  }
+
+  function downloadTXT() {
+    if (!state.finalTXT) return;
+    const blob = new Blob([state.finalTXT], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `AEO - ${state.client?.name || 'Article'} - ${state.topic.substring(0, 40)} - FINAL.txt`;
+    a.click();
+  }
+</script>
+
+</body>
+</html>
