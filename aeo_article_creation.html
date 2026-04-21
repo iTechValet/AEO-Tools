@@ -6,1887 +6,982 @@
 <title>iTech Valet — AEO Article Creation</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500&display=swap');
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
   :root {
-    --blue: #063a6c;
-    --accent: #2494e0;
-    --orange: #dd6b00;
-    --bg: #ffffff;
-    --surface: #f9f9f9;
-    --border: #e0e0e0;
-    --muted: #888;
-    --faint: #aaa;
+    --blue: #063a6c; --accent: #2494e0; --orange: #dd6b00;
+    --green: #4caf50; --bg: #ffffff; --surface: #f9f9f9;
+    --border: #e0e0e0; --muted: #888; --faint: #aaa;
   }
-
-  body {
-    font-family: 'Lexend', sans-serif;
-    font-weight: 300;
-    background: var(--bg);
-    color: var(--blue);
-    min-height: 100vh;
-    padding: 32px 24px;
-    max-width: 960px;
-    margin: 0 auto;
-  }
+  body { font-family:'Lexend',sans-serif; font-weight:300; background:var(--bg); color:var(--blue); min-height:100vh; padding:20px 24px; }
 
   /* HEADER */
-  header {
-    margin-bottom: 28px;
-    border-bottom: 2px solid var(--border);
-    padding-bottom: 20px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
+  .top-bar { max-width:1400px; margin:0 auto 16px; border-bottom:2px solid var(--border); padding-bottom:14px; display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+  .top-bar h1 { font-family:'Bebas Neue',sans-serif; font-size:32px; text-transform:uppercase; letter-spacing:3px; margin-bottom:3px; }
+  .top-bar h1 span { color:var(--accent); }
+  .subtitle { font-size:12px; color:var(--muted); }
 
-  .header-left h1 {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 38px;
-    text-transform: uppercase;
-    color: var(--blue);
-    letter-spacing: 3px;
-    margin-bottom: 6px;
-  }
+  /* LAYOUT */
+  .layout { max-width:1400px; margin:0 auto; display:grid; grid-template-columns:1fr 400px; gap:20px; align-items:start; }
+  .left-col { min-width:0; }
+  .right-col { position:sticky; top:20px; }
 
-  .header-left h1 span { color: var(--accent); }
-  .subtitle { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  /* CARDS */
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px; margin-bottom:14px; }
 
   /* SECTION LABEL */
-  .section-label {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    color: var(--accent);
-    margin-bottom: 8px;
-  }
-
-  /* API KEYS SECTION */
-  .keys-section {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 20px 24px;
-    margin-bottom: 24px;
-  }
-
-  .keys-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 12px;
-  }
-
-  .key-group { display: flex; flex-direction: column; gap: 6px; }
-
-  .key-group label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--accent);
-    font-weight: 400;
-  }
-
-  .key-row { display: flex; gap: 6px; }
-
-  .key-row input {
-    flex: 1;
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 9px 12px;
-    color: var(--blue);
-    font-family: 'Lexend', sans-serif;
-    font-weight: 300;
-    font-size: 12px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .key-row input:focus { border-color: var(--accent); }
-  .key-row input::placeholder { color: var(--faint); }
-
-  .btn-toggle {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    border-radius: 6px;
-    padding: 9px 12px;
-    font-family: 'Lexend', sans-serif;
-    font-size: 11px;
-    cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
-    white-space: nowrap;
-  }
-
-  .btn-toggle:hover { border-color: var(--accent); color: var(--accent); }
-  .key-hint { font-size: 11px; color: #ccc; }
-
-  /* SETUP SECTION */
-  .setup-section {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 20px 24px;
-    margin-bottom: 24px;
-  }
-
-  .setup-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 12px;
-    align-items: end;
-  }
-
-  .setup-group { display: flex; flex-direction: column; gap: 6px; }
-
-  .setup-group label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--accent);
-    font-weight: 400;
-  }
-
-  .setup-group select,
-  .setup-group input {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 10px 12px;
-    color: var(--blue);
-    font-family: 'Lexend', sans-serif;
-    font-weight: 300;
-    font-size: 13px;
-    outline: none;
-    transition: border-color 0.2s;
-    width: 100%;
-  }
-
-  .setup-group select:focus,
-  .setup-group input:focus { border-color: var(--accent); }
-
-  .setup-group input::placeholder { color: var(--faint); }
-
-  .btn-run {
-    background: var(--orange);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 11px 28px;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 22px;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    cursor: pointer;
-    transition: opacity 0.2s;
-    white-space: nowrap;
-    width: 100%;
-  }
-
-  .btn-run:hover { opacity: 0.85; }
-  .btn-run:disabled { opacity: 0.35; cursor: not-allowed; }
-
-  /* PIPELINE STEPS */
-  .pipeline { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
-
-  .step-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-    transition: border-color 0.3s;
-  }
-
-  .step-card.active { border-color: var(--accent); }
-  .step-card.done { border-color: #4caf50; }
-  .step-card.error { border-color: var(--orange); }
-
-  .step-header {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 14px 18px;
-  }
-
-  .step-number {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 28px;
-    color: var(--border);
-    line-height: 1;
-    min-width: 28px;
-    transition: color 0.3s;
-  }
-
-  .step-card.active .step-number { color: var(--accent); }
-  .step-card.done .step-number { color: #4caf50; }
-  .step-card.error .step-number { color: var(--orange); }
-
-  .step-info { flex: 1; }
-
-  .step-title {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 16px;
-    letter-spacing: 1.5px;
-    color: var(--blue);
-    margin-bottom: 2px;
-  }
-
-  .step-desc { font-size: 11px; color: var(--faint); }
-
-  .step-badge {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    padding: 4px 10px;
-    border-radius: 4px;
-    white-space: nowrap;
-  }
-
-  .badge-waiting { background: #ececec; color: var(--faint); }
-  .badge-running { background: rgba(36,148,224,0.15); color: var(--accent); }
-  .badge-done { background: rgba(76,175,80,0.15); color: #4caf50; }
-  .badge-error { background: rgba(221,107,0,0.15); color: var(--orange); }
-  .badge-waiting-input { background: rgba(221,107,0,0.1); color: var(--orange); }
-
-  .step-body {
-    display: none;
-    border-top: 1px solid var(--border);
-    padding: 16px 18px;
-  }
-
-  .step-body.open { display: block; }
-
-  .step-output {
-    font-size: 12px;
-    color: var(--blue);
-    line-height: 1.7;
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px 14px;
-    max-height: 300px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    word-break: break-word;
-    font-family: monospace;
-  }
-
-  .spinner {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border: 2px solid var(--accent);
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    margin-right: 6px;
-    vertical-align: middle;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* CHECKPOINT */
-  .checkpoint-box {
-    background: #fff8f0;
-    border: 1px solid #f5c88a;
-    border-radius: 8px;
-    padding: 16px;
-    margin-top: 12px;
-  }
-
-  .checkpoint-title {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 15px;
-    letter-spacing: 1.5px;
-    color: var(--orange);
-    margin-bottom: 8px;
-  }
-
-  .checkpoint-box textarea {
-    width: 100%;
-    background: #fff;
-    border: 1px solid #f5c88a;
-    border-radius: 6px;
-    padding: 10px 12px;
-    color: var(--blue);
-    font-family: 'Lexend', sans-serif;
-    font-weight: 300;
-    font-size: 12px;
-    line-height: 1.6;
-    outline: none;
-    resize: vertical;
-    min-height: 70px;
-    margin-bottom: 10px;
-  }
-
-  .checkpoint-actions { display: flex; gap: 8px; }
-
-  .btn-checkpoint-go {
-    background: var(--orange);
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    padding: 8px 20px;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 16px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    cursor: pointer;
-    transition: opacity 0.2s;
-  }
-
-  .btn-checkpoint-go:hover { opacity: 0.85; }
-
-  /* HTML PREVIEW */
-  .preview-box {
-    margin-top: 12px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-
-  .preview-label {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 8px 14px;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 13px;
-    letter-spacing: 1.5px;
-    color: var(--muted);
-  }
-
-  .preview-frame {
-    width: 100%;
-    height: 400px;
-    border: none;
-    background: #fff;
-  }
-
-  /* IMAGE SECTION */
-  .images-section {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 20px 24px;
-    margin-bottom: 24px;
-    display: none;
-  }
-
-  .images-section.open { display: block; }
-
-  .image-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 12px;
-  }
-
-  .image-card {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-
-  .image-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-    gap: 10px;
-  }
-
-  .image-label {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 14px;
-    letter-spacing: 1.5px;
-    color: var(--accent);
-  }
-
-  .image-card-body { padding: 12px 14px; }
-
-  .image-card-body img {
-    width: 100%;
-    border-radius: 4px;
-    margin-bottom: 10px;
-    display: block;
-  }
-
-  .url-input-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-top: 8px;
-  }
-
-  .url-input-row label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--faint);
-    white-space: nowrap;
-    font-weight: 400;
-  }
-
-  .url-input-row input {
-    flex: 1;
-    background: #f9f9f9;
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    padding: 7px 10px;
-    color: var(--blue);
-    font-family: 'Lexend', sans-serif;
-    font-weight: 300;
-    font-size: 12px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .url-input-row input:focus { border-color: var(--accent); }
-  .url-input-row input::placeholder { color: #ccc; }
-  .url-input-row input.filled { border-color: #4caf50; }
-
-  .btn-regen {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--faint);
-    border-radius: 5px;
-    padding: 5px 12px;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
-  }
-
-  .btn-regen:hover { border-color: var(--accent); color: var(--accent); }
-
-  .btn-download-img {
-    background: var(--orange);
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    padding: 5px 12px;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    cursor: pointer;
-    text-decoration: none;
-    display: inline-block;
-    transition: opacity 0.2s;
-  }
-
-  .btn-download-img:hover { opacity: 0.85; }
-
-  .assemble-row {
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .btn-assemble {
-    background: var(--blue);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 11px 28px;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 20px;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    cursor: pointer;
-    transition: opacity 0.2s;
-  }
-
-  .btn-assemble:hover { opacity: 0.85; }
-  .btn-assemble:disabled { opacity: 0.35; cursor: not-allowed; }
-
-  .assemble-hint { font-size: 12px; color: var(--faint); }
-
-  /* OUTPUTS */
-  .outputs-section {
-    background: var(--surface);
-    border: 1px solid #4caf50;
-    border-radius: 10px;
-    padding: 20px 24px;
-    margin-bottom: 24px;
-    display: none;
-  }
-
-  .outputs-section.open { display: block; }
-
-  .outputs-title {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 22px;
-    letter-spacing: 2px;
-    color: #4caf50;
-    margin-bottom: 16px;
-  }
-
-  .output-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
-
-  .btn-output {
-    background: var(--blue);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 11px 24px;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 18px;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    cursor: pointer;
-    transition: opacity 0.2s;
-    text-decoration: none;
-    display: inline-block;
-  }
-
-  .btn-output:hover { opacity: 0.85; }
-  .btn-output.orange { background: var(--orange); }
-
-  /* COST TRACKER */
-  .cost-bar {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px 18px;
-    margin-bottom: 24px;
-    display: flex;
-    gap: 24px;
-    flex-wrap: wrap;
-    font-size: 12px;
-  }
-
-  .cost-item { display: flex; flex-direction: column; gap: 2px; }
-  .cost-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--faint); }
-  .cost-value { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--blue); letter-spacing: 1px; }
-  .cost-value.orange { color: var(--orange); }
+  .slabel { font-family:'Bebas Neue',sans-serif; font-size:13px; text-transform:uppercase; letter-spacing:2px; color:var(--accent); margin-bottom:8px; }
+
+  /* KEYS */
+  .keys-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .kgroup { display:flex; flex-direction:column; gap:4px; }
+  .kgroup label { font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--accent); font-weight:400; }
+  .krow { display:flex; gap:5px; }
+  .krow input { flex:1; background:#fff; border:1px solid var(--border); border-radius:6px; padding:7px 9px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:11px; outline:none; transition:border-color .2s; }
+  .krow input:focus { border-color:var(--accent); }
+  .krow input::placeholder { color:var(--faint); }
+  .btn-toggle { background:none; border:1px solid var(--border); color:var(--muted); border-radius:6px; padding:7px 9px; font-family:'Lexend',sans-serif; font-size:10px; cursor:pointer; transition:border-color .2s,color .2s; white-space:nowrap; }
+  .btn-toggle:hover { border-color:var(--accent); color:var(--accent); }
+  .khint { font-size:10px; color:#ccc; margin-top:3px; }
+
+  /* SETUP */
+  .setup-row { display:grid; grid-template-columns:1fr 1fr auto; gap:10px; align-items:end; }
+  .sgroup { display:flex; flex-direction:column; gap:4px; }
+  .sgroup label { font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--accent); font-weight:400; }
+  .sgroup select, .sgroup input { background:#fff; border:1px solid var(--border); border-radius:6px; padding:8px 10px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:12px; outline:none; transition:border-color .2s; width:100%; }
+  .sgroup select:focus, .sgroup input:focus { border-color:var(--accent); }
+  .sgroup input::placeholder { color:var(--faint); }
+  .btn-run { background:var(--orange); color:#fff; border:none; border-radius:8px; padding:9px 22px; font-family:'Bebas Neue',sans-serif; font-size:20px; text-transform:uppercase; letter-spacing:2px; cursor:pointer; transition:opacity .2s; white-space:nowrap; }
+  .btn-run:hover { opacity:.85; }
+  .btn-run:disabled { opacity:.35; cursor:not-allowed; }
 
   /* GLOBAL STATUS */
-  .global-status {
-    font-size: 13px;
-    color: var(--accent);
-    min-height: 20px;
-    margin-bottom: 16px;
-    font-weight: 400;
-  }
+  .gstatus { font-size:12px; color:var(--accent); min-height:18px; margin-bottom:10px; font-weight:400; }
 
-  .step-chevron {
-    font-size: 11px;
-    color: var(--faint);
-    transition: transform 0.2s;
-    flex-shrink: 0;
-  }
+  /* COST BAR */
+  .cost-bar { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:9px 16px; margin-bottom:14px; display:flex; gap:18px; flex-wrap:wrap; }
+  .ci { display:flex; flex-direction:column; gap:2px; }
+  .cl { font-size:9px; text-transform:uppercase; letter-spacing:1.5px; color:var(--faint); }
+  .cv { font-family:'Bebas Neue',sans-serif; font-size:16px; color:var(--blue); letter-spacing:1px; }
+  .cv.orange { color:var(--orange); }
 
-  .step-chevron.collapsed { transform: rotate(-90deg); }
+  /* PIPELINE */
+  .pipeline { display:flex; flex-direction:column; gap:7px; }
+  .step-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; transition:border-color .3s; }
+  .step-card.active { border-color:var(--accent); }
+  .step-card.done { border-color:var(--green); }
+  .step-card.error { border-color:var(--orange); }
+  .step-card.checkpoint { border-color:var(--orange); }
+  .step-header { display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer; user-select:none; }
+  .step-num { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--border); line-height:1; min-width:22px; transition:color .3s; }
+  .step-card.active .step-num { color:var(--accent); }
+  .step-card.done .step-num { color:var(--green); }
+  .step-card.error .step-num, .step-card.checkpoint .step-num { color:var(--orange); }
+  .step-info { flex:1; }
+  .step-title { font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1.5px; color:var(--blue); margin-bottom:1px; }
+  .step-desc { font-size:10px; color:var(--faint); }
+  .step-right { display:flex; align-items:center; gap:7px; }
+  .sbadge { font-family:'Bebas Neue',sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:1px; padding:3px 8px; border-radius:4px; white-space:nowrap; }
+  .b-waiting { background:#ececec; color:var(--faint); }
+  .b-running { background:rgba(36,148,224,.15); color:var(--accent); }
+  .b-done { background:rgba(76,175,80,.15); color:var(--green); }
+  .b-error { background:rgba(221,107,0,.15); color:var(--orange); }
+  .b-checkpoint { background:rgba(221,107,0,.1); color:var(--orange); }
+  .schev { font-size:10px; color:var(--faint); transition:transform .2s; flex-shrink:0; }
+  .schev.closed { transform:rotate(-90deg); }
+  .step-body { display:none; border-top:1px solid var(--border); padding:12px 14px; }
+  .step-body.open { display:block; }
+  .sout { font-size:11px; color:var(--blue); line-height:1.7; background:#fff; border:1px solid var(--border); border-radius:6px; padding:9px 11px; max-height:220px; overflow-y:auto; white-space:pre-wrap; word-break:break-word; font-family:monospace; }
 
-  .error-msg { color: var(--orange); font-size: 12px; margin-top: 8px; }
+  /* SPINNER */
+  .spinner { display:inline-block; width:9px; height:9px; border:2px solid var(--accent); border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; margin-right:5px; vertical-align:middle; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* RETRY */
+  .btn-retry { margin-top:8px; background:var(--blue); color:#fff; border:none; border-radius:6px; padding:6px 16px; font-family:'Bebas Neue',sans-serif; font-size:13px; text-transform:uppercase; letter-spacing:1.5px; cursor:pointer; transition:opacity .2s; display:inline-block; }
+  .btn-retry:hover { opacity:.85; }
+
+  /* CHECKPOINT */
+  .cbox { background:#fff8f0; border:1px solid #f5c88a; border-radius:8px; padding:12px 14px; }
+  .ctitle { font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1.5px; color:var(--orange); margin-bottom:6px; }
+  .cbox textarea { width:100%; background:#fff; border:1px solid #f5c88a; border-radius:6px; padding:8px 10px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:11px; line-height:1.6; outline:none; resize:vertical; min-height:56px; margin-bottom:8px; }
+  .btn-proceed { background:var(--orange); color:#fff; border:none; border-radius:6px; padding:7px 18px; font-family:'Bebas Neue',sans-serif; font-size:14px; text-transform:uppercase; letter-spacing:1.5px; cursor:pointer; transition:opacity .2s; }
+  .btn-proceed:hover { opacity:.85; }
+
+  /* OUTPUTS */
+  .outputs-section { background:var(--surface); border:1px solid var(--green); border-radius:10px; padding:14px 18px; margin-bottom:14px; display:none; }
+  .outputs-section.open { display:block; }
+  .otitle { font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; color:var(--green); margin-bottom:10px; }
+  .obts { display:flex; gap:8px; flex-wrap:wrap; }
+  .btn-out { background:var(--blue); color:#fff; border:none; border-radius:8px; padding:9px 20px; font-family:'Bebas Neue',sans-serif; font-size:15px; text-transform:uppercase; letter-spacing:2px; cursor:pointer; transition:opacity .2s; }
+  .btn-out:hover { opacity:.85; }
+  .btn-out.orange { background:var(--orange); }
+
+  /* RIGHT PANEL */
+  .right-panel { display:flex; flex-direction:column; gap:14px; max-height:calc(100vh - 40px); }
+
+  .panel-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; }
+
+  .panel-head { padding:9px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+  .panel-title { font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1.5px; color:var(--blue); }
+  .panel-badge { font-size:10px; color:var(--faint); }
+
+  /* IMAGES PANEL */
+  .img-grid { padding:10px 14px; max-height:480px; overflow-y:auto; }
+  .img-card { background:#f9f9f9; border:1px solid var(--border); border-radius:10px; margin-bottom:10px; overflow:hidden; }
+  .img-card:last-child { margin-bottom:0; }
+  .img-card-head { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--border); gap:8px; flex-wrap:wrap; }
+  .img-label { font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1.5px; color:var(--accent); text-transform:uppercase; }
+  .img-head-right { display:flex; align-items:center; gap:7px; }
+  .btn-regen-sm { background:none; border:1px solid var(--border); color:#bbb; border-radius:6px; padding:4px 12px; font-family:'Bebas Neue',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:1px; cursor:pointer; transition:border-color .2s,color .2s; }
+  .btn-regen-sm:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+  .btn-regen-sm:disabled { opacity:.35; cursor:not-allowed; }
+  .img-prompt-row { display:flex; align-items:flex-start; gap:8px; padding:9px 14px; border-bottom:1px solid var(--border); }
+  .img-prompt-text { font-size:11px; color:#aaa; line-height:1.5; flex:1; }
+  .btn-edit-sm { background:none; border:1px solid var(--border); color:#ccc; border-radius:5px; padding:3px 9px; font-family:'Bebas Neue',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:1px; cursor:pointer; white-space:nowrap; flex-shrink:0; transition:border-color .2s,color .2s; }
+  .btn-edit-sm:hover { border-color:var(--accent); color:var(--accent); }
+  .img-edit-area { display:none; padding:10px 14px; border-bottom:1px solid var(--border); background:#fff; }
+  .img-edit-area textarea { width:100%; background:#f2f2f2; border:1px solid var(--border); border-radius:6px; padding:8px 10px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:11px; line-height:1.6; outline:none; resize:vertical; min-height:70px; margin-bottom:7px; transition:border-color .2s; }
+  .img-edit-area textarea:focus { border-color:var(--accent); }
+  .edit-actions { display:flex; gap:7px; }
+  .btn-save-edit { background:var(--accent); color:#fff; border:none; border-radius:6px; padding:5px 14px; font-family:'Bebas Neue',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:1px; cursor:pointer; transition:opacity .2s; }
+  .btn-save-edit:hover { opacity:.85; }
+  .btn-cancel-edit { background:none; border:1px solid var(--border); color:#999; border-radius:6px; padding:5px 12px; font-family:'Bebas Neue',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:1px; cursor:pointer; transition:border-color .2s,color .2s; }
+  .btn-cancel-edit:hover { border-color:var(--orange); color:var(--orange); }
+  .img-card-body { padding:12px 14px; }
+  .img-card-body img { width:100%; border-radius:6px; display:block; margin-bottom:9px; }
+  .img-result-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:9px; }
+  .btn-dl-img { background:var(--orange); color:#fff; border:none; border-radius:6px; padding:7px 16px; font-family:'Bebas Neue',sans-serif; font-size:14px; text-transform:uppercase; letter-spacing:1px; cursor:pointer; text-decoration:none; display:inline-block; transition:opacity .2s; }
+  .btn-dl-img:hover { opacity:.85; }
+  .img-format-badge { font-size:11px; background:rgba(36,148,224,.15); color:var(--accent); border:1px solid rgba(36,148,224,.3); border-radius:4px; padding:3px 8px; font-family:'Bebas Neue',sans-serif; text-transform:uppercase; letter-spacing:1px; }
+  .img-file-info { font-size:11px; color:#999; }
+  .url-row { display:flex; gap:6px; align-items:center; margin-top:6px; }
+  .url-row label { font-size:9px; text-transform:uppercase; letter-spacing:1.5px; color:var(--faint); white-space:nowrap; font-weight:400; }
+  .url-row input { flex:1; background:#f9f9f9; border:1px solid var(--border); border-radius:5px; padding:6px 9px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:11px; outline:none; transition:border-color .2s; }
+  .url-row input:focus { border-color:var(--accent); }
+  .url-row input::placeholder { color:#ccc; }
+  .url-row input.filled { border-color:var(--green); }
+  .feat-row { display:flex; align-items:center; gap:4px; margin-top:6px; font-size:11px; color:var(--orange); cursor:pointer; }
+
+  /* ASSEMBLE */
+  .assemble-row { padding:10px 14px; border-top:1px solid var(--border); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .pub-row { padding:8px 14px; border-top:1px solid var(--border); display:flex; align-items:center; gap:7px; }
+  .pub-row label { font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--accent); font-weight:400; white-space:nowrap; }
+  .pub-row input[type=date] { background:#fff; border:1px solid var(--border); border-radius:6px; padding:5px 9px; color:var(--blue); font-family:'Lexend',sans-serif; font-size:11px; outline:none; }
+  .btn-assemble { background:var(--blue); color:#fff; border:none; border-radius:8px; padding:8px 20px; font-family:'Bebas Neue',sans-serif; font-size:17px; text-transform:uppercase; letter-spacing:2px; cursor:pointer; transition:opacity .2s; }
+  .btn-assemble:hover { opacity:.85; }
+  .btn-assemble:disabled { opacity:.35; cursor:not-allowed; }
+  .assemble-hint { font-size:11px; color:var(--faint); }
+
+  /* PREVIEW PANEL */
+  .preview-panel { flex:1; min-height:0; }
+  .preview-tabs { display:flex; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .ptab { padding:6px 12px; font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1px; cursor:pointer; color:var(--faint); border-bottom:2px solid transparent; background:none; border-top:none; border-left:none; border-right:none; transition:color .2s,border-color .2s; }
+  .ptab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .ptab:hover:not(.active) { color:var(--blue); }
+  .ppane { display:none; flex-direction:column; overflow:hidden; }
+  .ppane.active { display:flex; }
+  .ppane iframe { border:none; background:#fff; height:320px; }
+  .ppane pre { overflow-y:auto; padding:10px 12px; font-family:monospace; font-size:11px; line-height:1.6; color:var(--blue); white-space:pre-wrap; word-break:break-word; background:#fff; margin:0; height:320px; }
+  .pempty { padding:20px; text-align:center; font-size:12px; color:#ccc; height:320px; display:flex; align-items:center; justify-content:center; }
+
+  .error-msg { color:var(--orange); font-size:11px; margin-top:5px; }
 </style>
 </head>
 <body>
 
 <!-- PASSWORD GATE -->
 <div id="passwordGate" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center;">
-  <div style="text-align:center;max-width:380px;width:100%;padding:40px 24px;">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:3px;color:#063a6c;margin-bottom:6px;">iTech Valet</div>
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:#2494e0;margin-bottom:32px;">AEO Article Creation</div>
-    <input type="password" id="gateInput" placeholder="Enter access password..." onkeydown="if(event.key==='Enter')checkPassword()" style="width:100%;background:#f2f2f2;border:1px solid #ddd;border-radius:8px;padding:13px 16px;color:#063a6c;font-family:'Lexend',sans-serif;font-size:14px;outline:none;margin-bottom:12px;text-align:center;" />
-    <button onclick="checkPassword()" style="width:100%;background:#dd6b00;color:#fff;border:none;border-radius:8px;padding:13px;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;cursor:pointer;">Enter</button>
-    <div id="gateError" style="font-size:12px;color:#dd6b00;margin-top:10px;min-height:18px;"></div>
+  <div style="text-align:center;max-width:340px;width:100%;padding:36px 24px;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:3px;color:#063a6c;margin-bottom:4px;">iTech Valet</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:#2494e0;margin-bottom:26px;">AEO Article Creation</div>
+    <input type="password" id="gateInput" placeholder="Enter access password..." onkeydown="if(event.key==='Enter')checkPw()" style="width:100%;background:#f2f2f2;border:1px solid #ddd;border-radius:8px;padding:11px 14px;color:#063a6c;font-family:'Lexend',sans-serif;font-size:13px;outline:none;margin-bottom:9px;text-align:center;" />
+    <button onclick="checkPw()" style="width:100%;background:#dd6b00;color:#fff;border:none;border-radius:8px;padding:11px;font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:2px;cursor:pointer;">Enter</button>
+    <div id="gateErr" style="font-size:11px;color:#dd6b00;margin-top:7px;min-height:16px;"></div>
   </div>
 </div>
 
 <div id="mainContent" style="display:none;">
 
-<header>
-  <div class="header-left">
+<div class="top-bar">
+  <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
-    <p class="subtitle">Select client · Drop topic · Hit Run · Article delivers itself</p>
-  </div>
-</header>
-
-<!-- API KEYS -->
-<div class="keys-section">
-  <div class="section-label">API Keys — Session Only</div>
-  <div class="keys-grid">
-    <div class="key-group">
-      <label>Google Drive API Key</label>
-      <div class="key-row">
-        <input type="password" id="keyDrive" placeholder="Paste Drive API key..." oninput="saveKeys()" />
-        <button class="btn-toggle" onclick="toggleKey('keyDrive', this)">Show</button>
-      </div>
-      <div class="key-hint">Fetches docs directly by file ID from Drive</div>
-    </div>
-    <div class="key-group">
-      <label>Gemini API Key</label>
-      <div class="key-row">
-        <input type="password" id="keyGemini" placeholder="Paste Gemini API key..." oninput="saveKeys()" />
-        <button class="btn-toggle" onclick="toggleKey('keyGemini', this)">Show</button>
-      </div>
-      <div class="key-hint">Research, validation + image generation</div>
-    </div>
-    <div class="key-group">
-      <label>Anthropic API Key</label>
-      <div class="key-row">
-        <input type="password" id="keyAnthropic" placeholder="Paste Anthropic API key..." oninput="saveKeys()" />
-        <button class="btn-toggle" onclick="toggleKey('keyAnthropic', this)">Show</button>
-      </div>
-      <div class="key-hint">V1, V2, and Final assembly</div>
-    </div>
+    <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
   </div>
 </div>
 
-<!-- SETUP -->
-<div class="setup-section">
-  <div class="section-label">New Article</div>
-  <div class="setup-row">
-    <div class="setup-group">
-      <label>Client</label>
-      <select id="clientSelect">
-        <option value="">— Select client —</option>
-      </select>
-    </div>
-    <div class="setup-group">
-      <label>Article Topic (exact match to Column D)</label>
-      <input type="text" id="topicInput" placeholder="Paste topic exactly as it appears in Monday.com..." />
-    </div>
-    <div class="setup-group">
-      <label>&nbsp;</label>
-      <button class="btn-run" id="runBtn" onclick="startPipeline()">⚡ Run Pipeline</button>
-    </div>
-  </div>
-</div>
+<div class="layout">
 
-<!-- GLOBAL STATUS -->
-<div class="global-status" id="globalStatus"></div>
+<!-- LEFT -->
+<div class="left-col">
 
-<!-- COST TRACKER -->
-<div class="cost-bar">
-  <div class="cost-item">
-    <div class="cost-label">Gemini Tokens</div>
-    <div class="cost-value" id="costGeminiTokens">0</div>
-  </div>
-  <div class="cost-item">
-    <div class="cost-label">Claude Input Tokens</div>
-    <div class="cost-value" id="costClaudeIn">0</div>
-  </div>
-  <div class="cost-item">
-    <div class="cost-label">Claude Output Tokens</div>
-    <div class="cost-value" id="costClaudeOut">0</div>
-  </div>
-  <div class="cost-item">
-    <div class="cost-label">Images Generated</div>
-    <div class="cost-value" id="costImages">0</div>
-  </div>
-  <div class="cost-item">
-    <div class="cost-label">Est. Article Cost</div>
-    <div class="cost-value orange" id="costTotal">$0.00</div>
-  </div>
-</div>
-
-<!-- PIPELINE STEPS -->
-<div class="pipeline">
-
-  <!-- STEP 1: Load Documents -->
-  <div class="step-card" id="step1">
-    <div class="step-header" onclick="toggleStepBody(1)" style="cursor:pointer;">
-      <div class="step-number">1</div>
-      <div class="step-info">
-        <div class="step-title">Load Documents</div>
-        <div class="step-desc">Fetching 4.3A, 4.4, 2.2, 2.3, 4.3B + sheet row from Google Drive</div>
+  <div class="card">
+    <div class="slabel">API Keys — Session Only</div>
+    <div class="keys-grid">
+      <div class="kgroup">
+        <label>Google Drive API Key</label>
+        <div class="krow"><input type="password" id="keyDrive" placeholder="Drive key..." oninput="saveKeys()" /><button class="btn-toggle" onclick="toggleKey('keyDrive',this)">Show</button></div>
+        <div class="khint">Fetches docs by file ID</div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="step-badge badge-waiting" id="badge1">Waiting</div>
-        <span class="step-chevron" id="chevron1">▼</span>
+      <div class="kgroup">
+        <label>Gemini API Key</label>
+        <div class="krow"><input type="password" id="keyGemini" placeholder="Gemini key..." oninput="saveKeys()" /><button class="btn-toggle" onclick="toggleKey('keyGemini',this)">Show</button></div>
+        <div class="khint">Research, validation + images</div>
       </div>
-    </div>
-    <div class="step-body" id="body1">
-      <div class="step-output" id="output1"></div>
-    </div>
-  </div>
-
-  <!-- STEP 2: Gemini Research -->
-  <div class="step-card" id="step2">
-    <div class="step-header" onclick="toggleStepBody(2)" style="cursor:pointer;">
-      <div class="step-number">2</div>
-      <div class="step-info">
-        <div class="step-title">Gemini Research Brief</div>
-        <div class="step-desc">Prompt 1 — 8 deliverables: title, sources, intent map, FAQ seeds, links, POV anchors</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="step-badge badge-waiting" id="badge2">Waiting</div>
-        <span class="step-chevron" id="chevron2">▼</span>
-      </div>
-    </div>
-    <div class="step-body" id="body2">
-      <div class="step-output" id="output2"></div>
-    </div>
-  </div>
-
-  <!-- STEP 3: Claude V1 -->
-  <div class="step-card" id="step3">
-    <div class="step-header" onclick="toggleStepBody(3)" style="cursor:pointer;">
-      <div class="step-number">3</div>
-      <div class="step-info">
-        <div class="step-title">Claude V1 — Article Architecture</div>
-        <div class="step-desc">Prompt 2 — Full structure, all links, all POV slots, tables, schema, image prompts</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="step-badge badge-waiting" id="badge3">Waiting</div>
-        <span class="step-chevron" id="chevron3">▼</span>
-      </div>
-    </div>
-    <div class="step-body" id="body3">
-      <div class="step-output" id="output3"></div>
-      <div id="retryRow3" style="display:none;margin-top:10px;">
-        <button class="btn-checkpoint-go" onclick="retryFromStep(3)" style="background:var(--blue);">↻ Retry from Step 3</button>
+      <div class="kgroup">
+        <label>Anthropic API Key</label>
+        <div class="krow"><input type="password" id="keyAnthropic" placeholder="Anthropic key..." oninput="saveKeys()" /><button class="btn-toggle" onclick="toggleKey('keyAnthropic',this)">Show</button></div>
+        <div class="khint">V1, V2, Final assembly</div>
       </div>
     </div>
   </div>
 
-  <!-- STEP 4: Gemini Validation -->
-  <div class="step-card" id="step4">
-    <div class="step-header" onclick="toggleStepBody(4)" style="cursor:pointer;">
-      <div class="step-number">4</div>
-      <div class="step-info">
-        <div class="step-title">Gemini Validation</div>
-        <div class="step-desc">Prompt 3 — Full QC pass, FAIL items only reported</div>
+  <div class="card">
+    <div class="slabel">New Article</div>
+    <div class="setup-row">
+      <div class="sgroup">
+        <label>Client</label>
+        <select id="clientSelect"><option value="">— Select client —</option></select>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="step-badge badge-waiting" id="badge4">Waiting</div>
-        <span class="step-chevron" id="chevron4">▼</span>
+      <div class="sgroup">
+        <label>Topic (exact match to Column D)</label>
+        <input type="text" id="topicInput" placeholder="Paste topic exactly as it appears in the sheet..." />
       </div>
-    </div>
-    <div class="step-body" id="body4">
-      <div class="step-output" id="output4"></div>
-      <div id="retryRow4" style="display:none;margin-top:10px;">
-        <button class="btn-checkpoint-go" onclick="retryFromStep(4)" style="background:var(--blue);">↻ Retry from Step 4</button>
-      </div>
+      <button class="btn-run" id="runBtn" onclick="startPipeline()">⚡ Run</button>
     </div>
   </div>
 
-  <!-- STEP 5: Claude V2 -->
-  <div class="step-card" id="step5">
-    <div class="step-header" onclick="toggleStepBody(5)" style="cursor:pointer;">
-      <div class="step-number">5</div>
-      <div class="step-info">
-        <div class="step-title">Claude V2 — Fix + Voice Rewrite</div>
-        <div class="step-desc">Prompt 4 — Apply Gemini fixes then blank-page voice rewrite in author's voice</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="step-badge badge-waiting" id="badge5">Waiting</div>
-        <span class="step-chevron" id="chevron5">▼</span>
-      </div>
-    </div>
-    <div class="step-body" id="body5">
-      <div class="step-output" id="output5"></div>
-      <div id="retryRow5" style="display:none;margin-top:10px;">
-        <button class="btn-checkpoint-go" onclick="retryFromStep(5)" style="background:var(--blue);">↻ Retry from Step 5</button>
-      </div>
+  <div class="gstatus" id="gstatus"></div>
+
+  <div class="cost-bar">
+    <div class="ci"><div class="cl">Gemini Tokens</div><div class="cv" id="cGemini">0</div></div>
+    <div class="ci"><div class="cl">Claude In</div><div class="cv" id="cClaudeIn">0</div></div>
+    <div class="ci"><div class="cl">Claude Out</div><div class="cv" id="cClaudeOut">0</div></div>
+    <div class="ci"><div class="cl">Images</div><div class="cv" id="cImages">0</div></div>
+    <div class="ci"><div class="cl">Est. Cost</div><div class="cv orange" id="cCost">$0.000</div></div>
+  </div>
+
+  <div class="outputs-section" id="outputsSec">
+    <div class="otitle">✓ Article Complete</div>
+    <div class="obts">
+      <button class="btn-out" onclick="dlMD()">↓ Final MD</button>
+      <button class="btn-out orange" onclick="dlTXT()">↓ Final TXT</button>
     </div>
   </div>
 
-  <!-- STEP 6: Human Checkpoint -->
-  <div class="step-card" id="step6">
-    <div class="step-header" onclick="toggleStepBody(6)" style="cursor:pointer;">
-      <div class="step-number">6</div>
-      <div class="step-info">
-        <div class="step-title">Human Checkpoint</div>
-        <div class="step-desc">Review V2 — describe any issues or leave blank to continue</div>
+  <div class="pipeline">
+
+    <div class="step-card" id="step1">
+      <div class="step-header" onclick="toggleStep(1)">
+        <div class="step-num">1</div>
+        <div class="step-info"><div class="step-title">Load Documents</div><div class="step-desc">Fetching 4.3A, 4.4, 2.2, 2.3, 4.3B + sheet row from Drive</div></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b1">Waiting</div><span class="schev closed" id="c1">▼</span></div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="step-badge badge-waiting" id="badge6">Waiting</div>
-        <span class="step-chevron" id="chevron6">▼</span>
-      </div>
+      <div class="step-body" id="sb1"><div class="sout" id="o1"></div></div>
     </div>
-    <div class="step-body" id="body6">
-      <div class="step-output" id="output6" style="margin-bottom:12px;"></div>
-      <div class="checkpoint-box" id="checkpointBox" style="display:none;">
-        <div class="checkpoint-title">⚠ Review V2 Before Final Assembly</div>
-        <p style="font-size:12px;color:#888;margin-bottom:10px;">Scan the article above. Type anything that looks wrong, or leave blank if it looks good.</p>
-        <textarea id="checkpointFeedback" placeholder="e.g. 'Look at the V2 requirements again and fix the voice in the intro section' — or leave blank"></textarea>
-        <div class="checkpoint-actions">
-          <button class="btn-checkpoint-go" onclick="proceedFromCheckpoint()">Looks Good — Continue</button>
+
+    <div class="step-card" id="step2">
+      <div class="step-header" onclick="toggleStep(2)">
+        <div class="step-num">2</div>
+        <div class="step-info"><div class="step-title">Gemini Research Brief</div><div class="step-desc">Prompt 1 — 8 deliverables: title, sources, intent map, FAQ seeds, links, POV anchors</div></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b2">Waiting</div><span class="schev closed" id="c2">▼</span></div>
+      </div>
+      <div class="step-body" id="sb2"><div class="sout" id="o2"></div></div>
+    </div>
+
+    <div class="step-card" id="step3">
+      <div class="step-header" onclick="toggleStep(3)">
+        <div class="step-num">3</div>
+        <div class="step-info"><div class="step-title">Claude V1 — Article Architecture</div><div class="step-desc">Prompt 2 — Full structure, all links, POV slots, tables, schema, image prompts</div></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b3">Waiting</div><span class="schev closed" id="c3">▼</span></div>
+      </div>
+      <div class="step-body" id="sb3"><div class="sout" id="o3"></div><div id="r3" style="display:none;"><button class="btn-retry" onclick="retryFrom(3)">↻ Retry from Step 3</button></div></div>
+    </div>
+
+    <div class="step-card" id="step4">
+      <div class="step-header" onclick="toggleStep(4)">
+        <div class="step-num">4</div>
+        <div class="step-info"><div class="step-title">Image Generation</div><div class="step-desc">Gemini generates all article images sequentially</div></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b4">Waiting</div><span class="schev closed" id="c4">▼</span></div>
+      </div>
+      <div class="step-body" id="sb4"><div class="sout" id="o4"></div><div id="r4" style="display:none;"><button class="btn-retry" onclick="retryFrom(4)">↻ Retry from Step 4</button></div></div>
+    </div>
+
+    <div class="step-card" id="step5">
+      <div class="step-header" onclick="toggleStep(5)">
+        <div class="step-num">5</div>
+        <div class="step-info"><div class="step-title">Gemini Validation</div><div class="step-desc">Prompt 3 — Full QC pass, FAIL items only reported</div></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b5">Waiting</div><span class="schev closed" id="c5">▼</span></div>
+      </div>
+      <div class="step-body" id="sb5"><div class="sout" id="o5"></div><div id="r5" style="display:none;"><button class="btn-retry" onclick="retryFrom(5)">↻ Retry from Step 5</button></div></div>
+    </div>
+
+    <div class="step-card" id="step6">
+      <div class="step-header" onclick="toggleStep(6)">
+        <div class="step-num">6</div>
+        <div class="step-info"><div class="step-title">Claude V2 — Fix + Voice Rewrite</div><div class="step-desc">Prompt 4 — Apply Gemini fixes then full voice rewrite</div></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b6">Waiting</div><span class="schev closed" id="c6">▼</span></div>
+      </div>
+      <div class="step-body" id="sb6"><div class="sout" id="o6"></div><div id="r6" style="display:none;"><button class="btn-retry" onclick="retryFrom(6)">↻ Retry from Step 6</button></div></div>
+    </div>
+
+    <div class="step-card" id="step7">
+      <div class="step-header" onclick="toggleStep(7)">
+        <div class="step-num">7</div>
+        <div class="step-info"><div class="step-title">Human Checkpoint</div><div class="step-desc">Review V2 in right panel — describe issues or continue</div></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b7">Waiting</div><span class="schev closed" id="c7">▼</span></div>
+      </div>
+      <div class="step-body" id="sb7">
+        <div class="cbox" id="cbox" style="display:none;">
+          <div class="ctitle">⚠ Review V2 in the right panel</div>
+          <p style="font-size:11px;color:#888;margin-bottom:7px;">Leave blank if V2 looks good. Describe any issues and Claude will fix them.</p>
+          <textarea id="cpFeedback" placeholder="e.g. Fix the voice in the intro — or leave blank to continue"></textarea>
+          <button class="btn-proceed" onclick="proceedCp()">Looks Good — Continue</button>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- STEP 7: Final Assembly -->
-  <div class="step-card" id="step7">
-    <div class="step-header" onclick="toggleStepBody(7)" style="cursor:pointer;">
-      <div class="step-number">7</div>
-      <div class="step-info">
-        <div class="step-title">Claude Final — Assembly + HTML QC</div>
-        <div class="step-desc">Prompt 5 — 24-item checklist, auto-fix, Final MD + Final TXT with image URLs</div>
+    <div class="step-card" id="step8">
+      <div class="step-header" onclick="toggleStep(8)">
+        <div class="step-num">8</div>
+        <div class="step-info"><div class="step-title">Claude Final — Assembly</div><div class="step-desc">Prompt 5 — 24-item checklist, Final MD + Final TXT with image URLs</div></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b8">Waiting</div><span class="schev closed" id="c8">▼</span></div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="step-badge badge-waiting" id="badge7">Waiting</div>
-        <span class="step-chevron" id="chevron7">▼</span>
-      </div>
+      <div class="step-body" id="sb8"><div class="sout" id="o8"></div><div id="r8" style="display:none;"><button class="btn-retry" onclick="retryFrom(8)">↻ Retry from Step 8</button></div></div>
     </div>
-    <div class="step-body" id="body7">
-      <div class="step-output" id="output7"></div>
-      <div id="retryRow7" style="display:none;margin-top:10px;">
-        <button class="btn-checkpoint-go" onclick="retryFromStep(7)" style="background:var(--blue);">↻ Retry from Step 7</button>
-      </div>
-      <div class="preview-box" id="previewBox" style="display:none;margin-top:12px;">
-        <div class="preview-label">HTML Preview</div>
-        <iframe class="preview-frame" id="previewFrame"></iframe>
-      </div>
-    </div>
-  </div>
 
-  <!-- STEP 8: HTML QC -->
-  <div class="step-card" id="step8">
-    <div class="step-header" onclick="toggleStepBody(8)" style="cursor:pointer;">
-      <div class="step-number">8</div>
-      <div class="step-info">
-        <div class="step-title">Claude HTML QC — Final TXT Validation</div>
-        <div class="step-desc">Prompt 6 — 7-check HTML audit against 4.3B spec: separators, spacing, ToC colors, FAQ duplication, element order, CTA format</div>
+    <div class="step-card" id="step9">
+      <div class="step-header" onclick="toggleStep(9)">
+        <div class="step-num">9</div>
+        <div class="step-info"><div class="step-title">Claude HTML QC</div><div class="step-desc">Prompt 6 — HTML audit against 4.3B spec</div></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b9">Waiting</div><span class="schev closed" id="c9">▼</span></div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="step-badge badge-waiting" id="badge8">Waiting</div>
-        <span class="step-chevron" id="chevron8">▼</span>
-      </div>
+      <div class="step-body" id="sb9"><div class="sout" id="o9"></div><div id="r9" style="display:none;"><button class="btn-retry" onclick="retryFrom(9)">↻ Retry QC</button></div><div id="rerunQC" style="display:none;margin-top:8px;"><button class="btn-retry" onclick="rerunQC()">↻ Run QC Again</button></div></div>
     </div>
-    <div class="step-body" id="body8">
-      <div class="step-output" id="output8" style="margin-bottom:12px;"></div>
-      <div class="preview-box" id="previewBox8" style="display:none;margin-bottom:12px;">
-        <div class="preview-label">HTML Preview — Final QC Output</div>
-        <iframe class="preview-frame" id="previewFrame8"></iframe>
-      </div>
-      <div id="rerunQCRow" style="display:none;margin-top:8px;">
-        <button class="btn-checkpoint-go" onclick="rerunQC()" style="background:var(--blue);">↻ Run QC Again</button>
-        <span style="font-size:12px;color:var(--muted);margin-left:12px;">Found something in the preview? Hit Run QC Again to re-fire Prompt 6.</span>
-      </div>
-    </div>
-  </div>
 
-</div>
-
-<!-- IMAGES SECTION -->
-<div class="images-section" id="imagesSection">
-  <div class="section-label">Images — Generating in Parallel</div>
-  <p style="font-size:12px;color:var(--muted);margin-bottom:4px;" id="imageCountLabel">Waiting for V1...</p>
-  <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Download each image, upload to WordPress, paste the URL in the matching slot below.</p>
-  <div class="image-grid" id="imageGrid"></div>
-  <div class="assemble-row">
-    <div style="flex:1;display:flex;flex-direction:column;gap:12px;">
-      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-        <div>
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);margin-bottom:6px;font-weight:400;">Publish Date</div>
-          <input type="date" id="publishDate" style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--blue);font-family:'Lexend',sans-serif;font-size:13px;outline:none;" />
-        </div>
-        <div>
-          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);margin-bottom:6px;font-weight:400;">Featured Image</div>
-          <div style="font-size:12px;color:var(--muted);" id="featuredLabel">Select via radio button on each image card above</div>
-        </div>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;">
-        <button class="btn-assemble" id="assembleBtn" onclick="triggerFinalAssembly()" disabled>Assemble Final</button>
-        <div class="assemble-hint" id="assembleHint">Paste all image URLs above to unlock</div>
-      </div>
-    </div>
   </div>
 </div>
 
-<!-- OUTPUTS -->
-<div class="outputs-section" id="outputsSection">
-  <div class="outputs-title">✓ Article Complete</div>
-  <div class="output-buttons">
-    <button class="btn-output" id="btnMD" onclick="downloadMD()">↓ Download Final MD</button>
-    <button class="btn-output orange" id="btnTXT" onclick="downloadTXT()">↓ Download Final TXT</button>
+<!-- RIGHT -->
+<div class="right-col">
+  <div class="right-panel">
+
+    <!-- IMAGES -->
+    <div class="panel-card">
+      <div class="panel-head">
+        <div class="panel-title">Images</div>
+        <div class="panel-badge" id="imgBadge">Waiting for V1...</div>
+      </div>
+      <div class="img-grid" id="imgGrid">
+        <div style="padding:16px;text-align:center;color:#ccc;font-size:11px;">Images appear here after Step 3</div>
+      </div>
+      <div class="pub-row">
+        <label>Publish Date</label>
+        <input type="date" id="publishDate" />
+      </div>
+      <div class="assemble-row">
+        <button class="btn-assemble" id="assembleBtn" onclick="triggerAssemble()" disabled>Assemble Final</button>
+        <div class="assemble-hint" id="assembleHint">Complete steps 1–7 first</div>
+      </div>
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="panel-card preview-panel">
+      <div class="panel-head">
+        <div class="panel-title">Preview</div>
+        <div class="panel-badge" id="prevBadge">Waiting...</div>
+      </div>
+      <div class="preview-tabs">
+        <button class="ptab active" id="tabV2" onclick="switchTab('v2')">V2 Article</button>
+        <button class="ptab" id="tabHTML" onclick="switchTab('html')">HTML Output</button>
+      </div>
+      <div class="ppane active" id="pV2">
+        <div class="pempty" id="v2Empty">V2 article appears here after Step 6</div>
+        <pre id="v2Pre" style="display:none;"></pre>
+      </div>
+      <div class="ppane" id="pHTML">
+        <div class="pempty" id="htmlEmpty">HTML preview appears after Final Assembly</div>
+        <iframe id="htmlFrame" style="display:none;"></iframe>
+      </div>
+    </div>
+
   </div>
 </div>
 
-</div><!-- end mainContent -->
+</div><!-- layout -->
+</div><!-- mainContent -->
 
 <script>
-  const PASSWORD = 'ITVsuccess123!';
-  const AUTH_KEY = 'aeo_authed';
-
-  function checkPassword() {
-    const val = document.getElementById('gateInput').value;
-    if (val === PASSWORD) {
-      sessionStorage.setItem(AUTH_KEY, '1');
+  // ─── AUTH ─────────────────────────────────────────────────
+  const PW = 'ITVsuccess123!';
+  function checkPw() {
+    if (document.getElementById('gateInput').value === PW) {
+      sessionStorage.setItem('aeo_auth','1');
       document.getElementById('passwordGate').style.display = 'none';
       document.getElementById('mainContent').style.display = 'block';
-      document.getElementById('gateInput').value = '';
     } else {
-      document.getElementById('gateError').textContent = 'Incorrect password. Try again.';
+      document.getElementById('gateErr').textContent = 'Incorrect password.';
       document.getElementById('gateInput').value = '';
       document.getElementById('gateInput').focus();
     }
   }
+  if (sessionStorage.getItem('aeo_auth')==='1') {
+    document.getElementById('passwordGate').style.display='none';
+    document.getElementById('mainContent').style.display='block';
+  } else { window.addEventListener('load',()=>document.getElementById('gateInput').focus()); }
 
-  // Check if already authed this session
-  if (sessionStorage.getItem(AUTH_KEY) === '1') {
-    document.getElementById('passwordGate').style.display = 'none';
-    document.getElementById('mainContent').style.display = 'block';
-  } else {
-    // Focus password input
-    window.addEventListener('load', () => document.getElementById('gateInput').focus());
-  }
-  // ─── STATE ───────────────────────────────────────────────
-  const CLIENTS_KEY = 'aeo_clients';
-  const GLOBALS_KEY = 'aeo_globals';
-  const KEYS_KEY = 'aeo_session_keys';
-  const PROXY = 'https://anthropic-proxy.gerek.workers.dev';
-  const GEMINI_MODEL = 'gemini-2.5-pro';
-  const GEMINI_IMG_MODEL = 'gemini-3.1-flash-image-preview';
-  const CLAUDE_MODEL = 'claude-sonnet-4-5';
+  // ─── CONSTANTS ────────────────────────────────────────────
+  const CLIENTS_KEY='aeo_clients', GLOBALS_KEY='aeo_globals', KEYS_KEY='aeo_session_keys';
+  const PROXY='https://anthropic-proxy.gerek.workers.dev';
+  const GEMINI_MODEL='gemini-2.5-pro';
+  const GEMINI_IMG_MODEL='gemini-3.1-flash-image-preview';
+  const CLAUDE_MODEL='claude-sonnet-4-5';
 
-  let state = {
-    client: null,
-    topic: '',
-    docs: {},
-    sheetRow: '',
-    geminiResearch: '',
-    v1: '',
-    validation: '',
-    v2: '',
-    finalMD: '',
-    finalTXT: '',
-    imagePrompts: [],
-    imageUrls: {},
-    tokens: { geminiIn: 0, geminiOut: 0, claudeIn: 0, claudeOut: 0, images: 0 }
+  // ─── STATE ────────────────────────────────────────────────
+  let S = {
+    client:null, topic:'', docs:{}, sheetRow:'',
+    geminiResearch:'', v1:'', validation:'', v2:'',
+    finalMD:'', finalTXT:'',
+    imagePrompts:[], imageData:{}, imageUrls:{},
+    tokens:{gi:0,go:0,ci:0,co:0,imgs:0}
   };
+  let running=false, cpResolve=null, asmResolve=null;
 
-  let isRunning = false;
-  let checkpointResolve = null;
-
-  // ─── INIT ────────────────────────────────────────────────
-  window.addEventListener('load', () => {
-    loadClients();
-    loadKeys();
+  // ─── INIT ─────────────────────────────────────────────────
+  window.addEventListener('load',()=>{
+    loadClients(); loadKeys();
+    document.getElementById('publishDate').value = new Date().toISOString().split('T')[0];
   });
 
   function loadClients() {
-    const clients = JSON.parse(localStorage.getItem(CLIENTS_KEY) || '[]');
-    const sel = document.getElementById('clientSelect');
-    sel.innerHTML = '<option value="">— Select client —</option>';
-    clients.forEach((c, i) => {
-      const opt = document.createElement('option');
-      opt.value = i;
-      opt.textContent = c.name;
-      sel.appendChild(opt);
-    });
+    const cl=JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');
+    const sel=document.getElementById('clientSelect');
+    sel.innerHTML='<option value="">— Select client —</option>';
+    cl.forEach((c,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=c.name; sel.appendChild(o); });
   }
 
   function loadKeys() {
-    const k = JSON.parse(sessionStorage.getItem(KEYS_KEY) || '{}');
-    if (k.drive) document.getElementById('keyDrive').value = k.drive;
-    if (k.gemini) document.getElementById('keyGemini').value = k.gemini;
-    if (k.anthropic) document.getElementById('keyAnthropic').value = k.anthropic;
+    const k=JSON.parse(sessionStorage.getItem(KEYS_KEY)||'{}');
+    if(k.drive) document.getElementById('keyDrive').value=k.drive;
+    if(k.gemini) document.getElementById('keyGemini').value=k.gemini;
+    if(k.anthropic) document.getElementById('keyAnthropic').value=k.anthropic;
   }
 
   function saveKeys() {
-    sessionStorage.setItem(KEYS_KEY, JSON.stringify({
-      drive: document.getElementById('keyDrive').value,
-      gemini: document.getElementById('keyGemini').value,
-      anthropic: document.getElementById('keyAnthropic').value
+    sessionStorage.setItem(KEYS_KEY,JSON.stringify({
+      drive:document.getElementById('keyDrive').value,
+      gemini:document.getElementById('keyGemini').value,
+      anthropic:document.getElementById('keyAnthropic').value
     }));
   }
 
-  function toggleKey(id, btn) {
-    const input = document.getElementById(id);
-    input.type = input.type === 'password' ? 'text' : 'password';
-    btn.textContent = input.type === 'password' ? 'Show' : 'Hide';
+  function toggleKey(id,btn) {
+    const inp=document.getElementById(id);
+    inp.type=inp.type==='password'?'text':'password';
+    btn.textContent=inp.type==='password'?'Show':'Hide';
   }
 
-  // ─── STEP UI ─────────────────────────────────────────────
-  function setStep(n, status, text, outputText) {
-    const card = document.getElementById(`step${n}`);
-    const badge = document.getElementById(`badge${n}`);
-    const body = document.getElementById(`body${n}`);
-    const output = document.getElementById(`output${n}`);
-
-    card.className = `step-card ${status}`;
-    badge.className = `step-badge badge-${status === 'active' ? 'running' : status === 'done' ? 'done' : status === 'error' ? 'error' : status === 'checkpoint' ? 'waiting-input' : 'waiting'}`;
-
-    const labels = { active: 'Running...', done: 'Done ✓', error: 'Failed', waiting: 'Waiting', checkpoint: 'Your Turn' };
-    badge.textContent = text || labels[status] || status;
-
-    if (outputText !== undefined) {
-      body.classList.add('open');
-      output.textContent = outputText;
-    }
+  // ─── STEP UI ──────────────────────────────────────────────
+  function setStep(n,status,label,out) {
+    const card=document.getElementById(`step${n}`);
+    const badge=document.getElementById(`b${n}`);
+    const body=document.getElementById(`sb${n}`);
+    const outEl=document.getElementById(`o${n}`);
+    const chev=document.getElementById(`c${n}`);
+    card.className=`step-card ${status}`;
+    badge.className=`sbadge b-${status==='active'?'running':status==='done'?'done':status==='error'?'error':status==='checkpoint'?'checkpoint':'waiting'}`;
+    badge.textContent=label||status;
+    if(out!==undefined && outEl){ outEl.textContent=out; body.classList.add('open'); if(chev) chev.classList.remove('closed'); }
   }
 
-  function setGlobal(text, active = false) {
-    const el = document.getElementById('globalStatus');
-    el.innerHTML = active ? `<span class="spinner"></span>${text}` : text;
+  function toggleStep(n) {
+    const body=document.getElementById(`sb${n}`);
+    const chev=document.getElementById(`c${n}`);
+    if(!body) return;
+    const open=body.classList.contains('open');
+    body.classList.toggle('open',!open);
+    if(chev) chev.classList.toggle('closed',open);
   }
 
-  // ─── COST TRACKER ────────────────────────────────────────
+  function setG(text,active=false) {
+    document.getElementById('gstatus').innerHTML=active?`<span class="spinner"></span>${text}`:text;
+  }
+
   function updateCost() {
-    document.getElementById('costGeminiTokens').textContent = (state.tokens.geminiIn + state.tokens.geminiOut).toLocaleString();
-    document.getElementById('costClaudeIn').textContent = state.tokens.claudeIn.toLocaleString();
-    document.getElementById('costClaudeOut').textContent = state.tokens.claudeOut.toLocaleString();
-    document.getElementById('costImages').textContent = state.tokens.images;
-    // Rough cost estimate: Claude Sonnet ~$3/MTok in, $15/MTok out
-    const claudeCost = (state.tokens.claudeIn / 1000000 * 3) + (state.tokens.claudeOut / 1000000 * 15);
-    document.getElementById('costTotal').textContent = `$${claudeCost.toFixed(3)}`;
+    document.getElementById('cGemini').textContent=(S.tokens.gi+S.tokens.go).toLocaleString();
+    document.getElementById('cClaudeIn').textContent=S.tokens.ci.toLocaleString();
+    document.getElementById('cClaudeOut').textContent=S.tokens.co.toLocaleString();
+    document.getElementById('cImages').textContent=S.tokens.imgs;
+    const cost=(S.tokens.ci/1e6*3)+(S.tokens.co/1e6*15);
+    document.getElementById('cCost').textContent=`$${cost.toFixed(3)}`;
   }
 
-  // ─── DRIVE FETCHING ──────────────────────────────────────
-  async function fetchFileById(fileId, driveKey) {
-    if (!fileId) throw new Error(`Missing file ID — check Client Manager config`);
-    const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${driveKey}`;
-    const res = await fetch(url);
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(`Drive fetch failed (${res.status}): ${errData?.error?.message || 'Check file ID and API key permissions'}`);
-    }
-    return await res.text();
+  // ─── DRIVE ────────────────────────────────────────────────
+  async function fetchFile(id,key) {
+    if(!id) throw new Error('Missing file ID — check Client Manager config');
+    const r=await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&key=${key}`);
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(`Drive error (${r.status}): ${e?.error?.message||'check file ID'}`); }
+    return r.text();
   }
 
-  async function fetchSheetAsCSV(sheetId, driveKey) {
-    // Export as CSV
-    const url = `https://www.googleapis.com/drive/v3/files/${sheetId}/export?mimeType=text%2Fcsv&key=${driveKey}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to fetch sheet: ${res.status}`);
-    return await res.text();
+  async function fetchSheet(id,key) {
+    const r=await fetch(`https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=text%2Fcsv&key=${key}`);
+    if(!r.ok) throw new Error(`Sheet fetch failed: ${r.status}`);
+    return r.text();
   }
 
-  function findSheetRow(csv, topic) {
-    const lines = csv.split('\n');
-    const header = lines[0];
-    const cols = parseCSVLine(header);
-    const colDIndex = cols.findIndex(c => c.toLowerCase().includes('aeo question') || c.toLowerCase().includes('question title') || c === 'D' || cols.indexOf(c) === 3);
-    const targetCol = colDIndex >= 0 ? colDIndex : 3; // default to col D (index 3)
-
-    for (let i = 1; i < lines.length; i++) {
-      const row = parseCSVLine(lines[i]);
-      if (row[targetCol] && row[targetCol].trim().toLowerCase() === topic.trim().toLowerCase()) {
-        return { row: row.join(' | '), rawLine: lines[i], index: i };
-      }
+  function findRow(csv,topic) {
+    const lines=csv.split('\n');
+    const cols=parseCSV(lines[0]);
+    const col=cols.findIndex(c=>c.toLowerCase().includes('aeo question')||c.toLowerCase().includes('question title'))||3;
+    for(let i=1;i<lines.length;i++){
+      const row=parseCSV(lines[i]);
+      if(row[col]&&row[col].trim().toLowerCase()===topic.trim().toLowerCase()) return {row:row.join(' | '),index:i};
     }
     return null;
   }
 
-  function parseCSVLine(line) {
-    const result = [];
-    let current = '';
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      if (char === '"') { inQuotes = !inQuotes; }
-      else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
-      else { current += char; }
-    }
-    result.push(current.trim());
-    return result;
+  function parseCSV(line) {
+    const res=[]; let cur=''; let q=false;
+    for(const c of line){ if(c==='"'){q=!q;}else if(c===','&&!q){res.push(cur.trim());cur='';}else{cur+=c;} }
+    res.push(cur.trim()); return res;
   }
 
-  // ─── EXTRACT PROMPT (updated for prompt 6) ───────────────
-  function extractPrompt(doc44, promptNum) {
-    const markers = {
-      1: ['PROMPT 1:', 'PROMPT 2:'],
-      2: ['PROMPT 2:', 'PROMPT 3:'],
-      3: ['PROMPT 3:', 'PROMPT 4:'],
-      4: ['PROMPT 4:', 'PROMPT 5:'],
-      5: ['PROMPT 5:', 'PROMPT 6:'],
-      6: ['PROMPT 6:', 'Table of Contents']
-    };
-    const [start, end] = markers[promptNum];
-    const startIdx = doc44.indexOf(start);
-    const endIdx = doc44.indexOf(end, startIdx + 1);
-    if (startIdx === -1) throw new Error(`Prompt ${promptNum} not found in 4.4`);
-    return doc44.substring(startIdx + start.length, endIdx > 0 ? endIdx : undefined).trim();
+  function getPrompt(doc44,n) {
+    const m={1:['PROMPT 1:','PROMPT 2:'],2:['PROMPT 2:','PROMPT 3:'],3:['PROMPT 3:','PROMPT 4:'],4:['PROMPT 4:','PROMPT 5:'],5:['PROMPT 5:','PROMPT 6:'],6:['PROMPT 6:','Table of Contents']};
+    const [s,e]=m[n]; const si=doc44.indexOf(s); const ei=doc44.indexOf(e,si+1);
+    if(si===-1) throw new Error(`Prompt ${n} not found in 4.4`);
+    return doc44.substring(si+s.length,ei>0?ei:undefined).trim();
   }
 
-  // ─── HTML QC ─────────────────────────────────────────────
-  async function runHTMLQC(claudeSystem, doc43B, anthropicKey) {
-    setStep(8, 'active', 'Running QC...');
-    setGlobal('Claude running HTML QC against 4.3B spec...', true);
-
-    const prompt6 = extractPrompt(state.docs.doc44, 6);
-    const qcUser = `${prompt6}
-
-FINAL TXT TO QC:
-${state.finalTXT}`;
-
-    const qcResult = await callClaude(
-      claudeSystem + `\n\n4.3B HTML STYLE SPEC:\n${doc43B}`,
-      qcUser,
-      anthropicKey,
-      (partial) => {
-        document.getElementById('output8').textContent = partial;
-        document.getElementById('body8').classList.add('open');
-      }
-    );
-
-    // Extract corrected HTML
-    const qcMatch = qcResult.match(/```(?:html)?\n([\s\S]*?)```/i);
-    if (qcMatch) state.finalTXT = qcMatch[1];
-
-    // Show preview
-    const previewBox8 = document.getElementById('previewBox8');
-    const previewFrame8 = document.getElementById('previewFrame8');
-    previewBox8.style.display = 'block';
-    const frameDoc = previewFrame8.contentDocument || previewFrame8.contentWindow.document;
-    frameDoc.open();
-    frameDoc.write(state.finalTXT);
-    frameDoc.close();
-
-    // Show rerun button
-    document.getElementById('rerunQCRow').style.display = 'flex';
-    document.getElementById('body8').classList.add('open');
-
-    setStep(8, 'done', 'Done ✓', 'QC complete. Review the HTML preview below.');
-  }
-
-  async function rerunQC() {
-    const anthropicKey = document.getElementById('keyAnthropic').value.trim();
-    const claudeSystem = `You are an expert AEO article writer. Your client's identity card (4.3B) is loaded below.\n\n4.3B — CLIENT IDENTITY CARD:\n${state.docs.doc43B}`;
-    await runHTMLQC(claudeSystem, state.docs.doc43B, anthropicKey);
-  }
-
-  function extractImagePrompts(v1Text) {
-    const prompts = [];
-    const lines = v1Text.split('\n');
-    let currentH2 = '';
-    let currentPrompt = null;
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-
-      // Track current H2 heading
-      if (trimmed.match(/^##\s+[^#]/) || trimmed.match(/\[H2\]/i)) {
-        currentH2 = trimmed.replace(/^##\s+/, '').replace(/\[H2\]/i, '').replace(/\[.*?\]/g, '').trim();
-      }
-
-      // Capture image prompt — handles [IMAGE: ...] and PROMPT: formats
-      if (trimmed.toUpperCase().startsWith('[IMAGE:')) {
-        currentPrompt = trimmed.replace(/^\[IMAGE:\s*/i, '').replace(/\]$/, '').trim();
-      } else if (trimmed.toUpperCase().startsWith('PROMPT:')) {
-        currentPrompt = trimmed.replace(/^PROMPT:\s*/i, '').trim();
-      }
-
-      // Capture ALT text and pair with prompt
-      if ((trimmed.toUpperCase().startsWith('**ALT TEXT:') || trimmed.toUpperCase().startsWith('ALT:')) && currentPrompt) {
-        const alt = trimmed
-          .replace(/^\*\*ALT TEXT:\s*/i, '')
-          .replace(/\*\*$/, '')
-          .replace(/^ALT:\s*/i, '')
-          .trim();
-        prompts.push({ prompt: currentPrompt, alt, h2: currentH2 });
-        currentPrompt = null;
+  // ─── IMAGE EXTRACTION ─────────────────────────────────────
+  function extractImgPrompts(v1) {
+    const prompts=[]; const lines=v1.split('\n');
+    let cur=null, h2='';
+    for(const line of lines){
+      const t=line.trim();
+      if(t.match(/^##\s+[^#]/)||t.match(/\[H2\]/i)) h2=t.replace(/^##\s+/,'').replace(/\[H2\]/gi,'').replace(/\[.*?\]/g,'').trim();
+      if(t.toUpperCase().startsWith('[IMAGE:')) cur=t.replace(/^\[IMAGE:\s*/i,'').replace(/\]$/,'').trim();
+      else if(t.toUpperCase().startsWith('PROMPT:')) cur=t.replace(/^PROMPT:\s*/i,'').trim();
+      else if(cur&&!t.toUpperCase().startsWith('**ALT')&&!t.toUpperCase().startsWith('ALT')&&!t.startsWith('#')&&!t.startsWith('*')&&t.length>0&&!t.startsWith('[')&&cur.length<800) cur+=' '+t;
+      if(t.toUpperCase().startsWith('**ALT TEXT:')||t.toUpperCase().startsWith('ALT TEXT:')||t.toUpperCase().startsWith('ALT:')) {
+        if(cur){ const alt=t.replace(/^\*\*ALT TEXT:\s*/i,'').replace(/\*\*$/,'').replace(/^ALT TEXT:\s*/i,'').replace(/^ALT:\s*/i,'').trim(); prompts.push({prompt:cur,alt,h2}); cur=null; }
       }
     }
     return prompts;
   }
 
-  // ─── GEMINI API ──────────────────────────────────────────
-  async function callGemini(prompt, geminiKey) {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 8192 }
-        })
-      }
-    );
-    const data = await res.json();
-    if (data.error) throw new Error(`Gemini error: ${data.error.message}`);
-    const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
-    const usage = data.usageMetadata || {};
-    state.tokens.geminiIn += usage.promptTokenCount || 0;
-    state.tokens.geminiOut += usage.candidatesTokenCount || 0;
-    updateCost();
+  // ─── IMAGE GRID ───────────────────────────────────────────
+  function buildImgGrid(prompts) {
+    const grid=document.getElementById('imgGrid');
+    grid.innerHTML='';
+    document.getElementById('imgBadge').textContent=`${prompts.length} image${prompts.length!==1?'s':''}`;
+    prompts.forEach((p,i)=>{
+      const card=document.createElement('div');
+      card.className='img-card'; card.id=`ic${i}`;
+      card.innerHTML=`
+        <div class="img-card-head">
+          <div>
+            <div class="img-label">Image ${i+1}</div>
+            ${p.h2?`<div style="font-size:10px;color:var(--faint);margin-top:2px;">${p.h2.substring(0,50)}${p.h2.length>50?'...':''}</div>`:''}
+          </div>
+          <div class="img-head-right">
+            <span class="sbadge b-running" id="ib${i}">Generating...</span>
+            <button class="btn-regen-sm" id="ir${i}" onclick="regenImg(${i})" disabled>↻ Regenerate</button>
+          </div>
+        </div>
+        <div class="img-prompt-row">
+          <div class="img-prompt-text" id="ipt${i}">${p.prompt.substring(0,120)}${p.prompt.length>120?'...':''}</div>
+          <button class="btn-edit-sm" onclick="toggleImgEdit(${i})">Edit</button>
+        </div>
+        <div class="img-edit-area" id="iea${i}">
+          <textarea id="iet${i}"></textarea>
+          <div class="edit-actions">
+            <button class="btn-save-edit" onclick="saveImgEdit(${i})">Save &amp; Regenerate</button>
+            <button class="btn-cancel-edit" onclick="cancelImgEdit(${i})">Cancel</button>
+          </div>
+        </div>
+        <div class="img-card-body" id="ibody${i}">
+          <div id="idisp${i}"></div>
+          <div class="url-row">
+            <label>WP URL</label>
+            <input type="text" id="iurl${i}" placeholder="Paste WordPress media URL after uploading..." oninput="checkUrls()" />
+          </div>
+          <label class="feat-row">
+            <input type="radio" name="featImg" value="${i}" ${i===0?'checked':''} style="accent-color:var(--orange);" onchange="updFeat()" />
+            Set as Featured Image
+          </label>
+        </div>`;
+      grid.appendChild(card);
+    });
+    updFeat();
+  }
+
+  function toggleImgEdit(idx) {
+    const area=document.getElementById(`iea${idx}`);
+    const isOpen=area.style.display==='block';
+    area.style.display=isOpen?'none':'block';
+    if(!isOpen) document.getElementById(`iet${idx}`).value=S.imagePrompts[idx]?.prompt||'';
+  }
+
+  function cancelImgEdit(idx) { document.getElementById(`iea${idx}`).style.display='none'; }
+
+  function saveImgEdit(idx) {
+    const newPrompt=document.getElementById(`iet${idx}`).value.trim();
+    if(!newPrompt) return;
+    S.imagePrompts[idx].prompt=newPrompt;
+    document.getElementById(`ipt${idx}`).textContent=newPrompt.substring(0,120)+(newPrompt.length>120?'...':'');
+    document.getElementById(`iea${idx}`).style.display='none';
+    regenImg(idx);
+  }
+
+  async function genAllImages(prompts,gkey) {
+    for(let i=0;i<prompts.length;i++){
+      setG(`Generating image ${i+1} of ${prompts.length}...`,true);
+      document.getElementById('o4').textContent=`Generating image ${i+1} of ${prompts.length}...`;
+      document.getElementById('sb4').classList.add('open');
+      try{ await genOneImage(prompts[i].prompt,prompts[i].alt,i,gkey); S.tokens.imgs++; updateCost(); }
+      catch(err){ showImgErr(i,err.message); }
+      if(i<prompts.length-1) await new Promise(r=>setTimeout(r,1500));
+    }
+  }
+
+  async function genOneImage(prompt,alt,idx,gkey) {
+    const badge=document.getElementById(`ib${idx}`);
+    if(badge){badge.className='sbadge b-running';badge.textContent='Generating...';}
+    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMG_MODEL}:generateContent?key=${gkey}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseModalities:['Text','Image']}})
+    });
+    const data=await res.json();
+    if(data.error) throw new Error(data.error.message||'Image API error');
+    const parts=data.candidates?.[0]?.content?.parts||[];
+    const imgPart=parts.find(p=>p.inlineData);
+    if(!imgPart) throw new Error('No image returned — check Gemini API key and quota');
+    const conv=await toWebP(imgPart.inlineData.data,imgPart.inlineData.mimeType||'image/png');
+    S.imageData[idx]=conv;
+    const fname=`${idx+1} ${alt.replace(/[^a-zA-Z0-9\s]/g,'').trim().substring(0,60)}`;
+    const fileSize=estimateSize(conv.data);
+    const disp=document.getElementById(`idisp${idx}`);
+    if(disp) disp.innerHTML=`
+      <img src="${conv.data}" alt="Image ${idx+1}" />
+      <div class="img-result-actions">
+        <a class="btn-dl-img" href="${conv.data}" download="${fname}.${conv.ext}">↓ Download .${conv.ext.toUpperCase()}</a>
+        <span class="img-format-badge">${conv.ext.toUpperCase()}</span>
+        <span class="img-file-info">~${fileSize} · 16:9</span>
+      </div>`;
+    if(badge){badge.className='sbadge b-done';badge.textContent='Done ✓';}
+    const rb=document.getElementById(`ir${idx}`); if(rb) rb.disabled=false;
+  }
+
+  function estimateSize(dataUrl) {
+    const bytes=Math.round(dataUrl.split(',')[1].length*0.75);
+    if(bytes<1024) return `${bytes} B`;
+    if(bytes<1024*1024) return `${(bytes/1024).toFixed(0)} KB`;
+    return `${(bytes/(1024*1024)).toFixed(1)} MB`;
+  }
+
+  function showImgErr(idx,msg) {
+    const b=document.getElementById(`ib${idx}`); if(b){b.className='sbadge b-error';b.textContent='Failed';}
+    const d=document.getElementById(`idisp${idx}`); if(d) d.innerHTML=`<div class="error-msg">⚠ ${msg}</div>`;
+    const rb=document.getElementById(`ir${idx}`); if(rb) rb.disabled=false;
+  }
+
+  async function regenImg(idx) {
+    const gkey=document.getElementById('keyGemini').value.trim();
+    if(!gkey||!S.imagePrompts[idx]) return;
+    const rb=document.getElementById(`ir${idx}`); if(rb) rb.disabled=true;
+    try{ await genOneImage(S.imagePrompts[idx].prompt,S.imagePrompts[idx].alt,idx,gkey); }
+    catch(err){ showImgErr(idx,err.message); }
+  }
+
+  async function toWebP(b64,mime) {
+    return new Promise((res,rej)=>{
+      const img=new Image();
+      img.onload=()=>{
+        const cv=document.createElement('canvas');
+        cv.width=img.naturalWidth; cv.height=img.naturalHeight;
+        cv.getContext('2d').drawImage(img,0,0);
+        const webp=cv.toDataURL('image/webp',0.85);
+        res(webp.startsWith('data:image/webp')?{data:webp,ext:'webp'}:{data:cv.toDataURL('image/jpeg',0.85),ext:'jpg'});
+      };
+      img.onerror=rej; img.src=`data:${mime};base64,${b64}`;
+    });
+  }
+
+  function updFeat() {
+    const sel=document.querySelector('input[name="featImg"]:checked');
+    if(sel) document.getElementById('assembleHint').textContent=`Image ${parseInt(sel.value)+1} set as featured — paste all WP URLs to unlock`;
+  }
+
+  function getFeatured() { const s=document.querySelector('input[name="featImg"]:checked'); return s?parseInt(s.value):0; }
+
+  function checkUrls() {
+    const total=S.imagePrompts.length; if(total===0) return;
+    let filled=0;
+    for(let i=0;i<total;i++){
+      const v=document.getElementById(`iurl${i}`)?.value.trim();
+      const inp=document.getElementById(`iurl${i}`);
+      if(v){filled++;S.imageUrls[i]=v;if(inp)inp.classList.add('filled');}
+      else{if(inp)inp.classList.remove('filled');}
+    }
+    const btn=document.getElementById('assembleBtn');
+    if(filled===total&&total>0){btn.disabled=false;document.getElementById('assembleHint').textContent='All URLs entered — ready!';}
+    else{btn.disabled=true;document.getElementById('assembleHint').textContent=`${filled}/${total} image URLs entered`;}
+  }
+
+  // ─── PREVIEW PANEL ────────────────────────────────────────
+  function switchTab(tab) {
+    document.getElementById('tabV2').classList.toggle('active',tab==='v2');
+    document.getElementById('tabHTML').classList.toggle('active',tab==='html');
+    document.getElementById('pV2').classList.toggle('active',tab==='v2');
+    document.getElementById('pHTML').classList.toggle('active',tab==='html');
+  }
+
+  function showV2(text) {
+    document.getElementById('v2Empty').style.display='none';
+    const pre=document.getElementById('v2Pre'); pre.style.display='block'; pre.textContent=text;
+    document.getElementById('prevBadge').textContent='V2 ready';
+  }
+
+  function showHTML(html) {
+    document.getElementById('htmlEmpty').style.display='none';
+    const frame=document.getElementById('htmlFrame'); frame.style.display='block';
+    const doc=frame.contentDocument||frame.contentWindow.document;
+    doc.open(); doc.write(html); doc.close();
+    document.getElementById('prevBadge').textContent='HTML ready';
+    switchTab('html');
+  }
+
+  // ─── GEMINI ───────────────────────────────────────────────
+  async function callGemini(prompt,gkey) {
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${gkey}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:8192}})
+    });
+    const data=await r.json();
+    if(data.error) throw new Error(`Gemini error: ${data.error.message}`);
+    const text=data.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||'';
+    const u=data.usageMetadata||{};
+    S.tokens.gi+=u.promptTokenCount||0; S.tokens.go+=u.candidatesTokenCount||0; updateCost();
     return text;
   }
 
-  async function generateImage(prompt, alt, index, geminiKey) {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMG_MODEL}:generateContent?key=${geminiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseModalities: ['Text', 'Image'] }
-        })
-      }
-    );
-    const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
-    const parts = data.candidates?.[0]?.content?.parts || [];
-    const imagePart = parts.find(p => p.inlineData);
-    if (!imagePart) throw new Error('No image returned');
-    state.tokens.images++;
-    updateCost();
-    return await convertToWebP(imagePart.inlineData.data, imagePart.inlineData.mimeType || 'image/png');
-  }
-
-  async function convertToWebP(base64Data, mimeType) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        canvas.getContext('2d').drawImage(img, 0, 0);
-        const webp = canvas.toDataURL('image/webp', 0.85);
-        resolve(webp.startsWith('data:image/webp') ? { data: webp, ext: 'webp' } : { data: canvas.toDataURL('image/jpeg', 0.85), ext: 'jpg' });
-      };
-      img.onerror = reject;
-      img.src = `data:${mimeType};base64,${base64Data}`;
+  // ─── CLAUDE (STREAMING) ───────────────────────────────────
+  async function callClaude(sys,user,akey,onChunk) {
+    const r=await fetch(PROXY,{
+      method:'POST',headers:{'Content-Type':'application/json','x-api-key':akey},
+      body:JSON.stringify({model:CLAUDE_MODEL,max_tokens:8192,stream:true,system:sys,messages:[{role:'user',content:user}]})
     });
+    if(!r.ok||!r.body){ const t=await r.text().catch(()=>'Unknown'); throw new Error(`Claude error: ${t}`); }
+    const reader=r.body.getReader(); const dec=new TextDecoder();
+    let full='',buf='',inTok=0,outTok=0;
+    while(true){
+      const{done,value}=await reader.read(); if(done) break;
+      buf+=dec.decode(value,{stream:true});
+      const lines=buf.split('\n'); buf=lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data: ')) continue;
+        const d=line.slice(6).trim(); if(d==='[DONE]') continue;
+        try{
+          const p=JSON.parse(d);
+          if(p.type==='content_block_delta'&&p.delta?.type==='text_delta'){full+=p.delta.text;if(onChunk)onChunk(full);}
+          if(p.type==='message_delta'&&p.usage) outTok=p.usage.output_tokens||0;
+          if(p.type==='message_start'&&p.message?.usage) inTok=p.message.usage.input_tokens||0;
+          if(p.type==='error') throw new Error(`Claude stream error: ${p.error?.message||'Unknown'}`);
+        }catch(e){if(e.message.startsWith('Claude')) throw e;}
+      }
+    }
+    S.tokens.ci+=inTok; S.tokens.co+=outTok; updateCost(); return full;
   }
 
-  // ─── CLAUDE API (STREAMING) ──────────────────────────────
-  async function callClaude(systemPrompt, userContent, anthropicKey, onChunk) {
-    const res = await fetch(PROXY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey },
-      body: JSON.stringify({
-        model: CLAUDE_MODEL,
-        max_tokens: 8192,
-        stream: true,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userContent }]
-      })
+  // ─── CHECKPOINT ───────────────────────────────────────────
+  function waitCp() { return new Promise(res=>{cpResolve=res;document.getElementById('cbox').style.display='block';setStep(7,'checkpoint','Your Turn');}); }
+  function proceedCp() { const fb=document.getElementById('cpFeedback').value.trim(); document.getElementById('cbox').style.display='none'; if(cpResolve){cpResolve(fb);cpResolve=null;} }
+  function triggerAssemble() { if(asmResolve){asmResolve();asmResolve=null;} }
+  function waitAssemble() { return new Promise(res=>{asmResolve=res;}); }
+
+  // ─── HTML QC ──────────────────────────────────────────────
+  async function runQC(sys,akey) {
+    setStep(9,'active','Running QC...'); setG('Claude running HTML QC...',true);
+    const p6=getPrompt(S.docs.doc44,6);
+    const qcUser=`${p6}\n\nFINAL TXT TO QC:\n${S.finalTXT}`;
+    const res=await callClaude(sys+`\n\n4.3B HTML STYLE SPEC:\n${S.docs.doc43B}`,qcUser,akey,(partial)=>{
+      document.getElementById('o9').textContent=partial; document.getElementById('sb9').classList.add('open');
     });
+    const m=res.match(/```(?:html)?\n([\s\S]*?)```/i); if(m) S.finalTXT=m[1];
+    showHTML(S.finalTXT);
+    document.getElementById('rerunQC').style.display='block';
+    setStep(9,'done','Done ✓','QC complete — review HTML preview on the right.');
+  }
 
-    if (!res.ok || !res.body) {
-      const errText = await res.text().catch(() => 'Unknown error');
-      throw new Error(`Claude error: ${errText}`);
+  async function rerunQC() {
+    const akey=document.getElementById('keyAnthropic').value.trim();
+    await runQC(buildSys(),akey);
+  }
+
+  function buildSys() { return `You are an expert AEO article writer. Your client's identity card (4.3B) is loaded below.\n\n4.3B — CLIENT IDENTITY CARD:\n${S.docs.doc43B}`; }
+
+  // ─── DOWNLOADS ────────────────────────────────────────────
+  function dlMD() { if(!S.finalMD) return; dl(S.finalMD,'text/markdown',`AEO - ${S.client?.name||'Article'} - ${S.topic.substring(0,40)} - FINAL.md`); }
+  function dlTXT() { if(!S.finalTXT) return; dl(S.finalTXT,'text/plain',`AEO - ${S.client?.name||'Article'} - ${S.topic.substring(0,40)} - FINAL.txt`); }
+  function dl(content,type,name) { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); }
+
+  // ─── SHARED RUNNER ────────────────────────────────────────
+  async function runFrom(start,sys,akey,gkey) {
+    let step=start;
+
+    if(step<=3){
+      setStep(3,'active','Building V1...'); setG('Claude building article architecture...',true);
+      const p2=getPrompt(S.docs.doc44,2);
+      const u2=`EXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}`;
+      S.v1=await callClaude(sys,u2,akey,(p)=>{document.getElementById('o3').textContent=p;document.getElementById('sb3').classList.add('open');});
+      setStep(3,'done','Done ✓');
+      S.imagePrompts=extractImgPrompts(S.v1);
+      step=4;
     }
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let fullText = '';
-    let buffer = '';
-    let inputTokens = 0;
-    let outputTokens = 0;
+    if(step<=4){
+      setStep(4,'active','Generating images...'); setG('Generating images...',true);
+      if(S.imagePrompts.length>0){
+        buildImgGrid(S.imagePrompts);
+        await genAllImages(S.imagePrompts,gkey);
+        setStep(4,'done','Done ✓',`${S.imagePrompts.length} image(s) generated.`);
+      } else {
+        setStep(4,'done','Done ✓','No image prompts found in V1.');
+        document.getElementById('o4').textContent='No image prompts extracted — check V1 format.';
+      }
+      step=5;
+    }
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    if(step<=5){
+      setStep(5,'active','Validating...'); setG('Gemini running validation pass...',true);
+      const p3=getPrompt(S.docs.doc44,3);
+      const vp=`You are operating inside the iTech Valet AI Authority Pipeline as Quality Assurance Auditor.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nBUSINESS IDENTITY LOCK (2.2):\n${S.docs.doc22}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${S.geminiResearch}\n\nFULL 4.4 VALIDATION RULES:\n${S.docs.doc44}\n\n---\n\n${p3}\n\nArticle text below:\n${S.v1}`;
+      S.validation=await callGemini(vp,gkey);
+      setStep(5,'done','Done ✓',S.validation);
+      step=6;
+    }
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop(); // keep incomplete line
+    if(step<=6){
+      setStep(6,'active','Rewriting...'); setG('Claude applying fixes and voice rewrite...',true);
+      const p4=getPrompt(S.docs.doc44,4);
+      const u4=`${p4}\n\n${S.validation&&!S.validation.includes('All items pass')?`GEMINI VALIDATION FEEDBACK:\n${S.validation}\n\n---`:'(All validation items passed — skip to Task 2)'}`;
+      S.v2=await callClaude(sys,u4,akey,(p)=>{document.getElementById('o6').textContent=p;document.getElementById('sb6').classList.add('open');showV2(p);});
+      setStep(6,'done','Done ✓'); showV2(S.v2);
+      step=7;
+    }
 
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6).trim();
-        if (data === '[DONE]') continue;
+    if(step<=7){
+      setStep(7,'active','Your Turn'); setG('⚠ Review V2 in right panel — then click Looks Good or describe issues');
+      const fb=await waitCp();
+      if(fb){
+        setStep(7,'active','Fixing...'); setG('Claude applying your feedback...',true);
+        const fix=`The operator reviewed V2 and flagged:\n\n"${fb}"\n\nFix this specific issue while preserving all structure, links, POV slots, and protected zones. Deliver the corrected V2.`;
+        S.v2=await callClaude(sys,fix+'\n\nCurrent V2:\n'+S.v2,akey,(p)=>showV2(p));
+      }
+      setStep(7,'done','Done ✓'); setG('⚠ Upload images to WordPress, paste URLs in right panel, then click Assemble Final');
+      await waitAssemble();
+      step=8;
+    }
 
-        try {
-          const parsed = JSON.parse(data);
+    if(step<=8){
+      setStep(8,'active','Assembling...'); setG('Claude running final checklist and assembling output files...',true);
+      const p5=getPrompt(S.docs.doc44,5);
+      const imgLines=[];
+      for(let i=0;i<S.imagePrompts.length;i++){const u=S.imageUrls[i]||'';if(u)imgLines.push(`Image ${i+1} URL — ${u}`);}
+      const featNum=getFeatured()+1;
+      const today=document.getElementById('publishDate').value||new Date().toISOString().split('T')[0];
+      const u5=`${imgLines.join('\n')}\n\nFeatured image — Image ${featNum}\nPublish date — ${today}\n\n${p5}\n\nV2 ARTICLE:\n${S.v2}`;
+      S.finalMD=await callClaude(sys,u5,akey,(p)=>{document.getElementById('o8').textContent=p;document.getElementById('sb8').classList.add('open');});
+      const m=S.finalMD.match(/FINAL TXT[\s\S]*?```(?:html)?\n([\s\S]*?)```/i);
+      S.finalTXT=m?m[1]:S.finalMD;
+      setStep(8,'done','Done ✓','Final MD and TXT generated.');
+      step=9;
+    }
 
-          // Extract text delta
-          if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
-            fullText += parsed.delta.text;
-            if (onChunk) onChunk(fullText);
-          }
+    if(step<=9){
+      await runQC(sys,akey);
+      document.getElementById('outputsSec').classList.add('open');
+      setG('✓ Article complete — download your files below.');
+    }
+  }
 
-          // Extract token usage from final message
-          if (parsed.type === 'message_delta' && parsed.usage) {
-            outputTokens = parsed.usage.output_tokens || 0;
-          }
-          if (parsed.type === 'message_start' && parsed.message?.usage) {
-            inputTokens = parsed.message.usage.input_tokens || 0;
-          }
-
-          // Error in stream
-          if (parsed.type === 'error') {
-            throw new Error(`Claude stream error: ${parsed.error?.message || 'Unknown'}`);
-          }
-        } catch (e) {
-          if (e.message.startsWith('Claude')) throw e;
-          // skip unparseable lines
-        }
+  function handleErr(err) {
+    setG(`⚠ Error: ${err.message}`); console.error(err);
+    for(let i=3;i<=9;i++){
+      const card=document.getElementById(`step${i}`);
+      if(card&&card.classList.contains('active')){
+        setStep(i,'error','Failed');
+        const rb=document.getElementById(`r${i}`); if(rb) rb.style.display='block';
+        break;
       }
     }
-
-    state.tokens.claudeIn += inputTokens;
-    state.tokens.claudeOut += outputTokens;
-    updateCost();
-    return fullText;
   }
 
-  // ─── CHECKPOINT ──────────────────────────────────────────
-  function waitForCheckpoint() {
-    return new Promise(resolve => {
-      checkpointResolve = resolve;
-      document.getElementById('checkpointBox').style.display = 'block';
-      setStep(6, 'checkpoint', 'Your Turn');
-    });
+  // ─── RETRY ────────────────────────────────────────────────
+  async function retryFrom(n) {
+    if(running) return;
+    const akey=document.getElementById('keyAnthropic').value.trim();
+    const gkey=document.getElementById('keyGemini').value.trim();
+    if(!akey||!gkey){alert('API keys required.');return;}
+    const rb=document.getElementById(`r${n}`); if(rb) rb.style.display='none';
+    running=true; document.getElementById('runBtn').disabled=true;
+    try{ await runFrom(n,buildSys(),akey,gkey); }
+    catch(err){ handleErr(err); }
+    running=false; document.getElementById('runBtn').disabled=false;
   }
 
-  function proceedFromCheckpoint() {
-    const feedback = document.getElementById('checkpointFeedback').value.trim();
-    document.getElementById('checkpointBox').style.display = 'none';
-    if (checkpointResolve) { checkpointResolve(feedback); checkpointResolve = null; }
-  }
-
-  // ─── COLLAPSIBLE STEPS ───────────────────────────────────
-  function toggleStepBody(n) {
-    const body = document.getElementById(`body${n}`);
-    const chevron = document.getElementById(`chevron${n}`);
-    if (!body || !body.classList.contains('open')) return; // only collapse if open
-    body.classList.remove('open');
-    chevron.classList.add('collapsed');
-    // click again to re-open
-    body._collapsed = true;
-  }
-
-  // Override to support re-expand on click
-  document.addEventListener('click', function(e) {
-    const header = e.target.closest('.step-header');
-    if (!header) return;
-    const card = header.closest('.step-card');
-    if (!card) return;
-    const n = card.id.replace('step', '');
-    const body = document.getElementById(`body${n}`);
-    const chevron = document.getElementById(`chevron${n}`);
-    if (!body || !body.classList.contains('open')) {
-      if (body && body.textContent.trim()) {
-        body.classList.add('open');
-        if (chevron) chevron.classList.remove('collapsed');
-      }
-      return;
-    }
-    body.classList.remove('open');
-    if (chevron) chevron.classList.add('collapsed');
-  }, true);
-
-  // ─── RETRY FROM STEP ─────────────────────────────────────
-  async function retryFromStep(stepNum) {
-    const anthropicKey = document.getElementById('keyAnthropic').value.trim();
-    const geminiKey = document.getElementById('keyGemini').value.trim();
-    if (!anthropicKey || !geminiKey) { alert('API keys required.'); return; }
-
-    const claudeSystem = `You are an expert AEO article writer. Your client's identity card (4.3B) is loaded below.\n\n4.3B — CLIENT IDENTITY CARD:\n${state.docs.doc43B}`;
-
-    // Hide retry button
-    const retryRow = document.getElementById(`retryRow${stepNum}`);
-    if (retryRow) retryRow.style.display = 'none';
-
-    isRunning = true;
-    document.getElementById('runBtn').disabled = true;
-
-    try {
-      if (stepNum <= 3) {
-        // Retry Claude V1
-        setStep(3, 'active', 'Building V1...');
-        setGlobal('Claude building article architecture...', true);
-        const prompt2 = extractPrompt(state.docs.doc44, 2);
-        const claudeUser2 = `EXECUTION RULES (4.3A):\n${state.docs.doc43A}\n\n---\n${prompt2}\n\n---\nSHEET ROW:\n${state.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${state.geminiResearch}`;
-        state.v1 = await callClaude(claudeSystem, claudeUser2, anthropicKey);
-        setStep(3, 'done', 'Done ✓', state.v1);
-        state.imagePrompts = extractImagePrompts(state.v1);
-        if (state.imagePrompts.length > 0) {
-          buildImageCards(state.imagePrompts);
-          state.imagePrompts.forEach((p, i) => {
-            generateImage(p.prompt, p.alt, i, geminiKey)
-              .then(img => updateImageCard(i, img, p.alt))
-              .catch(err => imageError(i, err.message));
-          });
-        }
-        stepNum = 4;
-      }
-
-      if (stepNum <= 4) {
-        setStep(4, 'active', 'Validating...');
-        setGlobal('Gemini running validation pass...', true);
-        const prompt3 = extractPrompt(state.docs.doc44, 3);
-        const validationPrompt = `You are operating inside the iTech Valet AI Authority Pipeline as Quality Assurance Auditor.\n\nCLIENT IDENTITY CARD (4.3B):\n${state.docs.doc43B}\n\nBUSINESS IDENTITY LOCK (2.2):\n${state.docs.doc22}\n\nMASTER INVENTORY SHEET ROW:\n${state.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${state.geminiResearch}\n\nFULL 4.4 VALIDATION RULES:\n${state.docs.doc44}\n\n---\n\n${prompt3}\n\nArticle text below:\n${state.v1}`;
-        state.validation = await callGemini(validationPrompt, geminiKey);
-        setStep(4, 'done', 'Done ✓', state.validation);
-        stepNum = 5;
-      }
-
-      if (stepNum <= 5) {
-        setStep(5, 'active', 'Rewriting...');
-        setGlobal('Claude applying fixes and voice rewrite...', true);
-        const prompt4 = extractPrompt(state.docs.doc44, 4);
-        const claudeUser4 = `${prompt4}\n\n${state.validation && !state.validation.includes('All items pass') ? `GEMINI VALIDATION FEEDBACK:\n${state.validation}\n\n---` : '(All validation items passed — skip to Task 2)'}`;
-        state.v2 = await callClaude(claudeSystem, claudeUser4, anthropicKey);
-        setStep(5, 'done', 'Done ✓', state.v2);
-        document.getElementById('output6').textContent = state.v2.substring(0, 600) + '\n\n[Full V2 above in Step 5]';
-        stepNum = 6;
-      }
-
-      if (stepNum <= 6) {
-        setStep(6, 'active', 'Your Turn');
-        setGlobal('⚠ Review V2 — describe any issues or continue to Final Assembly');
-        const feedback = await waitForCheckpoint();
-        if (feedback) {
-          setStep(6, 'active', 'Fixing...');
-          setGlobal('Claude applying your feedback...', true);
-          const fixPrompt = `The operator has reviewed V2 and flagged the following issue:\n\n"${feedback}"\n\nFix this specific issue in the article while preserving all structure, links, POV slots, and protected zones. Deliver the corrected V2.`;
-          state.v2 = await callClaude(claudeSystem, fixPrompt + '\n\nCurrent V2:\n' + state.v2, anthropicKey);
-        }
-        setStep(6, 'done', 'Done ✓');
-        setGlobal('⚠ Upload images to WordPress, paste URLs below, then click Assemble Final');
-        await waitForAssemble();
-        stepNum = 7;
-      }
-
-      if (stepNum <= 7) {
-        setStep(7, 'active', 'Assembling...');
-        setGlobal('Claude running final checklist and assembling output files...', true);
-        const prompt5 = extractPrompt(state.docs.doc44, 5);
-        const imageLines = [];
-        for (let i = 0; i < state.imagePrompts.length; i++) {
-          const url = state.imageUrls[i] || '';
-          if (url) imageLines.push(`Image ${i + 1} URL — ${url}`);
-        }
-        const featuredIndex = getSelectedFeaturedIndex();
-        const today = document.getElementById('publishDate').value || new Date().toISOString().split('T')[0];
-        const claudeUser5 = `${imageLines.join('\n')}\n\nFeatured image — Image ${featuredIndex + 1}\nPublish date — ${today}\n\n${prompt5}\n\nV2 ARTICLE:\n${state.v2}`;
-        state.finalMD = await callClaude(claudeSystem, claudeUser5, anthropicKey, (partial) => { document.getElementById("output7").textContent = partial; document.getElementById("body7").classList.add("open"); });
-        const txtMatch = state.finalMD.match(/FINAL TXT[\s\S]*?```(?:html)?\n([\s\S]*?)```/i);
-        state.finalTXT = txtMatch ? txtMatch[1] : state.finalMD;
-        setStep(7, 'done', 'Done ✓', 'Final MD and Final TXT generated.');
-        stepNum = 8;
-      }
-
-      if (stepNum <= 8) {
-        await runHTMLQC(claudeSystem, state.docs.doc43B, anthropicKey);
-        document.getElementById('outputsSection').classList.add('open');
-        setGlobal('✓ Article complete — download your files below.');
-      }
-
-    } catch (err) {
-      const failedStep = stepNum;
-      setStep(failedStep, 'error', 'Failed', `Error: ${err.message}`);
-      const retryRowFailed = document.getElementById(`retryRow${failedStep}`);
-      if (retryRowFailed) retryRowFailed.style.display = 'block';
-      setGlobal(`⚠ Error at Step ${failedStep}: ${err.message}`);
-      console.error(err);
-    }
-
-    isRunning = false;
-    document.getElementById('runBtn').disabled = false;
-  }
-
-  // ─── IMAGE UI ────────────────────────────────────────────
-  function buildImageCards(prompts) {
-    const grid = document.getElementById('imageGrid');
-    grid.innerHTML = '';
-    document.getElementById('imagesSection').classList.add('open');
-
-    const count = prompts.length;
-    document.getElementById('imageCountLabel').textContent = `${count} image${count !== 1 ? 's' : ''} detected in V1`;
-
-    // Default publish date to today
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('publishDate').value = today;
-
-    prompts.forEach((p, i) => {
-      const card = document.createElement('div');
-      card.className = 'image-card';
-      card.id = `imgCard-${i}`;
-      card.innerHTML = `
-        <div class="image-card-header">
-          <div>
-            <div class="image-label">Image ${i + 1}</div>
-            ${p.h2 ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">After: "${p.h2.substring(0, 60)}${p.h2.length > 60 ? '...' : ''}"</div>` : ''}
-          </div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--orange);cursor:pointer;font-weight:400;">
-              <input type="radio" name="featuredImage" value="${i}" id="featured-${i}" ${i === 0 ? 'checked' : ''} onchange="updateFeaturedLabel()" style="accent-color:var(--orange);" />
-              Featured
-            </label>
-            <span class="step-badge badge-running" id="imgBadge-${i}">Generating...</span>
-            <button class="btn-regen" onclick="regenImage(${i})">↻ Regen</button>
-          </div>
-        </div>
-        <div class="image-card-body" id="imgBody-${i}">
-          <div style="font-size:11px;color:#aaa;margin-bottom:6px;font-style:italic;">${p.prompt.substring(0, 120)}...</div>
-          <div style="font-size:11px;color:var(--faint);margin-bottom:8px;"><strong>ALT:</strong> ${p.alt}</div>
-          <div id="imgDisplay-${i}"></div>
-          <div class="url-input-row">
-            <label>WP URL</label>
-            <input type="text" id="imgUrl-${i}" placeholder="Paste WordPress media URL after uploading..." oninput="checkAllUrls()" />
-          </div>
-        </div>
-      `;
-      grid.appendChild(card);
-    });
-
-    updateFeaturedLabel();
-    checkAllUrls();
-  }
-
-  function updateFeaturedLabel() {
-    const selected = document.querySelector('input[name="featuredImage"]:checked');
-    const label = document.getElementById('featuredLabel');
-    if (selected) {
-      label.textContent = `Image ${parseInt(selected.value) + 1} selected as featured`;
-      label.style.color = 'var(--orange)';
-    }
-  }
-
-  function getSelectedFeaturedIndex() {
-    const selected = document.querySelector('input[name="featuredImage"]:checked');
-    return selected ? parseInt(selected.value) : 0;
-  }
-
-  function updateImageCard(index, imageData, alt) {
-    const badge = document.getElementById(`imgBadge-${index}`);
-    const display = document.getElementById(`imgDisplay-${index}`);
-    if (badge) { badge.className = 'step-badge badge-done'; badge.textContent = 'Done ✓'; }
-    if (display && imageData) {
-      const filename = `${index + 1} ${alt.replace(/[^a-zA-Z0-9\s]/g, '').trim().substring(0, 60)}`;
-      display.innerHTML = `
-        <img src="${imageData.data}" alt="Image ${index + 1}" style="width:100%;border-radius:4px;margin-bottom:8px;" />
-        <a class="btn-download-img" href="${imageData.data}" download="${filename}.${imageData.ext}">↓ Download .${imageData.ext.toUpperCase()}</a>
-      `;
-    }
-  }
-
-  function imageError(index, msg) {
-    const badge = document.getElementById(`imgBadge-${index}`);
-    if (badge) { badge.className = 'step-badge badge-error'; badge.textContent = 'Failed'; }
-    const display = document.getElementById(`imgDisplay-${index}`);
-    if (display) display.innerHTML = `<div class="error-msg">⚠ ${msg} — use Regen</div>`;
-  }
-
-  async function regenImage(index) {
-    const geminiKey = document.getElementById('keyGemini').value.trim();
-    if (!geminiKey || !state.imagePrompts[index]) return;
-    const badge = document.getElementById(`imgBadge-${index}`);
-    if (badge) { badge.className = 'step-badge badge-running'; badge.textContent = 'Generating...'; }
-    try {
-      const img = await generateImage(state.imagePrompts[index].prompt, state.imagePrompts[index].alt, index, geminiKey);
-      updateImageCard(index, img, state.imagePrompts[index].alt);
-    } catch (err) {
-      imageError(index, err.message);
-    }
-  }
-
-  function checkAllUrls() {
-    const total = state.imagePrompts.length;
-    if (total === 0) return;
-    let filled = 0;
-    const urls = {};
-    for (let i = 0; i < total; i++) {
-      const val = document.getElementById(`imgUrl-${i}`)?.value.trim();
-      if (val) { filled++; urls[i] = val; document.getElementById(`imgUrl-${i}`).classList.add('filled'); }
-      else { document.getElementById(`imgUrl-${i}`)?.classList.remove('filled'); }
-    }
-    const assembleBtn = document.getElementById('assembleBtn');
-    const hint = document.getElementById('assembleHint');
-    if (filled === total) {
-      assembleBtn.disabled = false;
-      hint.textContent = 'All image URLs entered — ready to assemble!';
-      state.imageUrls = urls;
-    } else {
-      assembleBtn.disabled = true;
-      hint.textContent = `${filled} of ${total} image URLs entered`;
-    }
-  }
-
-  function triggerFinalAssembly() {
-    if (checkpointResolve) proceedFromCheckpoint();
-  }
-
-  // ─── MAIN PIPELINE ───────────────────────────────────────
+  // ─── MAIN PIPELINE ────────────────────────────────────────
   async function startPipeline() {
-    if (isRunning) return;
+    if(running) return;
+    const dkey=document.getElementById('keyDrive').value.trim();
+    const gkey=document.getElementById('keyGemini').value.trim();
+    const akey=document.getElementById('keyAnthropic').value.trim();
+    const cidx=document.getElementById('clientSelect').value;
+    const topic=document.getElementById('topicInput').value.trim();
+    if(!dkey||!gkey||!akey){alert('Please enter all 3 API keys.');return;}
+    if(cidx===''){alert('Please select a client.');return;}
+    if(!topic){alert('Please enter the article topic.');return;}
 
-    const driveKey = document.getElementById('keyDrive').value.trim();
-    const geminiKey = document.getElementById('keyGemini').value.trim();
-    const anthropicKey = document.getElementById('keyAnthropic').value.trim();
-    const clientIdx = document.getElementById('clientSelect').value;
-    const topic = document.getElementById('topicInput').value.trim();
+    const clients=JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');
+    const globals=JSON.parse(localStorage.getItem(GLOBALS_KEY)||'{}');
+    S.client=clients[parseInt(cidx)]; S.topic=topic;
+    S.tokens={gi:0,go:0,ci:0,co:0,imgs:0};
+    S.imagePrompts=[]; S.imageData={}; S.imageUrls={};
 
-    if (!driveKey || !geminiKey || !anthropicKey) { alert('Please enter all 3 API keys.'); return; }
-    if (clientIdx === '') { alert('Please select a client.'); return; }
-    if (!topic) { alert('Please enter the article topic.'); return; }
+    running=true; document.getElementById('runBtn').disabled=true;
+    document.getElementById('outputsSec').classList.remove('open');
+    for(let i=1;i<=9;i++) setStep(i,'waiting','Waiting');
+    document.getElementById('assembleBtn').disabled=true;
+    document.getElementById('assembleHint').textContent='Complete steps 1–7 first';
 
-    const clients = JSON.parse(localStorage.getItem(CLIENTS_KEY) || '[]');
-    const globals = JSON.parse(localStorage.getItem(GLOBALS_KEY) || '{}');
-    state.client = clients[parseInt(clientIdx)];
-    state.topic = topic;
-
-    isRunning = true;
-    document.getElementById('runBtn').disabled = true;
-    document.getElementById('outputsSection').classList.remove('open');
-    document.getElementById('imagesSection').classList.remove('open');
-    state.tokens = { geminiIn: 0, geminiOut: 0, claudeIn: 0, claudeOut: 0, images: 0 };
-    state.imagePrompts = [];
-    state.imageUrls = {};
-
-    // Reset all steps
-    for (let i = 1; i <= 8; i++) setStep(i, 'waiting', 'Waiting');
-
-    try {
-      // ── STEP 1: LOAD DOCUMENTS ──
-      setStep(1, 'active', 'Loading...');
-      setGlobal('Fetching documents from Google Drive...', true);
-
-      const [doc43A, doc44, doc22, doc23, doc43B, sheetCSV] = await Promise.all([
-        fetchFileById(globals.folder43A, driveKey),
-        fetchFileById(globals.folder44, driveKey),
-        fetchFileById(state.client.folder22, driveKey),
-        fetchFileById(state.client.folder23, driveKey),
-        fetchFileById(state.client.folder43B, driveKey),
-        fetchSheetAsCSV(state.client.sheet42, driveKey)
+    try{
+      // STEP 1
+      setStep(1,'active','Loading...'); setG('Fetching documents from Drive...',true);
+      const[doc43A,doc44,doc22,doc23,doc43B,sheetCSV]=await Promise.all([
+        fetchFile(globals.folder43A,dkey),fetchFile(globals.folder44,dkey),
+        fetchFile(S.client.folder22,dkey),fetchFile(S.client.folder23,dkey),
+        fetchFile(S.client.folder43B,dkey),fetchSheet(S.client.sheet42,dkey)
       ]);
+      const rowRes=findRow(sheetCSV,topic);
+      if(!rowRes) throw new Error(`Topic not found in sheet: "${topic}" — check spelling matches Column D exactly`);
+      S.docs={doc43A,doc44,doc22,doc23,doc43B}; S.sheetRow=rowRes.row;
+      setStep(1,'done','Done ✓',`✓ 4.3A (${doc43A.length} chars)\n✓ 4.4 (${doc44.length} chars)\n✓ 2.2 (${doc22.length} chars)\n✓ 2.3 (${doc23.length} chars)\n✓ 4.3B (${doc43B.length} chars)\n✓ Sheet row: Row ${rowRes.index+1}\n\n${S.sheetRow}`);
 
-      const rowResult = findSheetRow(sheetCSV, topic);
-      if (!rowResult) throw new Error(`Topic not found in sheet: "${topic}" — check exact spelling against Column D`);
+      // STEP 2
+      setStep(2,'active','Researching...'); setG('Gemini building research brief...',true);
+      const p1=getPrompt(doc44,1);
+      const gp=`You are operating inside the iTech Valet AI Authority Pipeline.\n\nCLIENT IDENTITY CARD (4.3B):\n${doc43B}\n\nBUSINESS IDENTITY LOCK (2.2):\n${doc22}\n\nBUSINESS MESSAGING & TONE PLAYBOOK (2.3):\n${doc23}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nFULL 4.4 RESEARCH RULES:\n${doc44}\n\n---\n\n${p1.replace('[TOPIC]',topic)}\n\nTopic: ${topic}`;
+      S.geminiResearch=await callGemini(gp,gkey);
+      setStep(2,'done','Done ✓',S.geminiResearch);
 
-      state.docs = { doc43A, doc44, doc22, doc23, doc43B };
-      state.sheetRow = rowResult.row;
+      // STEPS 3–9
+      await runFrom(3,buildSys(),akey,gkey);
 
-      setStep(1, 'done', 'Done ✓', `✓ 4.3A loaded (${doc43A.length} chars)\n✓ 4.4 loaded (${doc44.length} chars)\n✓ 2.2 loaded (${doc22.length} chars)\n✓ 2.3 loaded (${doc23.length} chars)\n✓ 4.3B loaded (${doc43B.length} chars)\n✓ Sheet row found: Row ${rowResult.index + 1}\n\nSheet Row:\n${state.sheetRow}`);
+    }catch(err){ handleErr(err); }
 
-      // ── STEP 2: GEMINI RESEARCH ──
-      setStep(2, 'active', 'Researching...');
-      setGlobal('Gemini building research brief...', true);
-
-      const prompt1 = extractPrompt(doc44, 1);
-      const geminiPrompt = `You are operating inside the iTech Valet AI Authority Pipeline.
-
-CLIENT IDENTITY CARD (4.3B):
-${doc43B}
-
-BUSINESS IDENTITY LOCK (2.2):
-${doc22}
-
-BUSINESS MESSAGING & TONE PLAYBOOK (2.3):
-${doc23}
-
-MASTER INVENTORY SHEET ROW FOR THIS ARTICLE:
-${state.sheetRow}
-
-FULL 4.4 RESEARCH RULES:
-${doc44}
-
----
-
-${prompt1.replace('[TOPIC]', topic)}
-
-Topic: ${topic}`;
-
-      state.geminiResearch = await callGemini(geminiPrompt, geminiKey);
-      setStep(2, 'done', 'Done ✓', state.geminiResearch);
-
-      // ── STEP 3: CLAUDE V1 (+ kick off images) ──
-      setStep(3, 'active', 'Building V1...');
-      setGlobal('Claude building article architecture...', true);
-
-      const prompt2 = extractPrompt(doc44, 2);
-      const claudeSystem = `You are an expert AEO article writer. Your client's identity card (4.3B) is loaded below.
-
-4.3B — CLIENT IDENTITY CARD:
-${doc43B}`;
-
-      const claudeUser2 = `EXECUTION RULES (4.3A):
-${doc43A}
-
----
-${prompt2}
-
----
-SHEET ROW:
-${state.sheetRow}
-
----
-GEMINI RESEARCH BRIEF:
-${state.geminiResearch}`;
-
-      state.v1 = await callClaude(claudeSystem, claudeUser2, anthropicKey, (partial) => {
-        document.getElementById('output3').textContent = partial;
-        document.getElementById('body3').classList.add('open');
-      });
-      setStep(3, 'done', 'Done ✓', state.v1);
-
-      // Kick off image generation in parallel
-      state.imagePrompts = extractImagePrompts(state.v1);
-      if (state.imagePrompts.length > 0) {
-        buildImageCards(state.imagePrompts);
-        setGlobal('Images generating in parallel...', true);
-        state.imagePrompts.forEach((p, i) => {
-          generateImage(p.prompt, p.alt, i, geminiKey)
-            .then(img => updateImageCard(i, img, p.alt))
-            .catch(err => imageError(i, err.message));
-        });
-      }
-
-      // ── STEP 4: GEMINI VALIDATION ──
-      setStep(4, 'active', 'Validating...');
-      setGlobal('Gemini running validation pass...', true);
-
-      const prompt3 = extractPrompt(doc44, 3);
-      const validationPrompt = `You are operating inside the iTech Valet AI Authority Pipeline as Quality Assurance Auditor.
-
-CLIENT IDENTITY CARD (4.3B):
-${doc43B}
-
-BUSINESS IDENTITY LOCK (2.2):
-${doc22}
-
-MASTER INVENTORY SHEET ROW:
-${state.sheetRow}
-
-ROUND 1 RESEARCH BRIEF:
-${state.geminiResearch}
-
-FULL 4.4 VALIDATION RULES:
-${doc44}
-
----
-
-${prompt3}
-
-Article text below:
-${state.v1}`;
-
-      state.validation = await callGemini(validationPrompt, geminiKey);
-      setStep(4, 'done', 'Done ✓', state.validation);
-
-      // ── STEP 5: CLAUDE V2 ──
-      setStep(5, 'active', 'Rewriting...');
-      setGlobal('Claude applying fixes and voice rewrite...', true);
-
-      const prompt4 = extractPrompt(doc44, 4);
-      const claudeUser4 = `${prompt4}
-
-${state.validation && !state.validation.includes('All items pass') ? `GEMINI VALIDATION FEEDBACK:\n${state.validation}\n\n---` : '(All validation items passed — skip to Task 2)'}`;
-
-      state.v2 = await callClaude(claudeSystem, claudeUser4, anthropicKey, (partial) => {
-        document.getElementById('output5').textContent = partial;
-        document.getElementById('body5').classList.add('open');
-      });
-      setStep(5, 'done', 'Done ✓', state.v2);
-      document.getElementById(`output6`).textContent = state.v2.substring(0, 600) + '\n\n[Full V2 above — scroll to review]';
-
-      // ── STEP 6: HUMAN CHECKPOINT ──
-      setStep(6, 'active', 'Your Turn');
-      setGlobal('⚠ Review V2 — describe any issues or continue to Final Assembly');
-      const feedback = await waitForCheckpoint();
-
-      if (feedback) {
-        setStep(6, 'active', 'Fixing...');
-        setGlobal('Claude applying your feedback...', true);
-        const fixPrompt = `The operator has reviewed V2 and flagged the following issue:\n\n"${feedback}"\n\nFix this specific issue in the article while preserving all structure, links, POV slots, and protected zones. Deliver the corrected V2.`;
-        state.v2 = await callClaude(claudeSystem, fixPrompt + '\n\nCurrent V2:\n' + state.v2, anthropicKey, (partial) => {
-          document.getElementById('output6').textContent = partial;
-          document.getElementById('body6').classList.add('open');
-        });
-      }
-
-      setStep(6, 'done', 'Done ✓');
-      setGlobal('⚠ Upload images to WordPress, paste URLs below, then click Assemble Final');
-
-      // ── WAIT FOR IMAGE URLS ──
-      // The assemble button calls triggerFinalAssembly which resolves when clicked
-
-      // ── STEP 7: FINAL ASSEMBLY ──
-      // This fires when assembleBtn is clicked
-      await waitForAssemble();
-
-      setStep(7, 'active', 'Assembling...');
-      setGlobal('Claude running final checklist and assembling output files...', true);
-
-      const prompt5 = extractPrompt(doc44, 5);
-      const imageLines = [];
-      for (let i = 0; i < state.imagePrompts.length; i++) {
-        const url = state.imageUrls[i] || '';
-        if (url) imageLines.push(`Image ${i + 1} URL — ${url}`);
-      }
-      const imageBlock = imageLines.join('\n');
-      const featuredIndex = getSelectedFeaturedIndex();
-      const featuredNum = featuredIndex + 1;
-      const today = document.getElementById('publishDate').value || new Date().toISOString().split('T')[0];
-
-      const claudeUser5 = `${imageBlock}
-
-Featured image — Image ${featuredNum}
-Publish date — ${today}
-
-${prompt5}
-
-V2 ARTICLE:
-${state.v2}`;
-
-      state.finalMD = await callClaude(claudeSystem, claudeUser5, anthropicKey, (partial) => { document.getElementById("output7").textContent = partial; document.getElementById("body7").classList.add("open"); });
-
-      // Extract TXT (HTML) portion
-      const txtMatch = state.finalMD.match(/FINAL TXT[\s\S]*?```(?:html)?\n([\s\S]*?)```/i);
-      state.finalTXT = txtMatch ? txtMatch[1] : state.finalMD;
-
-      setStep(7, 'done', 'Done ✓', 'Final MD and Final TXT generated.');
-
-      // ── STEP 8: HTML QC ──
-      await runHTMLQC(claudeSystem, state.docs.doc43B, anthropicKey);
-
-      // Show outputs after QC passes
-      document.getElementById('outputsSection').classList.add('open');
-      setGlobal('✓ Article complete — download your files below.');
-
-    } catch (err) {
-      // Find which step is currently active and show retry
-      for (let i = 3; i <= 8; i++) {
-        const card = document.getElementById(`step${i}`);
-        if (card && card.classList.contains('active')) {
-          setStep(i, 'error', 'Failed', `Error: ${err.message}`);
-          const retryRow = document.getElementById(`retryRow${i}`);
-          if (retryRow) retryRow.style.display = 'block';
-          break;
-        }
-      }
-      setGlobal(`⚠ Error: ${err.message}`);
-      console.error(err);
-    }
-
-    isRunning = false;
-    document.getElementById('runBtn').disabled = false;
-  }
-
-  // Wait for assemble button
-  function waitForAssemble() {
-    return new Promise(resolve => {
-      const btn = document.getElementById('assembleBtn');
-      const handler = () => { btn.removeEventListener('click', handler); resolve(); };
-      btn.addEventListener('click', handler);
-    });
-  }
-
-  // ─── DOWNLOADS ───────────────────────────────────────────
-  function downloadMD() {
-    if (!state.finalMD) return;
-    const blob = new Blob([state.finalMD], { type: 'text/markdown' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `AEO - ${state.client?.name || 'Article'} - ${state.topic.substring(0, 40)} - FINAL.md`;
-    a.click();
-  }
-
-  function downloadTXT() {
-    if (!state.finalTXT) return;
-    const blob = new Blob([state.finalTXT], { type: 'text/plain' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `AEO - ${state.client?.name || 'Article'} - ${state.topic.substring(0, 40)} - FINAL.txt`;
-    a.click();
+    running=false; document.getElementById('runBtn').disabled=false;
   }
 </script>
-
 </body>
 </html>
