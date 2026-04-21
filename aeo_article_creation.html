@@ -582,6 +582,15 @@
     font-weight: 400;
   }
 
+  .step-chevron {
+    font-size: 11px;
+    color: var(--faint);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .step-chevron.collapsed { transform: rotate(-90deg); }
+
   .error-msg { color: var(--orange); font-size: 12px; margin-top: 8px; }
 </style>
 </head>
@@ -691,13 +700,16 @@
 
   <!-- STEP 1: Load Documents -->
   <div class="step-card" id="step1">
-    <div class="step-header">
+    <div class="step-header" onclick="toggleStepBody(1)" style="cursor:pointer;">
       <div class="step-number">1</div>
       <div class="step-info">
         <div class="step-title">Load Documents</div>
         <div class="step-desc">Fetching 4.3A, 4.4, 2.2, 2.3, 4.3B + sheet row from Google Drive</div>
       </div>
-      <div class="step-badge badge-waiting" id="badge1">Waiting</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="step-badge badge-waiting" id="badge1">Waiting</div>
+        <span class="step-chevron" id="chevron1">▼</span>
+      </div>
     </div>
     <div class="step-body" id="body1">
       <div class="step-output" id="output1"></div>
@@ -706,13 +718,16 @@
 
   <!-- STEP 2: Gemini Research -->
   <div class="step-card" id="step2">
-    <div class="step-header">
+    <div class="step-header" onclick="toggleStepBody(2)" style="cursor:pointer;">
       <div class="step-number">2</div>
       <div class="step-info">
         <div class="step-title">Gemini Research Brief</div>
         <div class="step-desc">Prompt 1 — 8 deliverables: title, sources, intent map, FAQ seeds, links, POV anchors</div>
       </div>
-      <div class="step-badge badge-waiting" id="badge2">Waiting</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="step-badge badge-waiting" id="badge2">Waiting</div>
+        <span class="step-chevron" id="chevron2">▼</span>
+      </div>
     </div>
     <div class="step-body" id="body2">
       <div class="step-output" id="output2"></div>
@@ -721,58 +736,79 @@
 
   <!-- STEP 3: Claude V1 -->
   <div class="step-card" id="step3">
-    <div class="step-header">
+    <div class="step-header" onclick="toggleStepBody(3)" style="cursor:pointer;">
       <div class="step-number">3</div>
       <div class="step-info">
         <div class="step-title">Claude V1 — Article Architecture</div>
         <div class="step-desc">Prompt 2 — Full structure, all links, all POV slots, tables, schema, image prompts</div>
       </div>
-      <div class="step-badge badge-waiting" id="badge3">Waiting</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="step-badge badge-waiting" id="badge3">Waiting</div>
+        <span class="step-chevron" id="chevron3">▼</span>
+      </div>
     </div>
     <div class="step-body" id="body3">
       <div class="step-output" id="output3"></div>
+      <div id="retryRow3" style="display:none;margin-top:10px;">
+        <button class="btn-checkpoint-go" onclick="retryFromStep(3)" style="background:var(--blue);">↻ Retry from Step 3</button>
+      </div>
     </div>
   </div>
 
   <!-- STEP 4: Gemini Validation -->
   <div class="step-card" id="step4">
-    <div class="step-header">
+    <div class="step-header" onclick="toggleStepBody(4)" style="cursor:pointer;">
       <div class="step-number">4</div>
       <div class="step-info">
         <div class="step-title">Gemini Validation</div>
         <div class="step-desc">Prompt 3 — Full QC pass, FAIL items only reported</div>
       </div>
-      <div class="step-badge badge-waiting" id="badge4">Waiting</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="step-badge badge-waiting" id="badge4">Waiting</div>
+        <span class="step-chevron" id="chevron4">▼</span>
+      </div>
     </div>
     <div class="step-body" id="body4">
       <div class="step-output" id="output4"></div>
+      <div id="retryRow4" style="display:none;margin-top:10px;">
+        <button class="btn-checkpoint-go" onclick="retryFromStep(4)" style="background:var(--blue);">↻ Retry from Step 4</button>
+      </div>
     </div>
   </div>
 
   <!-- STEP 5: Claude V2 -->
   <div class="step-card" id="step5">
-    <div class="step-header">
+    <div class="step-header" onclick="toggleStepBody(5)" style="cursor:pointer;">
       <div class="step-number">5</div>
       <div class="step-info">
         <div class="step-title">Claude V2 — Fix + Voice Rewrite</div>
         <div class="step-desc">Prompt 4 — Apply Gemini fixes then blank-page voice rewrite in author's voice</div>
       </div>
-      <div class="step-badge badge-waiting" id="badge5">Waiting</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="step-badge badge-waiting" id="badge5">Waiting</div>
+        <span class="step-chevron" id="chevron5">▼</span>
+      </div>
     </div>
     <div class="step-body" id="body5">
       <div class="step-output" id="output5"></div>
+      <div id="retryRow5" style="display:none;margin-top:10px;">
+        <button class="btn-checkpoint-go" onclick="retryFromStep(5)" style="background:var(--blue);">↻ Retry from Step 5</button>
+      </div>
     </div>
   </div>
 
   <!-- STEP 6: Human Checkpoint -->
   <div class="step-card" id="step6">
-    <div class="step-header">
+    <div class="step-header" onclick="toggleStepBody(6)" style="cursor:pointer;">
       <div class="step-number">6</div>
       <div class="step-info">
         <div class="step-title">Human Checkpoint</div>
         <div class="step-desc">Review V2 — describe any issues or leave blank to continue</div>
       </div>
-      <div class="step-badge badge-waiting" id="badge6">Waiting</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="step-badge badge-waiting" id="badge6">Waiting</div>
+        <span class="step-chevron" id="chevron6">▼</span>
+      </div>
     </div>
     <div class="step-body" id="body6">
       <div class="step-output" id="output6" style="margin-bottom:12px;"></div>
@@ -789,16 +825,22 @@
 
   <!-- STEP 7: Final Assembly -->
   <div class="step-card" id="step7">
-    <div class="step-header">
+    <div class="step-header" onclick="toggleStepBody(7)" style="cursor:pointer;">
       <div class="step-number">7</div>
       <div class="step-info">
         <div class="step-title">Claude Final — Assembly + HTML QC</div>
         <div class="step-desc">Prompt 5 — 24-item checklist, auto-fix, Final MD + Final TXT with image URLs</div>
       </div>
-      <div class="step-badge badge-waiting" id="badge7">Waiting</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="step-badge badge-waiting" id="badge7">Waiting</div>
+        <span class="step-chevron" id="chevron7">▼</span>
+      </div>
     </div>
     <div class="step-body" id="body7">
       <div class="step-output" id="output7"></div>
+      <div id="retryRow7" style="display:none;margin-top:10px;">
+        <button class="btn-checkpoint-go" onclick="retryFromStep(7)" style="background:var(--blue);">↻ Retry from Step 7</button>
+      </div>
       <div class="preview-box" id="previewBox" style="display:none;margin-top:12px;">
         <div class="preview-label">HTML Preview</div>
         <iframe class="preview-frame" id="previewFrame"></iframe>
@@ -808,13 +850,16 @@
 
   <!-- STEP 8: HTML QC -->
   <div class="step-card" id="step8">
-    <div class="step-header">
+    <div class="step-header" onclick="toggleStepBody(8)" style="cursor:pointer;">
       <div class="step-number">8</div>
       <div class="step-info">
         <div class="step-title">Claude HTML QC — Final TXT Validation</div>
         <div class="step-desc">Prompt 6 — 7-check HTML audit against 4.3B spec: separators, spacing, ToC colors, FAQ duplication, element order, CTA format</div>
       </div>
-      <div class="step-badge badge-waiting" id="badge8">Waiting</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="step-badge badge-waiting" id="badge8">Waiting</div>
+        <span class="step-chevron" id="chevron8">▼</span>
+      </div>
     </div>
     <div class="step-body" id="body8">
       <div class="step-output" id="output8" style="margin-bottom:12px;"></div>
@@ -901,7 +946,7 @@
   const PROXY = 'https://anthropic-proxy.gerek.workers.dev';
   const GEMINI_MODEL = 'gemini-2.5-pro';
   const GEMINI_IMG_MODEL = 'gemini-3.1-flash-image-preview';
-  const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+  const CLAUDE_MODEL = 'claude-sonnet-4-6';
 
   let state = {
     client: null,
@@ -1239,6 +1284,148 @@ ${state.finalTXT}`;
     if (checkpointResolve) { checkpointResolve(feedback); checkpointResolve = null; }
   }
 
+  // ─── COLLAPSIBLE STEPS ───────────────────────────────────
+  function toggleStepBody(n) {
+    const body = document.getElementById(`body${n}`);
+    const chevron = document.getElementById(`chevron${n}`);
+    if (!body || !body.classList.contains('open')) return; // only collapse if open
+    body.classList.remove('open');
+    chevron.classList.add('collapsed');
+    // click again to re-open
+    body._collapsed = true;
+  }
+
+  // Override to support re-expand on click
+  document.addEventListener('click', function(e) {
+    const header = e.target.closest('.step-header');
+    if (!header) return;
+    const card = header.closest('.step-card');
+    if (!card) return;
+    const n = card.id.replace('step', '');
+    const body = document.getElementById(`body${n}`);
+    const chevron = document.getElementById(`chevron${n}`);
+    if (!body || !body.classList.contains('open')) {
+      if (body && body.textContent.trim()) {
+        body.classList.add('open');
+        if (chevron) chevron.classList.remove('collapsed');
+      }
+      return;
+    }
+    body.classList.remove('open');
+    if (chevron) chevron.classList.add('collapsed');
+  }, true);
+
+  // ─── RETRY FROM STEP ─────────────────────────────────────
+  async function retryFromStep(stepNum) {
+    const anthropicKey = document.getElementById('keyAnthropic').value.trim();
+    const geminiKey = document.getElementById('keyGemini').value.trim();
+    if (!anthropicKey || !geminiKey) { alert('API keys required.'); return; }
+
+    const claudeSystem = `You are an expert AEO article writer for iTech Valet.\n\n4.3A — AEO ARTICLE EXECUTION RULES:\n${state.docs.doc43A}\n\n4.3B — CLIENT IDENTITY CARD:\n${state.docs.doc43B}`;
+
+    // Hide retry button
+    const retryRow = document.getElementById(`retryRow${stepNum}`);
+    if (retryRow) retryRow.style.display = 'none';
+
+    isRunning = true;
+    document.getElementById('runBtn').disabled = true;
+
+    try {
+      if (stepNum <= 3) {
+        // Retry Claude V1
+        setStep(3, 'active', 'Building V1...');
+        setGlobal('Claude building article architecture...', true);
+        const prompt2 = extractPrompt(state.docs.doc44, 2);
+        const claudeUser2 = `${prompt2}\n\n---\nSHEET ROW:\n${state.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${state.geminiResearch}`;
+        state.v1 = await callClaude(claudeSystem, claudeUser2, anthropicKey);
+        setStep(3, 'done', 'Done ✓', state.v1);
+        state.imagePrompts = extractImagePrompts(state.v1);
+        if (state.imagePrompts.length > 0) {
+          buildImageCards(state.imagePrompts);
+          state.imagePrompts.forEach((p, i) => {
+            generateImage(p.prompt, p.alt, i, geminiKey)
+              .then(img => updateImageCard(i, img, p.alt))
+              .catch(err => imageError(i, err.message));
+          });
+        }
+        stepNum = 4;
+      }
+
+      if (stepNum <= 4) {
+        setStep(4, 'active', 'Validating...');
+        setGlobal('Gemini running validation pass...', true);
+        const prompt3 = extractPrompt(state.docs.doc44, 3);
+        const validationPrompt = `You are operating inside the iTech Valet AI Authority Pipeline as Quality Assurance Auditor.\n\nCLIENT IDENTITY CARD (4.3B):\n${state.docs.doc43B}\n\nBUSINESS IDENTITY LOCK (2.2):\n${state.docs.doc22}\n\nMASTER INVENTORY SHEET ROW:\n${state.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${state.geminiResearch}\n\nFULL 4.4 VALIDATION RULES:\n${state.docs.doc44}\n\n---\n\n${prompt3}\n\nArticle text below:\n${state.v1}`;
+        state.validation = await callGemini(validationPrompt, geminiKey);
+        setStep(4, 'done', 'Done ✓', state.validation);
+        stepNum = 5;
+      }
+
+      if (stepNum <= 5) {
+        setStep(5, 'active', 'Rewriting...');
+        setGlobal('Claude applying fixes and voice rewrite...', true);
+        const prompt4 = extractPrompt(state.docs.doc44, 4);
+        const claudeUser4 = `${prompt4}\n\n${state.validation && !state.validation.includes('All items pass') ? `GEMINI VALIDATION FEEDBACK:\n${state.validation}\n\n---` : '(All validation items passed — skip to Task 2)'}`;
+        state.v2 = await callClaude(claudeSystem, claudeUser4, anthropicKey);
+        setStep(5, 'done', 'Done ✓', state.v2);
+        document.getElementById('output6').textContent = state.v2.substring(0, 600) + '\n\n[Full V2 above in Step 5]';
+        stepNum = 6;
+      }
+
+      if (stepNum <= 6) {
+        setStep(6, 'active', 'Your Turn');
+        setGlobal('⚠ Review V2 — describe any issues or continue to Final Assembly');
+        const feedback = await waitForCheckpoint();
+        if (feedback) {
+          setStep(6, 'active', 'Fixing...');
+          setGlobal('Claude applying your feedback...', true);
+          const fixPrompt = `The operator has reviewed V2 and flagged the following issue:\n\n"${feedback}"\n\nFix this specific issue in the article while preserving all structure, links, POV slots, and protected zones. Deliver the corrected V2.`;
+          state.v2 = await callClaude(claudeSystem, fixPrompt + '\n\nCurrent V2:\n' + state.v2, anthropicKey);
+        }
+        setStep(6, 'done', 'Done ✓');
+        setGlobal('⚠ Upload images to WordPress, paste URLs below, then click Assemble Final');
+        await waitForAssemble();
+        stepNum = 7;
+      }
+
+      if (stepNum <= 7) {
+        setStep(7, 'active', 'Assembling...');
+        setGlobal('Claude running final checklist and assembling output files...', true);
+        const prompt5 = extractPrompt(state.docs.doc44, 5);
+        const imageLines = [];
+        for (let i = 0; i < state.imagePrompts.length; i++) {
+          const url = state.imageUrls[i] || '';
+          if (url) imageLines.push(`Image ${i + 1} URL — ${url}`);
+        }
+        const featuredIndex = getSelectedFeaturedIndex();
+        const today = document.getElementById('publishDate').value || new Date().toISOString().split('T')[0];
+        const claudeUser5 = `${imageLines.join('\n')}\n\nFeatured image — Image ${featuredIndex + 1}\nPublish date — ${today}\n\n${prompt5}\n\nV2 ARTICLE:\n${state.v2}`;
+        state.finalMD = await callClaude(claudeSystem, claudeUser5, anthropicKey);
+        const txtMatch = state.finalMD.match(/FINAL TXT[\s\S]*?```(?:html)?\n([\s\S]*?)```/i);
+        state.finalTXT = txtMatch ? txtMatch[1] : state.finalMD;
+        setStep(7, 'done', 'Done ✓', 'Final MD and Final TXT generated.');
+        stepNum = 8;
+      }
+
+      if (stepNum <= 8) {
+        await runHTMLQC(claudeSystem, state.docs.doc43B, anthropicKey);
+        document.getElementById('outputsSection').classList.add('open');
+        setGlobal('✓ Article complete — download your files below.');
+      }
+
+    } catch (err) {
+      const failedStep = stepNum;
+      setStep(failedStep, 'error', 'Failed', `Error: ${err.message}`);
+      const retryRowFailed = document.getElementById(`retryRow${failedStep}`);
+      if (retryRowFailed) retryRowFailed.style.display = 'block';
+      setGlobal(`⚠ Error at Step ${failedStep}: ${err.message}`);
+      console.error(err);
+    }
+
+    isRunning = false;
+    document.getElementById('runBtn').disabled = false;
+  }
+
   // ─── IMAGE UI ────────────────────────────────────────────
   function buildImageCards(prompts) {
     const grid = document.getElementById('imageGrid');
@@ -1442,7 +1629,7 @@ ${prompt1.replace('[TOPIC]', topic)}
 Topic: ${topic}`;
 
       state.geminiResearch = await callGemini(geminiPrompt, geminiKey);
-      setStep(2, 'done', 'Done ✓', state.geminiResearch.substring(0, 500) + '...');
+      setStep(2, 'done', 'Done ✓', state.geminiResearch);
 
       // ── STEP 3: CLAUDE V1 (+ kick off images) ──
       setStep(3, 'active', 'Building V1...');
@@ -1468,7 +1655,7 @@ GEMINI RESEARCH BRIEF:
 ${state.geminiResearch}`;
 
       state.v1 = await callClaude(claudeSystem, claudeUser2, anthropicKey);
-      setStep(3, 'done', 'Done ✓', state.v1.substring(0, 400) + '...');
+      setStep(3, 'done', 'Done ✓', state.v1);
 
       // Kick off image generation in parallel
       state.imagePrompts = extractImagePrompts(state.v1);
@@ -1524,7 +1711,7 @@ ${state.v1}`;
 ${state.validation && !state.validation.includes('All items pass') ? `GEMINI VALIDATION FEEDBACK:\n${state.validation}\n\n---` : '(All validation items passed — skip to Task 2)'}`;
 
       state.v2 = await callClaude(claudeSystem, claudeUser4, anthropicKey);
-      setStep(5, 'done', 'Done ✓', state.v2.substring(0, 400) + '...');
+      setStep(5, 'done', 'Done ✓', state.v2);
       document.getElementById(`output6`).textContent = state.v2.substring(0, 600) + '\n\n[Full V2 above — scroll to review]';
 
       // ── STEP 6: HUMAN CHECKPOINT ──
@@ -1589,6 +1776,16 @@ ${state.v2}`;
       setGlobal('✓ Article complete — download your files below.');
 
     } catch (err) {
+      // Find which step is currently active and show retry
+      for (let i = 3; i <= 8; i++) {
+        const card = document.getElementById(`step${i}`);
+        if (card && card.classList.contains('active')) {
+          setStep(i, 'error', 'Failed', `Error: ${err.message}`);
+          const retryRow = document.getElementById(`retryRow${i}`);
+          if (retryRow) retryRow.style.display = 'block';
+          break;
+        }
+      }
       setGlobal(`⚠ Error: ${err.message}`);
       console.error(err);
     }
