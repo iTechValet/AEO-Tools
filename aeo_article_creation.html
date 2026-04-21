@@ -617,7 +617,7 @@
         <input type="password" id="keyDrive" placeholder="Paste Drive API key..." oninput="saveKeys()" />
         <button class="btn-toggle" onclick="toggleKey('keyDrive', this)">Show</button>
       </div>
-      <div class="key-hint">Fetches docs from Drive folders</div>
+      <div class="key-hint">Fetches docs directly by file ID from Drive</div>
     </div>
     <div class="key-group">
       <label>Gemini API Key</label>
@@ -997,22 +997,15 @@
   }
 
   // ─── DRIVE FETCHING ──────────────────────────────────────
-  async function fetchTxtFromFolder(folderId, driveKey) {
-    const query = `'${folderId}' in parents and mimeType='text/plain' and trashed=false`;
-    const encodedQuery = encodeURIComponent(query);
-    const url = `https://www.googleapis.com/drive/v3/files?q=${encodedQuery}&fields=files(id,name)&key=${driveKey}`;
+  async function fetchFileById(fileId, driveKey) {
+    if (!fileId) throw new Error(`Missing file ID — check Client Manager config`);
+    const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${driveKey}`;
     const res = await fetch(url);
-    const data = await res.json();
-    if (data.error) throw new Error(`Drive API error: ${data.error.message}`);
-
-    const files = (data.files || []).filter(f => f.name && !f.name.startsWith('.'));
-    if (files.length === 0) throw new Error(`No .txt file found in folder ${folderId}`);
-
-    const file = files[0];
-    const contentUrl = `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${driveKey}`;
-    const contentRes = await fetch(contentUrl);
-    if (!contentRes.ok) throw new Error(`Failed to fetch file content: ${contentRes.status}`);
-    return await contentRes.text();
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(`Drive fetch failed (${res.status}): ${errData?.error?.message || 'Check file ID and API key permissions'}`);
+    }
+    return await res.text();
   }
 
   async function fetchSheetAsCSV(sheetId, driveKey) {
@@ -1404,11 +1397,11 @@ ${state.finalTXT}`;
       setGlobal('Fetching documents from Google Drive...', true);
 
       const [doc43A, doc44, doc22, doc23, doc43B, sheetCSV] = await Promise.all([
-        fetchTxtFromFolder(globals.folder43A, driveKey),
-        fetchTxtFromFolder(globals.folder44, driveKey),
-        fetchTxtFromFolder(state.client.folder22, driveKey),
-        fetchTxtFromFolder(state.client.folder23, driveKey),
-        fetchTxtFromFolder(state.client.folder43B, driveKey),
+        fetchFileById(globals.folder43A, driveKey),
+        fetchFileById(globals.folder44, driveKey),
+        fetchFileById(state.client.folder22, driveKey),
+        fetchFileById(state.client.folder23, driveKey),
+        fetchFileById(state.client.folder43B, driveKey),
         fetchSheetAsCSV(state.client.sheet42, driveKey)
       ]);
 

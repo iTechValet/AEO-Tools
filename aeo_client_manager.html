@@ -394,17 +394,17 @@
 <!-- GLOBAL SETTINGS -->
 <div class="global-section">
   <div class="section-label">Universal Settings (All Clients)</div>
-  <p class="global-hint">These two folder IDs are the same for every client. Set once, never touch again.</p>
+  <p class="global-hint">These two file IDs are the same for every client. Set once, never touch again.</p>
   <div class="form-grid">
     <div class="form-group">
-      <label>4.3A Folder ID</label>
-      <input type="text" id="global43A" placeholder="Paste Google Drive folder ID..." oninput="saveGlobals()" />
-      <div class="form-hint">Internal IP → Phase 4 → 4.3A folder</div>
+      <label>4.3A File ID</label>
+      <input type="text" id="global43A" placeholder="Paste Google Drive file ID..." oninput="saveGlobals()" />
+      <div class="form-hint">Open the 4.3A .txt file in Drive → copy ID from URL</div>
     </div>
     <div class="form-group">
-      <label>4.4 Folder ID</label>
-      <input type="text" id="global44" placeholder="Paste Google Drive folder ID..." oninput="saveGlobals()" />
-      <div class="form-hint">Internal IP → Phase 4 → 4.4 folder</div>
+      <label>4.4 File ID</label>
+      <input type="text" id="global44" placeholder="Paste Google Drive file ID..." oninput="saveGlobals()" />
+      <div class="form-hint">Open the 4.4 .txt file in Drive → copy ID from URL</div>
     </div>
   </div>
   <div class="status-bar" id="globalStatus"></div>
@@ -432,23 +432,23 @@
   </div>
 
   <hr class="form-divider">
-  <div class="form-section-title">Google Drive Folder IDs — Client IP folder</div>
+  <div class="form-section-title">Google Drive File IDs — Direct links to each document</div>
 
   <div class="form-grid">
     <div class="form-group">
-      <label>2.2 Business Identity Lock — Folder ID</label>
-      <input type="text" id="field22" placeholder="Paste folder ID..." />
-      <div class="form-hint">Open the 2.2 folder in Drive → copy ID from URL</div>
+      <label>2.2 Business Identity Lock — File ID</label>
+      <input type="text" id="field22" placeholder="Paste file ID..." />
+      <div class="form-hint">Open the 2.2 .txt file in Drive → copy ID from URL</div>
     </div>
     <div class="form-group">
-      <label>2.3 Messaging & Tone Playbook — Folder ID</label>
-      <input type="text" id="field23" placeholder="Paste folder ID..." />
-      <div class="form-hint">Open the 2.3 folder in Drive → copy ID from URL</div>
+      <label>2.3 Messaging & Tone Playbook — File ID</label>
+      <input type="text" id="field23" placeholder="Paste file ID..." />
+      <div class="form-hint">Open the 2.3 .txt file in Drive → copy ID from URL</div>
     </div>
     <div class="form-group">
-      <label>4.3B Client Identity Card — Folder ID</label>
-      <input type="text" id="field43B" placeholder="Paste folder ID..." />
-      <div class="form-hint">Open the 4.3B folder in Drive → copy ID from URL</div>
+      <label>4.3B Client Identity Card — File ID</label>
+      <input type="text" id="field43B" placeholder="Paste file ID..." />
+      <div class="form-hint">Open the 4.3B .txt file in Drive → copy ID from URL</div>
     </div>
     <div class="form-group">
       <label>4.2 Master Inventory — Sheet ID</label>
@@ -513,6 +513,8 @@
     if (!input) return '';
     const idMatch = input.match(/[?&]id=([a-zA-Z0-9_-]+)/);
     if (idMatch) return idMatch[1];
+    const fileMatch = input.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (fileMatch) return fileMatch[1];
     const folderMatch = input.match(/\/folders\/([a-zA-Z0-9_-]+)/);
     if (folderMatch) return folderMatch[1];
     const sheetMatch = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
