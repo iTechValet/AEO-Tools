@@ -946,7 +946,7 @@
   const PROXY = 'https://anthropic-proxy.gerek.workers.dev';
   const GEMINI_MODEL = 'gemini-2.5-pro';
   const GEMINI_IMG_MODEL = 'gemini-3.1-flash-image-preview';
-  const CLAUDE_MODEL = 'claude-sonnet-4-6';
+  const CLAUDE_MODEL = 'claude-sonnet-4-5';
 
   let state = {
     client: null,
@@ -1147,7 +1147,7 @@ ${state.finalTXT}`;
 
   async function rerunQC() {
     const anthropicKey = document.getElementById('keyAnthropic').value.trim();
-    const claudeSystem = `You are an expert AEO article writer for iTech Valet.\n\n4.3A — AEO ARTICLE EXECUTION RULES:\n${state.docs.doc43A}\n\n4.3B — CLIENT IDENTITY CARD:\n${state.docs.doc43B}`;
+    const claudeSystem = `You are an expert AEO article writer. Your client's identity card (4.3B) is loaded below.\n\n4.3B — CLIENT IDENTITY CARD:\n${state.docs.doc43B}`;
     await runHTMLQC(claudeSystem, state.docs.doc43B, anthropicKey);
   }
 
@@ -1321,7 +1321,7 @@ ${state.finalTXT}`;
     const geminiKey = document.getElementById('keyGemini').value.trim();
     if (!anthropicKey || !geminiKey) { alert('API keys required.'); return; }
 
-    const claudeSystem = `You are an expert AEO article writer for iTech Valet.\n\n4.3A — AEO ARTICLE EXECUTION RULES:\n${state.docs.doc43A}\n\n4.3B — CLIENT IDENTITY CARD:\n${state.docs.doc43B}`;
+    const claudeSystem = `You are an expert AEO article writer. Your client's identity card (4.3B) is loaded below.\n\n4.3B — CLIENT IDENTITY CARD:\n${state.docs.doc43B}`;
 
     // Hide retry button
     const retryRow = document.getElementById(`retryRow${stepNum}`);
@@ -1336,7 +1336,7 @@ ${state.finalTXT}`;
         setStep(3, 'active', 'Building V1...');
         setGlobal('Claude building article architecture...', true);
         const prompt2 = extractPrompt(state.docs.doc44, 2);
-        const claudeUser2 = `${prompt2}\n\n---\nSHEET ROW:\n${state.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${state.geminiResearch}`;
+        const claudeUser2 = `EXECUTION RULES (4.3A):\n${state.docs.doc43A}\n\n---\n${prompt2}\n\n---\nSHEET ROW:\n${state.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${state.geminiResearch}`;
         state.v1 = await callClaude(claudeSystem, claudeUser2, anthropicKey);
         setStep(3, 'done', 'Done ✓', state.v1);
         state.imagePrompts = extractImagePrompts(state.v1);
@@ -1636,15 +1636,16 @@ Topic: ${topic}`;
       setGlobal('Claude building article architecture...', true);
 
       const prompt2 = extractPrompt(doc44, 2);
-      const claudeSystem = `You are an expert AEO article writer for iTech Valet. You have the following documents loaded:
-
-4.3A — AEO ARTICLE EXECUTION RULES:
-${doc43A}
+      const claudeSystem = `You are an expert AEO article writer. Your client's identity card (4.3B) is loaded below.
 
 4.3B — CLIENT IDENTITY CARD:
 ${doc43B}`;
 
-      const claudeUser2 = `${prompt2}
+      const claudeUser2 = `EXECUTION RULES (4.3A):
+${doc43A}
+
+---
+${prompt2}
 
 ---
 SHEET ROW:
