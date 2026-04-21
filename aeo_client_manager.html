@@ -471,6 +471,17 @@
     renderClients();
   });
 
+  function extractId(input) {
+    if (!input) return '';
+    const idMatch = input.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (idMatch) return idMatch[1];
+    const folderMatch = input.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+    if (folderMatch) return folderMatch[1];
+    const sheetMatch = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+    if (sheetMatch) return sheetMatch[1];
+    return input.trim();
+  }
+
   function loadClients() {
     try {
       clients = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
@@ -491,8 +502,8 @@
 
   function saveGlobals() {
     const g = {
-      folder43A: document.getElementById('global43A').value.trim(),
-      folder44: document.getElementById('global44').value.trim()
+      folder43A: extractId(document.getElementById('global43A').value),
+      folder44: extractId(document.getElementById('global44').value)
     };
     localStorage.setItem(GLOBAL_KEY, JSON.stringify(g));
     document.getElementById('globalStatus').textContent = 'Saved.';
@@ -595,10 +606,10 @@
 
     const client = {
       name,
-      folder22: document.getElementById('field22').value.trim(),
-      folder23: document.getElementById('field23').value.trim(),
-      folder43B: document.getElementById('field43B').value.trim(),
-      sheet42: document.getElementById('field42').value.trim()
+      folder22: extractId(document.getElementById('field22').value),
+      folder23: extractId(document.getElementById('field23').value),
+      folder43B: extractId(document.getElementById('field43B').value),
+      sheet42: extractId(document.getElementById('field42').value)
     };
 
     if (editingIndex >= 0) {
