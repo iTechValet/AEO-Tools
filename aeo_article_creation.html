@@ -550,7 +550,19 @@
     const m={1:['PROMPT 1:','PROMPT 2:'],2:['PROMPT 2:','PROMPT 3:'],3:['PROMPT 3:','PROMPT 4:'],4:['PROMPT 4:','PROMPT 5:'],5:['PROMPT 5:','PROMPT 6:'],6:['PROMPT 6:','Table of Contents']};
     const [s,e]=m[n]; const si=doc44.indexOf(s); const ei=doc44.indexOf(e,si+1);
     if(si===-1) throw new Error(`Prompt ${n} not found in 4.4`);
-    return doc44.substring(si+s.length,ei>0?ei:undefined).trim();
+    let text=doc44.substring(si+s.length,ei>0?ei:undefined).trim();
+    // For Prompt 5: strip the built-in image URL placeholder lines and featured/date lines
+    // since the tool provides these separately
+    if(n===5) {
+      text=text.split('\n').filter(line=>{
+        const t=line.trim();
+        return !t.match(/^Image \d+ URL\s*—/i) &&
+               !t.match(/^Featured image\s*—/i) &&
+               !t.match(/^Publish date\s*—/i) &&
+               !t.match(/^\(Delete unused image/i);
+      }).join('\n').trim();
+    }
+    return text;
   }
 
   // ─── IMAGE EXTRACTION ─────────────────────────────────────
