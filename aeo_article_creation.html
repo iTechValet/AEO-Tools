@@ -1122,7 +1122,11 @@ ${state.finalTXT}`;
     const qcResult = await callClaude(
       claudeSystem + `\n\n4.3B HTML STYLE SPEC:\n${doc43B}`,
       qcUser,
-      anthropicKey
+      anthropicKey,
+      (partial) => {
+        document.getElementById('output8').textContent = partial;
+        document.getElementById('body8').classList.add('open');
+      }
     );
 
     // Extract corrected HTML
@@ -1247,26 +1251,77 @@ ${state.finalTXT}`;
     });
   }
 
-  // ─── CLAUDE API ──────────────────────────────────────────
-  async function callClaude(systemPrompt, userContent, anthropicKey) {
+  // ─── CLAUDE API (STREAMING) ──────────────────────────────
+  async function callClaude(systemPrompt, userContent, anthropicKey, onChunk) {
     const res = await fetch(PROXY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey },
       body: JSON.stringify({
         model: CLAUDE_MODEL,
         max_tokens: 8192,
+        stream: true,
         system: systemPrompt,
         messages: [{ role: 'user', content: userContent }]
       })
     });
-    const data = await res.json();
-    if (data.error) throw new Error(`Claude error: ${data.error.message}`);
-    const text = data.content?.map(b => b.text || '').join('') || '';
-    const usage = data.usage || {};
-    state.tokens.claudeIn += usage.input_tokens || 0;
-    state.tokens.claudeOut += usage.output_tokens || 0;
+
+    if (!res.ok || !res.body) {
+      const errText = await res.text().catch(() => 'Unknown error');
+      throw new Error(`Claude error: ${errText}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+    let buffer = '';
+    let inputTokens = 0;
+    let outputTokens = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // keep incomplete line
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') continue;
+
+        try {
+          const parsed = JSON.parse(data);
+
+          // Extract text delta
+          if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
+            fullText += parsed.delta.text;
+            if (onChunk) onChunk(fullText);
+          }
+
+          // Extract token usage from final message
+          if (parsed.type === 'message_delta' && parsed.usage) {
+            outputTokens = parsed.usage.output_tokens || 0;
+          }
+          if (parsed.type === 'message_start' && parsed.message?.usage) {
+            inputTokens = parsed.message.usage.input_tokens || 0;
+          }
+
+          // Error in stream
+          if (parsed.type === 'error') {
+            throw new Error(`Claude stream error: ${parsed.error?.message || 'Unknown'}`);
+          }
+        } catch (e) {
+          if (e.message.startsWith('Claude')) throw e;
+          // skip unparseable lines
+        }
+      }
+    }
+
+    state.tokens.claudeIn += inputTokens;
+    state.tokens.claudeOut += outputTokens;
     updateCost();
-    return text;
+    return fullText;
   }
 
   // ─── CHECKPOINT ──────────────────────────────────────────
@@ -1400,7 +1455,7 @@ ${state.finalTXT}`;
         const featuredIndex = getSelectedFeaturedIndex();
         const today = document.getElementById('publishDate').value || new Date().toISOString().split('T')[0];
         const claudeUser5 = `${imageLines.join('\n')}\n\nFeatured image — Image ${featuredIndex + 1}\nPublish date — ${today}\n\n${prompt5}\n\nV2 ARTICLE:\n${state.v2}`;
-        state.finalMD = await callClaude(claudeSystem, claudeUser5, anthropicKey);
+        state.finalMD = await callClaude(claudeSystem, claudeUser5, anthropicKey, (partial) => { document.getElementById("output7").textContent = partial; document.getElementById("body7").classList.add("open"); });
         const txtMatch = state.finalMD.match(/FINAL TXT[\s\S]*?```(?:html)?\n([\s\S]*?)```/i);
         state.finalTXT = txtMatch ? txtMatch[1] : state.finalMD;
         setStep(7, 'done', 'Done ✓', 'Final MD and Final TXT generated.');
@@ -1655,7 +1710,10 @@ ${state.sheetRow}
 GEMINI RESEARCH BRIEF:
 ${state.geminiResearch}`;
 
-      state.v1 = await callClaude(claudeSystem, claudeUser2, anthropicKey);
+      state.v1 = await callClaude(claudeSystem, claudeUser2, anthropicKey, (partial) => {
+        document.getElementById('output3').textContent = partial;
+        document.getElementById('body3').classList.add('open');
+      });
       setStep(3, 'done', 'Done ✓', state.v1);
 
       // Kick off image generation in parallel
@@ -1711,7 +1769,10 @@ ${state.v1}`;
 
 ${state.validation && !state.validation.includes('All items pass') ? `GEMINI VALIDATION FEEDBACK:\n${state.validation}\n\n---` : '(All validation items passed — skip to Task 2)'}`;
 
-      state.v2 = await callClaude(claudeSystem, claudeUser4, anthropicKey);
+      state.v2 = await callClaude(claudeSystem, claudeUser4, anthropicKey, (partial) => {
+        document.getElementById('output5').textContent = partial;
+        document.getElementById('body5').classList.add('open');
+      });
       setStep(5, 'done', 'Done ✓', state.v2);
       document.getElementById(`output6`).textContent = state.v2.substring(0, 600) + '\n\n[Full V2 above — scroll to review]';
 
@@ -1724,7 +1785,10 @@ ${state.validation && !state.validation.includes('All items pass') ? `GEMINI VAL
         setStep(6, 'active', 'Fixing...');
         setGlobal('Claude applying your feedback...', true);
         const fixPrompt = `The operator has reviewed V2 and flagged the following issue:\n\n"${feedback}"\n\nFix this specific issue in the article while preserving all structure, links, POV slots, and protected zones. Deliver the corrected V2.`;
-        state.v2 = await callClaude(claudeSystem, fixPrompt + '\n\nCurrent V2:\n' + state.v2, anthropicKey);
+        state.v2 = await callClaude(claudeSystem, fixPrompt + '\n\nCurrent V2:\n' + state.v2, anthropicKey, (partial) => {
+          document.getElementById('output6').textContent = partial;
+          document.getElementById('body6').classList.add('open');
+        });
       }
 
       setStep(6, 'done', 'Done ✓');
@@ -1761,7 +1825,7 @@ ${prompt5}
 V2 ARTICLE:
 ${state.v2}`;
 
-      state.finalMD = await callClaude(claudeSystem, claudeUser5, anthropicKey);
+      state.finalMD = await callClaude(claudeSystem, claudeUser5, anthropicKey, (partial) => { document.getElementById("output7").textContent = partial; document.getElementById("body7").classList.add("open"); });
 
       // Extract TXT (HTML) portion
       const txtMatch = state.finalMD.match(/FINAL TXT[\s\S]*?```(?:html)?\n([\s\S]*?)```/i);
