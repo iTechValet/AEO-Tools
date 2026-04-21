@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AEO Client Manager — iTech Valet</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Lexend', sans-serif;
+    font-weight: 300;
+    background: #ffffff;
+    color: #063a6c;
+    min-height: 100vh;
+    padding: 32px 24px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 28px;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 20px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .header-left h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 38px;
+    text-transform: uppercase;
+    color: #063a6c;
+    letter-spacing: 3px;
+    margin-bottom: 6px;
+  }
+
+  .header-left h1 span { color: #2494e0; }
+
+  .subtitle {
+    font-size: 13px;
+    color: #888;
+    line-height: 1.5;
+  }
+
+  .section-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #2494e0;
+    margin-bottom: 10px;
+  }
+
+  /* CLIENT LIST */
+  .client-list { margin-bottom: 32px; }
+
+  .client-card {
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .client-card:hover { border-color: #2494e0; }
+
+  .client-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    cursor: pointer;
+    gap: 12px;
+  }
+
+  .client-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 1.5px;
+    color: #063a6c;
+    flex: 1;
+  }
+
+  .client-card-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn-edit, .btn-delete {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .btn-edit { color: #888; }
+  .btn-edit:hover { border-color: #2494e0; color: #2494e0; }
+  .btn-delete { color: #ccc; }
+  .btn-delete:hover { border-color: #dd6b00; color: #dd6b00; }
+
+  .chevron {
+    font-size: 12px;
+    color: #bbb;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .chevron.open { transform: rotate(180deg); }
+
+  .client-card-body {
+    display: none;
+    padding: 0 18px 16px;
+    border-top: 1px solid #e0e0e0;
+  }
+
+  .client-card-body.open { display: block; }
+
+  .field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .field-item { display: flex; flex-direction: column; gap: 4px; }
+
+  .field-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #aaa;
+    font-weight: 400;
+  }
+
+  .field-value {
+    font-size: 12px;
+    color: #063a6c;
+    background: #f2f2f2;
+    border-radius: 5px;
+    padding: 7px 10px;
+    word-break: break-all;
+    font-family: monospace;
+  }
+
+  .field-value.empty { color: #ccc; font-style: italic; font-family: 'Lexend', sans-serif; }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #bbb;
+    font-size: 13px;
+    border: 1px dashed #ddd;
+    border-radius: 10px;
+    margin-bottom: 24px;
+  }
+
+  /* ADD CLIENT BUTTON */
+  .btn-add-client {
+    background: #dd6b00;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 13px 28px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    display: block;
+    margin-bottom: 32px;
+  }
+
+  .btn-add-client:hover { opacity: 0.85; }
+
+  /* FORM */
+  .form-section {
+    display: none;
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 32px;
+  }
+
+  .form-section.open { display: block; }
+
+  .form-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: #063a6c;
+    margin-bottom: 20px;
+  }
+
+  .form-group { margin-bottom: 16px; }
+
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #2494e0;
+    margin-bottom: 6px;
+    font-weight: 400;
+  }
+
+  .form-group input {
+    width: 100%;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 11px 14px;
+    color: #063a6c;
+    font-family: 'Lexend', sans-serif;
+    font-weight: 300;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-group input::placeholder { color: #bbb; }
+  .form-group input:focus { border-color: #2494e0; }
+
+  .form-hint {
+    font-size: 11px;
+    color: #bbb;
+    margin-top: 5px;
+    line-height: 1.5;
+  }
+
+  .form-divider {
+    border: none;
+    border-top: 1px solid #e0e0e0;
+    margin: 20px 0;
+  }
+
+  .form-section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #aaa;
+    margin-bottom: 14px;
+    font-weight: 400;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .btn-save {
+    background: #063a6c;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 28px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .btn-save:hover { opacity: 0.85; }
+
+  .btn-cancel {
+    background: none;
+    border: 1px solid #ddd;
+    color: #999;
+    border-radius: 8px;
+    padding: 11px 22px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .btn-cancel:hover { border-color: #dd6b00; color: #dd6b00; }
+
+  /* GLOBAL SETTINGS */
+  .global-section {
+    background: #f0f6ff;
+    border: 1px solid #c8dff5;
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 32px;
+  }
+
+  .global-section .section-label { color: #063a6c; }
+
+  .global-hint {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  /* STATUS */
+  .status-bar {
+    font-size: 12px;
+    color: #2494e0;
+    margin-top: 10px;
+    min-height: 18px;
+  }
+
+  .status-bar.error { color: #dd6b00; }
+
+  /* EXPORT/IMPORT */
+  .utility-row {
+    display: flex;
+    gap: 10px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+    flex-wrap: wrap;
+  }
+
+  .btn-utility {
+    background: none;
+    border: 1px solid #ddd;
+    color: #888;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .btn-utility:hover { border-color: #2494e0; color: #2494e0; }
+
+  .count-badge {
+    display: inline-block;
+    background: #2494e0;
+    color: #fff;
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 1px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>AEO <span>Client</span> Manager</h1>
+    <p class="subtitle">iTech Valet · Configure clients once · Pipeline tool reads from here automatically</p>
+  </div>
+</header>
+
+<!-- GLOBAL SETTINGS -->
+<div class="global-section">
+  <div class="section-label">Universal Settings (All Clients)</div>
+  <p class="global-hint">These two folder IDs are the same for every client. Set once, never touch again.</p>
+  <div class="form-grid">
+    <div class="form-group">
+      <label>4.3A Folder ID</label>
+      <input type="text" id="global43A" placeholder="Paste Google Drive folder ID..." oninput="saveGlobals()" />
+      <div class="form-hint">Internal IP → Phase 4 → 4.3A folder</div>
+    </div>
+    <div class="form-group">
+      <label>4.4 Folder ID</label>
+      <input type="text" id="global44" placeholder="Paste Google Drive folder ID..." oninput="saveGlobals()" />
+      <div class="form-hint">Internal IP → Phase 4 → 4.4 folder</div>
+    </div>
+  </div>
+  <div class="status-bar" id="globalStatus"></div>
+</div>
+
+<!-- CLIENT LIST -->
+<div class="section-label">
+  Clients <span class="count-badge" id="clientCount">0</span>
+</div>
+
+<div class="client-list" id="clientList">
+  <div class="empty-state" id="emptyState">No clients yet. Add your first client below.</div>
+</div>
+
+<!-- ADD CLIENT BUTTON -->
+<button class="btn-add-client" onclick="openForm()">+ Add New Client</button>
+
+<!-- FORM -->
+<div class="form-section" id="clientForm">
+  <div class="form-title" id="formTitle">New Client</div>
+
+  <div class="form-group">
+    <label>Client Name</label>
+    <input type="text" id="fieldName" placeholder="e.g. Bushido Billing" />
+  </div>
+
+  <hr class="form-divider">
+  <div class="form-section-title">Google Drive Folder IDs — Client IP folder</div>
+
+  <div class="form-grid">
+    <div class="form-group">
+      <label>2.2 Business Identity Lock — Folder ID</label>
+      <input type="text" id="field22" placeholder="Paste folder ID..." />
+      <div class="form-hint">Open the 2.2 folder in Drive → copy ID from URL</div>
+    </div>
+    <div class="form-group">
+      <label>2.3 Messaging & Tone Playbook — Folder ID</label>
+      <input type="text" id="field23" placeholder="Paste folder ID..." />
+      <div class="form-hint">Open the 2.3 folder in Drive → copy ID from URL</div>
+    </div>
+    <div class="form-group">
+      <label>4.3B Client Identity Card — Folder ID</label>
+      <input type="text" id="field43B" placeholder="Paste folder ID..." />
+      <div class="form-hint">Open the 4.3B folder in Drive → copy ID from URL</div>
+    </div>
+    <div class="form-group">
+      <label>4.2 Master Inventory — Sheet ID</label>
+      <input type="text" id="field42" placeholder="Paste sheet ID..." />
+      <div class="form-hint">Open the Google Sheet → copy ID from URL (between /d/ and /edit)</div>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button class="btn-save" onclick="saveClient()">Save Client</button>
+    <button class="btn-cancel" onclick="closeForm()">Cancel</button>
+  </div>
+  <div class="status-bar" id="formStatus"></div>
+</div>
+
+<!-- UTILITY -->
+<div class="utility-row">
+  <button class="btn-utility" onclick="exportData()">↓ Export Config</button>
+  <button class="btn-utility" onclick="document.getElementById('importFile').click()">↑ Import Config</button>
+  <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)" />
+</div>
+
+<script>
+  const STORAGE_KEY = 'aeo_clients';
+  const GLOBAL_KEY = 'aeo_globals';
+  let clients = [];
+  let editingIndex = -1;
+
+  // INIT
+  window.addEventListener('load', () => {
+    loadClients();
+    loadGlobals();
+    renderClients();
+  });
+
+  function loadClients() {
+    try {
+      clients = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    } catch { clients = []; }
+  }
+
+  function saveClients() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(clients));
+  }
+
+  function loadGlobals() {
+    try {
+      const g = JSON.parse(localStorage.getItem(GLOBAL_KEY)) || {};
+      document.getElementById('global43A').value = g.folder43A || '1cQhDEzVXMUdFDApLqXWodZqmjXswGwir';
+      document.getElementById('global44').value = g.folder44 || '12RQwBXZW8hIVyC9iPlZyfLdB8mU55tgk';
+    } catch {}
+  }
+
+  function saveGlobals() {
+    const g = {
+      folder43A: document.getElementById('global43A').value.trim(),
+      folder44: document.getElementById('global44').value.trim()
+    };
+    localStorage.setItem(GLOBAL_KEY, JSON.stringify(g));
+    document.getElementById('globalStatus').textContent = 'Saved.';
+    setTimeout(() => document.getElementById('globalStatus').textContent = '', 2000);
+  }
+
+  function renderClients() {
+    const list = document.getElementById('clientList');
+    const empty = document.getElementById('emptyState');
+    document.getElementById('clientCount').textContent = clients.length;
+
+    if (clients.length === 0) {
+      list.innerHTML = '<div class="empty-state" id="emptyState">No clients yet. Add your first client below.</div>';
+      return;
+    }
+
+    list.innerHTML = clients.map((c, i) => `
+      <div class="client-card">
+        <div class="client-card-header" onclick="toggleCard(${i})">
+          <div class="client-name">${c.name}</div>
+          <div class="client-card-actions">
+            <button class="btn-edit" onclick="event.stopPropagation(); editClient(${i})">Edit</button>
+            <button class="btn-delete" onclick="event.stopPropagation(); deleteClient(${i})">Delete</button>
+          </div>
+          <span class="chevron" id="chevron-${i}">▼</span>
+        </div>
+        <div class="client-card-body" id="body-${i}">
+          <div class="field-grid">
+            <div class="field-item">
+              <div class="field-label">2.2 Business Identity Lock</div>
+              <div class="field-value ${c.folder22 ? '' : 'empty'}">${c.folder22 || 'Not set'}</div>
+            </div>
+            <div class="field-item">
+              <div class="field-label">2.3 Messaging & Tone Playbook</div>
+              <div class="field-value ${c.folder23 ? '' : 'empty'}">${c.folder23 || 'Not set'}</div>
+            </div>
+            <div class="field-item">
+              <div class="field-label">4.3B Client Identity Card</div>
+              <div class="field-value ${c.folder43B ? '' : 'empty'}">${c.folder43B || 'Not set'}</div>
+            </div>
+            <div class="field-item">
+              <div class="field-label">4.2 Master Inventory Sheet</div>
+              <div class="field-value ${c.sheet42 ? '' : 'empty'}">${c.sheet42 || 'Not set'}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function toggleCard(i) {
+    const body = document.getElementById(`body-${i}`);
+    const chevron = document.getElementById(`chevron-${i}`);
+    const isOpen = body.classList.contains('open');
+    body.classList.toggle('open', !isOpen);
+    chevron.classList.toggle('open', !isOpen);
+  }
+
+  function openForm(reset = true) {
+    if (reset) {
+      editingIndex = -1;
+      document.getElementById('formTitle').textContent = 'New Client';
+      document.getElementById('fieldName').value = '';
+      document.getElementById('field22').value = '';
+      document.getElementById('field23').value = '';
+      document.getElementById('field43B').value = '';
+      document.getElementById('field42').value = '';
+      document.getElementById('formStatus').textContent = '';
+    }
+    document.getElementById('clientForm').classList.add('open');
+    document.getElementById('fieldName').focus();
+    document.getElementById('clientForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function closeForm() {
+    document.getElementById('clientForm').classList.remove('open');
+    editingIndex = -1;
+  }
+
+  function editClient(i) {
+    const c = clients[i];
+    editingIndex = i;
+    document.getElementById('formTitle').textContent = `Edit — ${c.name}`;
+    document.getElementById('fieldName').value = c.name || '';
+    document.getElementById('field22').value = c.folder22 || '';
+    document.getElementById('field23').value = c.folder23 || '';
+    document.getElementById('field43B').value = c.folder43B || '';
+    document.getElementById('field42').value = c.sheet42 || '';
+    document.getElementById('formStatus').textContent = '';
+    openForm(false);
+  }
+
+  function saveClient() {
+    const name = document.getElementById('fieldName').value.trim();
+    if (!name) {
+      document.getElementById('formStatus').textContent = 'Client name is required.';
+      document.getElementById('formStatus').className = 'status-bar error';
+      return;
+    }
+
+    const client = {
+      name,
+      folder22: document.getElementById('field22').value.trim(),
+      folder23: document.getElementById('field23').value.trim(),
+      folder43B: document.getElementById('field43B').value.trim(),
+      sheet42: document.getElementById('field42').value.trim()
+    };
+
+    if (editingIndex >= 0) {
+      clients[editingIndex] = client;
+    } else {
+      clients.push(client);
+    }
+
+    saveClients();
+    renderClients();
+    closeForm();
+  }
+
+  function deleteClient(i) {
+    if (!confirm(`Delete "${clients[i].name}"? This cannot be undone.`)) return;
+    clients.splice(i, 1);
+    saveClients();
+    renderClients();
+  }
+
+  function exportData() {
+    const globals = JSON.parse(localStorage.getItem(GLOBAL_KEY) || '{}');
+    const data = { globals, clients };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'aeo-client-config.json';
+    a.click();
+  }
+
+  function importData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (data.clients) {
+          clients = data.clients;
+          saveClients();
+        }
+        if (data.globals) {
+          localStorage.setItem(GLOBAL_KEY, JSON.stringify(data.globals));
+          loadGlobals();
+        }
+        renderClients();
+        alert('Config imported successfully.');
+      } catch {
+        alert('Invalid config file.');
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  }
+</script>
+
+</body>
+</html>
