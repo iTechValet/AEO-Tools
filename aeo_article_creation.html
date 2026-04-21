@@ -587,6 +587,19 @@
 </head>
 <body>
 
+<!-- PASSWORD GATE -->
+<div id="passwordGate" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center;">
+  <div style="text-align:center;max-width:380px;width:100%;padding:40px 24px;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:3px;color:#063a6c;margin-bottom:6px;">iTech Valet</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:#2494e0;margin-bottom:32px;">AEO Article Creation</div>
+    <input type="password" id="gateInput" placeholder="Enter access password..." onkeydown="if(event.key==='Enter')checkPassword()" style="width:100%;background:#f2f2f2;border:1px solid #ddd;border-radius:8px;padding:13px 16px;color:#063a6c;font-family:'Lexend',sans-serif;font-size:14px;outline:none;margin-bottom:12px;text-align:center;" />
+    <button onclick="checkPassword()" style="width:100%;background:#dd6b00;color:#fff;border:none;border-radius:8px;padding:13px;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;cursor:pointer;">Enter</button>
+    <div id="gateError" style="font-size:12px;color:#dd6b00;margin-top:10px;min-height:18px;"></div>
+  </div>
+</div>
+
+<div id="mainContent" style="display:none;">
+
 <header>
   <div class="header-left">
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
@@ -853,7 +866,34 @@
   </div>
 </div>
 
+</div><!-- end mainContent -->
+
 <script>
+  const PASSWORD = 'ITVsuccess123!';
+  const AUTH_KEY = 'aeo_authed';
+
+  function checkPassword() {
+    const val = document.getElementById('gateInput').value;
+    if (val === PASSWORD) {
+      sessionStorage.setItem(AUTH_KEY, '1');
+      document.getElementById('passwordGate').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'block';
+      document.getElementById('gateInput').value = '';
+    } else {
+      document.getElementById('gateError').textContent = 'Incorrect password. Try again.';
+      document.getElementById('gateInput').value = '';
+      document.getElementById('gateInput').focus();
+    }
+  }
+
+  // Check if already authed this session
+  if (sessionStorage.getItem(AUTH_KEY) === '1') {
+    document.getElementById('passwordGate').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+  } else {
+    // Focus password input
+    window.addEventListener('load', () => document.getElementById('gateInput').focus());
+  }
   // ─── STATE ───────────────────────────────────────────────
   const CLIENTS_KEY = 'aeo_clients';
   const GLOBALS_KEY = 'aeo_globals';
