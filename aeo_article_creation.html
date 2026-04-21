@@ -958,17 +958,16 @@
 
   // ─── DRIVE FETCHING ──────────────────────────────────────
   async function fetchTxtFromFolder(folderId, driveKey) {
-    const url = `https://www.googleapis.com/drive/v3/files?q=%27${folderId}%27+in+parents+and+mimeType%3D%27text%2Fplain%27+and+trashed%3Dfalse&fields=files(id,name,parents)&key=${driveKey}`;
+    const query = `'${folderId}' in parents and mimeType='text/plain' and trashed=false`;
+    const encodedQuery = encodeURIComponent(query);
+    const url = `https://www.googleapis.com/drive/v3/files?q=${encodedQuery}&fields=files(id,name)&key=${driveKey}`;
     const res = await fetch(url);
     const data = await res.json();
     if (data.error) throw new Error(`Drive API error: ${data.error.message}`);
 
-    // Filter out files inside subfolders (Older Versions etc)
-    // We need to check which files are directly in folderId
-    const files = (data.files || []);
+    const files = (data.files || []).filter(f => f.name && !f.name.startsWith('.'));
     if (files.length === 0) throw new Error(`No .txt file found in folder ${folderId}`);
 
-    // Pick the first txt file at top level
     const file = files[0];
     const contentUrl = `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${driveKey}`;
     const contentRes = await fetch(contentUrl);
