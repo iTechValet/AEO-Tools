@@ -117,6 +117,9 @@
   .step-body { display:none; border-top:1px solid var(--border); padding:12px 14px; }
   .step-body.open { display:block; }
   .sout { font-size:11px; color:var(--blue); line-height:1.7; background:#fff; border:1px solid var(--border); border-radius:6px; padding:9px 11px; max-height:220px; overflow-y:auto; white-space:pre-wrap; word-break:break-word; font-family:monospace; }
+  .sout-wrap { position:relative; }
+  .btn-copy-step { position:absolute; top:6px; right:6px; background:var(--blue); color:#fff; border:none; border-radius:4px; padding:3px 9px; font-family:'Bebas Neue',sans-serif; font-size:10px; letter-spacing:1px; cursor:pointer; opacity:0.7; transition:opacity .2s; z-index:2; }
+  .btn-copy-step:hover { opacity:1; }
 
   /* SPINNER */
   .spinner { display:inline-block; width:9px; height:9px; border:2px solid var(--accent); border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; margin-right:5px; vertical-align:middle; }
@@ -403,7 +406,7 @@
         <div class="step-info"><div class="step-title">Load Documents</div><div class="step-desc">Fetching 4.3A, 4.4, 2.2, 2.3, 4.3B + sheet row from Drive</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b1">Waiting</div><span class="schev closed" id="c1">▼</span></div>
       </div>
-      <div class="step-body" id="sb1"><div class="sout" id="o1"></div></div>
+      <div class="step-body" id="sb1"><div class="sout-wrap"><div class="sout" id="o1"></div><button class="btn-copy-step" id="copy-btn-1" onclick="copyStepOutput(1)">Copy</button></div></div>
     </div>
 
     <div class="step-card" id="step2">
@@ -412,7 +415,7 @@
         <div class="step-info"><div class="step-title">Gemini Research Brief</div><div class="step-desc">Prompt 1 — 8 deliverables: title, sources, intent map, FAQ seeds, links, POV anchors</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b2">Waiting</div><span class="schev closed" id="c2">▼</span></div>
       </div>
-      <div class="step-body" id="sb2"><div class="sout" id="o2"></div></div>
+      <div class="step-body" id="sb2"><div class="sout-wrap"><div class="sout" id="o2"></div><button class="btn-copy-step" id="copy-btn-2" onclick="copyStepOutput(2)">Copy</button></div></div>
     </div>
 
     <div class="step-card" id="step3">
@@ -421,7 +424,7 @@
         <div class="step-info"><div class="step-title">Claude V1 — Prose + Structure</div><div class="step-desc">Full article prose, all links, POV slots, FAQ, CTA, image prompts — table placeholders only</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b3">Waiting</div><span class="schev closed" id="c3">▼</span></div>
       </div>
-      <div class="step-body" id="sb3"><div class="sout" id="o3"></div><div id="r3" style="display:none;"><button class="btn-retry" onclick="retryFrom(3)">↻ Retry from Step 3</button></div></div>
+      <div class="step-body" id="sb3"><div class="sout-wrap"><div class="sout" id="o3"></div><button class="btn-copy-step" id="copy-btn-3" onclick="copyStepOutput(3)">Copy</button></div><div id="r3" style="display:none;"><button class="btn-retry" onclick="retryFrom(3)">↻ Retry from Step 3</button></div></div>
     </div>
 
     <div class="step-card" id="step4">
@@ -431,7 +434,7 @@
         <div class="step-right"><div class="sbadge b-waiting" id="b4">Waiting</div><span class="schev closed" id="c4">▼</span></div>
       </div>
       <div class="step-body" id="sb4">
-        <div class="sout" id="o4"></div>
+        <div class="sout-wrap"><div class="sout" id="o4"></div><button class="btn-copy-step" id="copy-btn-4" onclick="copyStepOutput(4)">Copy</button></div>
         <div class="cbox" id="cbox4" style="display:none;">
           <div class="ctitle">⚠ V1 Scorecard — Review Before Continuing</div>
           <div id="scorecard4" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
@@ -450,7 +453,7 @@
         <div class="step-info"><div class="step-title">Claude — Build Tables Only</div><div class="step-desc">Receives V1 + placeholders — builds exactly those tables from existing article content</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b5">Waiting</div><span class="schev closed" id="c5">▼</span></div>
       </div>
-      <div class="step-body" id="sb5"><div class="sout" id="o5"></div><div id="r5" style="display:none;"><button class="btn-retry" onclick="retryFrom(5)">↻ Retry from Step 5</button></div></div>
+      <div class="step-body" id="sb5"><div class="sout-wrap"><div class="sout" id="o5"></div><button class="btn-copy-step" id="copy-btn-5" onclick="copyStepOutput(5)">Copy</button></div><div id="r5" style="display:none;"><button class="btn-retry" onclick="retryFrom(5)">↻ Retry from Step 5</button></div></div>
     </div>
 
     <div class="step-card" id="step6">
@@ -459,7 +462,7 @@
         <div class="step-info"><div class="step-title">Image Generation</div><div class="step-desc">Gemini generates all article images sequentially</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b6">Waiting</div><span class="schev closed" id="c6">▼</span></div>
       </div>
-      <div class="step-body" id="sb6"><div class="sout" id="o6"></div><div id="r6" style="display:none;"><button class="btn-retry" onclick="retryFrom(6)">↻ Retry from Step 6</button></div></div>
+      <div class="step-body" id="sb6"><div class="sout-wrap"><div class="sout" id="o6"></div><button class="btn-copy-step" id="copy-btn-6" onclick="copyStepOutput(6)">Copy</button></div><div id="r6" style="display:none;"><button class="btn-retry" onclick="retryFrom(6)">↻ Retry from Step 6</button></div></div>
     </div>
 
     <div class="step-card" id="step7">
@@ -468,7 +471,7 @@
         <div class="step-info"><div class="step-title">Gemini Validation</div><div class="step-desc">Prompt 3 — Structured WRONG/MISSING output, parsed by tool</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b7">Waiting</div><span class="schev closed" id="c7">▼</span></div>
       </div>
-      <div class="step-body" id="sb7"><div class="sout" id="o7"></div><div id="r7" style="display:none;"><button class="btn-retry" onclick="retryFrom(7)">↻ Retry from Step 7</button></div></div>
+      <div class="step-body" id="sb7"><div class="sout-wrap"><div class="sout" id="o7"></div><button class="btn-copy-step" id="copy-btn-7" onclick="copyStepOutput(7)">Copy</button></div><div id="r7" style="display:none;"><button class="btn-retry" onclick="retryFrom(7)">↻ Retry from Step 7</button></div></div>
     </div>
 
     <div class="step-card" id="step8">
@@ -478,7 +481,7 @@
         <div class="step-right"><div class="sbadge b-waiting" id="b8">Waiting</div><span class="schev closed" id="c8">▼</span></div>
       </div>
       <div class="step-body" id="sb8">
-        <div class="sout" id="o8"></div>
+        <div class="sout-wrap"><div class="sout" id="o8"></div><button class="btn-copy-step" id="copy-btn-8" onclick="copyStepOutput(8)">Copy</button></div>
         <div class="cbox" id="cbox8" style="display:none;">
           <div class="ctitle">⚠ Gemini FAIL Items — Confirm to Apply Fixes</div>
           <div id="failList8" style="margin-bottom:10px;font-size:11px;line-height:1.8;"></div>
@@ -493,7 +496,7 @@
         <div class="step-info"><div class="step-title">Claude — Apply Fixes Only</div><div class="step-desc">WRONG items: find/replace. MISSING items: insert. No voice rewrite.</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b9">Waiting</div><span class="schev closed" id="c9">▼</span></div>
       </div>
-      <div class="step-body" id="sb9"><div class="sout" id="o9"></div><div id="r9" style="display:none;"><button class="btn-retry" onclick="retryFrom(9)">↻ Retry from Step 9</button></div></div>
+      <div class="step-body" id="sb9"><div class="sout-wrap"><div class="sout" id="o9"></div><button class="btn-copy-step" id="copy-btn-9" onclick="copyStepOutput(9)">Copy</button></div><div id="r9" style="display:none;"><button class="btn-retry" onclick="retryFrom(9)">↻ Retry from Step 9</button></div></div>
     </div>
 
     <div class="step-card" id="step10">
@@ -502,7 +505,7 @@
         <div class="step-info"><div class="step-title">Gemini — Targeted Re-Validation</div><div class="step-desc">Checks only the FAIL items from Step 7 — PASS or still failing</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b10">Waiting</div><span class="schev closed" id="c10">▼</span></div>
       </div>
-      <div class="step-body" id="sb10"><div class="sout" id="o10"></div><div id="r10" style="display:none;"><button class="btn-retry" onclick="retryFrom(10)">↻ Retry from Step 10</button></div></div>
+      <div class="step-body" id="sb10"><div class="sout-wrap"><div class="sout" id="o10"></div><button class="btn-copy-step" id="copy-btn-10" onclick="copyStepOutput(10)">Copy</button></div><div id="r10" style="display:none;"><button class="btn-retry" onclick="retryFrom(10)">↻ Retry from Step 10</button></div></div>
     </div>
 
     <div class="step-card" id="step11">
@@ -512,7 +515,7 @@
         <div class="step-right"><div class="sbadge b-waiting" id="b11">Waiting</div><span class="schev closed" id="c11">▼</span></div>
       </div>
       <div class="step-body" id="sb11">
-        <div class="sout" id="o11"></div>
+        <div class="sout-wrap"><div class="sout" id="o11"></div><button class="btn-copy-step" id="copy-btn-11" onclick="copyStepOutput(11)">Copy</button></div>
         <div class="cbox" id="cbox11" style="display:none;">
           <div class="ctitle">⚠ Fix Verification — Review Results</div>
           <div id="fixVerify11" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
@@ -527,7 +530,7 @@
         <div class="step-info"><div class="step-title">Claude — Voice Rewrite Only</div><div class="step-desc">Prose rebuilt in author's voice. Protected zones: structure, links, tables, Step 9 injections.</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b12">Waiting</div><span class="schev closed" id="c12">▼</span></div>
       </div>
-      <div class="step-body" id="sb12"><div class="sout" id="o12"></div><div id="r12" style="display:none;"><button class="btn-retry" onclick="retryFrom(12)">↻ Retry from Step 12</button></div></div>
+      <div class="step-body" id="sb12"><div class="sout-wrap"><div class="sout" id="o12"></div><button class="btn-copy-step" id="copy-btn-12" onclick="copyStepOutput(12)">Copy</button></div><div id="r12" style="display:none;"><button class="btn-retry" onclick="retryFrom(12)">↻ Retry from Step 12</button></div></div>
     </div>
 
     <div class="step-card" id="step13">
@@ -536,7 +539,7 @@
         <div class="step-info"><div class="step-title">Pre-Assembly Integrity Check</div><div class="step-desc">Free check — verifies links, tables, images, publish date survived voice rewrite</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b13">Waiting</div><span class="schev closed" id="c13">▼</span></div>
       </div>
-      <div class="step-body" id="sb13"><div class="sout" id="o13"></div></div>
+      <div class="step-body" id="sb13"><div class="sout-wrap"><div class="sout" id="o13"></div><button class="btn-copy-step" id="copy-btn-13" onclick="copyStepOutput(13)">Copy</button></div></div>
     </div>
 
     <div class="step-card" id="step14">
@@ -561,7 +564,7 @@
         <div class="step-info"><div class="step-title">Claude Final — Assembly</div><div class="step-desc">Schema + HTML — image URLs and publish date injected from UI</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b15">Waiting</div><span class="schev closed" id="c15">▼</span></div>
       </div>
-      <div class="step-body" id="sb15"><div class="sout" id="o15"></div><div id="r15" style="display:none;"><button class="btn-retry" onclick="retryFrom(15)">↻ Retry from Step 15</button></div></div>
+      <div class="step-body" id="sb15"><div class="sout-wrap"><div class="sout" id="o15"></div><button class="btn-copy-step" id="copy-btn-15" onclick="copyStepOutput(15)">Copy</button></div><div id="r15" style="display:none;"><button class="btn-retry" onclick="retryFrom(15)">↻ Retry from Step 15</button></div></div>
     </div>
 
     <div class="step-card" id="step16">
@@ -571,7 +574,7 @@
         <div class="step-right"><div class="sbadge b-waiting" id="b16">Waiting</div><span class="schev closed" id="c16">▼</span></div>
       </div>
       <div class="step-body" id="sb16">
-        <div class="sout" id="o16"></div>
+        <div class="sout-wrap"><div class="sout" id="o16"></div><button class="btn-copy-step" id="copy-btn-16" onclick="copyStepOutput(16)">Copy</button></div>
         <div id="r16" style="display:none;"><button class="btn-retry" onclick="retryFrom(16)">↻ Retry QC</button></div>
         <div id="rerunQC" style="display:none;margin-top:10px;">
           <p style="font-size:11px;color:var(--muted);margin-bottom:6px;">Describe what looks wrong (optional):</p>
@@ -593,7 +596,7 @@
         <div class="step-info"><div class="step-title">Auto Download</div><div class="step-desc">Both output files download automatically to your machine</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b17">Waiting</div><span class="schev closed" id="c17">▼</span></div>
       </div>
-      <div class="step-body" id="sb17"><div class="sout" id="o17"></div></div>
+      <div class="step-body" id="sb17"><div class="sout-wrap"><div class="sout" id="o17"></div><button class="btn-copy-step" id="copy-btn-17" onclick="copyStepOutput(17)">Copy</button></div></div>
     </div>
 
   </div>
@@ -631,19 +634,24 @@
       <div class="preview-tabs">
         <button class="ptab active" id="tabV1" onclick="switchTab('v1')">V1 Article</button>
         <button class="ptab" id="tabV2" onclick="switchTab('v2')">V2 Article <span class="wc-badge" id="wcBadge" style="display:none;"></span></button>
-        <button class="ptab" id="tabHTML" onclick="switchTab('html')">HTML Output</button>
+        <button class="ptab" id="tabHTML1" onclick="switchTab('html1')">HTML 1</button>
+        <button class="ptab" id="tabHTMLFinal" onclick="switchTab('htmlFinal')">HTML Final</button>
       </div>
       <div class="ppane active" id="pV1">
         <div class="pempty" id="v1Empty">V1 article appears here after Step 3</div>
         <div class="md-preview" id="v1Pre" style="display:none;"></div>
       </div>
       <div class="ppane" id="pV2">
-        <div class="pempty" id="v2Empty">V2 article appears here after Step 6</div>
+        <div class="pempty" id="v2Empty">V2 article appears here after Step 12</div>
         <div class="md-preview" id="v2Pre" style="display:none;"></div>
       </div>
-      <div class="ppane" id="pHTML">
-        <div class="pempty" id="htmlEmpty">HTML preview appears after Final Assembly</div>
-        <iframe id="htmlFrame" style="display:none;"></iframe>
+      <div class="ppane" id="pHTML1">
+        <div class="pempty" id="html1Empty">HTML 1 appears after Step 15 (pre-QC)</div>
+        <iframe id="html1Frame" style="display:none;border:none;background:#fff;height:480px;width:100%;"></iframe>
+      </div>
+      <div class="ppane" id="pHTMLFinal">
+        <div class="pempty" id="htmlFinalEmpty">HTML Final appears after Step 16 QC</div>
+        <iframe id="htmlFinalFrame" style="display:none;border:none;background:#fff;height:480px;width:100%;"></iframe>
       </div>
     </div>
 
@@ -734,6 +742,16 @@
   }
 
   // ─── STEP UI ──────────────────────────────────────────────
+
+  function copyStepOutput(n) {
+    const el=document.getElementById(`o${n}`);
+    if(!el) return;
+    navigator.clipboard.writeText(el.textContent||'').then(()=>{
+      const btn=document.getElementById(`copy-btn-${n}`);
+      if(btn){const orig=btn.textContent;btn.textContent='✓ Copied';setTimeout(()=>{btn.textContent=orig;},1500);}
+    }).catch(()=>{});
+  }
+
   function setStep(n,status,label,out) {
     const card=document.getElementById(`step${n}`);
     const badge=document.getElementById(`b${n}`);
@@ -744,7 +762,8 @@
     card.className=`step-card ${status}`;
     badge.className=`sbadge b-${status==='active'?'running':status==='done'?'done':status==='error'?'error':status==='checkpoint'?'checkpoint':'waiting'}`;
     badge.textContent=label||status;
-    if(out!==undefined && outEl){ outEl.textContent=out; body.classList.add('open'); if(chev) chev.classList.remove('closed'); }
+    if(out!==undefined && outEl){ outEl.textContent=out; if(status!=='done'){ body.classList.add('open'); if(chev) chev.classList.remove('closed'); } }
+    if(status==='checkpoint'){ body.classList.add('open'); if(chev) chev.classList.remove('closed'); }
   }
 
   function toggleStep(n) {
@@ -828,6 +847,8 @@
         v2:S.v2,
         finalTXT:S.finalTXT,
         finalSchema:S.finalSchema,
+        parsedFails:S.parsedFails||[],
+        protectedSentences:S.protectedSentences||[],
         tokens:S.tokens,
         savedAt:Date.now()
       };
@@ -854,9 +875,11 @@
       const data=JSON.parse(localStorage.getItem(SESSION_KEY));
       if(!data) return;
       S.topic=data.topic||''; S.tokens=data.tokens||S.tokens;
+      if(data.parsedFails) S.parsedFails=data.parsedFails;
+      if(data.protectedSentences) S.protectedSentences=data.protectedSentences;
       if(data.v1){ S.v1=data.v1; showV1(data.v1); }
       if(data.v2){ S.v2=data.v2; showV2(data.v2); updateWordCount(data.v2); }
-      if(data.finalTXT){ S.finalTXT=data.finalTXT; showHTML(data.finalTXT); }
+      if(data.finalTXT){ S.finalTXT=data.finalTXT; showHTML1(data.finalTXT); }
       if(data.finalSchema) S.finalSchema=data.finalSchema;
       updateCost();
       dismissRestore();
@@ -1096,11 +1119,11 @@
       if(!imgPart) throw new Error('No image returned — check Gemini API key and quota');
       const conv=await toWebP(imgPart.inlineData.data,imgPart.inlineData.mimeType||'image/png');
       S.imageData[idx]=conv;
-      const fname=`${idx+1} ${alt.replace(/[^a-zA-Z0-9\s]/g,'').trim().substring(0,60)}`;
+      const fname=`${idx+1} ${alt.replace(/[^a-zA-Z0-9\s-]/g,'').trim()}`;
       const fileSize=estimateSize(conv.data);
       const disp=document.getElementById(`idisp${idx}`);
       if(disp) disp.innerHTML=`
-        <img src="${conv.data}" alt="Image ${idx+1}" style="cursor:pointer;" title="Click to view full size" onclick="(function(d){const b=URL.createObjectURL(new Blob([Uint8Array.from(atob(d.split(',')[1]),c=>c.charCodeAt(0))],{type:'image/webp'}));const w=window.open();w.document.write('<img src=\\''+b+'\\' style=\\'max-width:100%\\'>');setTimeout(()=>URL.revokeObjectURL(b),5000)})(this.src)" />
+        <img src="${conv.data}" alt="Image ${idx+1}" style="width:100%;border-radius:6px;display:block;margin-bottom:9px;" />
         <div class="img-result-actions">
           <a class="btn-dl-img" href="${conv.data}" download="${fname}.${conv.ext}">↓ Download .${conv.ext.toUpperCase()}</a>
           <span class="img-format-badge">${conv.ext.toUpperCase()}</span>
@@ -1184,12 +1207,14 @@
 
   // ─── PREVIEW PANEL ────────────────────────────────────────
   function switchTab(tab) {
-    document.getElementById('tabV1').classList.toggle('active',tab==='v1');
-    document.getElementById('tabV2').classList.toggle('active',tab==='v2');
-    document.getElementById('tabHTML').classList.toggle('active',tab==='html');
-    document.getElementById('pV1').classList.toggle('active',tab==='v1');
-    document.getElementById('pV2').classList.toggle('active',tab==='v2');
-    document.getElementById('pHTML').classList.toggle('active',tab==='html');
+    document.getElementById('tabV1')?.classList.toggle('active',tab==='v1');
+    document.getElementById('tabV2')?.classList.toggle('active',tab==='v2');
+    document.getElementById('tabHTML1')?.classList.toggle('active',tab==='html1');
+    document.getElementById('tabHTMLFinal')?.classList.toggle('active',tab==='htmlFinal');
+    document.getElementById('pV1')?.classList.toggle('active',tab==='v1');
+    document.getElementById('pV2')?.classList.toggle('active',tab==='v2');
+    document.getElementById('pHTML1')?.classList.toggle('active',tab==='html1');
+    document.getElementById('pHTMLFinal')?.classList.toggle('active',tab==='htmlFinal');
   }
 
   function showV1(text) {
@@ -1213,14 +1238,23 @@
     switchTab('v2');
   }
 
-  function showHTML(html) {
-    document.getElementById('htmlEmpty').style.display='none';
-    const frame=document.getElementById('htmlFrame'); frame.style.display='block';
+  function showHTML1(html) {
+    document.getElementById('html1Empty').style.display='none';
+    const frame=document.getElementById('html1Frame'); frame.style.display='block';
     const doc=frame.contentDocument||frame.contentWindow.document;
     doc.open(); doc.write(html); doc.close();
-    document.getElementById('prevBadge').textContent='HTML ready';
-    switchTab('html');
+    document.getElementById('prevBadge').textContent='HTML 1 ready';
+    switchTab('html1');
   }
+  function showHTMLFinal(html) {
+    document.getElementById('htmlFinalEmpty').style.display='none';
+    const frame=document.getElementById('htmlFinalFrame'); frame.style.display='block';
+    const doc=frame.contentDocument||frame.contentWindow.document;
+    doc.open(); doc.write(html); doc.close();
+    document.getElementById('prevBadge').textContent='HTML Final ready';
+    switchTab('htmlFinal');
+  }
+  function showHTML(html) { showHTML1(html); } // legacy alias
 
   // ─── GEMINI ───────────────────────────────────────────────
   async function callGemini(prompt,gkey) {
@@ -1352,7 +1386,7 @@
       document.getElementById('sb16').classList.add('open');
       document.getElementById('c16').classList.remove('closed');
       setStep(16,'checkpoint','Your Turn');
-      switchTab('html');
+      switchTab('htmlFinal');
     });
   }
   function proceedCp16() {
@@ -1504,28 +1538,40 @@ ${schemaBlocksHTML}
 
 
   // ─── HTML QC (Step 16) ────────────────────────────────────
-  async function runQC(akey, feedback) {
+  async function runQC(akey, feedback, publishDate) {
     setStep(16,'active','Running QC...'); setG('Claude running HTML QC...',true);
     const p6=getPrompt(S.docs.doc44,6);
     const feedbackLine=feedback?`\n\nOPERATOR NOTES: ${feedback}\n\nFix these specific issues in addition to the standard QC checks.`:'';
-    const qcUser=`${p6}${feedbackLine}\n\nFINAL HTML TO QC:\n${S.finalTXT}`;
+    const pubDateLine=publishDate?`\n\nPUBLISH DATE: ${publishDate} — If any date in the HTML does not match this exactly, correct it.`:'';
+    const qcUser=`${p6}${pubDateLine}${feedbackLine}\n\nFINAL HTML TO QC:\n${S.finalTXT}`;
     const res=await callClaude(
-      `You are an expert AEO article HTML QC specialist. The client's HTML Style Spec and Identity Card are below.\n\n4.3B — CLIENT IDENTITY CARD + HTML STYLE SPEC:\n${S.docs.doc43B}`,
+      `You are an expert AEO article HTML QC specialist. Output ONLY DIFF blocks for any corrections needed — do not return the full HTML. Use this exact format for each fix:\n\nDIFF_START\nFIND:\n[exact HTML string to find]\nREPLACE:\n[exact replacement HTML, or [DELETE] to remove]\nDIFF_END\n\nIf no corrections are needed, output only: QC COMPLETE — NO CHANGES NEEDED\n\n4.3B — CLIENT IDENTITY CARD + HTML STYLE SPEC:\n${S.docs.doc43B}`,
       qcUser, akey,
       (partial)=>{document.getElementById('o16').textContent=partial;document.getElementById('sb16').classList.add('open');}
     );
-    const m=res.match(/=== HTML START ===[\s\S]*?=== HTML END ===/i);
-    const m2=res.match(/```(?:html)?\n([\s\S]*?)```/i);
-    if(m && m[1] && m[1].trim().length>100){S.finalTXT=m[1].trim();}
-    else if(m2 && m2[1].trim().length>100){S.finalTXT=m2[1].trim();}
-    else{console.warn('Step 16 QC: No valid HTML block found — keeping existing');}
-    showHTML(S.finalTXT);
+    if(res.includes('QC COMPLETE — NO CHANGES NEEDED')){
+      // No changes needed — keep existing HTML
+      document.getElementById('o16').textContent='QC passed — no changes needed.';
+    } else if(res.includes('DIFF_START')){
+      // Apply surgical diffs
+      const {result,applied,failed,log}=applyDiffs(S.finalTXT,res);
+      S.finalTXT=result;
+      document.getElementById('o16').textContent=log.join('\n')+`\n\nApplied: ${applied}, Failed: ${failed}`;
+    } else {
+      // Fallback: Claude returned full HTML (shouldn't happen but handle gracefully)
+      const m=res.match(/=== HTML START ===([\s\S]*?)=== HTML END ===/i);
+      const m2=res.match(/```(?:html)?\n([\s\S]*?)```/i);
+      if(m && m[1] && m[1].trim().length>100){S.finalTXT=m[1].trim();}
+      else if(m2 && m2[1].trim().length>100){S.finalTXT=m2[1].trim();}
+      console.warn('Step 16: Claude returned full HTML instead of diffs');
+    }
+    showHTMLFinal(S.finalTXT);
     S.checklistHTML=buildChecklistHTML(S.finalSchema);
     document.getElementById('rerunQC').style.display='block';
     const cp16Fb=await waitCp16();
     if(cp16Fb){
       setStep(16,'active','Fixing HTML...'); setG('Claude fixing HTML issues...',true);
-      await runQC(akey,cp16Fb);
+      await runQC(akey,cp16Fb,publishDate);
       return;
     }
     saveSession();
@@ -1535,8 +1581,9 @@ ${schemaBlocksHTML}
   async function rerunQC() {
     const akey=document.getElementById('keyAnthropic').value.trim();
     const feedback=document.getElementById('qcFeedback').value.trim();
+    const publishDate=document.getElementById('publishDate').value||new Date().toISOString().split('T')[0];
     document.getElementById('qcFeedback').value='';
-    await runQC(akey,feedback);
+    await runQC(akey,feedback,publishDate);
   }
 
   function buildSys() {
@@ -1622,8 +1669,10 @@ ${schemaBlocksHTML}
   // ─── PRE-ASSEMBLY INTEGRITY CHECK (Step 13) ───────────────
   function runIntegrityCheck(v2, researchBrief) {
     const results=[];
-    const tableRows=(v2.match(/^\|.+\|/gm)||[]).length;
-    results.push({label:'Tables present',pass:tableRows>=4,detail:`~${tableRows} table rows`});
+    const mdTableRows=(v2.match(/^\|.+\|/gm)||[]).length;
+    const htmlTableCount=(v2.match(/<table/gi)||[]).length;
+    const tableOk=mdTableRows>=4||htmlTableCount>=2;
+    results.push({label:'Tables present',pass:tableOk,detail:`${htmlTableCount} HTML tables, ~${mdTableRows} md rows`});
     const imgCount=(v2.match(/^PROMPT:/gim)||[]).length;
     results.push({label:'Image prompts present',pass:imgCount>=1,detail:`${imgCount} PROMPT: blocks`});
     // Check internal links survived voice rewrite
@@ -1638,6 +1687,48 @@ ${schemaBlocksHTML}
     const text=results.map(r=>`${r.pass?'✅':'⚠️'} ${r.label} — ${r.detail}`).join('\n');
     return {allPass,text};
   }
+
+
+  // ─── DIFF APPLICATOR ─────────────────────────────────────
+  function applyDiffs(article, diffText) {
+    const blocks = diffText.match(/DIFF_START[\s\S]*?DIFF_END/g) || [];
+    let result = article;
+    let applied = 0, failed = 0;
+    const log = [];
+    for (const block of blocks) {
+      const findMatch = block.match(/FIND:\n([\s\S]*?)(?=\nREPLACE:|DIFF_END)/);
+      const replaceMatch = block.match(/REPLACE:\n([\s\S]*?)(?=\nDIFF_END)/);
+      if (!findMatch || !replaceMatch) continue;
+      const findStr = findMatch[1].trim();
+      const replaceStr = replaceMatch[1].trim() === '[DELETE]' ? '' : replaceMatch[1].trim();
+      if (result.includes(findStr)) {
+        result = result.replace(findStr, replaceStr);
+        applied++;
+        log.push('✅ Applied: ' + findStr.substring(0,60) + '...');
+      } else {
+        // Fuzzy: normalize whitespace in search string only — never collapse article
+        const findNorm = findStr.replace(/\s+/g,' ').trim();
+        const articleLines = result.split('\n');
+        let fuzzyFound = false;
+        for (let li = 0; li < articleLines.length; li++) {
+          if (articleLines[li].replace(/\s+/g,' ').trim().includes(findNorm)) {
+            articleLines[li] = articleLines[li].replace(findStr.trim(), replaceStr);
+            result = articleLines.join('\n');
+            applied++;
+            log.push('⚠️ Fuzzy applied: ' + findStr.substring(0,60) + '...');
+            fuzzyFound = true;
+            break;
+          }
+        }
+        if (!fuzzyFound) {
+          failed++;
+          log.push('❌ No match: ' + findStr.substring(0,60) + '...');
+        }
+      }
+    }
+    return { result, applied, failed, log, total: blocks.length };
+  }
+
 
   // ─── SHARED RUNNER (ATOMIC PIPELINE) ──────────────────────
   async function runFrom(start,sys,akey,gkey,dkey='') {
@@ -1764,7 +1855,7 @@ ${S.v1}`;
         if(f.type==='MISSING') return `INSERT MISSING:\nDescription: ${f.desc}\nWhat to insert: ${f.what||f.missing||f.desc}\nContext: ${f.context||'see surrounding content'}\nPlacement: ${f.placement||'NEAR_CLAIM'}`;
         return `FIX WRONG:\nDescription: ${f.desc}\nFind: ${f.find}\nReplace with: ${f.replace}\nScope: ${f.scope}`;
       }).join('\n\n---\n\n');
-      const fixSys=`You are applying targeted fixes to an AEO article. Your ONLY job is to apply the specific FAIL items listed. Do NOT rewrite prose. Do NOT change voice. Do NOT restructure. Make only the exact changes specified.\n\n4.3B:\n${S.docs.doc43B}`;
+      const fixSys=`You are applying targeted fixes to an AEO article. Output ONLY a series of DIFF blocks — do not return the full article. Each block must use this exact format:\n\nDIFF_START\nFIND:\n[exact text to find]\nREPLACE:\n[exact replacement text, or [DELETE] to remove]\nDIFF_END\n\nDo NOT output the full article. Do NOT add explanation. Output ONLY DIFF blocks.\n\n4.3B:\n${S.docs.doc43B}`;
       const fixUser=`PUBLISH DATE: ${publishDate}
 
 RESEARCH BRIEF (spec all fixes must conform to):
@@ -1781,15 +1872,28 @@ RULES:
 - MISSING: insert at appropriate location
 - FLAG: no action required
 - Do NOT touch any prose outside the FAIL items
-- Return the COMPLETE corrected article
+- Output ONLY DIFF_START/DIFF_END blocks — one per fix
+- Do NOT return the full article
 
 ARTICLE TO FIX:
 ${S.v1}`;
       const fixResult=await callClaude(fixSys,fixUser,akey,(p)=>{document.getElementById('o9').textContent=p;document.getElementById('sb9').classList.add('open');},{maxTokens:64000});
-      if(fixResult.length>1000){
+      // Apply diffs surgically — tool does the find/replace, no full article regeneration
+      if(fixResult.includes('DIFF_START')){
+        const {result,applied,failed,log}=applyDiffs(S.v1,fixResult);
+        S.protectedSentences=S.parsedFails.filter(f=>f.replace&&f.replace.length>20).map(f=>f.replace);
+        S.v1=result;
+        showV1(S.v1);
+        document.getElementById('o9').textContent=log.join('\n')+`\n\nApplied: ${applied}, Failed: ${failed}`;
+      } else if(fixResult.length>2000){
+        // Fallback: Claude returned full article instead of diffs
         S.protectedSentences=S.parsedFails.filter(f=>f.replace&&f.replace.length>20).map(f=>f.replace);
         S.v1=fixResult;
         showV1(S.v1);
+        document.getElementById('o9').textContent='Fallback: Claude returned full article. Applied as V1.';
+      } else {
+        // Claude returned neither diffs nor a full article — something went wrong
+        document.getElementById('o9').textContent=`Warning: Step 9 output unclear (${fixResult.length} chars). Article unchanged — check output and retry.`;
       }
       setStep(9,'done','Done ✓');
       step=10;
@@ -1816,7 +1920,8 @@ ${S.v1}`;
       if(!allFixed&&step9RetryCount<=2){
         setStep(11,'active',`Auto-retry ${step9RetryCount}/2`,'');
         setG(`Fixes incomplete — auto-retrying Step 9 (${step9RetryCount}/2)...`,true);
-        await runFrom(9,sys,akey,gkey,dkey);
+        try{ await runFrom(9,sys,akey,gkey,dkey); }
+        catch(e){ handleErr(e); }
         return;
       }
       const verifyLines=allFixed
@@ -1918,7 +2023,7 @@ ${S.v1}`;
 BLOCK 1 — SCHEMA (label: === SCHEMA START === and === SCHEMA END ===)
 Complete schema: FAQPage, BlogPosting, BreadcrumbList, each in its own script tag.
 - Featured image URL: ${S.imageUrls[getFeatured()]||''}
-- Publish date: ${publishDate}
+- Publish date: ${publishDate} — USE THIS DATE EXACTLY. Do not use today's date or any other date.
 - Entity data from 4.3B.
 
 BLOCK 2 — HTML (label: === HTML START === and === HTML END ===)
@@ -1947,19 +2052,20 @@ ${S.v2}`;
         else{throw new Error('Step 15: No === HTML START === block found. Retry.');}
       }
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
-      showHTML(S.finalTXT);
+      showHTML1(S.finalTXT);
       setStep(15,'done','Done ✓','HTML generated — review in right panel.');
       step=16;
     }
 
     // STEP 16: HTML QC + Checkpoint
     if(step<=16){
-      await runQC(akey,'');
+      await runQC(akey,'',publishDate);
       step=17;
     }
 
     // STEP 17: Auto Download
     if(step<=17){
+      stopTimer();
       setStep(17,'active','Downloading...'); setG('Saving files...',true);
       await uploadToDrive(dkey);
       const cost=((S.tokens.ci/1e6*3)+(S.tokens.co/1e6*15)).toFixed(3);
@@ -1967,6 +2073,7 @@ ${S.v2}`;
       saveToHistory({topic:S.topic,client:S.client?.name||'—',date:new Date().toLocaleDateString(),duration:getTimerStr(),cost:`$${cost}`,words:`~${wc.toLocaleString()}`});
       saveSession();
       document.getElementById('outputsSec').classList.add('open');
+      setStep(17,'done','Done ✓','Both files downloaded.');
       setG('✓ Article complete — both files downloaded.');
     }
   }
@@ -2057,6 +2164,7 @@ ${S.v2}`;
     }catch(err){handleErr(err);stopTimer();}
 
     running=false; document.getElementById('runBtn').disabled=false;
+    if(!timerInterval) {} else { stopTimer(); } // ensure timer stops if not already stopped
   }
 
 </script>
