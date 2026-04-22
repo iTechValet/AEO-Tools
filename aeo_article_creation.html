@@ -21,6 +21,7 @@
   .subtitle { font-size:12px; color:var(--muted); }
 
   /* LAYOUT */
+  .top-section { max-width:1600px; margin:0 auto 16px; }
   .layout { max-width:1600px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
   .left-col { min-width:0; }
   .right-col { position:sticky; top:20px; }
@@ -204,6 +205,36 @@
   .pempty { padding:20px; text-align:center; font-size:12px; color:#ccc; height:480px; display:flex; align-items:center; justify-content:center; }
 
   .error-msg { color:var(--orange); font-size:11px; margin-top:5px; }
+
+  /* TIMER */
+  .timer-display { font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--blue); letter-spacing:1px; }
+  .timer-display.running { color:var(--accent); }
+  .timer-display.done { color:var(--green); }
+
+  /* WORD COUNT BADGE */
+  .wc-badge { font-size:10px; background:rgba(36,148,224,.12); color:var(--accent); border:1px solid rgba(36,148,224,.25); border-radius:4px; padding:2px 7px; font-family:'Bebas Neue',sans-serif; letter-spacing:1px; margin-left:6px; }
+
+  /* HISTORY PANEL */
+  .history-panel { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px; margin-bottom:14px; }
+  .history-toggle { font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:2px; color:var(--faint); cursor:pointer; display:flex; align-items:center; justify-content:space-between; user-select:none; }
+  .history-toggle:hover { color:var(--accent); }
+  .history-list { display:none; margin-top:10px; }
+  .history-list.open { display:block; }
+  .history-item { background:#fff; border:1px solid var(--border); border-radius:8px; padding:9px 12px; margin-bottom:7px; font-size:11px; }
+  .history-item:last-child { margin-bottom:0; }
+  .history-topic { font-weight:500; color:var(--blue); margin-bottom:4px; word-break:break-word; }
+  .history-meta { color:var(--faint); font-size:10px; display:flex; gap:10px; flex-wrap:wrap; margin-bottom:5px; }
+  .history-actions { display:flex; gap:6px; }
+  .btn-hist { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; padding:3px 9px; font-family:'Bebas Neue',sans-serif; font-size:10px; letter-spacing:1px; cursor:pointer; transition:border-color .2s,color .2s; }
+  .btn-hist:hover { border-color:var(--accent); color:var(--accent); }
+  .btn-hist.orange:hover { border-color:var(--orange); color:var(--orange); }
+  .history-empty { font-size:11px; color:#ccc; text-align:center; padding:10px 0; }
+
+  /* SESSION RESTORE BANNER */
+  .restore-banner { background:rgba(36,148,224,.08); border:1px solid rgba(36,148,224,.3); border-radius:8px; padding:9px 14px; margin-bottom:10px; font-size:11px; color:var(--accent); display:none; align-items:center; justify-content:space-between; gap:10px; }
+  .restore-banner.show { display:flex; }
+  .btn-restore { background:var(--accent); color:#fff; border:none; border-radius:5px; padding:4px 12px; font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1px; cursor:pointer; }
+  .btn-dismiss { background:none; border:none; color:var(--faint); font-size:14px; cursor:pointer; padding:0 4px; }
 </style>
 </head>
 <body>
@@ -228,10 +259,8 @@
   </div>
 </div>
 
-<div class="layout">
-
-<!-- LEFT -->
-<div class="left-col">
+<!-- TOP SECTION — FULL WIDTH -->
+<div class="top-section">
 
   <div class="card">
     <div class="slabel">API Keys — Session Only</div>
@@ -269,6 +298,14 @@
     </div>
   </div>
 
+  <div class="restore-banner" id="restoreBanner">
+    <span id="restoreMsg">Previous session found — restore V1, V2 and HTML?</span>
+    <div style="display:flex;gap:6px;flex-shrink:0;">
+      <button class="btn-restore" onclick="restoreSession()">Restore</button>
+      <button class="btn-dismiss" onclick="dismissRestore()">✕</button>
+    </div>
+  </div>
+
   <div class="gstatus" id="gstatus"></div>
 
   <div class="cost-bar">
@@ -277,7 +314,23 @@
     <div class="ci"><div class="cl">Claude Out</div><div class="cv" id="cClaudeOut">0</div></div>
     <div class="ci"><div class="cl">Images</div><div class="cv" id="cImages">0</div></div>
     <div class="ci"><div class="cl">Est. Cost</div><div class="cv orange" id="cCost">$0.000</div></div>
+    <div class="ci"><div class="cl">Run Time</div><div class="timer-display" id="timerDisplay">0:00</div></div>
   </div>
+
+  <div class="history-panel" id="historyPanel">
+    <div class="history-toggle" onclick="toggleHistory()">
+      <span>Run History <span id="histCount" style="font-size:11px;color:var(--faint);"></span></span>
+      <span id="histChev" style="font-size:11px;">▼</span>
+    </div>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+</div><!-- end top-section -->
+
+<div class="layout">
+
+<!-- LEFT -->
+<div class="left-col">
 
   <div class="outputs-section" id="outputsSec">
     <div class="otitle">✓ Article Complete</div>
@@ -383,6 +436,12 @@
           <textarea id="qcFeedback" style="width:100%;background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--blue);font-family:'Lexend',sans-serif;font-size:11px;line-height:1.6;outline:none;resize:vertical;min-height:50px;margin-bottom:7px;" placeholder="e.g. The ToC colors look wrong, Last Updated spacing is off..."></textarea>
           <button class="btn-retry" onclick="rerunQC()">↻ Run QC Again</button>
         </div>
+        <div class="cbox" id="cbox9" style="display:none;margin-top:10px;">
+          <div class="ctitle">⚠ Review Final HTML in right panel</div>
+          <p style="font-size:11px;color:#888;margin-bottom:7px;">Check the HTML Output tab. Leave blank if it looks good — describe any issues and Claude will fix them.</p>
+          <textarea id="cpFeedback9" placeholder="e.g. ToC is after the first H2, not before it — or leave blank to continue" oninput="updateCpBtn9()"></textarea>
+          <button class="btn-proceed" id="cpBtn9" onclick="proceedCp9()">Looks Good — Finish</button>
+        </div>
       </div>
     </div>
 
@@ -429,7 +488,7 @@
       </div>
       <div class="preview-tabs">
         <button class="ptab active" id="tabV1" onclick="switchTab('v1')">V1 Article</button>
-        <button class="ptab" id="tabV2" onclick="switchTab('v2')">V2 Article</button>
+        <button class="ptab" id="tabV2" onclick="switchTab('v2')">V2 Article <span class="wc-badge" id="wcBadge" style="display:none;"></span></button>
         <button class="ptab" id="tabHTML" onclick="switchTab('html')">HTML Output</button>
       </div>
       <div class="ppane active" id="pV1">
@@ -473,6 +532,7 @@
 
   // ─── CONSTANTS ────────────────────────────────────────────
   const CLIENTS_KEY='aeo_clients', GLOBALS_KEY='aeo_globals', KEYS_KEY='aeo_session_keys';
+  const HISTORY_KEY='aeo_run_history', SESSION_KEY='aeo_session_state';
   const PROXY='https://anthropic-proxy.gerek.workers.dev';
   const GEMINI_MODEL='gemini-2.5-pro';
   const GEMINI_IMG_MODEL='gemini-3.1-flash-image-preview';
@@ -486,12 +546,17 @@
     imagePrompts:[], imageData:{}, imageUrls:{},
     tokens:{gi:0,go:0,ci:0,co:0,imgs:0}
   };
-  let running=false, cpResolve=null, asmResolve=null, imagesValidated=false, checkpointDone=false;
+  let running=false, cpResolve=null, cp9Resolve=null, asmResolve=null, imagesValidated=false, checkpointDone=false;
+
+  // Timer state
+  let timerStart=0, timerInterval=null, timerElapsed=0;
 
   // ─── INIT ─────────────────────────────────────────────────
   window.addEventListener('load',()=>{
     loadClients(); loadKeys();
     document.getElementById('publishDate').value = new Date().toISOString().split('T')[0];
+    renderHistory();
+    checkSessionRestore();
   });
 
   function loadClients() {
@@ -556,6 +621,165 @@
     document.getElementById('cImages').textContent=S.tokens.imgs;
     const cost=(S.tokens.ci/1e6*3)+(S.tokens.co/1e6*15);
     document.getElementById('cCost').textContent=`$${cost.toFixed(3)}`;
+  }
+
+  // ─── TIMER ────────────────────────────────────────────────
+  function startTimer() {
+    timerStart=Date.now()-timerElapsed;
+    const el=document.getElementById('timerDisplay');
+    el.className='timer-display running';
+    timerInterval=setInterval(()=>{
+      const s=Math.floor((Date.now()-timerStart)/1000);
+      el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+    },1000);
+  }
+
+  function stopTimer() {
+    clearInterval(timerInterval); timerInterval=null;
+    timerElapsed=Date.now()-timerStart;
+    document.getElementById('timerDisplay').className='timer-display done';
+    return Math.floor(timerElapsed/1000);
+  }
+
+  function resetTimer() {
+    clearInterval(timerInterval); timerInterval=null; timerElapsed=0;
+    document.getElementById('timerDisplay').textContent='0:00';
+    document.getElementById('timerDisplay').className='timer-display';
+  }
+
+  function getTimerStr() {
+    const s=Math.floor(timerElapsed/1000);
+    return `${Math.floor(s/60)}m ${s%60}s`;
+  }
+
+  // ─── WORD COUNT ───────────────────────────────────────────
+  function countWords(text) {
+    // Strip markdown syntax, image prompts, checklist header, schema blocks
+    const clean=text
+      .replace(/^BLOG POST OPTIMIZATION CHECKLIST[\s\S]*?---/m,'')
+      .replace(/\[IMAGE:[\s\S]*?\*\*ALT TEXT:.*?\*\*/gm,'')
+      .replace(/<script[\s\S]*?<\/script>/gi,'')
+      .replace(/[#*`[\]()_~>|]/g,' ')
+      .replace(/https?:\/\/\S+/g,' ');
+    return clean.trim().split(/\s+/).filter(w=>w.length>2).length;
+  }
+
+  function updateWordCount(text) {
+    const wc=countWords(text);
+    const badge=document.getElementById('wcBadge');
+    badge.style.display='inline';
+    badge.textContent=`~${wc.toLocaleString()} words`;
+  }
+
+  // ─── SESSION PERSISTENCE ──────────────────────────────────
+  function saveSession() {
+    try {
+      const data={
+        topic:S.topic,
+        clientName:S.client?.name||'',
+        v1:S.v1,
+        v2:S.v2,
+        finalTXT:S.finalTXT,
+        finalSchema:S.finalSchema,
+        tokens:S.tokens,
+        savedAt:Date.now()
+      };
+      localStorage.setItem(SESSION_KEY,JSON.stringify(data));
+    } catch(e){ console.warn('Session save failed:',e); }
+  }
+
+  function checkSessionRestore() {
+    try {
+      const raw=localStorage.getItem(SESSION_KEY);
+      if(!raw) return;
+      const data=JSON.parse(raw);
+      // Only offer restore if session is less than 24 hours old and has content
+      if(!data.v2 || Date.now()-data.savedAt > 86400000) return;
+      const age=Math.round((Date.now()-data.savedAt)/60000);
+      document.getElementById('restoreMsg').textContent=
+        `Session found: "${data.topic.substring(0,40)}" (${age}m ago) — restore V1, V2 and HTML?`;
+      document.getElementById('restoreBanner').classList.add('show');
+    } catch(e){}
+  }
+
+  function restoreSession() {
+    try {
+      const data=JSON.parse(localStorage.getItem(SESSION_KEY));
+      if(!data) return;
+      S.topic=data.topic||''; S.tokens=data.tokens||S.tokens;
+      if(data.v1){ S.v1=data.v1; showV1(data.v1); }
+      if(data.v2){ S.v2=data.v2; showV2(data.v2); updateWordCount(data.v2); }
+      if(data.finalTXT){ S.finalTXT=data.finalTXT; showHTML(data.finalTXT); }
+      if(data.finalSchema) S.finalSchema=data.finalSchema;
+      updateCost();
+      dismissRestore();
+      setG(`Session restored: "${data.topic.substring(0,50)}"`);
+    } catch(e){ console.warn('Restore failed:',e); }
+  }
+
+  function dismissRestore() {
+    document.getElementById('restoreBanner').classList.remove('show');
+  }
+
+  // ─── RUN HISTORY ──────────────────────────────────────────
+  function saveToHistory(entry) {
+    try {
+      const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+      hist.unshift(entry);
+      if(hist.length>20) hist.pop(); // keep last 20
+      localStorage.setItem(HISTORY_KEY,JSON.stringify(hist));
+      renderHistory();
+    } catch(e){}
+  }
+
+  function renderHistory() {
+    try {
+      const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+      const el=document.getElementById('historyList');
+      document.getElementById('histCount').textContent=hist.length?`(${hist.length})`:'';
+      if(!hist.length){
+        el.innerHTML='<div class="history-empty">No runs yet</div>';
+        return;
+      }
+      el.innerHTML=hist.map((h,i)=>`
+        <div class="history-item">
+          <div class="history-topic">${h.topic||'—'}</div>
+          <div class="history-meta">
+            <span>Client: ${h.client||'—'}</span>
+            <span>Date: ${h.date||'—'}</span>
+            <span>Time: ${h.duration||'—'}</span>
+            <span>Cost: ${h.cost||'—'}</span>
+            <span>Words: ${h.words||'—'}</span>
+          </div>
+          <div class="history-actions">
+            <button class="btn-hist" onclick="copyHistTopic(${i})">⎘ Copy Topic</button>
+            <button class="btn-hist orange" onclick="deleteHist(${i})">✕ Remove</button>
+          </div>
+        </div>`).join('');
+    } catch(e){}
+  }
+
+  function toggleHistory() {
+    const list=document.getElementById('historyList');
+    const chev=document.getElementById('histChev');
+    const open=list.classList.toggle('open');
+    chev.textContent=open?'▲':'▼';
+  }
+
+  function copyHistTopic(i) {
+    try {
+      const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+      if(hist[i]) navigator.clipboard.writeText(hist[i].topic||'');
+    } catch(e){}
+  }
+
+  function deleteHist(i) {
+    try {
+      const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+      hist.splice(i,1);
+      localStorage.setItem(HISTORY_KEY,JSON.stringify(hist));
+      renderHistory();
+    } catch(e){}
   }
 
   // ─── DRIVE ────────────────────────────────────────────────
@@ -691,42 +915,57 @@
   }
 
   async function genAllImages(prompts,gkey) {
+    let failed=0;
     for(let i=0;i<prompts.length;i++){
       setG(`Generating image ${i+1} of ${prompts.length}...`,true);
       document.getElementById('o4').textContent=`Generating image ${i+1} of ${prompts.length}...`;
       document.getElementById('sb4').classList.add('open');
       try{ await genOneImage(prompts[i].prompt,prompts[i].alt,i,gkey); S.tokens.imgs++; updateCost(); }
-      catch(err){ showImgErr(i,err.message); }
+      catch(err){ showImgErr(i,err.message); failed++; }
       if(i<prompts.length-1) await new Promise(r=>setTimeout(r,1500));
     }
+    if(failed>0) setStep(4,'done','Done ✓',`${prompts.length-failed}/${prompts.length} images generated. ${failed} failed — use Regenerate button on failed cards.`);
   }
 
   async function genOneImage(prompt,alt,idx,gkey) {
     const badge=document.getElementById(`ib${idx}`);
     if(badge){badge.className='sbadge b-running';badge.textContent='Generating...';}
-    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMG_MODEL}:generateContent?key=${gkey}`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseModalities:['Text','Image']}})
-    });
-    const data=await res.json();
-    if(data.error) throw new Error(data.error.message||'Image API error');
-    const parts=data.candidates?.[0]?.content?.parts||[];
-    const imgPart=parts.find(p=>p.inlineData);
-    if(!imgPart) throw new Error('No image returned — check Gemini API key and quota');
-    const conv=await toWebP(imgPart.inlineData.data,imgPart.inlineData.mimeType||'image/png');
-    S.imageData[idx]=conv;
-    const fname=`${idx+1} ${alt.replace(/[^a-zA-Z0-9\s]/g,'').trim().substring(0,60)}`;
-    const fileSize=estimateSize(conv.data);
-    const disp=document.getElementById(`idisp${idx}`);
-    if(disp) disp.innerHTML=`
-      <img src="${conv.data}" alt="Image ${idx+1}" style="cursor:pointer;" title="Click to view full size" onclick="(function(d){const b=URL.createObjectURL(new Blob([Uint8Array.from(atob(d.split(',')[1]),c=>c.charCodeAt(0))],{type:'image/webp'}));const w=window.open();w.document.write('<img src=\\''+b+'\\' style=\\'max-width:100%\\'>');setTimeout(()=>URL.revokeObjectURL(b),5000)})(this.src)" />
-      <div class="img-result-actions">
-        <a class="btn-dl-img" href="${conv.data}" download="${fname}.${conv.ext}">↓ Download .${conv.ext.toUpperCase()}</a>
-        <span class="img-format-badge">${conv.ext.toUpperCase()}</span>
-        <span class="img-file-info">~${fileSize} · 16:9</span>
-      </div>`;
-    if(badge){badge.className='sbadge b-done';badge.textContent='Done ✓';}
-    const rb=document.getElementById(`ir${idx}`); if(rb) rb.disabled=false;
+
+    const TIMEOUT_MS=90000;
+    const controller=new AbortController();
+    const timeoutId=setTimeout(()=>controller.abort(),TIMEOUT_MS);
+
+    try {
+      const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMG_MODEL}:generateContent?key=${gkey}`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseModalities:['Text','Image']}}),
+        signal:controller.signal
+      });
+      clearTimeout(timeoutId);
+      const data=await res.json();
+      if(data.error) throw new Error(data.error.message||'Image API error');
+      const parts=data.candidates?.[0]?.content?.parts||[];
+      const imgPart=parts.find(p=>p.inlineData);
+      if(!imgPart) throw new Error('No image returned — check Gemini API key and quota');
+      const conv=await toWebP(imgPart.inlineData.data,imgPart.inlineData.mimeType||'image/png');
+      S.imageData[idx]=conv;
+      const fname=`${idx+1} ${alt.replace(/[^a-zA-Z0-9\s]/g,'').trim().substring(0,60)}`;
+      const fileSize=estimateSize(conv.data);
+      const disp=document.getElementById(`idisp${idx}`);
+      if(disp) disp.innerHTML=`
+        <img src="${conv.data}" alt="Image ${idx+1}" style="cursor:pointer;" title="Click to view full size" onclick="(function(d){const b=URL.createObjectURL(new Blob([Uint8Array.from(atob(d.split(',')[1]),c=>c.charCodeAt(0))],{type:'image/webp'}));const w=window.open();w.document.write('<img src=\\''+b+'\\' style=\\'max-width:100%\\'>');setTimeout(()=>URL.revokeObjectURL(b),5000)})(this.src)" />
+        <div class="img-result-actions">
+          <a class="btn-dl-img" href="${conv.data}" download="${fname}.${conv.ext}">↓ Download .${conv.ext.toUpperCase()}</a>
+          <span class="img-format-badge">${conv.ext.toUpperCase()}</span>
+          <span class="img-file-info">~${fileSize} · 16:9</span>
+        </div>`;
+      if(badge){badge.className='sbadge b-done';badge.textContent='Done ✓';}
+      const rb=document.getElementById(`ir${idx}`); if(rb) rb.disabled=false;
+    } catch(err) {
+      clearTimeout(timeoutId);
+      const msg=err.name==='AbortError'?'Timed out after 90s — click Regenerate to retry':err.message;
+      throw new Error(msg);
+    }
   }
 
   function estimateSize(dataUrl) {
@@ -821,6 +1060,7 @@
     div.style.display='block';
     div.innerHTML=typeof marked!=='undefined'?marked.parse(text):text.replace(/&/g,'&amp;').replace(/</g,'&lt;');
     document.getElementById('prevBadge').textContent='V2 ready';
+    updateWordCount(text);
     switchTab('v2');
   }
 
@@ -874,6 +1114,31 @@
       }
     }
     S.tokens.ci+=inTok; S.tokens.co+=outTok; updateCost(); return full;
+  }
+
+  // ─── STEP 9 CHECKPOINT ────────────────────────────────────
+  function updateCpBtn9() {
+    const fb=document.getElementById('cpFeedback9').value.trim();
+    document.getElementById('cpBtn9').textContent=fb?'Make Fixes — Finish':'Looks Good — Finish';
+  }
+
+  function waitCp9() {
+    return new Promise(res=>{
+      cp9Resolve=res;
+      document.getElementById('cbox9').style.display='block';
+      document.getElementById('sb9').classList.add('open');
+      document.getElementById('c9').classList.remove('closed');
+      setStep(9,'checkpoint','Your Turn');
+      switchTab('html');
+    });
+  }
+
+  function proceedCp9() {
+    const fb=document.getElementById('cpFeedback9').value.trim();
+    document.getElementById('cbox9').style.display='none';
+    document.getElementById('cpFeedback9').value='';
+    document.getElementById('cpBtn9').textContent='Looks Good — Finish';
+    if(cp9Resolve){cp9Resolve(fb);cp9Resolve=null;}
   }
 
   // ─── CHECKPOINT ───────────────────────────────────────────
@@ -955,10 +1220,20 @@
       console.warn('Step 9 QC: No valid HTML block found in response — keeping existing S.finalTXT intact');
     }
     showHTML(S.finalTXT);
-    // Rebuild checklist with updated HTML
     S.checklistHTML=buildChecklistHTML(S.finalSchema);
     document.getElementById('rerunQC').style.display='block';
-    setStep(9,'done','Done ✓','QC complete — review HTML in right panel.');
+
+    // Step 9 human checkpoint
+    const cp9Fb=await waitCp9();
+    if(cp9Fb){
+      // User flagged an issue — fix it then show again
+      setStep(9,'active','Fixing HTML...'); setG('Claude fixing HTML issues...',true);
+      await runQC(sys,akey,cp9Fb);
+      return; // recursive call handles its own checkpoint
+    }
+
+    saveSession();
+    setStep(9,'done','Done ✓','QC complete — HTML approved.');
   }
 
   async function rerunQC() {
@@ -1249,8 +1524,20 @@ ${S.v2}`;
     }
 
     if(step<=10){
-      setStep(10,'active','Uploading...'); setG('Saving files to Google Drive...',true);
+      setStep(10,'active','Downloading...'); setG('Saving files...',true);
       await uploadToDrive(dkey);
+      const elapsed=stopTimer();
+      const cost=((S.tokens.ci/1e6*3)+(S.tokens.co/1e6*15)).toFixed(3);
+      const wc=countWords(S.v2);
+      saveToHistory({
+        topic:S.topic,
+        client:S.client?.name||'—',
+        date:new Date().toLocaleDateString(),
+        duration:getTimerStr(),
+        cost:`$${cost}`,
+        words:`~${wc.toLocaleString()}`
+      });
+      saveSession();
       document.getElementById('outputsSec').classList.add('open');
       setG('✓ Article complete — both files downloaded. Move them to Drive manually.');
     }
@@ -1347,6 +1634,8 @@ ${S.v2}`;
     for(let i=1;i<=10;i++) setStep(i,'waiting','Waiting');
     document.getElementById('assembleBtn').disabled=true;
     document.getElementById('assembleHint').textContent='Complete steps 1–7 first';
+    resetTimer(); startTimer();
+    dismissRestore();
 
     try{
       // STEP 1
@@ -1371,7 +1660,7 @@ ${S.v2}`;
       // STEPS 3–10
       await runFrom(3,buildSys(),akey,gkey,dkey);
 
-    }catch(err){ handleErr(err); }
+    }catch(err){ handleErr(err); stopTimer(); }
 
     running=false; document.getElementById('runBtn').disabled=false;
   }
