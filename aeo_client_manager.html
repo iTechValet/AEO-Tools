@@ -156,6 +156,7 @@
   }
 
   .field-value.empty { color: #ccc; font-style: italic; font-family: 'Lexend', sans-serif; }
+  .field-value.output { background: #f0fff4; border: 1px solid #c3e6cb; color: #2d6a4f; }
 
   /* EMPTY STATE */
   .empty-state {
@@ -219,6 +220,8 @@
     font-weight: 400;
   }
 
+  .form-group label.output-label { color: #2d6a4f; }
+
   .form-group input {
     width: 100%;
     background: #fff;
@@ -233,6 +236,9 @@
     transition: border-color 0.2s;
   }
 
+  .form-group input.output-input { border-color: #c3e6cb; background: #f0fff4; }
+  .form-group input.output-input:focus { border-color: #2d6a4f; }
+
   .form-group input::placeholder { color: #bbb; }
   .form-group input:focus { border-color: #2494e0; }
 
@@ -242,6 +248,8 @@
     margin-top: 5px;
     line-height: 1.5;
   }
+
+  .form-hint.output-hint { color: #6aaa88; }
 
   .form-divider {
     border: none;
@@ -257,6 +265,8 @@
     margin-bottom: 14px;
     font-weight: 400;
   }
+
+  .form-section-title.output-section { color: #2d6a4f; }
 
   .form-grid {
     display: grid;
@@ -367,6 +377,19 @@
     margin-left: 8px;
     vertical-align: middle;
   }
+
+  .output-badge {
+    display: inline-block;
+    background: #2d6a4f;
+    color: #fff;
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 9px;
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 1px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
 </style>
 </head>
 <body>
@@ -457,6 +480,15 @@
     </div>
   </div>
 
+  <hr class="form-divider">
+  <div class="form-section-title output-section">📁 Output Destination — Where finished articles are saved</div>
+
+  <div class="form-group">
+    <label class="output-label">Drive Output Folder ID</label>
+    <input type="text" id="fieldOutput" class="output-input" placeholder="Paste client's output folder ID..." />
+    <div class="form-hint output-hint">Create a folder in Drive for this client's finished articles → copy folder ID from URL. Step 10 auto-uploads both output files here after every pipeline run.</div>
+  </div>
+
   <div class="form-actions">
     <button class="btn-save" onclick="saveClient()">Save Client</button>
     <button class="btn-cancel" onclick="closeForm()">Cancel</button>
@@ -497,12 +529,12 @@
   } else {
     window.addEventListener('load', () => document.getElementById('gateInput').focus());
   }
+
   const STORAGE_KEY = 'aeo_clients';
   const GLOBAL_KEY = 'aeo_globals';
   let clients = [];
   let editingIndex = -1;
 
-  // INIT
   window.addEventListener('load', () => {
     loadClients();
     loadGlobals();
@@ -523,9 +555,8 @@
   }
 
   function loadClients() {
-    try {
-      clients = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-    } catch { clients = []; }
+    try { clients = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { clients = []; }
   }
 
   function saveClients() {
@@ -552,18 +583,17 @@
 
   function renderClients() {
     const list = document.getElementById('clientList');
-    const empty = document.getElementById('emptyState');
     document.getElementById('clientCount').textContent = clients.length;
 
     if (clients.length === 0) {
-      list.innerHTML = '<div class="empty-state" id="emptyState">No clients yet. Add your first client below.</div>';
+      list.innerHTML = '<div class="empty-state">No clients yet. Add your first client below.</div>';
       return;
     }
 
     list.innerHTML = clients.map((c, i) => `
       <div class="client-card">
         <div class="client-card-header" onclick="toggleCard(${i})">
-          <div class="client-name">${c.name}</div>
+          <div class="client-name">${c.name}${c.outputFolder ? '<span class="output-badge">OUTPUT ✓</span>' : ''}</div>
           <div class="client-card-actions">
             <button class="btn-edit" onclick="event.stopPropagation(); editClient(${i})">Edit</button>
             <button class="btn-delete" onclick="event.stopPropagation(); deleteClient(${i})">Delete</button>
@@ -588,6 +618,10 @@
               <div class="field-label">4.2 Master Inventory Sheet</div>
               <div class="field-value ${c.sheet42 ? '' : 'empty'}">${c.sheet42 || 'Not set'}</div>
             </div>
+            <div class="field-item" style="grid-column:1/-1;">
+              <div class="field-label">Drive Output Folder</div>
+              <div class="field-value ${c.outputFolder ? 'output' : 'empty'}">${c.outputFolder || 'Not set — Step 10 will skip upload'}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -611,6 +645,7 @@
       document.getElementById('field23').value = '';
       document.getElementById('field43B').value = '';
       document.getElementById('field42').value = '';
+      document.getElementById('fieldOutput').value = '';
       document.getElementById('formStatus').textContent = '';
     }
     document.getElementById('clientForm').classList.add('open');
@@ -632,6 +667,7 @@
     document.getElementById('field23').value = c.folder23 || '';
     document.getElementById('field43B').value = c.folder43B || '';
     document.getElementById('field42').value = c.sheet42 || '';
+    document.getElementById('fieldOutput').value = c.outputFolder || '';
     document.getElementById('formStatus').textContent = '';
     openForm(false);
   }
@@ -649,7 +685,8 @@
       folder22: extractId(document.getElementById('field22').value),
       folder23: extractId(document.getElementById('field23').value),
       folder43B: extractId(document.getElementById('field43B').value),
-      sheet42: extractId(document.getElementById('field42').value)
+      sheet42: extractId(document.getElementById('field42').value),
+      outputFolder: extractId(document.getElementById('fieldOutput').value)
     };
 
     if (editingIndex >= 0) {
@@ -661,6 +698,7 @@
     saveClients();
     renderClients();
     closeForm();
+    document.getElementById('formStatus').textContent = '';
   }
 
   function deleteClient(i) {
@@ -687,19 +725,11 @@
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target.result);
-        if (data.clients) {
-          clients = data.clients;
-          saveClients();
-        }
-        if (data.globals) {
-          localStorage.setItem(GLOBAL_KEY, JSON.stringify(data.globals));
-          loadGlobals();
-        }
+        if (data.clients) { clients = data.clients; saveClients(); }
+        if (data.globals) { localStorage.setItem(GLOBAL_KEY, JSON.stringify(data.globals)); loadGlobals(); }
         renderClients();
         alert('Config imported successfully.');
-      } catch {
-        alert('Invalid config file.');
-      }
+      } catch { alert('Invalid config file.'); }
     };
     reader.readAsText(file);
     event.target.value = '';
