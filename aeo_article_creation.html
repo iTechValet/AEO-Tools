@@ -15,10 +15,10 @@
   body { font-family:'Lexend',sans-serif; font-weight:300; background:var(--bg); color:var(--blue); min-height:100vh; padding:20px 24px; }
 
   /* HEADER */
-  .top-bar { max-width:1400px; margin:0 auto 16px; border-bottom:2px solid var(--border); padding-bottom:14px; display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:10px; }
-  .top-bar h1 { font-family:'Bebas Neue',sans-serif; font-size:32px; text-transform:uppercase; letter-spacing:3px; margin-bottom:3px; }
+  .top-bar { max-width:1600px; margin:0 auto 12px; border-bottom:2px solid var(--border); padding-bottom:12px; display:flex; align-items:center; gap:16px; }
+  .top-bar h1 { font-family:'Bebas Neue',sans-serif; font-size:28px; text-transform:uppercase; letter-spacing:3px; }
   .top-bar h1 span { color:var(--accent); }
-  .subtitle { font-size:12px; color:var(--muted); }
+  .subtitle { font-size:11px; color:var(--muted); }
 
   /* LAYOUT */
   .top-section { max-width:1600px; margin:0 auto 16px; }
@@ -26,44 +26,69 @@
   .left-col { min-width:0; }
   .right-col { position:sticky; top:20px; }
 
-  /* CARDS */
-  .card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px; margin-bottom:14px; }
+  /* UNIFIED CONTROL PANEL */
+  .control-panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; }
+  .cp-row { display:grid; gap:14px; margin-bottom:14px; }
+  .cp-row:last-child { margin-bottom:0; }
+  .cp-row.keys { grid-template-columns:1fr 1fr 1fr; }
+  .cp-row.article { grid-template-columns:220px 1fr auto; align-items:end; }
+  .cp-row.stats { grid-template-columns:repeat(8,auto); justify-content:start; gap:24px; align-items:center; padding:10px 0 4px; border-top:1px solid var(--border); }
+  .cp-divider { border:none; border-top:1px solid var(--border); margin:14px 0; }
 
-  /* SECTION LABEL */
-  .slabel { font-family:'Bebas Neue',sans-serif; font-size:13px; text-transform:uppercase; letter-spacing:2px; color:var(--accent); margin-bottom:8px; }
-
-  /* KEYS */
-  .keys-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
-  .kgroup { display:flex; flex-direction:column; gap:4px; }
-  .kgroup label { font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--accent); font-weight:400; }
+  /* FIELD GROUPS */
+  .cp-group { display:flex; flex-direction:column; gap:5px; }
+  .cp-label { font-family:'Bebas Neue',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:2px; color:var(--blue); opacity:0.7; }
+  .cp-hint { font-size:10px; color:var(--muted); margin-top:2px; }
   .krow { display:flex; gap:5px; }
-  .krow input { flex:1; background:#fff; border:1px solid var(--border); border-radius:6px; padding:7px 9px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:11px; outline:none; transition:border-color .2s; }
+  .krow input { flex:1; background:#fff; border:1px solid var(--border); border-radius:6px; padding:8px 10px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:12px; outline:none; transition:border-color .2s; }
   .krow input:focus { border-color:var(--accent); }
-  .krow input::placeholder { color:var(--faint); }
-  .btn-toggle { background:none; border:1px solid var(--border); color:var(--muted); border-radius:6px; padding:7px 9px; font-family:'Lexend',sans-serif; font-size:10px; cursor:pointer; transition:border-color .2s,color .2s; white-space:nowrap; }
+  .krow input::placeholder { color:#bbb; }
+  .btn-toggle { background:none; border:1px solid var(--border); color:var(--muted); border-radius:6px; padding:8px 10px; font-family:'Lexend',sans-serif; font-size:10px; cursor:pointer; transition:border-color .2s,color .2s; white-space:nowrap; }
   .btn-toggle:hover { border-color:var(--accent); color:var(--accent); }
-  .khint { font-size:10px; color:#ccc; margin-top:3px; }
+  .cp-select, .cp-input { background:#fff; border:1px solid var(--border); border-radius:6px; padding:8px 10px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:12px; outline:none; transition:border-color .2s; width:100%; }
+  .cp-select:focus, .cp-input:focus { border-color:var(--accent); }
+  .cp-input::placeholder { color:#bbb; }
 
-  /* SETUP */
+  /* RUN BUTTON */
+  .btn-run { background:var(--orange); color:#fff; border:none; border-radius:8px; padding:9px 24px; font-family:'Bebas Neue',sans-serif; font-size:22px; text-transform:uppercase; letter-spacing:2px; cursor:pointer; transition:opacity .2s; white-space:nowrap; height:38px; display:flex; align-items:center; }
+  .btn-run:hover { opacity:.85; }
+  .btn-run:disabled { opacity:.35; cursor:not-allowed; }
+
+  /* STATS ROW */
+  .stat-item { display:flex; flex-direction:column; gap:3px; }
+  .stat-label { font-family:'Bebas Neue',sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--blue); opacity:0.55; }
+  .stat-value { font-family:'Bebas Neue',sans-serif; font-size:20px; color:var(--blue); letter-spacing:1px; line-height:1; }
+  .stat-value.orange { color:var(--orange); }
+  .stat-value.green { color:var(--green); }
+  .stat-divider { width:1px; height:32px; background:var(--border); align-self:center; }
+
+  /* GLOBAL STATUS */
+  .gstatus { font-size:12px; color:var(--accent); min-height:16px; font-weight:400; padding:6px 0 2px; }
+
+  /* HISTORY inside panel */
+  .history-toggle { font-family:'Bebas Neue',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:2px; color:var(--blue); opacity:0.55; cursor:pointer; display:flex; align-items:center; justify-content:space-between; user-select:none; padding-top:10px; border-top:1px solid var(--border); margin-top:10px; }
+  .history-toggle:hover { opacity:1; color:var(--accent); }
+  .history-list { display:none; margin-top:10px; }
+  .history-list.open { display:block; }
+  .history-item { background:#fff; border:1px solid var(--border); border-radius:8px; padding:9px 12px; margin-bottom:7px; font-size:11px; }
+  .history-item:last-child { margin-bottom:0; }
+  .history-topic { font-weight:500; color:var(--blue); margin-bottom:4px; word-break:break-word; font-size:12px; }
+  .history-meta { color:var(--muted); font-size:10px; display:flex; gap:10px; flex-wrap:wrap; margin-bottom:5px; }
+  .history-actions { display:flex; gap:6px; }
+  .btn-hist { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; padding:3px 9px; font-family:'Bebas Neue',sans-serif; font-size:10px; letter-spacing:1px; cursor:pointer; transition:border-color .2s,color .2s; }
+  .btn-hist:hover { border-color:var(--accent); color:var(--accent); }
+  .btn-hist.orange:hover { border-color:var(--orange); color:var(--orange); }
+  .history-empty { font-size:11px; color:#ccc; text-align:center; padding:10px 0; }
+
+  /* CARDS — still used in left col */
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px; margin-bottom:14px; }
+  .slabel { font-family:'Bebas Neue',sans-serif; font-size:13px; text-transform:uppercase; letter-spacing:2px; color:var(--accent); margin-bottom:8px; }
   .setup-row { display:grid; grid-template-columns:1fr 1fr auto; gap:10px; align-items:end; }
   .sgroup { display:flex; flex-direction:column; gap:4px; }
   .sgroup label { font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--accent); font-weight:400; }
   .sgroup select, .sgroup input { background:#fff; border:1px solid var(--border); border-radius:6px; padding:8px 10px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:12px; outline:none; transition:border-color .2s; width:100%; }
   .sgroup select:focus, .sgroup input:focus { border-color:var(--accent); }
   .sgroup input::placeholder { color:var(--faint); }
-  .btn-run { background:var(--orange); color:#fff; border:none; border-radius:8px; padding:9px 22px; font-family:'Bebas Neue',sans-serif; font-size:20px; text-transform:uppercase; letter-spacing:2px; cursor:pointer; transition:opacity .2s; white-space:nowrap; }
-  .btn-run:hover { opacity:.85; }
-  .btn-run:disabled { opacity:.35; cursor:not-allowed; }
-
-  /* GLOBAL STATUS */
-  .gstatus { font-size:12px; color:var(--accent); min-height:18px; margin-bottom:10px; font-weight:400; }
-
-  /* COST BAR */
-  .cost-bar { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:9px 16px; margin-bottom:14px; display:flex; gap:18px; flex-wrap:wrap; }
-  .ci { display:flex; flex-direction:column; gap:2px; }
-  .cl { font-size:9px; text-transform:uppercase; letter-spacing:1.5px; color:var(--faint); }
-  .cv { font-family:'Bebas Neue',sans-serif; font-size:16px; color:var(--blue); letter-spacing:1px; }
-  .cv.orange { color:var(--orange); }
 
   /* PIPELINE */
   .pipeline { display:flex; flex-direction:column; gap:7px; }
@@ -261,43 +286,44 @@
 
 <!-- TOP SECTION — FULL WIDTH -->
 <div class="top-section">
+<div class="control-panel">
 
-  <div class="card">
-    <div class="slabel">API Keys — Session Only</div>
-    <div class="keys-grid">
-      <div class="kgroup">
-        <label>Google Drive API Key</label>
-        <div class="krow"><input type="password" id="keyDrive" placeholder="Drive key..." oninput="saveKeys()" /><button class="btn-toggle" onclick="toggleKey('keyDrive',this)">Show</button></div>
-        <div class="khint">Fetches docs by file ID</div>
-      </div>
-      <div class="kgroup">
-        <label>Gemini API Key</label>
-        <div class="krow"><input type="password" id="keyGemini" placeholder="Gemini key..." oninput="saveKeys()" /><button class="btn-toggle" onclick="toggleKey('keyGemini',this)">Show</button></div>
-        <div class="khint">Research, validation + images</div>
-      </div>
-      <div class="kgroup">
-        <label>Anthropic API Key</label>
-        <div class="krow"><input type="password" id="keyAnthropic" placeholder="Anthropic key..." oninput="saveKeys()" /><button class="btn-toggle" onclick="toggleKey('keyAnthropic',this)">Show</button></div>
-        <div class="khint">V1, V2, Final assembly</div>
-      </div>
+  <!-- ROW 1: API KEYS -->
+  <div class="cp-row keys">
+    <div class="cp-group">
+      <div class="cp-label">Google Drive API Key</div>
+      <div class="krow"><input type="password" id="keyDrive" placeholder="Drive key..." oninput="saveKeys()" /><button class="btn-toggle" onclick="toggleKey('keyDrive',this)">Show</button></div>
+      <div class="cp-hint">Fetches docs by file ID</div>
+    </div>
+    <div class="cp-group">
+      <div class="cp-label">Gemini API Key</div>
+      <div class="krow"><input type="password" id="keyGemini" placeholder="Gemini key..." oninput="saveKeys()" /><button class="btn-toggle" onclick="toggleKey('keyGemini',this)">Show</button></div>
+      <div class="cp-hint">Research, validation + images</div>
+    </div>
+    <div class="cp-group">
+      <div class="cp-label">Anthropic API Key</div>
+      <div class="krow"><input type="password" id="keyAnthropic" placeholder="Anthropic key..." oninput="saveKeys()" /><button class="btn-toggle" onclick="toggleKey('keyAnthropic',this)">Show</button></div>
+      <div class="cp-hint">V1, V2, Final assembly</div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="slabel">New Article</div>
-    <div class="setup-row">
-      <div class="sgroup">
-        <label>Client</label>
-        <select id="clientSelect"><option value="">— Select client —</option></select>
-      </div>
-      <div class="sgroup">
-        <label>Topic (exact match to Column D)</label>
-        <input type="text" id="topicInput" placeholder="Paste topic exactly as it appears in the sheet..." />
-      </div>
-      <button class="btn-run" id="runBtn" onclick="startPipeline()">⚡ Run</button>
+  <hr class="cp-divider">
+
+  <!-- ROW 2: ARTICLE SETUP -->
+  <div class="cp-row article">
+    <div class="cp-group">
+      <div class="cp-label">Client</div>
+      <select class="cp-select" id="clientSelect"><option value="">— Select client —</option></select>
     </div>
+    <div class="cp-group">
+      <div class="cp-label">Topic — exact match to Column D</div>
+      <input class="cp-input" type="text" id="topicInput" placeholder="Paste topic exactly as it appears in the sheet..." />
+    </div>
+    <button class="btn-run" id="runBtn" onclick="startPipeline()">⚡ Run</button>
   </div>
 
+  <!-- STATUS + RESTORE BANNER -->
+  <div class="gstatus" id="gstatus"></div>
   <div class="restore-banner" id="restoreBanner">
     <span id="restoreMsg">Previous session found — restore V1, V2 and HTML?</span>
     <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -306,25 +332,53 @@
     </div>
   </div>
 
-  <div class="gstatus" id="gstatus"></div>
-
-  <div class="cost-bar">
-    <div class="ci"><div class="cl">Gemini Tokens</div><div class="cv" id="cGemini">0</div></div>
-    <div class="ci"><div class="cl">Claude In</div><div class="cv" id="cClaudeIn">0</div></div>
-    <div class="ci"><div class="cl">Claude Out</div><div class="cv" id="cClaudeOut">0</div></div>
-    <div class="ci"><div class="cl">Images</div><div class="cv" id="cImages">0</div></div>
-    <div class="ci"><div class="cl">Est. Cost</div><div class="cv orange" id="cCost">$0.000</div></div>
-    <div class="ci"><div class="cl">Run Time</div><div class="timer-display" id="timerDisplay">0:00</div></div>
-  </div>
-
-  <div class="history-panel" id="historyPanel">
-    <div class="history-toggle" onclick="toggleHistory()">
-      <span>Run History <span id="histCount" style="font-size:11px;color:var(--faint);"></span></span>
-      <span id="histChev" style="font-size:11px;">▼</span>
+  <!-- ROW 3: STATS -->
+  <div class="cp-row stats">
+    <div class="stat-item">
+      <div class="stat-label">Gemini Tokens</div>
+      <div class="stat-value" id="cGemini">0</div>
     </div>
-    <div class="history-list" id="historyList"></div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">Claude In</div>
+      <div class="stat-value" id="cClaudeIn">0</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Claude Out</div>
+      <div class="stat-value" id="cClaudeOut">0</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">Images</div>
+      <div class="stat-value" id="cImages">0</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Est. Cost</div>
+      <div class="stat-value orange" id="cCost">$0.000</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">Run Time</div>
+      <div class="stat-value timer-display" id="timerDisplay">0:00</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">V1 Words</div>
+      <div class="stat-value" id="v1WordCount">—</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">V2 Words</div>
+      <div class="stat-value" id="v2WordCount">—</div>
+    </div>
   </div>
 
+  <!-- RUN HISTORY -->
+  <div class="history-toggle" onclick="toggleHistory()">
+    <span>Run History <span id="histCount" style="font-size:10px;opacity:0.6;margin-left:4px;"></span></span>
+    <span id="histChev" style="font-size:11px;">▼</span>
+  </div>
+  <div class="history-list" id="historyList"></div>
+
+</div><!-- end control-panel -->
 </div><!-- end top-section -->
 
 <div class="layout">
@@ -667,8 +721,9 @@
   function updateWordCount(text) {
     const wc=countWords(text);
     const badge=document.getElementById('wcBadge');
-    badge.style.display='inline';
-    badge.textContent=`~${wc.toLocaleString()} words`;
+    if(badge){ badge.style.display='inline'; badge.textContent=`~${wc.toLocaleString()} words`; }
+    const stat=document.getElementById('v2WordCount');
+    if(stat) stat.textContent='~'+wc.toLocaleString();
   }
 
   // ─── SESSION PERSISTENCE ──────────────────────────────────
@@ -1051,6 +1106,8 @@
     div.style.display='block';
     div.innerHTML=typeof marked!=='undefined'?marked.parse(text):text.replace(/&/g,'&amp;').replace(/</g,'&lt;');
     document.getElementById('prevBadge').textContent='V1 ready';
+    const wc=countWords(text);
+    document.getElementById('v1WordCount').textContent='~'+wc.toLocaleString();
     switchTab('v1');
   }
 
@@ -1634,6 +1691,8 @@ ${S.v2}`;
     for(let i=1;i<=10;i++) setStep(i,'waiting','Waiting');
     document.getElementById('assembleBtn').disabled=true;
     document.getElementById('assembleHint').textContent='Complete steps 1–7 first';
+    document.getElementById('v1WordCount').textContent='—';
+    document.getElementById('v2WordCount').textContent='—';
     resetTimer(); startTimer();
     dismissRestore();
 
