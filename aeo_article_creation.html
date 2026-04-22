@@ -21,7 +21,7 @@
   .subtitle { font-size:12px; color:var(--muted); }
 
   /* LAYOUT */
-  .layout { max-width:1400px; margin:0 auto; display:grid; grid-template-columns:1fr 400px; gap:20px; align-items:start; }
+  .layout { max-width:1400px; margin:0 auto; display:grid; grid-template-columns:1fr 600px; gap:20px; align-items:start; }
   .left-col { min-width:0; }
   .right-col { position:sticky; top:20px; }
 
@@ -181,8 +181,12 @@
   .ptab:hover:not(.active) { color:var(--blue); }
   .ppane { display:none; flex-direction:column; overflow:hidden; }
   .ppane.active { display:flex; }
-  .ppane iframe { border:none; background:#fff; height:320px; }
-  .ppane .md-preview { overflow-y:auto; padding:14px 16px; background:#fff; height:320px; font-family:'Lexend',sans-serif; font-size:12px; line-height:1.7; color:var(--blue); }
+  .ppane iframe { border:none; background:#fff; height:480px; }
+  .ppane .md-preview { overflow-y:auto; padding:14px 16px; background:#fff; height:480px; font-family:'Lexend',sans-serif; font-size:12px; line-height:1.7; color:var(--blue); }
+  /* Step 10 upload status */
+  .upload-status { font-size:11px; padding:7px 10px; border-radius:6px; margin-top:6px; display:none; }
+  .upload-status.ok { background:rgba(76,175,80,.1); color:var(--green); border:1px solid rgba(76,175,80,.3); display:block; }
+  .upload-status.err { background:rgba(221,107,0,.1); color:var(--orange); border:1px solid rgba(221,107,0,.3); display:block; }
   .md-preview h1,.md-preview h2,.md-preview h3 { font-family:'Bebas Neue',sans-serif; letter-spacing:1px; margin:12px 0 6px; color:var(--blue); }
   .md-preview h1 { font-size:22px; }
   .md-preview h2 { font-size:18px; border-bottom:1px solid var(--border); padding-bottom:4px; }
@@ -197,7 +201,7 @@
   .md-preview li { margin-bottom:3px; }
   .md-preview blockquote { border-left:3px solid var(--accent); padding-left:10px; color:var(--muted); margin:8px 0; }
   .md-preview hr { border:none; border-top:1px solid var(--border); margin:10px 0; }
-  .pempty { padding:20px; text-align:center; font-size:12px; color:#ccc; height:320px; display:flex; align-items:center; justify-content:center; }
+  .pempty { padding:20px; text-align:center; font-size:12px; color:#ccc; height:480px; display:flex; align-items:center; justify-content:center; }
 
   .error-msg { color:var(--orange); font-size:11px; margin-top:5px; }
 </style>
@@ -281,6 +285,7 @@
       <button class="btn-out" onclick="dlChecklist()">↓ Checklist + Schema</button>
       <button class="btn-out orange" onclick="dlHTML()">↓ Final HTML</button>
     </div>
+    <div class="upload-status" id="uploadStatus"></div>
   </div>
 
   <div class="pipeline">
@@ -349,8 +354,8 @@
         <div class="cbox" id="cbox" style="display:none;">
           <div class="ctitle">⚠ Review V2 in the right panel</div>
           <p style="font-size:11px;color:#888;margin-bottom:7px;">Leave blank if V2 looks good. Describe any issues and Claude will fix them.</p>
-          <textarea id="cpFeedback" placeholder="e.g. Fix the voice in the intro — or leave blank to continue"></textarea>
-          <button class="btn-proceed" onclick="proceedCp()">Looks Good — Continue</button>
+          <textarea id="cpFeedback" placeholder="e.g. Fix the voice in the intro — or leave blank to continue" oninput="updateCpBtn()"></textarea>
+          <button class="btn-proceed" id="cpBtn" onclick="proceedCp()">Looks Good — Continue</button>
         </div>
       </div>
     </div>
@@ -379,6 +384,15 @@
           <button class="btn-retry" onclick="rerunQC()">↻ Run QC Again</button>
         </div>
       </div>
+    </div>
+
+    <div class="step-card" id="step10">
+      <div class="step-header" onclick="toggleStep(10)">
+        <div class="step-num">10</div>
+        <div class="step-info"><div class="step-title">Auto Download</div><div class="step-desc">Both output files download automatically to your machine</div></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b10">Waiting</div><span class="schev closed" id="c10">▼</span></div>
+      </div>
+      <div class="step-body" id="sb10"><div class="sout" id="o10"></div></div>
     </div>
 
   </div>
@@ -414,10 +428,15 @@
         <div class="panel-badge" id="prevBadge">Waiting...</div>
       </div>
       <div class="preview-tabs">
-        <button class="ptab active" id="tabV2" onclick="switchTab('v2')">V2 Article</button>
+        <button class="ptab active" id="tabV1" onclick="switchTab('v1')">V1 Article</button>
+        <button class="ptab" id="tabV2" onclick="switchTab('v2')">V2 Article</button>
         <button class="ptab" id="tabHTML" onclick="switchTab('html')">HTML Output</button>
       </div>
-      <div class="ppane active" id="pV2">
+      <div class="ppane active" id="pV1">
+        <div class="pempty" id="v1Empty">V1 article appears here after Step 3</div>
+        <div class="md-preview" id="v1Pre" style="display:none;"></div>
+      </div>
+      <div class="ppane" id="pV2">
         <div class="pempty" id="v2Empty">V2 article appears here after Step 6</div>
         <div class="md-preview" id="v2Pre" style="display:none;"></div>
       </div>
@@ -510,6 +529,7 @@
     const body=document.getElementById(`sb${n}`);
     const outEl=document.getElementById(`o${n}`);
     const chev=document.getElementById(`c${n}`);
+    if(!card) return;
     card.className=`step-card ${status}`;
     badge.className=`sbadge b-${status==='active'?'running':status==='done'?'done':status==='error'?'error':status==='checkpoint'?'checkpoint':'waiting'}`;
     badge.textContent=label||status;
@@ -778,10 +798,21 @@
 
   // ─── PREVIEW PANEL ────────────────────────────────────────
   function switchTab(tab) {
+    document.getElementById('tabV1').classList.toggle('active',tab==='v1');
     document.getElementById('tabV2').classList.toggle('active',tab==='v2');
     document.getElementById('tabHTML').classList.toggle('active',tab==='html');
+    document.getElementById('pV1').classList.toggle('active',tab==='v1');
     document.getElementById('pV2').classList.toggle('active',tab==='v2');
     document.getElementById('pHTML').classList.toggle('active',tab==='html');
+  }
+
+  function showV1(text) {
+    document.getElementById('v1Empty').style.display='none';
+    const div=document.getElementById('v1Pre');
+    div.style.display='block';
+    div.innerHTML=typeof marked!=='undefined'?marked.parse(text):text.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    document.getElementById('prevBadge').textContent='V1 ready';
+    switchTab('v1');
   }
 
   function showV2(text) {
@@ -790,6 +821,7 @@
     div.style.display='block';
     div.innerHTML=typeof marked!=='undefined'?marked.parse(text):text.replace(/&/g,'&amp;').replace(/</g,'&lt;');
     document.getElementById('prevBadge').textContent='V2 ready';
+    switchTab('v2');
   }
 
   function showHTML(html) {
@@ -845,6 +877,12 @@
   }
 
   // ─── CHECKPOINT ───────────────────────────────────────────
+  function updateCpBtn() {
+    const fb=document.getElementById('cpFeedback').value.trim();
+    const btn=document.getElementById('cpBtn');
+    btn.textContent=fb ? 'Make Fixes — Continue' : 'Looks Good — Continue';
+  }
+
   function waitCp() { 
     return new Promise(res=>{
       cpResolve=res;
@@ -856,7 +894,9 @@
   }
   function proceedCp() { 
     const fb=document.getElementById('cpFeedback').value.trim(); 
-    document.getElementById('cbox').style.display='none'; 
+    document.getElementById('cbox').style.display='none';
+    document.getElementById('cpFeedback').value='';
+    document.getElementById('cpBtn').textContent='Looks Good — Continue';
     checkpointDone=true;
     if(imagesValidated) document.getElementById('assembleHint').textContent='All ready — assembling...';
     if(cpResolve){cpResolve(fb);cpResolve=null;}
@@ -879,7 +919,7 @@
     btn.classList.add('ready');
     btn.disabled=true;
     btn.onclick=null;
-    document.getElementById('assembleHint').textContent='Waiting for Step 7 review...';
+    document.getElementById('assembleHint').textContent=checkpointDone ? 'All ready — assembling...' : 'Waiting for Step 7 review...';
     // If checkpoint already done, fire assembly
     tryTriggerAssemble();
   }
@@ -904,11 +944,16 @@
       qcUser, akey,
       (partial)=>{document.getElementById('o9').textContent=partial;document.getElementById('sb9').classList.add('open');}
     );
-    // Extract corrected HTML
+    // Extract corrected HTML — only overwrite if extraction succeeds and result is substantial
     const m=res.match(/=== HTML START ===([\s\S]*?)=== HTML END ===/i);
     const m2=res.match(/```(?:html)?\n([\s\S]*?)```/i);
-    if(m) S.finalTXT=m[1].trim();
-    else if(m2) S.finalTXT=m2[1].trim();
+    if(m && m[1].trim().length > 100) {
+      S.finalTXT=m[1].trim();
+    } else if(m2 && m2[1].trim().length > 100) {
+      S.finalTXT=m2[1].trim();
+    } else {
+      console.warn('Step 9 QC: No valid HTML block found in response — keeping existing S.finalTXT intact');
+    }
     showHTML(S.finalTXT);
     // Rebuild checklist with updated HTML
     S.checklistHTML=buildChecklistHTML(S.finalSchema);
@@ -955,7 +1000,8 @@
 <title>Checklist + Schema — ${S.topic.substring(0,50)}</title>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 860px; margin: 40px auto; padding: 0 24px; color: #063a6c; line-height: 1.6; }
-  h1 { font-size: 22px; border-bottom: 2px solid #e0e0e0; padding-bottom: 12px; margin-bottom: 20px; }
+  .article-title { font-family: 'Georgia', serif; font-size: 32px; font-weight: 700; color: #063a6c; line-height: 1.2; margin-bottom: 6px; padding-bottom: 16px; border-bottom: 3px solid #2494e0; }
+  .article-meta { font-size: 13px; color: #888; margin-bottom: 28px; }
   h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 1.5px; color: #2494e0; margin: 24px 0 10px; }
   .field { display: flex; gap: 12px; margin-bottom: 8px; padding: 8px 12px; background: #f9f9f9; border-radius: 6px; border: 1px solid #e0e0e0; }
   .label { font-weight: 600; min-width: 160px; flex-shrink: 0; font-size: 13px; }
@@ -965,8 +1011,8 @@
 </style>
 </head>
 <body>
-<h1>Blog Post Checklist + Schema</h1>
-<p style="font-size:13px;color:#888;margin-bottom:20px;">${S.topic}</p>
+<div class="article-title">${title||S.topic}</div>
+<div class="article-meta">Client: ${S.client?.name||'—'} &nbsp;·&nbsp; Published: ${today} &nbsp;·&nbsp; ${fullUrl||slug}</div>
 
 <h2>Blog Post Optimization Checklist</h2>
 <div class="field"><span class="label">Title / H1</span><span class="value">${title}</span></div>
@@ -1002,7 +1048,7 @@
   }
 
   // ─── SHARED RUNNER ────────────────────────────────────────
-  async function runFrom(start,sys,akey,gkey) {
+  async function runFrom(start,sys,akey,gkey,dkey='') {
     let step=start;
 
     if(step<=3){
@@ -1012,6 +1058,7 @@
       S.v1=await callClaude(sys,u2,akey,(p)=>{document.getElementById('o3').textContent=p;document.getElementById('sb3').classList.add('open');});
       setStep(3,'done','Done ✓');
       S.imagePrompts=extractImgPrompts(S.v1);
+      showV1(S.v1);
       step=4;
     }
 
@@ -1106,11 +1153,27 @@ ${S.v2}`;
 
       // Extract schema block
       const schemaMatch=assemblyResult.match(/=== SCHEMA START ===([\s\S]*?)=== SCHEMA END ===/i);
-      S.finalSchema=schemaMatch?schemaMatch[1].trim():'';
+      if(schemaMatch) {
+        S.finalSchema=schemaMatch[1].trim();
+      } else {
+        console.warn('Step 8: SCHEMA block not found in Claude output');
+        S.finalSchema='';
+      }
 
-      // Extract HTML block
+      // Extract HTML block — only update if extraction succeeds
       const htmlMatch=assemblyResult.match(/=== HTML START ===([\s\S]*?)=== HTML END ===/i);
-      S.finalTXT=htmlMatch?htmlMatch[1].trim():assemblyResult;
+      if(htmlMatch && htmlMatch[1].trim().length > 100) {
+        S.finalTXT=htmlMatch[1].trim();
+      } else {
+        // Fallback: try markdown code fence
+        const mdMatch=assemblyResult.match(/```(?:html)?\n([\s\S]*?)```/i);
+        if(mdMatch && mdMatch[1].trim().length > 100) {
+          S.finalTXT=mdMatch[1].trim();
+          console.warn('Step 8: Used markdown fence fallback for HTML extraction');
+        } else {
+          throw new Error('Step 8 extraction failed — Claude did not return === HTML START === / === HTML END === blocks. Check Step 8 output and retry.');
+        }
+      }
 
       // Build checklist HTML file
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
@@ -1124,14 +1187,59 @@ ${S.v2}`;
 
     if(step<=9){
       await runQC(sys,akey,'');
-      document.getElementById('outputsSec').classList.add('open');
-      setG('✓ Article complete — download your files below.');
+      step=10;
     }
+
+    if(step<=10){
+      setStep(10,'active','Uploading...'); setG('Saving files to Google Drive...',true);
+      await uploadToDrive(dkey);
+      document.getElementById('outputsSec').classList.add('open');
+      setG('✓ Article complete — both files downloaded. Move them to Drive manually.');
+    }
+  }
+
+  // ─── DRIVE UPLOAD → AUTO DOWNLOAD ────────────────────────
+  async function uploadToDrive(dkey) {
+    // Drive write requires OAuth2 — auto-download instead
+    // OAuth upload can be added later using stored outputFolder ID from client config
+    const today=document.getElementById('publishDate').value||new Date().toISOString().split('T')[0];
+    const clientName=S.client?.name||'Client';
+    const topicSlug=S.topic.substring(0,50).replace(/[^a-zA-Z0-9\s]/g,'').trim();
+    const baseName=`${clientName} - ${topicSlug} - ${today}`;
+
+    const results=[];
+
+    try {
+      // Download Checklist+Schema
+      if(S.checklistHTML){
+        dl(S.checklistHTML,'text/html',`Checklist+Schema - ${baseName}.html`);
+        results.push('✓ Checklist+Schema downloaded');
+      } else {
+        results.push('✗ Checklist+Schema — not ready');
+      }
+      // Small delay so browser doesn't block second download
+      await new Promise(r=>setTimeout(r,600));
+      // Download Final HTML
+      if(S.finalTXT){
+        dl(S.finalTXT,'text/plain',`Final HTML - ${baseName}.txt`);
+        results.push('✓ Final HTML downloaded');
+      } else {
+        results.push('✗ Final HTML — not ready');
+      }
+    } catch(err) {
+      results.push(`✗ Download error — ${err.message}`);
+    }
+
+    const allOk=results.every(r=>r.startsWith('✓'));
+    const statusEl=document.getElementById('uploadStatus');
+    statusEl.textContent=results.join('\n');
+    statusEl.className=`upload-status ${allOk?'ok':'err'}`;
+    setStep(10, allOk?'done':'error', allOk?'Done ✓':'Partial', results.join('\n'));
   }
 
   function handleErr(err) {
     setG(`⚠ Error: ${err.message}`); console.error(err);
-    for(let i=3;i<=9;i++){
+    for(let i=3;i<=10;i++){
       const card=document.getElementById(`step${i}`);
       if(card&&card.classList.contains('active')){
         setStep(i,'error','Failed');
@@ -1146,12 +1254,12 @@ ${S.v2}`;
     if(running) return;
     const akey=document.getElementById('keyAnthropic').value.trim();
     const gkey=document.getElementById('keyGemini').value.trim();
+    const dkey=document.getElementById('keyDrive').value.trim();
     if(!akey||!gkey){alert('API keys required.');return;}
     const rb=document.getElementById(`r${n}`); if(rb) rb.style.display='none';
-    // Reset gate flags if retrying step 7 or later
     if(n>=7){ imagesValidated=false; checkpointDone=false; asmResolve=null; }
     running=true; document.getElementById('runBtn').disabled=true;
-    try{ await runFrom(n,buildSys(),akey,gkey); }
+    try{ await runFrom(n,buildSys(),akey,gkey,dkey); }
     catch(err){ handleErr(err); }
     running=false; document.getElementById('runBtn').disabled=false;
   }
@@ -1177,7 +1285,8 @@ ${S.v2}`;
 
     running=true; document.getElementById('runBtn').disabled=true;
     document.getElementById('outputsSec').classList.remove('open');
-    for(let i=1;i<=9;i++) setStep(i,'waiting','Waiting');
+    document.getElementById('uploadStatus').className='upload-status';
+    for(let i=1;i<=10;i++) setStep(i,'waiting','Waiting');
     document.getElementById('assembleBtn').disabled=true;
     document.getElementById('assembleHint').textContent='Complete steps 1–7 first';
 
@@ -1201,8 +1310,8 @@ ${S.v2}`;
       S.geminiResearch=await callGemini(gp,gkey);
       setStep(2,'done','Done ✓',S.geminiResearch);
 
-      // STEPS 3–9
-      await runFrom(3,buildSys(),akey,gkey);
+      // STEPS 3–10
+      await runFrom(3,buildSys(),akey,gkey,dkey);
 
     }catch(err){ handleErr(err); }
 
