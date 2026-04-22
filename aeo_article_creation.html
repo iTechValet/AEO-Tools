@@ -21,7 +21,7 @@
   .subtitle { font-size:12px; color:var(--muted); }
 
   /* LAYOUT */
-  .layout { max-width:1600px; margin:0 auto; display:grid; grid-template-columns:580px 1fr; gap:20px; align-items:start; }
+  .layout { max-width:1600px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
   .left-col { min-width:0; }
   .right-col { position:sticky; top:20px; }
 
@@ -985,7 +985,6 @@
   function buildChecklistHTML(schema) {
     const featUrl=S.imageUrls[getFeatured()]||'';
     const today=document.getElementById('publishDate').value||new Date().toISOString().split('T')[0];
-    // Extract fields from V2
     const title=extractField(S.v2,'Meta Title')||extractField(S.v2,'H1')||S.topic;
     const slug=extractField(S.v2,'Permalink URL')||'';
     const fullUrl=extractField(S.v2,'Full Blog Post URL')||'';
@@ -993,21 +992,73 @@
     const keywords=extractField(S.v2,'Keywords')||'';
     const category=extractField(S.v2,'Category')||'';
 
+    // Split schema into individual script blocks
+    const schemaBlocks=[];
+    const schemaRe=/<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi;
+    let sm;
+    while((sm=schemaRe.exec(schema))!==null){
+      schemaBlocks.push(sm[0].trim());
+    }
+    // Fallback: if no script tags found, treat entire schema as one block
+    if(schemaBlocks.length===0 && schema.trim()) schemaBlocks.push(schema.trim());
+
+    const schemaLabels=['FAQPage Schema','BlogPosting Schema','BreadcrumbList Schema','HowTo Schema'];
+
+    const schemaBlocksHTML=schemaBlocks.map((block,i)=>`
+      <div class="schema-section">
+        <div class="schema-header">
+          <span class="schema-label">${schemaLabels[i]||'Schema Block '+(i+1)}</span>
+          <button class="copy-btn schema-copy" onclick="copySchema(${i})">Copy Block</button>
+          <span class="copy-ok" id="sok${i}">✓ Copied</span>
+        </div>
+        <div class="schema-block"><pre id="sb${i}">${block.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre></div>
+      </div>`).join('');
+
+    const fields=[
+      {label:'Title / H1', value:title, id:'f0'},
+      {label:'Permalink URL', value:slug, id:'f1'},
+      {label:'Full Blog Post URL', value:fullUrl, id:'f2'},
+      {label:'Meta Description', value:meta, id:'f3'},
+      {label:'Keywords', value:keywords, id:'f4'},
+      {label:'Category', value:category, id:'f5'},
+      {label:'Featured Image URL', value:featUrl, id:'f6'},
+      {label:'Publish Date', value:today, id:'f7'},
+    ];
+
+    const fieldsHTML=fields.map(f=>`
+      <div class="field">
+        <span class="label">${f.label}</span>
+        <span class="value" id="${f.id}">${f.value||'—'}</span>
+        <button class="copy-btn" onclick="copyField('${f.id}','c${f.id}')">Copy</button>
+        <span class="copy-ok" id="c${f.id}">✓</span>
+      </div>`).join('');
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Checklist + Schema — ${S.topic.substring(0,50)}</title>
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 860px; margin: 40px auto; padding: 0 24px; color: #063a6c; line-height: 1.6; }
-  .article-title { font-family: 'Georgia', serif; font-size: 32px; font-weight: 700; color: #063a6c; line-height: 1.2; margin-bottom: 6px; padding-bottom: 16px; border-bottom: 3px solid #2494e0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 900px; margin: 40px auto; padding: 0 24px 60px; color: #063a6c; line-height: 1.6; }
+  .article-title { font-family: 'Georgia', serif; font-size: 28px; font-weight: 700; color: #063a6c; line-height: 1.2; margin-bottom: 6px; padding-bottom: 16px; border-bottom: 3px solid #2494e0; }
   .article-meta { font-size: 13px; color: #888; margin-bottom: 28px; }
-  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 1.5px; color: #2494e0; margin: 24px 0 10px; }
-  .field { display: flex; gap: 12px; margin-bottom: 8px; padding: 8px 12px; background: #f9f9f9; border-radius: 6px; border: 1px solid #e0e0e0; }
-  .label { font-weight: 600; min-width: 160px; flex-shrink: 0; font-size: 13px; }
-  .value { font-size: 13px; word-break: break-all; }
-  .schema-block { background: #f2f2f2; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-top: 8px; overflow-x: auto; }
-  pre { margin: 0; font-size: 12px; white-space: pre-wrap; word-break: break-word; color: #333; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: #2494e0; margin: 32px 0 12px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px; }
+  .field { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; padding: 10px 14px; background: #f9f9f9; border-radius: 8px; border: 1px solid #e0e0e0; }
+  .label { font-weight: 600; min-width: 170px; flex-shrink: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #888; padding-top: 2px; }
+  .value { font-size: 13px; flex: 1; word-break: break-all; color: #063a6c; }
+  .copy-btn { flex-shrink: 0; background: #063a6c; color: #fff; border: none; border-radius: 5px; padding: 4px 10px; font-size: 11px; font-family: inherit; cursor: pointer; white-space: nowrap; transition: background 0.2s; }
+  .copy-btn:hover { background: #2494e0; }
+  .copy-btn.schema-copy { background: #dd6b00; font-size: 12px; padding: 5px 14px; }
+  .copy-btn.schema-copy:hover { background: #c05a00; }
+  .copy-ok { font-size: 11px; color: #4caf50; font-weight: 600; opacity: 0; transition: opacity 0.3s; white-space: nowrap; }
+  .copy-ok.show { opacity: 1; }
+  .schema-section { margin-bottom: 20px; }
+  .schema-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .schema-label { font-size: 13px; font-weight: 600; color: #063a6c; flex: 1; }
+  .schema-block { background: #f2f2f2; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; overflow-x: auto; }
+  pre { margin: 0; font-size: 11px; white-space: pre-wrap; word-break: break-word; color: #333; line-height: 1.6; }
+  .all-schema-btn { display: inline-block; margin-bottom: 16px; background: #063a6c; color: #fff; border: none; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-family: inherit; cursor: pointer; }
+  .all-schema-btn:hover { background: #2494e0; }
 </style>
 </head>
 <body>
@@ -1015,20 +1066,39 @@
 <div class="article-meta">Client: ${S.client?.name||'—'} &nbsp;·&nbsp; Published: ${today} &nbsp;·&nbsp; ${fullUrl||slug}</div>
 
 <h2>Blog Post Optimization Checklist</h2>
-<div class="field"><span class="label">Title / H1</span><span class="value">${title}</span></div>
-<div class="field"><span class="label">Permalink URL</span><span class="value">${slug}</span></div>
-<div class="field"><span class="label">Full Blog Post URL</span><span class="value">${fullUrl}</span></div>
-<div class="field"><span class="label">Meta Description</span><span class="value">${meta}</span></div>
-<div class="field"><span class="label">Keywords</span><span class="value">${keywords}</span></div>
-<div class="field"><span class="label">Category</span><span class="value">${category}</span></div>
-<div class="field"><span class="label">Featured Image URL</span><span class="value">${featUrl}</span></div>
-<div class="field"><span class="label">Publish Date</span><span class="value">${today}</span></div>
-<div class="field"><span class="label">Schema Markup</span><span class="value">Complete — Published ${today}</span></div>
+${fieldsHTML}
 
 <h2>Schema Markup</h2>
-<p style="font-size:12px;color:#888;margin-bottom:8px;">Copy each block into your site's header / Yoast schema field.</p>
-<div class="schema-block"><pre>${schema.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre></div>
+<p style="font-size:12px;color:#888;margin-bottom:14px;">Copy each block separately into Yoast or your site's header.</p>
+<button class="all-schema-btn" onclick="copyAllSchema()">⎘ Copy All Schema Blocks</button>
+<span class="copy-ok" id="sokAll" style="margin-left:10px;font-size:13px;">✓ All Copied</span>
+${schemaBlocksHTML}
 
+<script>
+  // Store raw schema blocks for copying (unescaped)
+  const rawBlocks = ${JSON.stringify(schemaBlocks)};
+
+  function copyField(valueId, okId) {
+    const text = document.getElementById(valueId)?.innerText || '';
+    navigator.clipboard.writeText(text).then(() => flash(okId));
+  }
+
+  function copySchema(i) {
+    navigator.clipboard.writeText(rawBlocks[i]).then(() => flash('sok'+i));
+  }
+
+  function copyAllSchema() {
+    const all = rawBlocks.join('\\n\\n');
+    navigator.clipboard.writeText(all).then(() => flash('sokAll'));
+  }
+
+  function flash(id) {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2000);
+  }
+</script>
 </body>
 </html>`;
   }
