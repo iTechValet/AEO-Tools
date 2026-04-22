@@ -170,6 +170,7 @@
   .btn-assemble { background:var(--blue); color:#fff; border:none; border-radius:8px; padding:8px 20px; font-family:'Bebas Neue',sans-serif; font-size:17px; text-transform:uppercase; letter-spacing:2px; cursor:pointer; transition:opacity .2s; }
   .btn-assemble:hover { opacity:.85; }
   .btn-assemble:disabled { opacity:.35; cursor:not-allowed; }
+  .btn-assemble.ready { background:var(--green); cursor:default; opacity:1; }
   .assemble-hint { font-size:11px; color:var(--faint); }
 
   /* PREVIEW PANEL */
@@ -277,8 +278,8 @@
   <div class="outputs-section" id="outputsSec">
     <div class="otitle">✓ Article Complete</div>
     <div class="obts">
-      <button class="btn-out" onclick="dlMD()">↓ Final MD</button>
-      <button class="btn-out orange" onclick="dlTXT()">↓ Final TXT</button>
+      <button class="btn-out" onclick="dlChecklist()">↓ Checklist + Schema</button>
+      <button class="btn-out orange" onclick="dlHTML()">↓ Final HTML</button>
     </div>
   </div>
 
@@ -369,7 +370,15 @@
         <div class="step-info"><div class="step-title">Claude HTML QC</div><div class="step-desc">Prompt 6 — HTML audit against 4.3B spec</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b9">Waiting</div><span class="schev closed" id="c9">▼</span></div>
       </div>
-      <div class="step-body" id="sb9"><div class="sout" id="o9"></div><div id="r9" style="display:none;"><button class="btn-retry" onclick="retryFrom(9)">↻ Retry QC</button></div><div id="rerunQC" style="display:none;margin-top:8px;"><button class="btn-retry" onclick="rerunQC()">↻ Run QC Again</button></div></div>
+      <div class="step-body" id="sb9">
+        <div class="sout" id="o9"></div>
+        <div id="r9" style="display:none;"><button class="btn-retry" onclick="retryFrom(9)">↻ Retry QC</button></div>
+        <div id="rerunQC" style="display:none;margin-top:10px;">
+          <p style="font-size:11px;color:var(--muted);margin-bottom:6px;">Describe what looks wrong (optional — leave blank for standard QC pass):</p>
+          <textarea id="qcFeedback" style="width:100%;background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--blue);font-family:'Lexend',sans-serif;font-size:11px;line-height:1.6;outline:none;resize:vertical;min-height:50px;margin-bottom:7px;" placeholder="e.g. The ToC colors look wrong, Last Updated spacing is off..."></textarea>
+          <button class="btn-retry" onclick="rerunQC()">↻ Run QC Again</button>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -393,8 +402,8 @@
         <input type="date" id="publishDate" />
       </div>
       <div class="assemble-row">
-        <button class="btn-assemble" id="assembleBtn" onclick="triggerAssemble()" disabled>Assemble Final</button>
-        <div class="assemble-hint" id="assembleHint">Complete steps 1–7 first</div>
+        <button class="btn-assemble" id="assembleBtn" onclick="validateImages()" disabled>Validate Images</button>
+        <div class="assemble-hint" id="assembleHint">Enter all WP URLs above to unlock</div>
       </div>
     </div>
 
@@ -454,11 +463,11 @@
   let S = {
     client:null, topic:'', docs:{}, sheetRow:'',
     geminiResearch:'', v1:'', validation:'', v2:'',
-    finalMD:'', finalTXT:'',
+    finalMD:'', finalTXT:'', finalSchema:'', checklistHTML:'',
     imagePrompts:[], imageData:{}, imageUrls:{},
     tokens:{gi:0,go:0,ci:0,co:0,imgs:0}
   };
-  let running=false, cpResolve=null, asmResolve=null;
+  let running=false, cpResolve=null, asmResolve=null, imagesValidated=false, checkpointDone=false;
 
   // ─── INIT ─────────────────────────────────────────────────
   window.addEventListener('load',()=>{
@@ -690,7 +699,7 @@
     const fileSize=estimateSize(conv.data);
     const disp=document.getElementById(`idisp${idx}`);
     if(disp) disp.innerHTML=`
-      <img src="${conv.data}" alt="Image ${idx+1}" style="cursor:pointer;" title="Click to view full size" onclick="window.open(this.src,'_blank')" />
+      <img src="${conv.data}" alt="Image ${idx+1}" style="cursor:pointer;" title="Click to view full size" onclick="(function(d){const b=URL.createObjectURL(new Blob([Uint8Array.from(atob(d.split(',')[1]),c=>c.charCodeAt(0))],{type:'image/webp'}));const w=window.open();w.document.write('<img src=\\''+b+'\\' style=\\'max-width:100%\\'>');setTimeout(()=>URL.revokeObjectURL(b),5000)})(this.src)" />
       <div class="img-result-actions">
         <a class="btn-dl-img" href="${conv.data}" download="${fname}.${conv.ext}">↓ Download .${conv.ext.toUpperCase()}</a>
         <span class="img-format-badge">${conv.ext.toUpperCase()}</span>
@@ -745,9 +754,10 @@
   function checkUrls() {
     const total=S.imagePrompts.length;
     const btn=document.getElementById('assembleBtn');
+    if(imagesValidated) return; // already validated, don't touch button
     if(total===0){
       btn.disabled=false;
-      document.getElementById('assembleHint').textContent='No images — ready to assemble!';
+      document.getElementById('assembleHint').textContent='No images — click Validate to continue';
       return;
     }
     let filled=0;
@@ -757,8 +767,13 @@
       if(v){filled++;S.imageUrls[i]=v;if(inp)inp.classList.add('filled');}
       else{if(inp)inp.classList.remove('filled');}
     }
-    if(filled===total){btn.disabled=false;document.getElementById('assembleHint').textContent='All URLs entered — ready!';}
-    else{btn.disabled=true;document.getElementById('assembleHint').textContent=`${filled}/${total} image URLs entered`;}
+    if(filled===total){
+      btn.disabled=false;
+      document.getElementById('assembleHint').textContent='All URLs entered — click Validate Images!';
+    } else {
+      btn.disabled=true;
+      document.getElementById('assembleHint').textContent=`${filled}/${total} image URLs entered`;
+    }
   }
 
   // ─── PREVIEW PANEL ────────────────────────────────────────
@@ -830,36 +845,161 @@
   }
 
   // ─── CHECKPOINT ───────────────────────────────────────────
-  function waitCp() { return new Promise(res=>{cpResolve=res;document.getElementById('cbox').style.display='block';setStep(7,'checkpoint','Your Turn');}); }
-  function proceedCp() { const fb=document.getElementById('cpFeedback').value.trim(); document.getElementById('cbox').style.display='none'; if(cpResolve){cpResolve(fb);cpResolve=null;} }
-  function triggerAssemble() { if(asmResolve){asmResolve();asmResolve=null;} }
-  function waitAssemble() { return new Promise(res=>{asmResolve=res;}); }
+  function waitCp() { 
+    return new Promise(res=>{
+      cpResolve=res;
+      document.getElementById('cbox').style.display='block';
+      document.getElementById('sb7').classList.add('open');
+      document.getElementById('c7').classList.remove('closed');
+      setStep(7,'checkpoint','Your Turn');
+    }); 
+  }
+  function proceedCp() { 
+    const fb=document.getElementById('cpFeedback').value.trim(); 
+    document.getElementById('cbox').style.display='none'; 
+    checkpointDone=true;
+    if(imagesValidated) document.getElementById('assembleHint').textContent='All ready — assembling...';
+    if(cpResolve){cpResolve(fb);cpResolve=null;}
+  }
+  function validateImages() {
+    // Check all URLs filled
+    const total=S.imagePrompts.length;
+    if(total>0){
+      for(let i=0;i<total;i++){
+        if(!document.getElementById(`iurl${i}`)?.value.trim()){
+          document.getElementById('assembleHint').textContent='Some URLs are still missing!';
+          return;
+        }
+      }
+    }
+    // Mark validated
+    imagesValidated=true;
+    const btn=document.getElementById('assembleBtn');
+    btn.textContent='Images Ready ✓';
+    btn.classList.add('ready');
+    btn.disabled=true;
+    btn.onclick=null;
+    document.getElementById('assembleHint').textContent='Waiting for Step 7 review...';
+    // If checkpoint already done, fire assembly
+    tryTriggerAssemble();
+  }
+
+  function tryTriggerAssemble() {
+    if(imagesValidated && checkpointDone && asmResolve){
+      asmResolve(); asmResolve=null;
+    }
+  }
+
+  function triggerAssemble() { tryTriggerAssemble(); }
+  function waitAssemble() { return new Promise(res=>{asmResolve=res; tryTriggerAssemble();}); }
 
   // ─── HTML QC ──────────────────────────────────────────────
-  async function runQC(sys,akey) {
+  async function runQC(sys,akey,feedback) {
     setStep(9,'active','Running QC...'); setG('Claude running HTML QC...',true);
     const p6=getPrompt(S.docs.doc44,6);
-    const qcUser=`${p6}\n\nFINAL TXT TO QC:\n${S.finalTXT}`;
-    const res=await callClaude(sys+`\n\n4.3B HTML STYLE SPEC:\n${S.docs.doc43B}`,qcUser,akey,(partial)=>{
-      document.getElementById('o9').textContent=partial; document.getElementById('sb9').classList.add('open');
-    });
-    const m=res.match(/```(?:html)?\n([\s\S]*?)```/i); if(m) S.finalTXT=m[1];
+    const feedbackLine=feedback?`\n\nOPERATOR NOTES: ${feedback}\n\nFix these specific issues in addition to the standard QC checks.`:'';
+    const qcUser=`${p6}${feedbackLine}\n\nFINAL HTML TO QC:\n${S.finalTXT}`;
+    const res=await callClaude(
+      `You are an expert AEO article HTML QC specialist. The client's HTML Style Spec and Identity Card are below.\n\n4.3B — CLIENT IDENTITY CARD + HTML STYLE SPEC:\n${S.docs.doc43B}`,
+      qcUser, akey,
+      (partial)=>{document.getElementById('o9').textContent=partial;document.getElementById('sb9').classList.add('open');}
+    );
+    // Extract corrected HTML
+    const m=res.match(/=== HTML START ===([\s\S]*?)=== HTML END ===/i);
+    const m2=res.match(/```(?:html)?\n([\s\S]*?)```/i);
+    if(m) S.finalTXT=m[1].trim();
+    else if(m2) S.finalTXT=m2[1].trim();
     showHTML(S.finalTXT);
+    // Rebuild checklist with updated HTML
+    S.checklistHTML=buildChecklistHTML(S.finalSchema);
     document.getElementById('rerunQC').style.display='block';
-    setStep(9,'done','Done ✓','QC complete — review HTML preview on the right.');
+    setStep(9,'done','Done ✓','QC complete — review HTML in right panel.');
   }
 
   async function rerunQC() {
     const akey=document.getElementById('keyAnthropic').value.trim();
-    await runQC(buildSys(),akey);
+    const feedback=document.getElementById('qcFeedback').value.trim();
+    document.getElementById('qcFeedback').value='';
+    await runQC(buildSys(),akey,feedback);
   }
 
   function buildSys() { return `You are an expert AEO article writer. Your client's identity card (4.3B) is loaded below.\n\n4.3B — CLIENT IDENTITY CARD:\n${S.docs.doc43B}`; }
 
   // ─── DOWNLOADS ────────────────────────────────────────────
-  function dlMD() { if(!S.finalMD) return; dl(S.finalMD,'text/markdown',`AEO - ${S.client?.name||'Article'} - ${S.topic.substring(0,40)} - FINAL.md`); }
-  function dlTXT() { if(!S.finalTXT) return; dl(S.finalTXT,'text/plain',`AEO - ${S.client?.name||'Article'} - ${S.topic.substring(0,40)} - FINAL.txt`); }
+  function dlChecklist() {
+    if(!S.checklistHTML) return;
+    dl(S.checklistHTML,'text/html',`Checklist+Schema - ${S.client?.name||'Article'} - ${S.topic.substring(0,40)}.html`);
+  }
+  function dlHTML() {
+    if(!S.finalTXT) return;
+    dl(S.finalTXT,'text/plain',`Final HTML - ${S.client?.name||'Article'} - ${S.topic.substring(0,40)}.txt`);
+  }
   function dl(content,type,name) { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); }
+
+  // ─── BUILD CHECKLIST HTML ────────────────────────────────
+  function buildChecklistHTML(schema) {
+    const featUrl=S.imageUrls[getFeatured()]||'';
+    const today=document.getElementById('publishDate').value||new Date().toISOString().split('T')[0];
+    // Extract fields from V2
+    const title=extractField(S.v2,'Meta Title')||extractField(S.v2,'H1')||S.topic;
+    const slug=extractField(S.v2,'Permalink URL')||'';
+    const fullUrl=extractField(S.v2,'Full Blog Post URL')||'';
+    const meta=extractField(S.v2,'Meta Description')||'';
+    const keywords=extractField(S.v2,'Keywords')||'';
+    const category=extractField(S.v2,'Category')||'';
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Checklist + Schema — ${S.topic.substring(0,50)}</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 860px; margin: 40px auto; padding: 0 24px; color: #063a6c; line-height: 1.6; }
+  h1 { font-size: 22px; border-bottom: 2px solid #e0e0e0; padding-bottom: 12px; margin-bottom: 20px; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 1.5px; color: #2494e0; margin: 24px 0 10px; }
+  .field { display: flex; gap: 12px; margin-bottom: 8px; padding: 8px 12px; background: #f9f9f9; border-radius: 6px; border: 1px solid #e0e0e0; }
+  .label { font-weight: 600; min-width: 160px; flex-shrink: 0; font-size: 13px; }
+  .value { font-size: 13px; word-break: break-all; }
+  .schema-block { background: #f2f2f2; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-top: 8px; overflow-x: auto; }
+  pre { margin: 0; font-size: 12px; white-space: pre-wrap; word-break: break-word; color: #333; }
+</style>
+</head>
+<body>
+<h1>Blog Post Checklist + Schema</h1>
+<p style="font-size:13px;color:#888;margin-bottom:20px;">${S.topic}</p>
+
+<h2>Blog Post Optimization Checklist</h2>
+<div class="field"><span class="label">Title / H1</span><span class="value">${title}</span></div>
+<div class="field"><span class="label">Permalink URL</span><span class="value">${slug}</span></div>
+<div class="field"><span class="label">Full Blog Post URL</span><span class="value">${fullUrl}</span></div>
+<div class="field"><span class="label">Meta Description</span><span class="value">${meta}</span></div>
+<div class="field"><span class="label">Keywords</span><span class="value">${keywords}</span></div>
+<div class="field"><span class="label">Category</span><span class="value">${category}</span></div>
+<div class="field"><span class="label">Featured Image URL</span><span class="value">${featUrl}</span></div>
+<div class="field"><span class="label">Publish Date</span><span class="value">${today}</span></div>
+<div class="field"><span class="label">Schema Markup</span><span class="value">Complete — Published ${today}</span></div>
+
+<h2>Schema Markup</h2>
+<p style="font-size:12px;color:#888;margin-bottom:8px;">Copy each block into your site's header / Yoast schema field.</p>
+<div class="schema-block"><pre>${schema.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre></div>
+
+</body>
+</html>`;
+  }
+
+  function extractField(text, fieldName) {
+    // Match both "* **Field:** value" and "* Field: value" and "Field: value"
+    const patterns = [
+      new RegExp(`\\*\\*${fieldName}:\\*\\*\\s*(.+)`, 'im'),
+      new RegExp(`\\*\\s*${fieldName}:\\s*(.+)`, 'im'),
+      new RegExp(`${fieldName}:\\s*(.+)`, 'im'),
+    ];
+    for(const re of patterns){
+      const m=text.match(re);
+      if(m) return m[1].trim().replace(/\*\*$/,'').trim();
+    }
+    return '';
+  }
 
   // ─── SHARED RUNNER ────────────────────────────────────────
   async function runFrom(start,sys,akey,gkey) {
@@ -916,37 +1056,74 @@
         S.v2=await callClaude(sys,fix+'\n\nCurrent V2:\n'+S.v2,akey,(p)=>showV2(p));
       }
       setStep(7,'done','Done ✓');
-      // Update assemble button hint — URLs may already be entered
+      checkpointDone=true;
       checkUrls();
-      if(document.getElementById('assembleBtn').disabled){
-        setG('⚠ Paste all WordPress image URLs in the right panel, then click Assemble Final');
-        document.getElementById('assembleHint').textContent=`${S.imagePrompts.length>0?'Paste all WP URLs to unlock':'Click Assemble Final to continue'}`;
+      if(!imagesValidated){
+        setG('⚠ Upload images to WordPress, paste URLs in right panel, then click Validate Images');
       } else {
-        setG('⚠ All URLs entered — click Assemble Final to continue');
+        setG('✓ Both gates clear — assembling now...');
       }
       await waitAssemble();
       step=8;
     }
 
     if(step<=8){
-      setStep(8,'active','Assembling...'); setG('Claude running final checklist and assembling output files...',true);
-      const p5=getPrompt(S.docs.doc44,5);
+      setStep(8,'active','Assembling...'); setG('Claude producing Final HTML...',true);
+
+      // Build image URL block
       const imgLines=[];
       for(let i=0;i<S.imagePrompts.length;i++){const u=S.imageUrls[i]||'';if(u)imgLines.push(`Image ${i+1} URL — ${u}`);}
       const featNum=getFeatured()+1;
       const today=document.getElementById('publishDate').value||new Date().toISOString().split('T')[0];
-      const u5=`${imgLines.join('\n')}\n\nFeatured image — Image ${featNum}\nPublish date — ${today}\n\n${p5}\n\nV2 ARTICLE:\n${S.v2}`;
-      S.finalMD=await callClaude(sys,u5,akey,(p)=>{document.getElementById('o8').textContent=p;document.getElementById('sb8').classList.add('open');},{maxTokens:16000});
-      // Extract TXT — try labeled block first, then any html code block, then full output
-      const m1=S.finalMD.match(/FINAL TXT[\s\S]*?```(?:html)?\n([\s\S]*?)```/i);
-      const m2=S.finalMD.match(/```(?:html)\n([\s\S]*?)```/i);
-      S.finalTXT=m1?m1[1]:m2?m2[1]:S.finalMD;
-      setStep(8,'done','Done ✓','Final MD and TXT generated.');
+
+      // Focused prompt — HTML only, nothing else
+      const htmlPrompt=`You are producing the Final HTML for an AEO article. Output TWO clearly labeled blocks and nothing else:
+
+BLOCK 1 — SCHEMA (label it exactly: === SCHEMA START === and === SCHEMA END ===)
+Produce the complete schema markup: FAQPage, BlogPosting, BreadcrumbList (each in its own script tag).
+Use these values:
+- Featured image URL: ${S.imageUrls[getFeatured()]||''}
+- Publish date: ${today}
+- All other entity data from 4.3B Client Identity Card already loaded in system prompt.
+
+BLOCK 2 — HTML (label it exactly: === HTML START === and === HTML END ===)
+Produce the complete article HTML built against the HTML Style Spec in 4.3B.
+Pure HTML only — no title tag, no outer wrapper, paste-ready for Beaver Builder HTML module.
+Replace all image placeholders with these confirmed URLs:
+${imgLines.join('\n')}
+Featured image: Image ${featNum}
+Publish date: ${today}
+
+V2 ARTICLE:
+${S.v2}`;
+
+      const assemblyResult=await callClaude(
+        `You are an expert AEO article HTML producer. The client's HTML Style Spec and Identity Card are below.\n\n4.3B — CLIENT IDENTITY CARD + HTML STYLE SPEC:\n${S.docs.doc43B}`,
+        htmlPrompt, akey,
+        (p)=>{document.getElementById('o8').textContent=p;document.getElementById('sb8').classList.add('open');},
+        {maxTokens:16000}
+      );
+
+      // Extract schema block
+      const schemaMatch=assemblyResult.match(/=== SCHEMA START ===([\s\S]*?)=== SCHEMA END ===/i);
+      S.finalSchema=schemaMatch?schemaMatch[1].trim():'';
+
+      // Extract HTML block
+      const htmlMatch=assemblyResult.match(/=== HTML START ===([\s\S]*?)=== HTML END ===/i);
+      S.finalTXT=htmlMatch?htmlMatch[1].trim():assemblyResult;
+
+      // Build checklist HTML file
+      S.checklistHTML=buildChecklistHTML(S.finalSchema);
+
+      // Show HTML preview immediately
+      showHTML(S.finalTXT);
+
+      setStep(8,'done','Done ✓','HTML generated — review in right panel.');
       step=9;
     }
 
     if(step<=9){
-      await runQC(sys,akey);
+      await runQC(sys,akey,'');
       document.getElementById('outputsSec').classList.add('open');
       setG('✓ Article complete — download your files below.');
     }
@@ -971,6 +1148,8 @@
     const gkey=document.getElementById('keyGemini').value.trim();
     if(!akey||!gkey){alert('API keys required.');return;}
     const rb=document.getElementById(`r${n}`); if(rb) rb.style.display='none';
+    // Reset gate flags if retrying step 7 or later
+    if(n>=7){ imagesValidated=false; checkpointDone=false; asmResolve=null; }
     running=true; document.getElementById('runBtn').disabled=true;
     try{ await runFrom(n,buildSys(),akey,gkey); }
     catch(err){ handleErr(err); }
@@ -994,6 +1173,7 @@
     S.client=clients[parseInt(cidx)]; S.topic=topic;
     S.tokens={gi:0,go:0,ci:0,co:0,imgs:0};
     S.imagePrompts=[]; S.imageData={}; S.imageUrls={};
+    imagesValidated=false; checkpointDone=false;
 
     running=true; document.getElementById('runBtn').disabled=true;
     document.getElementById('outputsSec').classList.remove('open');
