@@ -1609,14 +1609,26 @@ ${schemaBlocksHTML}
     showHTMLFinal(S.finalTXT);
     S.checklistHTML=buildChecklistHTML(S.finalSchema);
     document.getElementById('rerunQC').style.display='block';
-    const cp16Fb=await waitCp16();
-    if(cp16Fb){
-      setStep(16,'active','Fixing HTML...'); setG('Claude fixing HTML issues...',true);
-      await runQC(akey,cp16Fb,publishDate);
-      return;
+    // Auto-proceed if QC was clean — only pause if there were failed diffs
+    const qcClean = res.includes('QC COMPLETE — NO CHANGES NEEDED') ||
+                    (res.includes('DIFF_START') && !res.includes('Failed: [^0]'));
+    if(qcClean){
+      // Clean pass — show output and proceed automatically
+      document.getElementById('outputsSec').classList.add('open');
+      saveSession();
+      setStep(16,'done','Done ✓','QC complete — no issues found. Files ready.');
+    } else {
+      // Issues found — pause for human review
+      const cp16Fb=await waitCp16();
+      if(cp16Fb){
+        setStep(16,'active','Fixing HTML...'); setG('Claude fixing HTML issues...',true);
+        await runQC(akey,cp16Fb,publishDate);
+        return;
+      }
+      document.getElementById('outputsSec').classList.add('open');
+      saveSession();
+      setStep(16,'done','Done ✓','QC complete — HTML approved.');
     }
-    saveSession();
-    setStep(16,'done','Done ✓','QC complete — HTML approved.');
   }
 
   async function rerunQC() {
@@ -2150,9 +2162,7 @@ ${S.v2}`;
       }
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
       showHTML1(S.finalTXT);
-      // Show download buttons as soon as HTML is ready — don't wait for Step 17
-      document.getElementById('outputsSec').classList.add('open');
-      setStep(15,'done','Done ✓','HTML generated — review in right panel. Download buttons now available above.');
+      setStep(15,'done','Done ✓','HTML generated — review HTML 1 tab. QC runs next.');
       step=16;
     }
 
@@ -2171,9 +2181,10 @@ ${S.v2}`;
       saveToHistory({topic:S.topic,client:S.client?.name||'—',date:new Date().toLocaleDateString(),duration:getTimerStr(),cost:`$${cost}`,words:`~${wc.toLocaleString()}`});
       saveSession();
       // Show output section with manual download buttons immediately
+      // Rebuild checklist in case QC updated finalTXT
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
       document.getElementById('outputsSec').classList.add('open');
-      setStep(17,'done','Done ✓','Article complete. Use download buttons above to save files.');
+      setStep(17,'done','Done ✓','Complete — use download buttons above.');
       // Attempt auto-download as bonus — non-blocking
       try{ await uploadToDrive(dkey); } catch(e){ console.warn('Auto-download failed:',e.message); }
     }
