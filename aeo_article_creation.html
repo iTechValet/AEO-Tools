@@ -1033,6 +1033,8 @@
         <span class="copy-ok" id="c${f.id}">✓</span>
       </div>`).join('');
 
+    const schemaJSON = JSON.stringify(schemaBlocks);
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1069,36 +1071,18 @@
 ${fieldsHTML}
 
 <h2>Schema Markup</h2>
-<p style="font-size:12px;color:#888;margin-bottom:14px;">Copy each block separately into Yoast or your site's header.</p>
+<p style="font-size:12px;color:#888;margin-bottom:14px;">Copy each block separately into Yoast or your site header.</p>
 <button class="all-schema-btn" onclick="copyAllSchema()">⎘ Copy All Schema Blocks</button>
 <span class="copy-ok" id="sokAll" style="margin-left:10px;font-size:13px;">✓ All Copied</span>
 ${schemaBlocksHTML}
 
-<script>
-  // Store raw schema blocks for copying (unescaped)
-  const rawBlocks = ${JSON.stringify(schemaBlocks)};
-
-  function copyField(valueId, okId) {
-    const text = document.getElementById(valueId)?.innerText || '';
-    navigator.clipboard.writeText(text).then(() => flash(okId));
-  }
-
-  function copySchema(i) {
-    navigator.clipboard.writeText(rawBlocks[i]).then(() => flash('sok'+i));
-  }
-
-  function copyAllSchema() {
-    const all = rawBlocks.join('\\n\\n');
-    navigator.clipboard.writeText(all).then(() => flash('sokAll'));
-  }
-
-  function flash(id) {
-    const el = document.getElementById(id);
-    if(!el) return;
-    el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 2000);
-  }
-</script>
+<scr`+'ipt>'+`
+  var rawBlocks = `+schemaJSON+`;
+  function copyField(id,ok){navigator.clipboard.writeText(document.getElementById(id).innerText||'').then(function(){flash(ok)});}
+  function copySchema(i){navigator.clipboard.writeText(rawBlocks[i]).then(function(){flash('sok'+i)});}
+  function copyAllSchema(){navigator.clipboard.writeText(rawBlocks.join('\\n\\n')).then(function(){flash('sokAll')});}
+  function flash(id){var el=document.getElementById(id);if(!el)return;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},2000);}
+`+'</scr'+'ipt>'+`
 </body>
 </html>`;
   }
