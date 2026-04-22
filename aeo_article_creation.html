@@ -1089,7 +1089,7 @@
 
   // ─── CLAUDE (STREAMING) ───────────────────────────────────
   async function callClaude(sys,user,akey,onChunk,opts={}) {
-    const maxTokens=opts.maxTokens||8192;
+    const maxTokens=opts.maxTokens||64000;
     const r=await fetch(PROXY,{
       method:'POST',headers:{'Content-Type':'application/json','x-api-key':akey},
       body:JSON.stringify({model:CLAUDE_MODEL,max_tokens:maxTokens,stream:true,system:sys,messages:[{role:'user',content:user}]})
@@ -1384,7 +1384,7 @@ ${schemaBlocksHTML}
       setStep(3,'active','Building V1...'); setG('Claude building article architecture...',true);
       const p2=getPrompt(S.docs.doc44,2);
       const u2=`EXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}`;
-      S.v1=await callClaude(sys,u2,akey,(p)=>{document.getElementById('o3').textContent=p;document.getElementById('sb3').classList.add('open');},{maxTokens:16000});
+      S.v1=await callClaude(sys,u2,akey,(p)=>{document.getElementById('o3').textContent=p;document.getElementById('sb3').classList.add('open');},{maxTokens:64000});
       // Guard: V1 must be substantial — if under 2000 chars something went wrong
       if(S.v1.length < 2000) throw new Error(`Step 3: V1 output is too short (${S.v1.length} chars) — Claude may have hit a token limit or the prompt failed. Check Step 3 output and retry.`);
       setStep(3,'done','Done ✓');
@@ -1421,7 +1421,7 @@ ${schemaBlocksHTML}
       setStep(6,'active','Rewriting...'); setG('Claude applying fixes and voice rewrite...',true);
       const p4=getPrompt(S.docs.doc44,4);
       const u4=`${p4}\n\n${S.validation&&!S.validation.toLowerCase().includes('all items pass')?`GEMINI VALIDATION FEEDBACK:\n${S.validation}\n\n---`:'(All validation items passed — skip to Task 2)'}\n\nV1 ARTICLE TO REWRITE:\n${S.v1}`;
-      S.v2=await callClaude(sys,u4,akey,(p)=>{document.getElementById('o6').textContent=p;document.getElementById('sb6').classList.add('open');showV2(p);},{maxTokens:16000});
+      S.v2=await callClaude(sys,u4,akey,(p)=>{document.getElementById('o6').textContent=p;document.getElementById('sb6').classList.add('open');showV2(p);},{maxTokens:64000});
       if(S.v2.length < 2000) throw new Error(`Step 6: V2 output is too short (${S.v2.length} chars) — rewrite may have failed. Check Step 6 output and retry.`);
       setStep(6,'done','Done ✓'); showV2(S.v2);
       step=7;
@@ -1433,7 +1433,7 @@ ${schemaBlocksHTML}
       if(fb){
         setStep(7,'active','Fixing...'); setG('Claude applying your feedback...',true);
         const fix=`The operator reviewed V2 and flagged:\n\n"${fb}"\n\nFix this specific issue while preserving all structure, links, POV slots, and protected zones. Deliver the corrected V2.`;
-        S.v2=await callClaude(sys,fix+'\n\nCurrent V2:\n'+S.v2,akey,(p)=>showV2(p),{maxTokens:16000});
+        S.v2=await callClaude(sys,fix+'\n\nCurrent V2:\n'+S.v2,akey,(p)=>showV2(p),{maxTokens:64000});
       }
       setStep(7,'done','Done ✓');
       checkpointDone=true;
@@ -1481,7 +1481,7 @@ ${S.v2}`;
         `You are an expert AEO article HTML producer. The client's HTML Style Spec and Identity Card are below.\n\n4.3B — CLIENT IDENTITY CARD + HTML STYLE SPEC:\n${S.docs.doc43B}`,
         htmlPrompt, akey,
         (p)=>{document.getElementById('o8').textContent=p;document.getElementById('sb8').classList.add('open');},
-        {maxTokens:16000}
+        {maxTokens:64000}
       );
 
       // Extract schema block
