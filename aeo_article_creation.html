@@ -53,6 +53,8 @@
   .btn-run { background:var(--orange); color:#fff; border:none; border-radius:8px; padding:9px 24px; font-family:'Bebas Neue',sans-serif; font-size:22px; text-transform:uppercase; letter-spacing:2px; cursor:pointer; transition:opacity .2s; white-space:nowrap; height:38px; display:flex; align-items:center; }
   .btn-run:hover { opacity:.85; }
   .btn-run:disabled { opacity:.35; cursor:not-allowed; }
+  .btn-stop { background:#c0392b; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-family:'Bebas Neue',sans-serif; font-size:18px; text-transform:uppercase; letter-spacing:2px; cursor:pointer; transition:opacity .2s; white-space:nowrap; height:38px; display:none; align-items:center; }
+  .btn-stop:hover { opacity:.85; }
 
   /* STATS ROW */
   .stat-item { display:flex; flex-direction:column; gap:3px; }
@@ -323,6 +325,7 @@
       <input class="cp-input" type="text" id="topicInput" placeholder="Paste topic exactly as it appears in the sheet..." />
     </div>
     <button class="btn-run" id="runBtn" onclick="startPipeline()">⚡ Run</button>
+    <button class="btn-stop" id="stopBtn" onclick="stopPipeline()">⬛ Stop</button>
   </div>
 
   <!-- STATUS + RESTORE BANNER -->
@@ -621,6 +624,7 @@
       </div>
       <div class="assemble-row">
         <button class="btn-assemble" id="assembleBtn" onclick="validateImages()" disabled>Validate Images</button>
+        <button class="btn-assemble" id="dlAllBtn" onclick="downloadAllImages()" disabled style="background:var(--blue);margin-left:6px;">↓ All Images</button>
         <div class="assemble-hint" id="assembleHint">Enter all WP URLs above to unlock</div>
       </div>
     </div>
@@ -744,9 +748,24 @@
   // ─── STEP UI ──────────────────────────────────────────────
 
   function copyStepOutput(n) {
-    const el=document.getElementById(`o${n}`);
-    if(!el) return;
-    navigator.clipboard.writeText(el.textContent||'').then(()=>{
+    // Collect text from the sout div AND any scorecard/faillist divs in the same step body
+    const body = document.getElementById(`sb${n}`);
+    if(!body) return;
+    const parts = [];
+    // Main output
+    const sout = document.getElementById(`o${n}`);
+    if(sout && sout.textContent.trim()) parts.push(sout.textContent.trim());
+    // Scorecard (step 4)
+    const sc = document.getElementById('scorecard4');
+    if(sc && body.contains(sc) && sc.innerText.trim()) parts.push(sc.innerText.trim());
+    // Fail list (step 8)
+    const fl = document.getElementById('failList8');
+    if(fl && body.contains(fl) && fl.innerText.trim()) parts.push(fl.innerText.trim());
+    // Fix verify (step 11)
+    const fv = document.getElementById('fixVerify11');
+    if(fv && body.contains(fv) && fv.innerText.trim()) parts.push(fv.innerText.trim());
+    const text = parts.join('\n\n') || body.innerText.trim();
+    navigator.clipboard.writeText(text).then(()=>{
       const btn=document.getElementById(`copy-btn-${n}`);
       if(btn){const orig=btn.textContent;btn.textContent='✓ Copied';setTimeout(()=>{btn.textContent=orig;},1500);}
     }).catch(()=>{});
@@ -1397,6 +1416,28 @@
     if(cp16Resolve){cp16Resolve(fb);cp16Resolve=null;}
   }
 
+
+  function downloadAllImages() {
+    const total=S.imagePrompts.length;
+    if(total===0){alert('No images generated yet.');return;}
+    let i=0;
+    function dlNext(){
+      if(i>=total) return;
+      const imgData=S.imageData[i];
+      const alt=S.imagePrompts[i]?.alt||`image-${i+1}`;
+      const fname=`${i+1} ${alt.replace(/[^a-zA-Z0-9\s-]/g,'').trim()}`;
+      if(imgData){
+        const a=document.createElement('a');
+        a.href=imgData.data;
+        a.download=`${fname}.${imgData.ext||'webp'}`;
+        a.click();
+      }
+      i++;
+      if(i<total) setTimeout(dlNext,1000);
+    }
+    dlNext();
+  }
+
   function validateImages() {
     // Check all URLs filled
     const total=S.imagePrompts.length;
@@ -1637,16 +1678,22 @@ ${schemaBlocksHTML}
     results.push({label:'Image prompts present (PROMPT: blocks)',pass:imgCount>=3,detail:`Found: ${imgCount}`});
     const hasFAQ=/##\s*(frequently asked|faq)/i.test(v1);
     results.push({label:'FAQ section present',pass:hasFAQ,detail:hasFAQ?'Found':'Missing'});
-    // Find direct answer: text between H1 and first H2, stripping checklist header
-    const h1Match=v1.match(/^#\s+.+/m);
+    // Find direct answer: text between H1 and first H2
+    // H1 is the first line starting with exactly one # (not ##)
+    const h1Match=v1.match(/^(?!##)#\s+.+/m);
     let daText='';
     if(h1Match){
       const afterH1=v1.slice(v1.indexOf(h1Match[0])+h1Match[0].length);
       // Take everything up to the first H2
       const firstH2=afterH1.search(/^##\s/m);
       daText=firstH2>0?afterH1.slice(0,firstH2):afterH1.slice(0,1500);
-      // Strip any remaining checklist lines (lines with * **Field:** pattern)
-      daText=daText.replace(/^\*\s+\*\*.+\*\*:.+$/gm,'').replace(/^BLOG POST.+$/gm,'').trim();
+      // Strip checklist lines, separators, and [H1] tags
+      daText=daText
+        .replace(/^\*\s+\*\*.+\*\*:.+$/gm,'')
+        .replace(/^BLOG POST.+$/gm,'')
+        .replace(/^---$/gm,'')
+        .replace(/\[H[123]\]/gi,'')
+        .trim();
     }
     const daWords=daText.trim().split(/\s+/).filter(w=>w.length>2).length;
     const daOk=daWords>=150&&daWords<=450;
@@ -1658,9 +1705,14 @@ ${schemaBlocksHTML}
     const extOk=extInArticle.length>=3;
     results.push({label:`External sources in article (need 4-8)`,pass:extOk,detail:`${extInArticle.length}/${uniqueExt.length} source domains found`});
     // Internal links check: look for markdown links in v1
-    const intLinks=(v1.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[]).filter(l=>!l.match(/https?:\/\//)||l.match(/itechvalet\.com/i));
+    const intLinks=(v1.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[])
+      .filter(l=>!l.match(/https?:\/\//)||l.match(/itechvalet\.com/i))
+      .filter(l=>!l.match(/\(#/)); // exclude anchor-only ToC links
     const intOk=intLinks.length>=4;
     results.push({label:`Internal links in article (need 6-10)`,pass:intOk,detail:`${intLinks.length} internal links found`});
+    // Sacred Ground check: no links allowed in Direct Answer
+    const daLinks=(daText.match(/\[([^\]]+)\]\([^)]+\)/g)||[]).filter(l=>!l.match(/\(#/));
+    results.push({label:'No links in Direct Answer (Sacred Ground)',pass:daLinks.length===0,detail:daLinks.length===0?'Clean':`${daLinks.length} link(s) found — violates Sacred Ground`});
     const allPass=results.every(r=>r.pass);
     const html=results.map(r=>`<div style="padding:3px 0;">${r.pass?'✅':'❌'} <strong>${r.label}</strong> — ${r.detail}</div>`).join('');
     return {allPass,html};
@@ -1676,7 +1728,9 @@ ${schemaBlocksHTML}
     const imgCount=(v2.match(/^PROMPT:/gim)||[]).length;
     results.push({label:'Image prompts present',pass:imgCount>=1,detail:`${imgCount} PROMPT: blocks`});
     // Check internal links survived voice rewrite
-    const intLinksV2=(v2.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[]).filter(l=>!l.match(/https?:\/\//)||l.match(/itechvalet\.com/i));
+    const intLinksV2=(v2.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[])
+      .filter(l=>!l.match(/https?:\/\//)||l.match(/itechvalet\.com/i))
+      .filter(l=>!l.match(/\(#/)); // exclude anchor-only ToC links
     results.push({label:'Internal links present after rewrite',pass:intLinksV2.length>=4,detail:`${intLinksV2.length} internal links`});
     // Check external source domains survived
     const extUrlsV2=(researchBrief.match(/https?:\/\/[^\s\)\]]+/g)||[]);
@@ -1775,31 +1829,70 @@ All other requirements (POV slots, links, FAQ, CTA, image prompts, direct answer
     if(step<=5){
       setStep(5,'active','Building tables...'); setG('Claude building tables...',true);
       const tablePH=(S.v1.match(/\[TABLE NEEDED/gi)||[]).length;
-      const tabSys=`You are building tables for an AEO article. Your ONLY job is to replace [TABLE NEEDED] placeholders with actual markdown tables. Do not change any other content.\n\n4.3B:\n${S.docs.doc43B}`;
+      const tabSys=`You are building tables for an AEO article. Your ONLY job is to output table blocks for [TABLE NEEDED] placeholders. Do NOT return the full article. Output ONLY the table blocks in the exact format below.\n\n4.3B:\n${S.docs.doc43B}`;
+      // Extract placeholder specs from article
+      const placeholderSpecs=[];
+      const phRegex=/\[TABLE NEEDED[\s\S]*?\]/g;
+      let phMatch;
+      let phIdx=0;
+      const v1ForPH=S.v1;
+      while((phMatch=phRegex.exec(v1ForPH))!==null){
+        placeholderSpecs.push({index:phIdx++,spec:phMatch[0],pos:phMatch.index});
+      }
       const tabUser=`PUBLISH DATE: ${publishDate}
 
-RESEARCH BRIEF (context only — do not add new data beyond what is in the article):
+RESEARCH BRIEF (context only — do not add new data beyond what is already in the article):
 ${S.geminiResearch}
 
-YOUR ONLY JOB: Replace every [TABLE NEEDED ...] placeholder with a properly formatted markdown table.
-Rules:
-- Use ONLY data and claims already present in the surrounding article prose
-- Do NOT invent statistics or new claims
-- Minimum 3 columns, maximum 5 columns
-- Include context in cells (not just checkmarks)
-- If client's CMS requires HTML table blocks (check 4.3B), output HTML block immediately after each markdown table
-- Return the COMPLETE article with all placeholders replaced — do not truncate
+YOUR ONLY JOB: For each TABLE NEEDED placeholder below, output a table block using this EXACT format:
 
-ARTICLE (${tablePH} table placeholders to replace):
-${S.v1}`;
+TABLE_START_[N]
+[markdown table here]
+[HTML table block here if client CMS requires it — check 4.3B CMS Table Delivery Format]
+TABLE_END_[N]
+
+Where [N] is the placeholder number starting at 0.
+
+Rules:
+- Use ONLY data and claims already present in the article prose surrounding each placeholder
+- Do NOT invent statistics or new claims
+- Minimum 3 columns, maximum 5 columns per table
+- Include context in cells (not just checkmarks)
+- Output ONLY the TABLE_START/TABLE_END blocks — nothing else
+
+PLACEHOLDERS TO BUILD:
+${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}`;
       const tableResult=await callClaude(tabSys,tabUser,akey,(p)=>{document.getElementById('o5').textContent=p;document.getElementById('sb5').classList.add('open');},{maxTokens:64000});
-      if(tableResult.length>1000){
+      // Parse TABLE_START_N / TABLE_END_N blocks and insert at placeholder locations
+      const tableBlocks=[];
+      const tbRegex=/TABLE_START_(\d+)([\s\S]*?)TABLE_END_\d+/g;
+      let tbMatch;
+      while((tbMatch=tbRegex.exec(tableResult))!==null){
+        tableBlocks[parseInt(tbMatch[1])]=tbMatch[2].trim();
+      }
+      if(tableBlocks.length>0){
+        let updated=S.v1;
+        let insertCount=0;
+        // Replace each [TABLE NEEDED...] block with corresponding table
+        const phRe=/\[TABLE NEEDED[\s\S]*?\]/g;
+        let idx2=0;
+        updated=updated.replace(phRe,(match)=>{
+          const tbl=tableBlocks[idx2++];
+          if(tbl){ insertCount++; return tbl; }
+          return match; // leave placeholder if no table built
+        });
+        S.v1=updated;
+        S.imagePrompts=extractImgPrompts(S.v1);
+        showV1(S.v1);
+        setStep(5,'done','Done ✓',`${insertCount} table(s) inserted via diff. ${tableBlocks.length} built.`);
+      } else if(tableResult.length>2000){
+        // Fallback: Claude returned full article — use it
         S.v1=tableResult;
         S.imagePrompts=extractImgPrompts(S.v1);
         showV1(S.v1);
-        setStep(5,'done','Done ✓',`${tablePH} table placeholder(s) replaced.`);
+        setStep(5,'done','Done ✓',`Fallback: full article used. ${tablePH} placeholder(s) processed.`);
       } else {
-        throw new Error(`Step 5: Table output too short (${tableResult.length} chars) — Claude may have truncated. Retry from Step 5.`);
+        throw new Error(`Step 5: No TABLE_START blocks found and output too short (${tableResult.length} chars). Retry from Step 5.`);
       }
       step=6;
     }
@@ -1811,6 +1904,7 @@ ${S.v1}`;
         buildImgGrid(S.imagePrompts);
         await genAllImages(S.imagePrompts,gkey);
         setStep(6,'done','Done ✓',`${S.imagePrompts.length} image(s) generated.`);
+        const dlAllBtn=document.getElementById('dlAllBtn');if(dlAllBtn)dlAllBtn.disabled=false;
       } else {
         setStep(6,'error','Failed','No image prompts found in V1 — retry from Step 3.');
         throw new Error('Step 6: No image prompts extracted from V1.');
@@ -1836,7 +1930,10 @@ ${S.v1}`;
     if(step<=8){
       const allPass=S.parsedFails.length===0||S.validation.toLowerCase().includes('all items pass');
       if(allPass){
-        setStep(8,'done','Skipped — No FAILs','Validation passed. Skipping to voice rewrite.');
+        setStep(8,'done','Skipped — No FAILs','Validation passed. No fixes needed.');
+        setStep(9,'done','Skipped — N/A');
+        setStep(10,'done','Skipped — N/A');
+        setStep(11,'done','Skipped — N/A');
         step9RetryCount=0; step=12;
       } else {
         document.getElementById('o8').textContent=`${S.parsedFails.length} FAIL item(s) found.`;
@@ -2053,7 +2150,9 @@ ${S.v2}`;
       }
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
       showHTML1(S.finalTXT);
-      setStep(15,'done','Done ✓','HTML generated — review in right panel.');
+      // Show download buttons as soon as HTML is ready — don't wait for Step 17
+      document.getElementById('outputsSec').classList.add('open');
+      setStep(15,'done','Done ✓','HTML generated — review in right panel. Download buttons now available above.');
       step=16;
     }
 
@@ -2063,18 +2162,20 @@ ${S.v2}`;
       step=17;
     }
 
-    // STEP 17: Auto Download
+    // STEP 17: Downloads — show buttons immediately, attempt auto-download as bonus
     if(step<=17){
       stopTimer();
-      setStep(17,'active','Downloading...'); setG('Saving files...',true);
-      await uploadToDrive(dkey);
+      setStep(17,'active','Complete'); setG('✓ Article complete — files ready.',false);
       const cost=((S.tokens.ci/1e6*3)+(S.tokens.co/1e6*15)).toFixed(3);
       const wc=countWords(S.v2);
       saveToHistory({topic:S.topic,client:S.client?.name||'—',date:new Date().toLocaleDateString(),duration:getTimerStr(),cost:`$${cost}`,words:`~${wc.toLocaleString()}`});
       saveSession();
+      // Show output section with manual download buttons immediately
+      S.checklistHTML=buildChecklistHTML(S.finalSchema);
       document.getElementById('outputsSec').classList.add('open');
-      setStep(17,'done','Done ✓','Both files downloaded.');
-      setG('✓ Article complete — both files downloaded.');
+      setStep(17,'done','Done ✓','Article complete. Use download buttons above to save files.');
+      // Attempt auto-download as bonus — non-blocking
+      try{ await uploadToDrive(dkey); } catch(e){ console.warn('Auto-download failed:',e.message); }
     }
   }
 
@@ -2102,9 +2203,30 @@ ${S.v2}`;
     if(n>=14){imagesValidated=false;checkpointDone=false;asmResolve=null;}
     if(n<=11){step9RetryCount=0;} // reset auto-retry counter on manual retry
     running=true; document.getElementById('runBtn').disabled=true;
+    document.getElementById('runBtn').style.display='none';
+    document.getElementById('stopBtn').style.display='flex';
     try{await runFrom(n,buildSys(),akey,gkey,dkey);}
     catch(err){handleErr(err);}
     running=false; document.getElementById('runBtn').disabled=false;
+    document.getElementById('runBtn').style.display='flex';
+    document.getElementById('stopBtn').style.display='none';
+  }
+
+
+  function stopPipeline() {
+    running=false;
+    document.getElementById('runBtn').disabled=false;
+    document.getElementById('stopBtn').style.display='none';
+    document.getElementById('runBtn').style.display='flex';
+    // Resolve any pending checkpoints so they don't hang
+    if(cp4Resolve){cp4Resolve();cp4Resolve=null;}
+    if(cp8Resolve){cp8Resolve();cp8Resolve=null;}
+    if(cp11Resolve){cp11Resolve();cp11Resolve=null;}
+    if(cp14Resolve){cp14Resolve('');cp14Resolve=null;}
+    if(cp16Resolve){cp16Resolve('');cp16Resolve=null;}
+    if(asmResolve){asmResolve();asmResolve=null;}
+    stopTimer();
+    setG('⏹ Pipeline stopped. Session preserved — retry any step or start over.');
   }
 
   // ─── MAIN PIPELINE ────────────────────────────────────────
@@ -2128,6 +2250,8 @@ ${S.v2}`;
     imagesValidated=false; checkpointDone=false; step9RetryCount=0;
 
     running=true; document.getElementById('runBtn').disabled=true;
+    document.getElementById('runBtn').style.display='none';
+    document.getElementById('stopBtn').style.display='flex';
     document.getElementById('outputsSec').classList.remove('open');
     document.getElementById('uploadStatus').className='upload-status';
     for(let i=1;i<=17;i++) setStep(i,'waiting','Waiting');
@@ -2164,7 +2288,9 @@ ${S.v2}`;
     }catch(err){handleErr(err);stopTimer();}
 
     running=false; document.getElementById('runBtn').disabled=false;
-    if(!timerInterval) {} else { stopTimer(); } // ensure timer stops if not already stopped
+    document.getElementById('runBtn').style.display='flex';
+    document.getElementById('stopBtn').style.display='none';
+    if(!timerInterval) {} else { stopTimer(); }
   }
 
 </script>
