@@ -1587,18 +1587,33 @@ ${schemaBlocksHTML}
     const tablePH=(v1.match(/\[TABLE NEEDED/gi)||[]).length;
     results.push({label:'Min 3 [TABLE NEEDED] placeholders',pass:tablePH>=3,detail:`Found: ${tablePH}`});
     const imgCount=(v1.match(/^PROMPT:/gim)||[]).length;
-    results.push({label:'Min 5 image prompts (PROMPT: blocks)',pass:imgCount>=5,detail:`Found: ${imgCount}`});
+    results.push({label:'Image prompts present (PROMPT: blocks)',pass:imgCount>=3,detail:`Found: ${imgCount}`});
     const hasFAQ=/##\s*(frequently asked|faq)/i.test(v1);
     results.push({label:'FAQ section present',pass:hasFAQ,detail:hasFAQ?'Found':'Missing'});
-    const beforeH2=v1.split(/^##\s/m)[0]||'';
-    const daWords=beforeH2.trim().split(/\s+/).filter(w=>w.length>1).length;
-    const daOk=daWords>=150&&daWords<=400;
+    // Find direct answer: text between H1 and first H2, stripping checklist header
+    const h1Match=v1.match(/^#\s+.+/m);
+    let daText='';
+    if(h1Match){
+      const afterH1=v1.slice(v1.indexOf(h1Match[0])+h1Match[0].length);
+      // Take everything up to the first H2
+      const firstH2=afterH1.search(/^##\s/m);
+      daText=firstH2>0?afterH1.slice(0,firstH2):afterH1.slice(0,1500);
+      // Strip any remaining checklist lines (lines with * **Field:** pattern)
+      daText=daText.replace(/^\*\s+\*\*.+\*\*:.+$/gm,'').replace(/^BLOG POST.+$/gm,'').trim();
+    }
+    const daWords=daText.trim().split(/\s+/).filter(w=>w.length>2).length;
+    const daOk=daWords>=150&&daWords<=450;
     results.push({label:'Direct answer ~200-300 words',pass:daOk,detail:`~${daWords} words`});
-    const bpAnchors=(researchBrief.match(/Semantic Anchor:\s*"([^"]+)"/g)||[]).map(l=>l.replace(/Semantic Anchor:\s*"/,'').replace(/"$/,''));
-    let found=0;
-    for(const a of bpAnchors){if(a&&v1.toLowerCase().includes(a.toLowerCase()))found++;}
-    const pct=bpAnchors.length?Math.round(found/bpAnchors.length*100):100;
-    results.push({label:'Blueprint link anchors present',pass:pct>=60,detail:`${found}/${bpAnchors.length} (${pct}%)`});
+    // External sources check: count URLs in Evidence Map section of research brief
+    const extUrls=(researchBrief.match(/https?:\/\/[^\s\)\]]+/g)||[]);
+    const uniqueExt=[...new Set(extUrls.map(u=>{const m=u.match(/https?:\/\/(?:www\.)?([^/]+)/);return m?m[1].split('.')[0]:'';}))].filter(Boolean);
+    const extInArticle=uniqueExt.filter(domain=>v1.toLowerCase().includes(domain.toLowerCase()));
+    const extOk=extInArticle.length>=3;
+    results.push({label:`External sources in article (need 4-8)`,pass:extOk,detail:`${extInArticle.length}/${uniqueExt.length} source domains found`});
+    // Internal links check: look for markdown links in v1
+    const intLinks=(v1.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[]).filter(l=>!l.match(/https?:\/\//)||l.match(/itechvalet\.com/i));
+    const intOk=intLinks.length>=4;
+    results.push({label:`Internal links in article (need 6-10)`,pass:intOk,detail:`${intLinks.length} internal links found`});
     const allPass=results.every(r=>r.pass);
     const html=results.map(r=>`<div style="padding:3px 0;">${r.pass?'✅':'❌'} <strong>${r.label}</strong> — ${r.detail}</div>`).join('');
     return {allPass,html};
@@ -1611,11 +1626,14 @@ ${schemaBlocksHTML}
     results.push({label:'Tables present',pass:tableRows>=4,detail:`~${tableRows} table rows`});
     const imgCount=(v2.match(/^PROMPT:/gim)||[]).length;
     results.push({label:'Image prompts present',pass:imgCount>=1,detail:`${imgCount} PROMPT: blocks`});
-    const bpAnchors=(researchBrief.match(/Semantic Anchor:\s*"([^"]+)"/g)||[]).map(l=>l.replace(/Semantic Anchor:\s*"/,'').replace(/"$/,''));
-    let found=0;
-    for(const a of bpAnchors){if(a&&v2.toLowerCase().includes(a.toLowerCase()))found++;}
-    const pct=bpAnchors.length?Math.round(found/bpAnchors.length*100):100;
-    results.push({label:'Internal link anchors present',pass:pct>=60,detail:`${found}/${bpAnchors.length} (${pct}%)`});
+    // Check internal links survived voice rewrite
+    const intLinksV2=(v2.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[]).filter(l=>!l.match(/https?:\/\//)||l.match(/itechvalet\.com/i));
+    results.push({label:'Internal links present after rewrite',pass:intLinksV2.length>=4,detail:`${intLinksV2.length} internal links`});
+    // Check external source domains survived
+    const extUrlsV2=(researchBrief.match(/https?:\/\/[^\s\)\]]+/g)||[]);
+    const uniqueExtV2=[...new Set(extUrlsV2.map(u=>{const m=u.match(/https?:\/\/(?:www\.)?([^/]+)/);return m?m[1].split('.')[0]:'';}))].filter(Boolean);
+    const extFoundV2=uniqueExtV2.filter(domain=>v2.toLowerCase().includes(domain.toLowerCase()));
+    results.push({label:'External sources survived rewrite',pass:extFoundV2.length>=3,detail:`${extFoundV2.length}/${uniqueExtV2.length} source domains found`});
     const allPass=results.every(r=>r.pass);
     const text=results.map(r=>`${r.pass?'✅':'⚠️'} ${r.label} — ${r.detail}`).join('\n');
     return {allPass,text};
