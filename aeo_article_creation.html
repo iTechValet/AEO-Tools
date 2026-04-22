@@ -21,7 +21,7 @@
   .subtitle { font-size:12px; color:var(--muted); }
 
   /* LAYOUT */
-  .layout { max-width:1400px; margin:0 auto; display:grid; grid-template-columns:1fr 600px; gap:20px; align-items:start; }
+  .layout { max-width:1600px; margin:0 auto; display:grid; grid-template-columns:580px 1fr; gap:20px; align-items:start; }
   .left-col { min-width:0; }
   .right-col { position:sticky; top:20px; }
 
@@ -1055,7 +1055,9 @@
       setStep(3,'active','Building V1...'); setG('Claude building article architecture...',true);
       const p2=getPrompt(S.docs.doc44,2);
       const u2=`EXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}`;
-      S.v1=await callClaude(sys,u2,akey,(p)=>{document.getElementById('o3').textContent=p;document.getElementById('sb3').classList.add('open');});
+      S.v1=await callClaude(sys,u2,akey,(p)=>{document.getElementById('o3').textContent=p;document.getElementById('sb3').classList.add('open');},{maxTokens:16000});
+      // Guard: V1 must be substantial — if under 2000 chars something went wrong
+      if(S.v1.length < 2000) throw new Error(`Step 3: V1 output is too short (${S.v1.length} chars) — Claude may have hit a token limit or the prompt failed. Check Step 3 output and retry.`);
       setStep(3,'done','Done ✓');
       S.imagePrompts=extractImgPrompts(S.v1);
       showV1(S.v1);
@@ -1069,10 +1071,11 @@
         await genAllImages(S.imagePrompts,gkey);
         setStep(4,'done','Done ✓',`${S.imagePrompts.length} image(s) generated.`);
       } else {
-        setStep(4,'done','Done ✓','No image prompts found in V1.');
-        document.getElementById('o4').textContent='No image prompts extracted — check V1 format.';
+        // No image prompts = V1 likely truncated or format wrong — error loudly
+        setStep(4,'error','Failed','No image prompts found in V1 — V1 may be truncated or image prompt format is wrong. Expand Step 3 to inspect V1, then retry from Step 3.');
+        throw new Error('Step 4: No image prompts extracted from V1. Check V1 output in Step 3 — article may be truncated.');
       }
-      checkUrls(); // unlock assemble button if 0 images
+      checkUrls();
       step=5;
     }
 
@@ -1089,7 +1092,8 @@
       setStep(6,'active','Rewriting...'); setG('Claude applying fixes and voice rewrite...',true);
       const p4=getPrompt(S.docs.doc44,4);
       const u4=`${p4}\n\n${S.validation&&!S.validation.toLowerCase().includes('all items pass')?`GEMINI VALIDATION FEEDBACK:\n${S.validation}\n\n---`:'(All validation items passed — skip to Task 2)'}\n\nV1 ARTICLE TO REWRITE:\n${S.v1}`;
-      S.v2=await callClaude(sys,u4,akey,(p)=>{document.getElementById('o6').textContent=p;document.getElementById('sb6').classList.add('open');showV2(p);});
+      S.v2=await callClaude(sys,u4,akey,(p)=>{document.getElementById('o6').textContent=p;document.getElementById('sb6').classList.add('open');showV2(p);},{maxTokens:16000});
+      if(S.v2.length < 2000) throw new Error(`Step 6: V2 output is too short (${S.v2.length} chars) — rewrite may have failed. Check Step 6 output and retry.`);
       setStep(6,'done','Done ✓'); showV2(S.v2);
       step=7;
     }
@@ -1100,7 +1104,7 @@
       if(fb){
         setStep(7,'active','Fixing...'); setG('Claude applying your feedback...',true);
         const fix=`The operator reviewed V2 and flagged:\n\n"${fb}"\n\nFix this specific issue while preserving all structure, links, POV slots, and protected zones. Deliver the corrected V2.`;
-        S.v2=await callClaude(sys,fix+'\n\nCurrent V2:\n'+S.v2,akey,(p)=>showV2(p));
+        S.v2=await callClaude(sys,fix+'\n\nCurrent V2:\n'+S.v2,akey,(p)=>showV2(p),{maxTokens:16000});
       }
       setStep(7,'done','Done ✓');
       checkpointDone=true;
