@@ -208,6 +208,8 @@
   .preview-panel { flex:1; min-height:0; }
   .preview-tabs { display:flex; border-bottom:1px solid var(--border); flex-shrink:0; }
   .ptab { padding:6px 12px; font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1px; cursor:pointer; color:var(--faint); border-bottom:2px solid transparent; background:none; border-top:none; border-left:none; border-right:none; transition:color .2s,border-color .2s; }
+  .btn-copy-pane { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; padding:3px 10px; font-family:'Bebas Neue',sans-serif; font-size:10px; letter-spacing:1px; cursor:pointer; margin-left:auto; transition:border-color .2s,color .2s; }
+  .btn-copy-pane:hover { border-color:var(--accent); color:var(--accent); }
   .ptab.active { color:var(--accent); border-bottom-color:var(--accent); }
   .ptab:hover:not(.active) { color:var(--blue); }
   .ppane { display:none; flex-direction:column; overflow:hidden; }
@@ -596,7 +598,7 @@
     <div class="step-card" id="step17">
       <div class="step-header" onclick="toggleStep(17)">
         <div class="step-num">17</div>
-        <div class="step-info"><div class="step-title">Auto Download</div><div class="step-desc">Both output files download automatically to your machine</div></div>
+        <div class="step-info"><div class="step-title">Complete</div><div class="step-desc">Article ready — use download buttons above</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b17">Waiting</div><span class="schev closed" id="c17">▼</span></div>
       </div>
       <div class="step-body" id="sb17"><div class="sout-wrap"><div class="sout" id="o17"></div><button class="btn-copy-step" id="copy-btn-17" onclick="copyStepOutput(17)">Copy</button></div></div>
@@ -634,6 +636,7 @@
       <div class="panel-head">
         <div class="panel-title">Preview</div>
         <div class="panel-badge" id="prevBadge">Waiting...</div>
+        <button class="btn-copy-pane" id="btnCopyPane" onclick="copyActivePane()" style="display:none;">⎘ Copy</button>
       </div>
       <div class="preview-tabs">
         <button class="ptab active" id="tabV1" onclick="switchTab('v1')">V1 Article</button>
@@ -697,7 +700,7 @@
     client:null, topic:'', docs:{}, sheetRow:'',
     geminiResearch:'', v1:'', v1WithTables:'', validation:'', parsedFails:[],
     fixedArticle:'', protectedSentences:[], v2:'',
-    finalMD:'', finalTXT:'', finalSchema:'', checklistHTML:'',
+    finalMD:'', finalTXT:'', html1TXT:'', finalSchema:'', checklistHTML:'',
     imagePrompts:[], imageData:{}, imageUrls:{},
     tokens:{gi:0,go:0,ci:0,co:0,imgs:0}
   };
@@ -868,6 +871,7 @@
         finalSchema:S.finalSchema,
         parsedFails:S.parsedFails||[],
         protectedSentences:S.protectedSentences||[],
+        html1TXT:S.html1TXT||'',
         tokens:S.tokens,
         savedAt:Date.now()
       };
@@ -896,6 +900,7 @@
       S.topic=data.topic||''; S.tokens=data.tokens||S.tokens;
       if(data.parsedFails) S.parsedFails=data.parsedFails;
       if(data.protectedSentences) S.protectedSentences=data.protectedSentences;
+      if(data.html1TXT) S.html1TXT=data.html1TXT;
       if(data.v1){ S.v1=data.v1; showV1(data.v1); }
       if(data.v2){ S.v2=data.v2; showV2(data.v2); updateWordCount(data.v2); }
       if(data.finalTXT){ S.finalTXT=data.finalTXT; showHTML1(data.finalTXT); }
@@ -1225,7 +1230,23 @@
   }
 
   // ─── PREVIEW PANEL ────────────────────────────────────────
+
+  // ─── COPY ACTIVE PANE ─────────────────────────────────────
+  let activeTab = 'v1';
+  function copyActivePane() {
+    let text = '';
+    if(activeTab === 'v2') text = S.v2 || '';
+    else if(activeTab === 'html1') text = S.html1TXT || S.finalTXT || '';
+    else if(activeTab === 'htmlFinal') text = S.finalTXT || '';
+    else text = S.v1 || '';
+    if(!text){ alert('No content to copy yet.'); return; }
+    navigator.clipboard.writeText(text).then(()=>{
+      const btn = document.getElementById('btnCopyPane');
+      if(btn){ const orig=btn.textContent; btn.textContent='✓ Copied'; setTimeout(()=>{ btn.textContent=orig; },1500); }
+    }).catch(()=>{});
+  }
   function switchTab(tab) {
+    activeTab = tab;
     document.getElementById('tabV1')?.classList.toggle('active',tab==='v1');
     document.getElementById('tabV2')?.classList.toggle('active',tab==='v2');
     document.getElementById('tabHTML1')?.classList.toggle('active',tab==='html1');
@@ -1234,6 +1255,9 @@
     document.getElementById('pV2')?.classList.toggle('active',tab==='v2');
     document.getElementById('pHTML1')?.classList.toggle('active',tab==='html1');
     document.getElementById('pHTMLFinal')?.classList.toggle('active',tab==='htmlFinal');
+    // Show copy button for tabs with copyable content (not V1 — that changes mid-run)
+    const copyBtn = document.getElementById('btnCopyPane');
+    if(copyBtn) copyBtn.style.display = (tab==='v2'||tab==='html1'||tab==='htmlFinal') ? 'block' : 'none';
   }
 
   function showV1(text) {
@@ -1609,26 +1633,15 @@ ${schemaBlocksHTML}
     showHTMLFinal(S.finalTXT);
     S.checklistHTML=buildChecklistHTML(S.finalSchema);
     document.getElementById('rerunQC').style.display='block';
-    // Auto-proceed if QC was clean — only pause if there were failed diffs
-    const qcClean = res.includes('QC COMPLETE — NO CHANGES NEEDED') ||
-                    (res.includes('DIFF_START') && !res.includes('Failed: [^0]'));
-    if(qcClean){
-      // Clean pass — show output and proceed automatically
-      document.getElementById('outputsSec').classList.add('open');
-      saveSession();
-      setStep(16,'done','Done ✓','QC complete — no issues found. Files ready.');
-    } else {
-      // Issues found — pause for human review
-      const cp16Fb=await waitCp16();
-      if(cp16Fb){
-        setStep(16,'active','Fixing HTML...'); setG('Claude fixing HTML issues...',true);
-        await runQC(akey,cp16Fb,publishDate);
-        return;
-      }
-      document.getElementById('outputsSec').classList.add('open');
-      saveSession();
-      setStep(16,'done','Done ✓','QC complete — HTML approved.');
+    // Always pause for human review — you decide if QC passed
+    const cp16Fb=await waitCp16();
+    if(cp16Fb){
+      setStep(16,'active','Fixing HTML...'); setG('Claude fixing HTML issues...',true);
+      await runQC(akey,cp16Fb,publishDate);
+      return;
     }
+    saveSession();
+    setStep(16,'done','Done ✓','QC approved.');
   }
 
   async function rerunQC() {
@@ -2160,6 +2173,7 @@ ${S.v2}`;
         if(mdMatch&&mdMatch[1].trim().length>100){S.finalTXT=mdMatch[1].trim();}
         else{throw new Error('Step 15: No === HTML START === block found. Retry.');}
       }
+      S.html1TXT=S.finalTXT; // snapshot pre-QC HTML
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
       showHTML1(S.finalTXT);
       setStep(15,'done','Done ✓','HTML generated — review HTML 1 tab. QC runs next.');
@@ -2172,21 +2186,17 @@ ${S.v2}`;
       step=17;
     }
 
-    // STEP 17: Downloads — show buttons immediately, attempt auto-download as bonus
+    // STEP 17: Show download buttons — no auto-download
     if(step<=17){
       stopTimer();
-      setStep(17,'active','Complete'); setG('✓ Article complete — files ready.',false);
       const cost=((S.tokens.ci/1e6*3)+(S.tokens.co/1e6*15)).toFixed(3);
       const wc=countWords(S.v2);
       saveToHistory({topic:S.topic,client:S.client?.name||'—',date:new Date().toLocaleDateString(),duration:getTimerStr(),cost:`$${cost}`,words:`~${wc.toLocaleString()}`});
-      saveSession();
-      // Show output section with manual download buttons immediately
-      // Rebuild checklist in case QC updated finalTXT
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
+      saveSession();
       document.getElementById('outputsSec').classList.add('open');
-      setStep(17,'done','Done ✓','Complete — use download buttons above.');
-      // Attempt auto-download as bonus — non-blocking
-      try{ await uploadToDrive(dkey); } catch(e){ console.warn('Auto-download failed:',e.message); }
+      setStep(17,'done','Done ✓','✓ Article complete — use download buttons above.');
+      setG('✓ Article complete — download your files above.');
     }
   }
 
@@ -2257,7 +2267,7 @@ ${S.v2}`;
     S.client=clients[parseInt(cidx)]; S.topic=topic;
     S.tokens={gi:0,go:0,ci:0,co:0,imgs:0};
     S.imagePrompts=[]; S.imageData={}; S.imageUrls={};
-    S.parsedFails=[]; S.protectedSentences=[]; S.v1WithTables='';
+    S.parsedFails=[]; S.protectedSentences=[]; S.v1WithTables=''; S.html1TXT='';
     imagesValidated=false; checkpointDone=false; step9RetryCount=0;
 
     running=true; document.getElementById('runBtn').disabled=true;
