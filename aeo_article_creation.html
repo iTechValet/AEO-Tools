@@ -2291,9 +2291,14 @@ Your job in this call is to produce the article SKELETON — not full prose.
 
 WHAT TO WRITE IN FULL:
 1. The Blog Post Optimization Checklist (complete, with all metadata)
-2. The Direct Answer — 200-300 words. This is FINAL prose, written once, never rewritten. Sacred ground rules apply: NO links, NO images.
+2. The Direct Answer — MINIMUM 200 words, TARGET 250 words. This is the most important section. Write it as 3-4 solid paragraphs that fully answer the H1 question. Do NOT write one short paragraph and call it done. Sacred ground rules: NO links, NO images, NO prose after it except Last Updated and ToC.
 3. Last Updated line
 4. Table of Contents (with anchor links to all H2s)
+
+DIRECT ANSWER HARD RULE: After the Direct Answer, the ONLY things allowed before the first H2 are:
+- The Last Updated line
+- The Table of Contents
+Nothing else. No "In this article..." paragraphs. No context-setting prose. No bridge sentences. The DA ends, Last Updated appears, ToC appears, first H2 appears. That is the complete sequence.
 
 WHAT TO WRITE AS SKELETON (not full prose):
 - All H2 and H3 headings (write these in full — they are final)
@@ -2380,14 +2385,15 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
       if(failures4.length===0){
         setStep(4,'done','Done ✓','All skeleton checks passed — proceeding to prose.');
       } else {
-        const hardFails=failures4.filter(c=>!c.label.includes('stray prose')); // stray prose is a warning, not hard stop
+        // Only hard-fail on structural issues — DA length and stray prose can be fixed at Step 6
+        const hardFails=failures4.filter(c=>!c.label.includes('stray prose')&&!c.label.includes('Direct Answer present'));
         if(hardFails.length>0){
           append4(`\n⚠ ${hardFails.length} check(s) failed — rebuilding skeleton from Step 3.`);
           setStep(4,'error','Skeleton Failed');
           document.getElementById('r4').style.display='block';
           throw new Error(`Step 4: Skeleton integrity failed (${hardFails.length} checks). Rebuild from Step 3.`);
         } else {
-          append4(`\nWarnings noted — proceeding. Step 6 will enforce.`);
+          append4(`\nWarnings noted (DA length/prose gap will be enforced at Step 6) — proceeding to prose.`);
           setStep(4,'done','Done ✓ (warnings)');
         }
       }
