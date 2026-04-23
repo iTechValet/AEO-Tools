@@ -1560,7 +1560,7 @@ ${schemaBlocksHTML}
     const pubDateLine=publishDate?`\n\nPUBLISH DATE: ${publishDate} — If any date in the HTML does not match this exactly, correct it.`:'';
     const qcUser=`${p6}${pubDateLine}${feedbackLine}\n\nFINAL HTML TO QC:\n${S.finalTXT}`;
     const res=await callClaude(
-      `You are an expert AEO article HTML QC specialist. Output ONLY DIFF blocks for any corrections needed — do not return the full HTML. Use this exact format for each fix:\n\nDIFF_START\nFIND:\n[exact HTML string to find]\nREPLACE:\n[exact replacement HTML, or [DELETE] to remove]\nDIFF_END\n\nIf no corrections are needed, output only: QC COMPLETE — NO CHANGES NEEDED\n\n4.3B — CLIENT IDENTITY CARD + HTML STYLE SPEC:\n${S.docs.doc43B}`,
+      `You are an expert AEO article HTML QC specialist. Output ONLY DIFF blocks for any corrections needed — do not return the full HTML. Use this exact format for each fix:\n\nDIFF_START\nFIND:\n[exact HTML string to find]\nREPLACE:\n[exact replacement HTML, or [DELETE] to remove]\nDIFF_END\n\nIf no corrections are needed, output only: QC COMPLETE — NO CHANGES NEEDED\n\nCRITICAL CHECK: Scan for any markdown table syntax (lines starting with | and ending with |, separator rows with ---). If found, these are unconverted markdown tables — convert them to proper branded HTML tables per 4.3B spec before anything else.\n\n4.3B — CLIENT IDENTITY CARD + HTML STYLE SPEC:\n${S.docs.doc43B}`,
       qcUser, akey,
       (partial)=>{document.getElementById('o14').textContent=partial;document.getElementById('sb14').classList.add('open');}
     );
@@ -1604,10 +1604,14 @@ ${schemaBlocksHTML}
 
   // ─── FAIL PARSER ──────────────────────────────────────────
   function parseFails(validationText) {
+    // Strip markdown code fences that might wrap the output
+    const cleaned=validationText.replace(/```[\w]*\n?/g,'').replace(/```/g,'');
     const fails=[];
-    const blocks=validationText.match(/FAIL_START[\s\S]*?FAIL_END/g)||[];
+    const blocks=cleaned.match(/FAIL_START[\s\S]*?FAIL_END/g)||[];
+    let autoId=1;
     for(const block of blocks){
-      const id=(block.match(/ID:\s*(.+)/)||[])[1]?.trim()||'';
+      let id=(block.match(/ID:\s*(.+)/)||[])[1]?.trim()||'';
+      if(!id) id=`FAIL_${String(autoId++).padStart(3,'0')}`; // fallback ID
       const type=(block.match(/Type:\s*(.+)/)||[])[1]?.trim()||'WRONG';
       const desc=(block.match(/Description:\s*([\s\S]*?)(?=\nFind:|\nReplace:|\nWhat:|\nContext:|\nPlacement:|\nScope:|\nFAIL_END)/)||[])[1]?.trim()||'';
       const find=(block.match(/Find:\s*([\s\S]*?)(?=\nReplace:|\nScope:|\nWhat:|\nContext:|\nPlacement:|\nFAIL_END)/)||[])[1]?.trim()||'';
@@ -1619,9 +1623,10 @@ ${schemaBlocksHTML}
       const missing=what||context||'';
       fails.push({id,type,desc,find,replace,scope,missing,what,context,placement});
     }
-    const flags=validationText.match(/FLAG_START[\s\S]*?FLAG_END/g)||[];
+    const flags=cleaned.match(/FLAG_START[\s\S]*?FLAG_END/g)||[];
     for(const block of flags){
-      const id=(block.match(/ID:\s*(.+)/)||[])[1]?.trim()||'';
+      let id=(block.match(/ID:\s*(.+)/)||[])[1]?.trim()||'';
+      if(!id) id=`FLAG_${String(autoId++).padStart(3,'0')}`;
       const desc=(block.match(/Description:\s*([\s\S]*?)(?=\nFind:|\nFix:|\nFLAG_END)/)||[])[1]?.trim()||'';
       const flagFind=(block.match(/Find:\s*([\s\S]*?)(?=\nFix:|\nFLAG_END)/)||[])[1]?.trim()||'';
       const flagFix=(block.match(/Fix:\s*([\s\S]*?)(?=\nFLAG_END)/)||[])[1]?.trim()||'';
@@ -1649,22 +1654,37 @@ ${schemaBlocksHTML}
     for (const block of blocks) {
       const findMatch = block.match(/FIND:\n([\s\S]*?)(?=\nREPLACE:|DIFF_END)/);
       const replaceMatch = block.match(/REPLACE:\n([\s\S]*?)(?=\nDIFF_END)/);
+      const scopeMatch = block.match(/SCOPE:\s*(.+)/i);
+      const scope = scopeMatch ? scopeMatch[1].trim().toUpperCase() : 'FIRST_INSTANCE';
       if (!findMatch || !replaceMatch) continue;
       const findStr = findMatch[1].trim();
       const replaceStr = replaceMatch[1].trim() === '[DELETE]' ? '' : replaceMatch[1].trim();
+
       if (result.includes(findStr)) {
-        result = result.replace(findStr, replaceStr);
-        applied++;
-        log.push('✅ Applied: ' + findStr.substring(0,60) + '...');
+        if (scope === 'ALL_INSTANCES') {
+          // Replace all occurrences
+          let count = 0;
+          while (result.includes(findStr)) { result = result.replace(findStr, replaceStr); count++; }
+          applied++;
+          log.push(`✅ Applied (ALL_INSTANCES ×${count}): ` + findStr.substring(0,60) + '...');
+        } else {
+          result = result.replace(findStr, replaceStr);
+          applied++;
+          log.push('✅ Applied: ' + findStr.substring(0,60) + '...');
+        }
       } else {
-        // Fuzzy: normalize whitespace in search string only — never collapse article
+        // Fuzzy: normalize whitespace
         const findNorm = findStr.replace(/\s+/g,' ').trim();
         const articleLines = result.split('\n');
         let fuzzyFound = false;
         for (let li = 0; li < articleLines.length; li++) {
           if (articleLines[li].replace(/\s+/g,' ').trim().includes(findNorm)) {
-            articleLines[li] = articleLines[li].replace(findStr.trim(), replaceStr);
-            result = articleLines.join('\n');
+            if (scope === 'ALL_INSTANCES') {
+              result = result.split(findStr.trim()).join(replaceStr);
+            } else {
+              articleLines[li] = articleLines[li].replace(findStr.trim(), replaceStr);
+              result = articleLines.join('\n');
+            }
             applied++;
             log.push('⚠️ Fuzzy applied: ' + findStr.substring(0,60) + '...');
             fuzzyFound = true;
@@ -1682,13 +1702,34 @@ ${schemaBlocksHTML}
 
 
   // ─── V1 INTEGRITY GATE CHECKS (Step 5) ───────────────────
+  function countCompleteTables(text) {
+    // A complete table needs: header row | separator row (with ---) | at least 1 data row
+    const lines=text.split('\n');
+    let count=0; let i=0;
+    while(i<lines.length){
+      const l=lines[i].trim();
+      if(l.startsWith('|') && l.endsWith('|')){
+        // Potential header row — check next line is separator
+        const next=(lines[i+1]||'').trim();
+        if(next.startsWith('|') && /\|\s*[-:]+\s*\|/.test(next)){
+          // Separator found — check at least 1 data row follows
+          const data=(lines[i+2]||'').trim();
+          if(data.startsWith('|') && data.endsWith('|')){
+            count++; i+=3; continue;
+          }
+        }
+      }
+      i++;
+    }
+    return count;
+  }
+
   function runV1GateChecks(v1) {
     const results=[];
-    // Tables
-    const mdTableRows=(v1.match(/^\|.+\|/gm)||[]).length;
-    const tablePH=(v1.match(/\[TABLE NEEDED/gi)||[]).length;
-    const tableOk=mdTableRows>=4||tablePH>=3;
-    results.push({key:'tables',label:'Min 3 tables',pass:tableOk,detail:tablePH>0?`${tablePH} placeholder(s) remaining`:`~${mdTableRows} table rows`});
+    // Tables — count complete tables not just pipe rows
+    const completeTableCount=countCompleteTables(v1);
+    const tableOk=completeTableCount>=3;
+    results.push({key:'tables',label:'Min 3 complete tables',pass:tableOk,detail:`${completeTableCount} complete table(s) found`});
     // External links
     const extLinks=(v1.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g)||[]).filter(l=>!l.match(/itechvalet\.com/i));
     results.push({key:'extLinks',label:'Min 4 external hyperlinks',pass:extLinks.length>=4,detail:`${extLinks.length} found`});
@@ -1738,9 +1779,9 @@ ${schemaBlocksHTML}
   // ─── V2 INTEGRITY GATE CHECKS (Step 11) ──────────────────
   function runV2GateChecks(v2) {
     const results=[];
-    // Tables
-    const mdTableRows=(v2.match(/^\|.+\|/gm)||[]).length;
-    results.push({key:'tables',label:'Min 3 tables survived rewrite',pass:mdTableRows>=4,detail:`~${mdTableRows} table rows`});
+    // Tables — count complete tables
+    const completeTableCount=countCompleteTables(v2);
+    results.push({key:'tables',label:'Min 3 tables survived rewrite',pass:completeTableCount>=3,detail:`${completeTableCount} complete table(s) found`});
     // External links
     const extLinks=(v2.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g)||[]).filter(l=>!l.match(/itechvalet\.com/i));
     results.push({key:'extLinks',label:'Min 4 external links survived',pass:extLinks.length>=4,detail:`${extLinks.length} found`});
@@ -1753,6 +1794,23 @@ ${schemaBlocksHTML}
     // FAQ
     const hasFAQ=/##\s*(frequently asked|faq)/i.test(v2);
     results.push({key:'faq',label:'FAQ section survived',pass:hasFAQ,detail:hasFAQ?'Found':'Missing'});
+    // Direct answer integrity — compare first 200 chars of direct answer between V1 and V2
+    const extractDA=(text)=>{
+      const h1=text.match(/^(?!##)#\s+.+/m);
+      if(!h1) return '';
+      const after=text.slice(text.indexOf(h1[0])+h1[0].length);
+      const sep=after.indexOf('\n---');
+      const afterSep=sep>-1?after.slice(sep+4):after;
+      const repH1=afterSep.match(/^(?!##)#\s+.+/m);
+      let start=0; if(repH1) start=afterSep.indexOf(repH1[0])+repH1[0].length;
+      const section=afterSep.slice(start);
+      const firstH2=section.search(/^##\s/m);
+      return (firstH2>0?section.slice(0,firstH2):section.slice(0,1500)).replace(/\[H[123]\]/gi,'').trim().substring(0,300);
+    };
+    const v1DA=extractDA(S.v1||'');
+    const v2DA=extractDA(v2);
+    const daIntact=v1DA.length<50||v2DA.length>50; // if V1 has a DA, V2 must too
+    results.push({key:'directAnswer',label:'Direct answer survived rewrite',pass:daIntact,detail:daIntact?'Present':'Missing or gutted'});
     // Length check vs V1
     const v1Len=S.v1?S.v1.length:0;
     const ratio=v1Len>0?v2.length/v1Len:1;
@@ -1832,12 +1890,23 @@ All other requirements (POV slots, links, FAQ, CTA, image prompts, direct answer
     // STEP 4: Claude — Build Tables Only
     if(step<=4){
       setStep(4,'active','Building tables...'); setG('Claude building tables...',true);
-      const placeholderSpecs=[];
-      const phRegex=/\[TABLE NEEDED[\s\S]*?\]/g;
-      let phMatch; let phIdx=0;
-      while((phMatch=phRegex.exec(S.v1))!==null) placeholderSpecs.push({index:phIdx++,spec:phMatch[0]});
-      const tabSys=`You are building markdown tables for an AEO article. Your ONLY job is to output table blocks for [TABLE NEEDED] placeholders. Do NOT return the full article. Output ONLY the table blocks in the exact format below.\n\n4.3B:\n${S.docs.doc43B}`;
-      const tabUser=`PUBLISH DATE: ${publishDate}
+      let tableAttempt=0;
+      const MAX_TABLE_ATTEMPTS=3;
+      // Save pre-table V1 so we can restore placeholders on retry
+      const v1PreTable=S.v1;
+      while(tableAttempt<MAX_TABLE_ATTEMPTS){
+        const placeholderSpecs=[];
+        const phRegex=/\[TABLE NEEDED[\s\S]*?\]/g;
+        let phMatch; let phIdx=0;
+        const v1ForScan=tableAttempt===0?v1PreTable:S.v1;
+        // Restore placeholders if retrying and they're gone
+        if(tableAttempt>0){
+          const remainingPH=(S.v1.match(/\[TABLE NEEDED/gi)||[]).length;
+          if(remainingPH===0){ S.v1=v1PreTable; }
+        }
+        while((phMatch=phRegex.exec(S.v1))!==null) placeholderSpecs.push({index:phIdx++,spec:phMatch[0]});
+        const tabSys=`You are building markdown tables for an AEO article. Your ONLY job is to output table blocks for [TABLE NEEDED] placeholders. Do NOT return the full article. Output ONLY the table blocks in the exact format below.\n\n4.3B:\n${S.docs.doc43B}`;
+        const tabUser=`PUBLISH DATE: ${publishDate}
 
 RESEARCH BRIEF (context only):
 ${S.geminiResearch}
@@ -1850,6 +1919,8 @@ TABLE_END_[N]
 
 Where [N] is the placeholder number starting at 0.
 
+CRITICAL: You MUST output a TABLE_START/TABLE_END block for EVERY placeholder listed below. Missing a placeholder is a failure.
+
 Rules:
 - Use ONLY data and claims already present in the article prose surrounding each placeholder
 - Do NOT invent statistics or new claims
@@ -1858,28 +1929,44 @@ Rules:
 - Output markdown tables ONLY — no HTML, no style tags
 - Output ONLY the TABLE_START/TABLE_END blocks — nothing else
 
-PLACEHOLDERS TO BUILD:
+PLACEHOLDERS TO BUILD (${placeholderSpecs.length} total — build ALL of them):
 ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}`;
-      const tableResult=await callClaude(tabSys,tabUser,akey,(p)=>{document.getElementById('o4').textContent=p;document.getElementById('sb4').classList.add('open');},{maxTokens:64000});
-      const tableBlocks=[];
-      const tbRegex=/TABLE_START_(\d+)([\s\S]*?)TABLE_END_\d+/g;
-      let tbMatch;
-      while((tbMatch=tbRegex.exec(tableResult))!==null) tableBlocks[parseInt(tbMatch[1])]=tbMatch[2].trim();
-      if(tableBlocks.length>0){
-        let updated=S.v1; let insertCount=0;
-        let idx2=0;
-        updated=updated.replace(/\[TABLE NEEDED[\s\S]*?\]/g,(match)=>{
-          const tbl=tableBlocks[idx2++];
-          if(tbl){insertCount++;return tbl;}
-          return match;
-        });
-        S.v1=updated; S.imagePrompts=extractImgPrompts(S.v1); showV1(S.v1);
-        setStep(4,'done','Done ✓',`${insertCount} table(s) inserted. ${tableBlocks.length} built.`);
-      } else if(tableResult.length>2000){
-        S.v1=tableResult; S.imagePrompts=extractImgPrompts(S.v1); showV1(S.v1);
-        setStep(4,'done','Done ✓','Fallback: full article used.');
-      } else {
-        throw new Error(`Step 4: No TABLE_START blocks found (${tableResult.length} chars). Retry.`);
+        const tableResult=await callClaude(tabSys,tabUser,akey,(p)=>{document.getElementById('o4').textContent=`Attempt ${tableAttempt+1}/${MAX_TABLE_ATTEMPTS}:\n${p}`;document.getElementById('sb4').classList.add('open');},{maxTokens:64000});
+        const tableBlocks=[];
+        const tbRegex=/TABLE_START_(\d+)([\s\S]*?)TABLE_END_\d+/g;
+        let tbMatch;
+        while((tbMatch=tbRegex.exec(tableResult))!==null) tableBlocks[parseInt(tbMatch[1])]=tbMatch[2].trim();
+        if(tableBlocks.length>0){
+          let updated=v1PreTable; let insertCount=0; let idx2=0;
+          updated=updated.replace(/\[TABLE NEEDED[\s\S]*?\]/g,(match)=>{
+            const tbl=tableBlocks[idx2++];
+            if(tbl){insertCount++;return tbl;}
+            return match;
+          });
+          S.v1=updated;
+          // Count complete tables — need header + separator + at least 1 data row
+          const completeTableCount=countCompleteTables(S.v1);
+          if(completeTableCount>=3){
+            S.imagePrompts=extractImgPrompts(S.v1); showV1(S.v1);
+            setStep(4,'done','Done ✓',`${insertCount} table(s) inserted. ${completeTableCount} complete tables verified.`);
+            break;
+          } else {
+            tableAttempt++;
+            document.getElementById('o4').textContent+=`\n\n⚠ Only ${completeTableCount} complete table(s) found — need 3. ${tableAttempt<MAX_TABLE_ATTEMPTS?`Retrying (${tableAttempt}/${MAX_TABLE_ATTEMPTS})...`:'Hard stop.'}`;
+            if(tableAttempt>=MAX_TABLE_ATTEMPTS){
+              throw new Error(`Step 4: Only ${completeTableCount} complete table(s) built after ${MAX_TABLE_ATTEMPTS} attempts. Retry from Step 3.`);
+            }
+          }
+        } else if(tableResult.length>2000){
+          S.v1=tableResult; S.imagePrompts=extractImgPrompts(S.v1); showV1(S.v1);
+          setStep(4,'done','Done ✓','Fallback: full article used.');
+          break;
+        } else {
+          tableAttempt++;
+          if(tableAttempt>=MAX_TABLE_ATTEMPTS){
+            throw new Error(`Step 4: No TABLE_START blocks found after ${MAX_TABLE_ATTEMPTS} attempts. Retry from Step 3.`);
+          }
+        }
       }
       step=5;
     }
@@ -1955,7 +2042,7 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
       const p3=getPrompt(S.docs.doc44,3);
       const bpAnchors=(S.geminiResearch.match(/Semantic Anchor:\s*"([^"]+)"/g)||[]).map(l=>l.replace(/Semantic Anchor:\s*"/,'').replace(/"$/,''));
       const linkListStr=bpAnchors.map(a=>`Anchor text: "${a}"`).join('\n');
-      const vp=`You are operating inside the iTech Valet AI Authority Pipeline as Quality Assurance Auditor.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nBUSINESS IDENTITY LOCK (2.2):\n${S.docs.doc22}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${S.geminiResearch}\n\nLINK VERIFICATION — these anchor phrases should appear in the article:\n${linkListStr}\n\n---\n\n${p3}\n\nArticle text below:\n${S.v1}`;
+      const vp=`You are operating inside the iTech Valet AI Authority Pipeline as Quality Assurance Auditor.\n\nCRITICAL OUTPUT RULE: Output ALL FAIL_START/FAIL_END and FLAG_START/FLAG_END blocks FIRST. Output the summary line ("VALIDATION COMPLETE — X FAILs...") LAST, never first.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nBUSINESS IDENTITY LOCK (2.2):\n${S.docs.doc22}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${S.geminiResearch}\n\nLINK VERIFICATION — these anchor phrases should appear in the article:\n${linkListStr}\n\n---\n\n${p3}\n\nArticle text below:\n${S.v1}`;
       S.validation=await callGemini(vp,gkey);
       setStep(7,'done','Done ✓',S.validation);
       S.parsedFails=parseFails(S.validation);
@@ -1964,7 +2051,8 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
 
     // STEP 8: Claude Apply Gemini Fixes (auto — with FAIL list shown, 2 auto-retries)
     if(step<=8){
-      const allPass=S.parsedFails.length===0||S.validation.toLowerCase().includes('all items pass');
+      const hasFails=S.validation.includes('FAIL_START')||S.parsedFails.length>0;
+      const allPass=!hasFails&&S.validation.toLowerCase().includes('all items pass');
       if(allPass){
         setStep(8,'done','Skipped — No FAILs','Gemini validation passed. No fixes needed.');
         setStep(9,'done','Skipped — N/A');
@@ -1988,7 +2076,8 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
           const {result,applied,failed,log}=applyDiffs(S.v1,fixResult);
           S.protectedSentences=S.parsedFails.filter(f=>f.replace&&f.replace.length>20).map(f=>f.replace);
           S.v1=result; showV1(S.v1);
-          document.getElementById('o8').textContent=`GEMINI FAILs:\n${failSummary}\n\n---\n\n${log.join('\n')}\n\nApplied: ${applied}, Failed: ${failed}`;
+          const failNote=failed>0?`\n\n⚠️ ${failed} diff(s) failed to apply — these items may still need fixing.`:'';
+          document.getElementById('o8').textContent=`GEMINI FAILs:\n${failSummary}\n\n---\n\n${log.join('\n')}\n\nApplied: ${applied}, Failed: ${failed}${failNote}`;
         } else if(fixResult.length>2000){
           S.v1=fixResult; showV1(S.v1);
         }
@@ -1999,7 +2088,8 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
         const revalResult=await callGemini(revalPrompt,gkey);
         document.getElementById('o8').textContent+=`\n\n--- GEMINI RE-VALIDATION ---\n${revalResult}`;
         S.parsedFails=S.parsedFails.filter(f=>{
-          const pat=new RegExp(f.id+':\\s*FAIL','i');
+          if(!f.id||f.type==='FLAG') return false; // never re-queue flags or empty IDs
+          const pat=new RegExp('\\b'+f.id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b[^:]*:\\s*FAIL','i');
           return pat.test(revalResult);
         });
         step8RetryCount++;
@@ -2162,9 +2252,16 @@ ${S.v2}`;
         else{throw new Error('Step 13: No === HTML START === block found. Retry.');}
       }
       S.html1TXT=S.finalTXT;
+      // Post-assembly check: flag if markdown tables survived into HTML
+      const mdTablesInHTML=(S.finalTXT.match(/^\|.+\|$/gm)||[]).length;
+      const htmlTablesInHTML=(S.finalTXT.match(/<table/gi)||[]).length;
+      let step13Note='HTML generated — review HTML 1 tab. QC runs next.';
+      if(mdTablesInHTML>3&&htmlTablesInHTML===0){
+        step13Note=`⚠️ Warning: ${mdTablesInHTML} markdown table rows found in HTML — tables may not have been converted. Step 14 QC will flag this.`;
+      }
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
       showHTML1(S.finalTXT);
-      setStep(13,'done','Done ✓','HTML generated — review HTML 1 tab. QC runs next.');
+      setStep(13,'done','Done ✓',step13Note);
       step=14;
     }
 
@@ -2211,6 +2308,7 @@ ${S.v2}`;
     const rb=document.getElementById(`r${n}`); if(rb) rb.style.display='none';
     if(n>=12){imagesValidated=false;checkpointDone=false;asmResolve=null;}
     if(n<=8){step8RetryCount=0;}
+    if(n<=7){step8RetryCount=0;} // always reset on step 7 retry
     if(n<=5){step5RetryCount=0;}
     running=true; document.getElementById('runBtn').disabled=true;
     document.getElementById('runBtn').style.display='none';
