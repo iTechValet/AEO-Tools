@@ -849,9 +849,11 @@
         v2:S.v2,
         finalTXT:S.finalTXT,
         finalSchema:S.finalSchema,
+        checklistHTML:S.checklistHTML||'',
         parsedFails:S.parsedFails||[],
         protectedSentences:S.protectedSentences||[],
         html1TXT:S.html1TXT||'',
+        imageUrls:S.imageUrls||{},
         tokens:S.tokens,
         savedAt:Date.now()
       };
@@ -881,13 +883,21 @@
       if(data.parsedFails) S.parsedFails=data.parsedFails;
       if(data.protectedSentences) S.protectedSentences=data.protectedSentences;
       if(data.html1TXT) S.html1TXT=data.html1TXT;
+      if(data.imageUrls) S.imageUrls=data.imageUrls;
       if(data.v1){ S.v1=data.v1; showV1(data.v1); }
       if(data.v2){ S.v2=data.v2; showV2(data.v2); updateWordCount(data.v2); }
-      if(data.finalTXT){ S.finalTXT=data.finalTXT; showHTML1(data.finalTXT); }
+      if(data.finalTXT){ S.finalTXT=data.finalTXT; showHTML1(data.finalTXT); showHTMLFinal(data.finalTXT); }
       if(data.finalSchema) S.finalSchema=data.finalSchema;
+      // Rebuild checklistHTML — use saved version or rebuild from schema
+      if(data.checklistHTML){ S.checklistHTML=data.checklistHTML; }
+      else if(data.finalSchema){ S.checklistHTML=buildChecklistHTML(data.finalSchema); }
+      // Show download buttons if we have the outputs
+      if(S.finalTXT||S.checklistHTML){
+        document.getElementById('outputsSec').classList.add('open');
+      }
       updateCost();
       dismissRestore();
-      setG(`Session restored: "${data.topic.substring(0,50)}"`);
+      setG(`✓ Session restored: "${data.topic.substring(0,50)}" — download buttons active.`);
     } catch(e){ console.warn('Restore failed:',e); }
   }
 
