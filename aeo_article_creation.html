@@ -385,12 +385,6 @@
     </div>
   </div>
 
-  <!-- RUN HISTORY -->
-  <div class="history-toggle" onclick="toggleHistory()">
-    <span>Run History <span id="histCount" style="font-size:10px;opacity:0.6;margin-left:4px;"></span></span>
-    <span id="histChev" style="font-size:11px;">▼</span>
-  </div>
-  <div class="history-list" id="historyList"></div>
 
 </div><!-- end control-panel -->
 </div><!-- end top-section -->
@@ -606,6 +600,15 @@
 <!-- RIGHT -->
 <div class="right-col">
   <div class="right-panel">
+
+    <!-- RUN HISTORY -->
+    <div class="panel-card" style="padding:0;">
+      <div class="history-toggle" onclick="toggleHistory()" style="border-radius:10px;margin:0;">
+        <span>Run History <span id="histCount" style="font-size:10px;opacity:0.6;margin-left:4px;"></span></span>
+        <span id="histChev" style="font-size:11px;">▼</span>
+      </div>
+      <div class="history-list" id="historyList"></div>
+    </div>
 
     <!-- IMAGES -->
     <div class="panel-card">
