@@ -358,8 +358,9 @@
     </div>
     <div class="stat-divider" id="restoreDivider" style="display:none;"></div>
     <div class="stat-item" id="restoreBanner" style="display:none;align-items:center;gap:8px;flex-direction:row;">
-      <span id="restoreMsg" style="font-size:11px;color:var(--accent);white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis;"></span>
+      <span id="restoreMsg" style="font-size:11px;color:var(--accent);white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis;"></span>
       <button class="btn-restore" onclick="restoreSession()" style="white-space:nowrap;">Restore</button>
+      <button id="continueFromBtn" class="btn-restore" onclick="continueFromRestore()" style="display:none;white-space:nowrap;background:var(--green);">Continue →</button>
       <button class="btn-dismiss" onclick="dismissRestore()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px;">✕</button>
     </div>
   </div>
@@ -863,6 +864,8 @@
       const data={
         topic:S.topic,
         clientName:S.client?.name||'',
+        geminiResearch:S.geminiResearch||'',
+        sheetRow:S.sheetRow||'',
         v1:S.v1,
         v2:S.v2,
         finalTXT:S.finalTXT,
@@ -926,7 +929,8 @@
       if(data.protectedSentences) S.protectedSentences=data.protectedSentences;
       if(data.html1TXT) S.html1TXT=data.html1TXT;
       if(data.imageUrls) S.imageUrls=data.imageUrls;
-      // Populate topic input so user can see what was restored
+      if(data.geminiResearch) S.geminiResearch=data.geminiResearch;
+      if(data.sheetRow) S.sheetRow=data.sheetRow;
       const topicInput=document.getElementById('topicInput');
       if(topicInput && data.topic) topicInput.value=data.topic;
       if(data.v1){ S.v1=data.v1; showV1(data.v1); }
@@ -935,14 +939,67 @@
       if(data.finalSchema) S.finalSchema=data.finalSchema;
       if(data.finalSchema){ S.checklistHTML=buildChecklistHTML(data.finalSchema); showSchema(data.finalSchema, data.publishDate||'', ''); }
       else if(data.checklistHTML){ S.checklistHTML=data.checklistHTML; }
-      if(S.finalTXT||S.checklistHTML){
-        document.getElementById('outputsSec').classList.add('open');
-      }
+      if(S.finalTXT||S.checklistHTML){ document.getElementById('outputsSec').classList.add('open'); }
       updateCost();
-      dismissRestore();
-      const stage=data.finalTXT?'HTML ready — download buttons active':data.v2?'V2 ready — retry from Step 12':data.v1?'V1 ready — retry from Step 4':'';
-      setG(`✓ Session restored: "${data.topic.substring(0,50)}" — ${stage}.`);
+      // Determine continue step and show green button
+      let continueStep=null;
+      if(data.finalTXT) continueStep=14;
+      else if(data.v2) continueStep=12;
+      else if(data.v1) continueStep=7; // V1 done, images not yet generated
+      const continueBtn=document.getElementById('continueFromBtn');
+      if(continueStep && continueBtn){
+        continueBtn.textContent=`Continue from Step ${continueStep} →`;
+        continueBtn.style.display='block';
+        continueBtn._step=continueStep;
+      }
+      const stage=data.finalTXT?'HTML ready':data.v2?'V2 ready':data.v1?'V1 ready':'';
+      setG(`✓ Restored: "${data.topic.substring(0,40)}" — ${stage}. Select client then hit Continue.`);
     } catch(e){ console.warn('Restore failed:',e); }
+  }
+
+  function continueFromRestore() {
+    const btn=document.getElementById('continueFromBtn');
+    const step=btn?._step;
+    if(!step){ alert('No restore data — run fresh.'); return; }
+    const cidx=document.getElementById('clientSelect').value;
+    if(cidx===''){ alert('Select a client first, then hit Continue.'); return; }
+    const akey=document.getElementById('keyAnthropic').value.trim();
+    const gkey=document.getElementById('keyGemini').value.trim();
+    const dkey=document.getElementById('keyDrive').value.trim();
+    if(!akey||!gkey){ alert('API keys required.'); return; }
+    const clients=JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');
+    const globals=JSON.parse(localStorage.getItem(GLOBALS_KEY)||'{}');
+    S.client=clients[parseInt(cidx)];
+    dismissRestore();
+    // Mark completed steps as done visually
+    for(let i=1;i<step;i++) setStep(i,'done','Done ✓');
+    running=true;
+    document.getElementById('runBtn').disabled=true;
+    document.getElementById('runBtn').style.display='none';
+    document.getElementById('stopBtn').style.display='flex';
+    resetTimer(); startTimer();
+    // Need docs loaded first for steps that require them
+    const needDocs=step<=14;
+    (async()=>{
+      try{
+        if(needDocs){
+          setStep(1,'active','Loading...'); setG('Fetching documents from Drive...',true);
+          const[doc43A,doc44,doc22,doc23,doc43B]=await Promise.all([
+            fetchFile(globals.folder43A,dkey),fetchFile(globals.folder44,dkey),
+            fetchFile(S.client.folder22,dkey),fetchFile(S.client.folder23,dkey),
+            fetchFile(S.client.folder43B,dkey)
+          ]);
+          S.docs={doc43A,doc44,doc22,doc23,doc43B};
+          setStep(1,'done','Done ✓');
+          setStep(2,'done','Done ✓');
+        }
+        await runFrom(step,buildSys(),akey,gkey,dkey);
+      } catch(err){ handleErr(err); }
+      running=false;
+      document.getElementById('runBtn').disabled=false;
+      document.getElementById('runBtn').style.display='flex';
+      document.getElementById('stopBtn').style.display='none';
+    })();
   }
 
 
@@ -1033,7 +1090,10 @@
 
   // ─── IMAGE EXTRACTION ─────────────────────────────────────
   function extractImgPrompts(v1) {
-    const prompts=[]; const lines=v1.split('\n');
+    // Stop extraction at the IMAGE PROMPTS block to avoid duplicates
+    const imgBlockIdx = v1.search(/^##\s*IMAGE PROMPTS/im);
+    const content = imgBlockIdx > 0 ? v1.slice(0, imgBlockIdx) : v1;
+    const prompts=[]; const lines=content.split('\n');
     let cur=null, h2='';
     for(const line of lines){
       const t=line.trim();
@@ -1045,7 +1105,9 @@
         if(cur){ const alt=t.replace(/^\*\*ALT TEXT:\s*/i,'').replace(/\*\*$/,'').replace(/^ALT TEXT:\s*/i,'').replace(/^ALT:\s*/i,'').trim(); prompts.push({prompt:cur,alt,h2}); cur=null; }
       }
     }
-    return prompts;
+    // Deduplicate by alt text as a safety net
+    const seen=new Set();
+    return prompts.filter(p=>{ if(seen.has(p.alt)) return false; seen.add(p.alt); return true; });
   }
 
   // ─── IMAGE GRID ───────────────────────────────────────────
