@@ -155,7 +155,7 @@
   .panel-badge { font-size:10px; color:var(--faint); }
 
   /* IMAGES PANEL */
-  .img-grid { padding:10px 14px; max-height:480px; overflow-y:auto; }
+  .img-grid { padding:10px 14px; max-height:620px; overflow-y:auto; }
   .img-card { background:#f9f9f9; border:1px solid var(--border); border-radius:10px; margin-bottom:10px; overflow:hidden; }
   .img-card:last-child { margin-bottom:0; }
   .img-card-head { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--border); gap:8px; flex-wrap:wrap; }
@@ -318,7 +318,7 @@
   <div class="cp-row article">
     <div class="cp-group">
       <div class="cp-label">Client</div>
-      <select class="cp-select" id="clientSelect"><option value="">— Select client —</option></select>
+      <select class="cp-select" id="clientSelect" onchange="onClientChange()"><option value="">— Select client —</option></select>
     </div>
     <div class="cp-group">
       <div class="cp-label">Topic — exact match to Column D</div>
@@ -610,8 +610,8 @@
         <div style="padding:16px;text-align:center;color:#ccc;font-size:11px;">Images appear here after Step 3</div>
       </div>
       <div class="pub-row">
-        <label>Publish Date</label>
-        <input type="date" id="publishDate" />
+        <label style="color:var(--orange);font-weight:600;">Publish Date <span style="font-size:10px;opacity:0.8;">(required before Step 13)</span></label>
+        <input type="date" id="publishDate" style="border:2px solid var(--orange);border-radius:6px;padding:6px 10px;font-family:'Lexend',sans-serif;font-size:13px;color:var(--blue);outline:none;background:#fff8f4;" />
       </div>
       <div class="assemble-row">
         <button class="btn-assemble" id="assembleBtn" onclick="validateImages()" disabled>Validate Images</button>
@@ -699,10 +699,23 @@
   // ─── INIT ─────────────────────────────────────────────────
   window.addEventListener('load',()=>{
     loadClients(); loadKeys(); loadSessionExpiry();
-    document.getElementById('publishDate').value = new Date().toISOString().split('T')[0];
+    // Publish date defaults to blank — must be set before Step 13
+    document.getElementById('publishDate').value = '';
     renderHistory();
     checkSessionRestore();
   });
+
+  function onClientChange() {
+    if(!running){
+      S.docs={}; S.sheetRow=''; S.geminiResearch=''; S.v1=''; S.v2='';
+      S.finalTXT=''; S.finalSchema=''; S.checklistHTML=''; S.html1TXT='';
+      S.parsedFails=[]; S.parsedFlags=[]; S.protectedSentences=[];
+      S.imagePrompts=[]; S.imageData={}; S.imageUrls={};
+      localStorage.removeItem(SESSION_KEY);
+      for(let i=1;i<=15;i++) setStep(i,'waiting','Waiting');
+      setG('Client changed — session cleared. Ready for new run.');
+    }
+  }
 
   function loadClients() {
     const cl=JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');
@@ -1930,7 +1943,14 @@ Data constraint: Use only facts already stated in surrounding prose — do not i
 
 Insert at least 3 of these placeholders. Tables are built in a dedicated separate step.
 All other requirements (POV slots, links, FAQ, CTA, image prompts, direct answer) apply normally.`;
-      const u3=`PUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${tblInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}`;
+      const anchorInstr=`
+CRITICAL ANCHOR TEXT RULE — INTERNAL LINKS:
+Every internal link MUST use the exact semantic anchor phrase from Gemini's Internal Linking Blueprint.
+NEVER use the full article title as anchor text.
+NEVER use generic phrases like "click here" or "learn more".
+Example: If blueprint says Semantic Anchor: "documenting chiropractic outcomes" — use EXACTLY that phrase as the anchor text.
+If you cannot find the exact anchor phrase, use a close natural-language variation — but NEVER the full title.`;
+      const u3=`PUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${tblInstr}\n\n${anchorInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}`;
       S.v1=await callClaude(sys,u3,akey,(p)=>{document.getElementById('o3').textContent=p;document.getElementById('sb3').classList.add('open');},{maxTokens:64000});
       if(S.v1.length<2000) throw new Error(`Step 3: V1 too short (${S.v1.length} chars) — retry.`);
       setStep(3,'done','Done ✓');
@@ -2083,7 +2103,19 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
         await genAllImages(S.imagePrompts,gkey);
         setStep(6,'done','Done ✓',`${S.imagePrompts.length} image(s) generated.`);
         saveSession();
-        const dlAllBtn=document.getElementById('dlAllBtn');if(dlAllBtn)dlAllBtn.disabled=false;
+        const dlAllBtn=document.getElementById('dlAllBtn');
+        const failedCount=S.imagePrompts.length-Object.keys(S.imageData).length;
+        if(dlAllBtn){
+          if(failedCount>0){
+            dlAllBtn.disabled=true;
+            dlAllBtn.textContent=`⚠ ${failedCount} Failed`;
+            dlAllBtn.style.background='var(--orange)';
+            dlAllBtn.title=`${failedCount} image(s) failed — regenerate before downloading`;
+            setStep(6,'error','⚠ Some Failed',`${S.imagePrompts.length-failedCount}/${S.imagePrompts.length} images generated. ${failedCount} failed — use Regenerate on failed cards.`);
+          } else {
+            dlAllBtn.disabled=false;
+          }
+        }
       } else {
         throw new Error('Step 6: No image prompts found in V1 — retry from Step 3.');
       }
@@ -2134,18 +2166,37 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
         if(fixResult.includes('DIFF_START')){
           const {result,applied,failed,log}=applyDiffs(S.v1,fixResult);
           S.protectedSentences=S.parsedFails.filter(f=>f.replace&&f.replace.length>20).map(f=>f.replace);
+          // Track which FAILs had diffs that couldn't be applied — for unverified flagging
+          const failedDiffIds=[];
+          if(failed>0){
+            // Match failed diffs back to FAIL IDs by checking if the find text appears in any FAIL
+            S.parsedFails.forEach(f=>{
+              if(f.find && log.some(l=>l.includes('❌')&&l.includes(f.find.substring(0,40)))){
+                failedDiffIds.push(f.id);
+              }
+            });
+          }
           S.v1=result; showV1(S.v1);
           const failNote=failed>0?`\n\n⚠️ ${failed} diff(s) failed to apply — these items may still need fixing.`:'';
           document.getElementById('o8').textContent=`GEMINI FAILs:\n${failSummary}\n\n---\n\n${log.join('\n')}\n\nApplied: ${applied}, Failed: ${failed}${failNote}`;
+          // Store failed diff IDs for use in re-validation
+          S._failedDiffIds=failedDiffIds;
         } else if(fixResult.length>2000){
           S.v1=fixResult; showV1(S.v1);
+          S._failedDiffIds=[];
         }
         // Gemini re-validation
         setG('Gemini re-validating fixes...',true);
         const originalFailList=S.parsedFails.map(f=>`${f.id}: ${f.desc}`).join('\n');
         const revalPrompt=`You previously flagged FAIL items in an AEO article. Fixes have been applied. Check ONLY whether each item was resolved.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nORIGINAL FAIL ITEMS:\n${originalFailList}\n\nFIXED ARTICLE:\n${S.v1}\n\nOutput for each item:\n[ITEM_ID]: PASS — [brief confirmation]\nor\n[ITEM_ID]: FAIL — [what is still wrong]`;
         const revalResult=await callGemini(revalPrompt,gkey);
-        document.getElementById('o8').textContent+=`\n\n--- GEMINI RE-VALIDATION ---\n${revalResult}`;
+        // Flag items where diff failed but Gemini says PASS — these are unverified
+        const unverifiedIds=S._failedDiffIds||[];
+        let revalDisplay=revalResult;
+        if(unverifiedIds.length>0){
+          revalDisplay+=`\n\n⚠️ UNVERIFIED: ${unverifiedIds.join(', ')} — diff failed to apply but Gemini may still show PASS. Treat these as suspect.`;
+        }
+        document.getElementById('o8').textContent+=`\n\n--- GEMINI RE-VALIDATION ---\n${revalDisplay}`;
         S.parsedFails=S.parsedFails.filter(f=>{
           if(!f.id||f.type==='FLAG') return false; // never re-queue flags or empty IDs
           const pat=new RegExp('\\b'+f.id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b[^:]*:\\s*FAIL','i');
@@ -2179,79 +2230,52 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
       const protectedList=S.protectedSentences.length
         ?`\n\nPROTECTED SENTENCES (do NOT change these):\n${S.protectedSentences.map((s,i)=>`${i+1}. ${s}`).join('\n')}`:'';
       const p4=getPrompt(S.docs.doc44,4);
-      const voiceUser=`PUBLISH DATE: ${publishDate}\n\nRESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\n---\n${p4}\n${protectedList}${flagContext}\n\nIMPORTANT: No Gemini validation feedback is attached. Skip directly to Task 2 (Voice Rewrite).\n\nTASK: Voice rewrite ONLY. Structure, links, tables, and POV slots are already correct.\n\nProtected zones — do NOT touch:\n- Direct Answer section (first 200-300 words after H1)\n- FAQ question text and first 1-2 sentences of each FAQ answer\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- Blog Post Optimization Checklist\n- Any sentence listed in PROTECTED SENTENCES above\n- All internal and external links (keep URLs and anchor text exactly)\n\nRewrite everything else from blank page in the author's voice.\n\nARTICLE TO REWRITE:\n${S.v1}`;
+      // Extract Voice Refinement Layer examples from 4.3B dynamically
+      const voiceRefinementMatch=S.docs.doc43B.match(/Voice Refinement Layer[\s\S]*?(?=SECTION \d+:|________________\s*SECTION \d+:|$)/i);
+      const voiceExamples=voiceRefinementMatch
+        ?`CRITICAL VOICE PATTERN EXAMPLES — study these before rewriting:\n\n${voiceRefinementMatch[0].trim()}\n\nTHE PATTERN: Lead with the point. React, then explain — NEVER explain before landing the point. Short sentences. Heavy contractions. Sound like a human who gives a damn, not a marketing writer.`
+        :`CRITICAL VOICE PATTERN: Lead with the point. React, then explain — NEVER explain before landing the point. Short sentences. Heavy contractions. Sound like the author, not a marketing writer.`;
+
+      const voiceUser=`PUBLISH DATE: ${publishDate}\n\nRESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\n---\n${p4}\n${protectedList}${flagContext}\n\n${voiceExamples}\n\nIMPORTANT: No Gemini validation feedback is attached. Skip directly to Task 2 (Voice Rewrite).\n\nTASK: Voice rewrite ONLY. Structure, links, tables, and POV slots are already correct.\n\nProtected zones — do NOT touch:\n- Direct Answer section (first 200-300 words after H1)\n- FAQ question text and first 1-2 sentences of each FAQ answer\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- Blog Post Optimization Checklist\n- Any sentence listed in PROTECTED SENTENCES above\n- All internal and external links (keep URLs and anchor text exactly)\n\nRewrite everything else from blank page in the author's voice.\n\nARTICLE TO REWRITE:\n${S.v1}`;
       S.v2=await callClaude(sys,voiceUser,akey,(p)=>{document.getElementById('o10').textContent=p;document.getElementById('sb10').classList.add('open');showV2(p);},{maxTokens:64000});
       if(S.v2.length<2000) throw new Error(`Step 10: V2 too short (${S.v2.length} chars) — retry.`);
       setStep(10,'done','Done ✓'); showV2(S.v2); updateWordCount(S.v2);
       saveSession();
 
-      // STEP 10B: Voice QC (hidden sub-step — pulls rules from 4.3B, auto-fixes, never surfaces unless hard fail)
-      setG('Running voice QC...', true);
-      const voiceQCPrompt=`You are a voice quality auditor for an AEO article. Your job is to check whether the article matches the author's voice as defined in the Client Identity Card below.
+      // STEP 10B: Voice QC — 3 binary checks only (fast, surgical, no rewrite loop)
+      setG('Running voice QC binary checks...', true);
+      const forbiddenConclusions=['it depends on your situation','varies by case','there\'s no one-size-fits-all','both options have pros and cons','talk to a professional to decide','consult with a','it really depends'];
+      const forbiddenTerms=['guaranteed results','proven roi','affordable','budget-friendly','grow your practice','tips and tricks','seo secrets','guide to marketing','fast results','quick wins','guaranteed rankings','free audit','free website audit'];
 
-CLIENT IDENTITY CARD (4.3B):
-${S.docs.doc43B}
+      // Check 1: Forbidden conclusion patterns
+      const foundConclusions=forbiddenConclusions.filter(p=>S.v2.toLowerCase().includes(p.toLowerCase()));
+      // Check 2: Forbidden terminology
+      const foundTerms=forbiddenTerms.filter(t=>S.v2.toLowerCase().includes(t.toLowerCase()));
+      // Check 3: Direct answer neutrality — no first-person POV in first 300 words after H1
+      const h1m=S.v2.match(/^(?!##)#\s+.+/m);
+      let daZone='';
+      if(h1m){ const after=S.v2.slice(S.v2.indexOf(h1m[0])+h1m[0].length); const fh2=after.search(/^##\s/m); daZone=(fh2>0?after.slice(0,fh2):after.slice(0,1500)); }
+      const daHasPOV=daZone&&/\bI (believe|think|recommend|always|tell|watch|see|know)\b/i.test(daZone);
 
-Using ONLY the Voice Calibration section, Author Voice examples, and Writing Pattern rules in the Client Identity Card above, audit the article for voice compliance. Check for:
-1. Does the writing lead with verdicts/points, not setups or mechanisms?
-2. Does it react then explain — never explain before landing the point?
-3. Are forbidden conclusion patterns present? (hedging, fence-sitting, "it depends")
-4. Are forbidden language terms present? (per the Terminology Lock and Messaging Guardrails)
-5. Does the tone match the defined voice standard (reading level, sentence length, contraction density)?
+      const qcIssues=[];
+      if(foundConclusions.length>0) qcIssues.push(`❌ Forbidden conclusions found: "${foundConclusions.join('", "')}" — remove or reframe`);
+      if(foundTerms.length>0) qcIssues.push(`❌ Forbidden terms found: "${foundTerms.join('", "')}" — replace with canonical terms`);
+      if(daHasPOV) qcIssues.push(`❌ POV language in Direct Answer (sacred ground must be neutral) — remove first-person from opening section`);
 
-OUTPUT FORMAT — output ONLY blocks for sections that fail. Silent pass for sections that pass.
-
-VOICEQC_START
-RULE: [which rule failed]
-DESCRIPTION: [what specifically fails and why]
-FIND: [exact sentence or phrase from the article]
-FIX: [rewrite in the author's voice per 4.3B]
-VOICEQC_END
-
-If all checks pass, output only: VOICE QC PASSED
-
-Do NOT flag structural issues (links, tables, schema) — only voice and tone. Do NOT flag the Direct Answer section or FAQ question text — those are protected zones.
-
-ARTICLE TO AUDIT:
-${S.v2}`;
-
-      const voiceQCResult=await callGemini(voiceQCPrompt,gkey);
-      const voiceQCBlocks=voiceQCResult.match(/VOICEQC_START[\s\S]*?VOICEQC_END/g)||[];
-
-      if(voiceQCBlocks.length===0||voiceQCResult.includes('VOICE QC PASSED')){
-        setG('Voice QC passed — proceeding to V2 integrity gate...',true);
-        document.getElementById('o10').textContent+=`\n\n--- VOICE QC ---\n✅ All voice checks passed.`;
+      if(qcIssues.length===0){
+        document.getElementById('o10').textContent=`Voice rewrite complete.\n\n--- VOICE QC ---\n✅ All binary checks passed.`;
       } else {
-        let voiceQCAttempt=0;
-        const MAX_VOICE_ATTEMPTS=2;
-        let remainingBlocks=voiceQCBlocks;
-        while(voiceQCAttempt<MAX_VOICE_ATTEMPTS && remainingBlocks.length>0){
-          voiceQCAttempt++;
-          setG(`Voice QC: ${remainingBlocks.length} issue(s) — auto-fixing (${voiceQCAttempt}/${MAX_VOICE_ATTEMPTS})...`,true);
-          const fixItems=remainingBlocks.map(block=>{
-            const find=(block.match(/FIND:\s*([\s\S]*?)(?=\nFIX:|\nVOICEQC_END)/)||[])[1]?.trim()||'';
-            const fix=(block.match(/FIX:\s*([\s\S]*?)(?=\nVOICEQC_END)/)||[])[1]?.trim()||'';
-            const rule=(block.match(/RULE:\s*(.+)/)||[])[1]?.trim()||'';
-            return `RULE: ${rule}\nFind: ${find}\nReplace with: ${fix}`;
-          }).join('\n\n---\n\n');
-          const voiceFixSys=`You are applying targeted voice fixes to an AEO article. Output ONLY DIFF_START/DIFF_END blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement]\nDIFF_END\n\nOne block per fix. No explanation. ONLY diff blocks.\n\n4.3B:\n${S.docs.doc43B}`;
-          const voiceFixUser=`Fix ONLY the voice issues listed. Do NOT touch structure, links, tables, Direct Answer, or FAQ questions.\n\nVOICE ISSUES TO FIX:\n${fixItems}\n\nARTICLE:\n${S.v2}`;
-          const voiceFixResult=await callClaude(voiceFixSys,voiceFixUser,akey,(p)=>{document.getElementById('o10').textContent+='\n\nVoice QC fix:\n'+p;},{maxTokens:64000});
-          if(voiceFixResult.includes('DIFF_START')){
-            const {result,applied,failed}=applyDiffs(S.v2,voiceFixResult);
-            S.v2=result; showV2(S.v2);
-            document.getElementById('o10').textContent+=`\n\nVoice QC attempt ${voiceQCAttempt}: Applied ${applied}, Failed ${failed}`;
-          }
-          // Re-check with updated V2
-          const recheckPrompt=voiceQCPrompt.replace(/ARTICLE TO AUDIT:\n[\s\S]*/,'ARTICLE TO AUDIT:\n'+S.v2);
-          const recheck=await callGemini(recheckPrompt,gkey);
-          remainingBlocks=recheck.match(/VOICEQC_START[\s\S]*?VOICEQC_END/g)||[];
-          if(recheck.includes('VOICE QC PASSED')) remainingBlocks=[];
-        }
-        if(remainingBlocks.length>0){
-          document.getElementById('o10').textContent+=`\n\n⚠️ Voice QC: ${remainingBlocks.length} issue(s) could not be auto-fixed. Review V2 at Step 12.`;
+        // Apply surgical diffs for binary violations only
+        setG(`Voice QC: ${qcIssues.length} violation(s) — auto-fixing...`,true);
+        const vcFixSys=`You are fixing specific voice violations in an AEO article. Output ONLY DIFF_START/DIFF_END blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement]\nDIFF_END\n\nFix ONLY the listed violations. Do NOT touch anything else.\n\n4.3B:\n${S.docs.doc43B}`;
+        const vcFixUser=`Fix ONLY these specific violations:\n${qcIssues.join('\n')}\n\nRules:\n- Remove or reframe forbidden conclusion patterns to take a clear directional stance\n- Replace forbidden terms with canonical alternatives from 4.3B Terminology Lock\n- Remove first-person POV from Direct Answer section only\n- Do NOT rewrite anything else\n\nARTICLE:\n${S.v2}`;
+        const vcResult=await callClaude(vcFixSys,vcFixUser,akey,(p)=>{document.getElementById('o10').textContent=`Voice rewrite complete.\n\n--- VOICE QC FIXES ---\n${p}`;},{maxTokens:16000});
+        if(vcResult.includes('DIFF_START')){
+          const {result,applied,failed}=applyDiffs(S.v2,vcResult);
+          S.v2=result; showV2(S.v2);
+          document.getElementById('o10').textContent=`Voice rewrite complete.\n\n--- VOICE QC ---\n${qcIssues.join('\n')}\n\nFixes applied: ${applied}, Failed: ${failed}`;
         } else {
-          document.getElementById('o10').textContent+=`\n\n✅ Voice QC: All issues resolved.`;
+          document.getElementById('o10').textContent=`Voice rewrite complete.\n\n--- VOICE QC ---\n${qcIssues.join('\n')}\n\n⚠️ Could not auto-fix — review at Step 12.`;
         }
         saveSession();
       }
@@ -2348,6 +2372,13 @@ ${S.v2}`;
 
     // STEP 13: Claude Final Assembly
     if(step<=13){
+      // Hard stop if publish date not set
+      const pd=document.getElementById('publishDate').value;
+      if(!pd){
+        setStep(13,'error','⚠ Set Publish Date','Publish date is required before assembly. Set it in the right panel and retry.');
+        document.getElementById('publishDate').focus();
+        throw new Error('Step 13: Publish date is required. Set it in the right panel and retry from Step 13.');
+      }
       setStep(13,'active','Assembling...'); setG('Claude producing Final HTML...',true);
       const imgLines=[];
       for(let i=0;i<S.imagePrompts.length;i++){const u=S.imageUrls[i]||'';if(u)imgLines.push(`Image ${i+1} URL — ${u}`);}
