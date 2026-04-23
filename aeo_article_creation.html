@@ -458,8 +458,11 @@
         <div class="cbox" id="cbox5" style="display:none;">
           <div class="ctitle">⚠ V1 Integrity Gate — 3 Fix Attempts Failed</div>
           <div id="gateResults5" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
-          <p style="font-size:11px;color:#888;margin-bottom:7px;">Claude could not resolve all issues automatically. V1 needs a full rewrite.</p>
-          <button class="btn-retry" onclick="retryFrom(3)" style="margin-top:0;background:var(--orange);">↻ Full V1 Rewrite</button>
+          <p style="font-size:11px;color:#888;margin-bottom:7px;">Claude could not resolve all issues automatically. Rewrite V1 or continue anyway.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn-retry" id="gate5Rewrite" style="margin-top:0;background:var(--orange);">↻ Full V1 Rewrite</button>
+            <button class="btn-proceed" id="gate5Continue" style="margin-top:0;">Continue Anyway →</button>
+          </div>
         </div>
       </div>
     </div>
@@ -530,8 +533,11 @@
         <div class="cbox" id="cbox11" style="display:none;">
           <div class="ctitle">⚠ V2 Integrity Gate — 3 Fix Attempts Failed</div>
           <div id="gateResults11" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
-          <p style="font-size:11px;color:#888;margin-bottom:7px;">Claude could not resolve all V2 issues automatically. Voice rewrite needs to run again.</p>
-          <button class="btn-retry" onclick="retryFrom(10)" style="margin-top:0;background:var(--orange);">↻ Full V2 Rewrite</button>
+          <p style="font-size:11px;color:#888;margin-bottom:7px;">Claude could not resolve all V2 issues automatically. Rewrite V2 or continue anyway.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn-retry" id="gate11Rewrite" style="margin-top:0;background:var(--orange);">↻ Full V2 Rewrite</button>
+            <button class="btn-proceed" id="gate11Continue" style="margin-top:0;">Continue Anyway →</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1831,7 +1837,7 @@ ${schemaBlocksHTML}
     results.push({key:'extLinks',label:'Min 4 external hyperlinks',pass:extLinks.length>=4,detail:`${extLinks.length} found`});
     // Internal links — format agnostic, exclude ToC anchors (#)
     const intLinks=allLinks.filter(u=>isInternal(u)&&!u.startsWith('#'));
-    results.push({key:'intLinks',label:'6-10 internal links',pass:intLinks.length>=6&&intLinks.length<=10,detail:`${intLinks.length} found`});
+    results.push({key:'intLinks',label:'Min 6 internal links',pass:intLinks.length>=6,detail:`${intLinks.length} found`});
     // Image prompts
     const imgCount=(v1.match(/^PROMPT:/gim)||[]).length;
     results.push({key:'images',label:'Min 3 image prompts',pass:imgCount>=3,detail:`${imgCount} found`});
@@ -2094,12 +2100,22 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
         }
         attempts++;
         if(attempts>=MAX_ATTEMPTS){
-          // Hard stop
           const failHTML=failures.map(f=>`<div style="padding:2px 0;">❌ ${f.label} — ${f.detail}</div>`).join('');
           document.getElementById('gateResults5').innerHTML=failHTML;
           document.getElementById('cbox5').style.display='block';
-          setStep(5,'error','⚠ Hard Stop',`${failures.length} check(s) failed after ${MAX_ATTEMPTS} attempts. V1 needs full rewrite.`);
-          throw new Error(`Step 5: V1 integrity gate failed after ${MAX_ATTEMPTS} attempts. Use Rewrite V1 button.`);
+          document.getElementById('sb5').classList.add('open');
+          setStep(5,'error','⚠ Hard Stop',`${failures.length} check(s) failed after ${MAX_ATTEMPTS} attempts.`);
+          setG('⚠ Step 5 hard stop — choose to rewrite V1 or continue anyway.');
+          const decision=await new Promise(res=>{
+            document.getElementById('gate5Rewrite').onclick=()=>{ document.getElementById('cbox5').style.display='none'; res('rewrite'); };
+            document.getElementById('gate5Continue').onclick=()=>{ document.getElementById('cbox5').style.display='none'; res('continue'); };
+          });
+          if(decision==='rewrite'){
+            retryFrom(3); return;
+          } else {
+            setStep(5,'done','Overridden ✓','Operator chose to continue despite failed checks.');
+            break;
+          }
         }
         // Build fix instructions for Claude
         setG(`V1 gate attempt ${attempts}/${MAX_ATTEMPTS} — applying fixes...`,true);
@@ -2335,8 +2351,19 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
           const failHTML=failures.map(f=>`<div style="padding:2px 0;">❌ ${f.label} — ${f.detail}</div>`).join('');
           document.getElementById('gateResults11').innerHTML=failHTML;
           document.getElementById('cbox11').style.display='block';
-          setStep(11,'error','⚠ Hard Stop',`${failures.length} check(s) failed after ${MAX_ATTEMPTS} attempts. V2 needs full rewrite.`);
-          throw new Error(`Step 11: V2 integrity gate failed after ${MAX_ATTEMPTS} attempts. Use Rewrite V2 button.`);
+          document.getElementById('sb11').classList.add('open');
+          setStep(11,'error','⚠ Hard Stop',`${failures.length} check(s) failed after ${MAX_ATTEMPTS} attempts.`);
+          setG('⚠ Step 11 hard stop — choose to rewrite V2 or continue anyway.');
+          const decision11=await new Promise(res=>{
+            document.getElementById('gate11Rewrite').onclick=()=>{ document.getElementById('cbox11').style.display='none'; res('rewrite'); };
+            document.getElementById('gate11Continue').onclick=()=>{ document.getElementById('cbox11').style.display='none'; res('continue'); };
+          });
+          if(decision11==='rewrite'){
+            retryFrom(10); return;
+          } else {
+            setStep(11,'done','Overridden ✓','Operator chose to continue despite failed checks.');
+            break;
+          }
         }
         setG(`V2 gate attempt ${attempts}/${MAX_ATTEMPTS} — fixing...`,true);
         // JS restore first (free)
