@@ -1767,6 +1767,36 @@ ${schemaBlocksHTML}
 
 
   // ─── V1 INTEGRITY GATE CHECKS (Step 5) ───────────────────
+  function countLinks(text) {
+    // Collect all links regardless of format (markdown or HTML anchor)
+    const links=[];
+    // Markdown: [text](url)
+    const mdLinks=text.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[];
+    mdLinks.forEach(l=>{ const m=l.match(/\]\(([^)]+)\)/); if(m) links.push(m[1]); });
+    // HTML anchors: <a href="...">
+    const htmlLinks=text.match(/<a\s+[^>]*href=["']([^"']+)["'][^>]*>/gi)||[];
+    htmlLinks.forEach(l=>{ const m=l.match(/href=["']([^"']+)["']/i); if(m) links.push(m[1]); });
+    return links;
+  }
+
+  function isInternal(url) {
+    // Strip tool host domain (github.io etc) and treat as internal
+    const stripped=url.replace(/^https?:\/\/[^/]*github\.io/i,'').replace(/^https?:\/\/itechvalet\.com/i,'');
+    // Internal: relative paths, or itechvalet.com URLs
+    if(url.startsWith('/')) return true;
+    if(url.match(/itechvalet\.com/i)) return true;
+    if(stripped.startsWith('/')) return true;
+    // Not internal if it's a full external URL
+    if(url.match(/^https?:\/\//)) return false;
+    return true; // relative paths without leading slash
+  }
+
+  function isExternal(url) {
+    if(!url.match(/^https?:\/\//)) return false;
+    if(url.match(/itechvalet\.com/i)) return false;
+    if(url.match(/github\.io/i)) return false;
+    return true;
+  }
   function countCompleteTables(text) {
     // A complete table needs: header row | separator row (with ---) | at least 1 data row
     const lines=text.split('\n');
@@ -1795,11 +1825,12 @@ ${schemaBlocksHTML}
     const completeTableCount=countCompleteTables(v1);
     const tableOk=completeTableCount>=3;
     results.push({key:'tables',label:'Min 3 complete tables',pass:tableOk,detail:`${completeTableCount} complete table(s) found`});
-    // External links
-    const extLinks=(v1.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g)||[]).filter(l=>!l.match(/itechvalet\.com/i));
+    // External links — format agnostic
+    const allLinks=countLinks(v1);
+    const extLinks=allLinks.filter(u=>isExternal(u));
     results.push({key:'extLinks',label:'Min 4 external hyperlinks',pass:extLinks.length>=4,detail:`${extLinks.length} found`});
-    // Internal links
-    const intLinks=(v1.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[]).filter(l=>!l.match(/https?:\/\//)||l.match(/itechvalet\.com/i)).filter(l=>!l.match(/\(#/));
+    // Internal links — format agnostic, exclude ToC anchors (#)
+    const intLinks=allLinks.filter(u=>isInternal(u)&&!u.startsWith('#'));
     results.push({key:'intLinks',label:'6-10 internal links',pass:intLinks.length>=6&&intLinks.length<=10,detail:`${intLinks.length} found`});
     // Image prompts
     const imgCount=(v1.match(/^PROMPT:/gim)||[]).length;
@@ -1834,9 +1865,9 @@ ${schemaBlocksHTML}
       const afterSep=sep>-1?afterH1.slice(sep+4):afterH1;
       const firstH2=afterSep.search(/^##\s/m);
       const daZone=firstH2>0?afterSep.slice(0,firstH2):afterSep.slice(0,1500);
-      const daLinks=(daZone.match(/\[([^\]]+)\]\([^)]+\)/g)||[]).filter(l=>!l.match(/\(#/));
-      daLinksClean=daLinks.length===0;
-      results.push({key:'sacredGround',label:'No links in Direct Answer',pass:daLinksClean,detail:daLinksClean?'Clean':`${daLinks.length} link(s) found`});
+      const daLinksFound=countLinks(daZone).filter(u=>!u.startsWith('#'));
+      daLinksClean=daLinksFound.length===0;
+      results.push({key:'sacredGround',label:'No links in Direct Answer',pass:daLinksClean,detail:daLinksClean?'Clean':`${daLinksFound.length} link(s) found`});
     }
     return results;
   }
@@ -1847,11 +1878,12 @@ ${schemaBlocksHTML}
     // Tables — count complete tables
     const completeTableCount=countCompleteTables(v2);
     results.push({key:'tables',label:'Min 3 tables survived rewrite',pass:completeTableCount>=3,detail:`${completeTableCount} complete table(s) found`});
-    // External links
-    const extLinks=(v2.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g)||[]).filter(l=>!l.match(/itechvalet\.com/i));
+    // External links — format agnostic
+    const allLinksV2=countLinks(v2);
+    const extLinks=allLinksV2.filter(u=>isExternal(u));
     results.push({key:'extLinks',label:'Min 4 external links survived',pass:extLinks.length>=4,detail:`${extLinks.length} found`});
-    // Internal links
-    const intLinks=(v2.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[]).filter(l=>!l.match(/https?:\/\//)||l.match(/itechvalet\.com/i)).filter(l=>!l.match(/\(#/));
+    // Internal links — format agnostic
+    const intLinks=allLinksV2.filter(u=>isInternal(u)&&!u.startsWith('#'));
     results.push({key:'intLinks',label:'Internal links survived (need 6+)',pass:intLinks.length>=6,detail:`${intLinks.length} found`});
     // Image prompts
     const imgCount=(v2.match(/^PROMPT:/gim)||[]).length;
