@@ -1254,8 +1254,24 @@
     const gkey=document.getElementById('keyGemini').value.trim();
     if(!gkey||!S.imagePrompts[idx]) return;
     const rb=document.getElementById(`ir${idx}`); if(rb) rb.disabled=true;
-    try{ await genOneImage(S.imagePrompts[idx].prompt,S.imagePrompts[idx].alt,idx,gkey); }
-    catch(err){ showImgErr(idx,err.message); }
+    try{
+      await genOneImage(S.imagePrompts[idx].prompt,S.imagePrompts[idx].alt,idx,gkey);
+      // Re-check all image slots and update download button
+      const failedCount=S.imagePrompts.length-Object.keys(S.imageData).length;
+      const dlAllBtn=document.getElementById('dlAllBtn');
+      if(dlAllBtn){
+        if(failedCount===0){
+          dlAllBtn.disabled=false;
+          dlAllBtn.textContent='↓ All Images';
+          dlAllBtn.style.background='var(--blue)';
+          dlAllBtn.title='';
+          setStep(6,'done','Done ✓',`All ${S.imagePrompts.length} images generated successfully.`);
+        } else {
+          dlAllBtn.textContent=`⚠ ${failedCount} Failed`;
+        }
+      }
+    }
+    catch(err){ showImgErr(idx,err.message); if(rb) rb.disabled=false; }
   }
 
   async function toWebP(b64,mime) {
@@ -1954,9 +1970,21 @@ ${schemaBlocksHTML}
   // ─── V2 INTEGRITY GATE CHECKS (Step 11) ──────────────────
   function runV2GateChecks(v2) {
     const results=[];
-    // Tables — count complete tables
+    // Tables — count complete tables and check for duplicates
     const completeTableCount=countCompleteTables(v2);
-    results.push({key:'tables',label:'Min 3 tables survived rewrite',pass:completeTableCount>=3,detail:`${completeTableCount} complete table(s) found`});
+    // Detect duplicate tables by extracting first cell of each table header
+    const tableHeaders=[];
+    const tblLines=v2.split('\n');
+    for(let i=0;i<tblLines.length-2;i++){
+      const l=tblLines[i].trim();
+      if(l.startsWith('|')&&tblLines[i+1]&&/\|\s*[-:]+\s*\|/.test(tblLines[i+1].trim())){
+        tableHeaders.push(l.substring(0,80));
+      }
+    }
+    const uniqueHeaders=new Set(tableHeaders);
+    const hasDuplicates=tableHeaders.length>uniqueHeaders.size;
+    const tableOk=completeTableCount>=3&&!hasDuplicates;
+    results.push({key:'tables',label:'Min 3 tables, no duplicates',pass:tableOk,detail:hasDuplicates?`⚠ Duplicate tables detected (${tableHeaders.length} found, ${uniqueHeaders.size} unique) — restoring from V1`:`${completeTableCount} complete table(s) found`});
     // External links — format agnostic
     const allLinksV2=countLinks(v2);
     const extLinks=allLinksV2.filter(u=>isExternal(u));
@@ -1970,23 +1998,23 @@ ${schemaBlocksHTML}
     // FAQ
     const hasFAQ=/##\s*(frequently asked|faq)/i.test(v2);
     results.push({key:'faq',label:'FAQ section survived',pass:hasFAQ,detail:hasFAQ?'Found':'Missing'});
-    // Direct answer integrity — compare first 200 chars of direct answer between V1 and V2
-    const extractDA=(text)=>{
+    // Direct answer integrity — V2 after voice rewrite won't have checklist/--- structure
+    // Just check that there's substantial text between H1 and first H2
+    const extractV2DA=(text)=>{
+      // Find first H1 (not ##)
       const h1=text.match(/^(?!##)#\s+.+/m);
       if(!h1) return '';
       const after=text.slice(text.indexOf(h1[0])+h1[0].length);
-      const sep=after.indexOf('\n---');
-      const afterSep=sep>-1?after.slice(sep+4):after;
-      const repH1=afterSep.match(/^(?!##)#\s+.+/m);
-      let start=0; if(repH1) start=afterSep.indexOf(repH1[0])+repH1[0].length;
-      const section=afterSep.slice(start);
-      const firstH2=section.search(/^##\s/m);
-      return (firstH2>0?section.slice(0,firstH2):section.slice(0,1500)).replace(/\[H[123]\]/gi,'').trim().substring(0,300);
+      // Find first H2
+      const firstH2=after.search(/^##\s/m);
+      const daSection=firstH2>0?after.slice(0,firstH2):after.slice(0,2000);
+      // Strip markdown, tags, ToC content
+      return daSection.replace(/\[H[123]\]/gi,'').replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'').trim();
     };
-    const v1DA=extractDA(S.v1||'');
-    const v2DA=extractDA(v2);
-    const daIntact=v1DA.length<50||v2DA.length>50; // if V1 has a DA, V2 must too
-    results.push({key:'directAnswer',label:'Direct answer survived rewrite',pass:daIntact,detail:daIntact?'Present':'Missing or gutted'});
+    const v2DA=extractV2DA(v2);
+    const v2DAWords=v2DA.split(/\s+/).filter(w=>w.length>2).length;
+    const daIntact=v2DAWords>=80; // V2 DA should have at least 80 words
+    results.push({key:'directAnswer',label:'Direct answer survived rewrite',pass:daIntact,detail:daIntact?`~${v2DAWords} words`:`Only ~${v2DAWords} words — may be missing or gutted`});
     // Length check vs V1
     const v1Len=S.v1?S.v1.length:0;
     const ratio=v1Len>0?v2.length/v1Len:1;
@@ -1998,19 +2026,34 @@ ${schemaBlocksHTML}
   function restoreFromV1(v2, checks) {
     let updated=v2;
     const log=[];
-    // Restore tables from V1 if missing
-    if(!checks.find(c=>c.key==='tables')?.pass){
+    // Restore tables from V1 if missing OR if duplicates detected
+    const tableCheck=checks.find(c=>c.key==='tables');
+    if(!tableCheck?.pass){
+      // Extract clean tables from V1
       const v1Tables=[];
-      const tblRegex=/(\|.+\|\n)+/g;
-      let m;
-      while((m=tblRegex.exec(S.v1))!==null) v1Tables.push(m[0].trim());
+      const lines=S.v1.split('\n');
+      let i=0;
+      while(i<lines.length){
+        if(lines[i].trim().startsWith('|') && lines[i+1] && /\|\s*[-:]+\s*\|/.test(lines[i+1].trim())){
+          let tbl=lines[i]+'\n'+lines[i+1]+'\n';
+          i+=2;
+          while(i<lines.length && lines[i].trim().startsWith('|')){ tbl+=lines[i]+'\n'; i++; }
+          v1Tables.push(tbl.trim());
+        } else { i++; }
+      }
       if(v1Tables.length>0){
-        // Append missing tables before FAQ section
-        const faqIdx=updated.search(/^##\s*(frequently asked|faq)/im);
-        if(faqIdx>-1){
-          updated=updated.slice(0,faqIdx)+'\n\n'+v1Tables.join('\n\n')+'\n\n'+updated.slice(faqIdx);
-          log.push(`✅ Restored ${v1Tables.length} table(s) from V1`);
-        }
+        // Remove ALL existing tables from V2 first (handles duplicates)
+        const tableRegex=/(\|.+\|\n?)+/g;
+        updated=updated.replace(tableRegex,'[TABLE_PLACEHOLDER]\n');
+        // Deduplicate placeholders
+        updated=updated.replace(/(\[TABLE_PLACEHOLDER\]\n?){2,}/g,'[TABLE_PLACEHOLDER]\n');
+        // Replace placeholders with clean V1 tables
+        let tIdx=0;
+        updated=updated.replace(/\[TABLE_PLACEHOLDER\]\n?/g,()=>{
+          return v1Tables[tIdx]?v1Tables[tIdx++]+'\n\n':'';
+        });
+        const isDupe=tableCheck?.detail?.includes('Duplicate');
+        log.push(`✅ ${isDupe?'Replaced duplicate':'Restored'} tables with ${v1Tables.length} clean table(s) from V1`);
       }
     }
     // Restore image prompts from V1 if missing
