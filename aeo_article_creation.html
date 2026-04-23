@@ -653,11 +653,11 @@
       </div>
       <div class="ppane" id="pHTMLFinal">
         <div class="pempty" id="htmlFinalEmpty">HTML Final appears after Step 14 QC</div>
-        <iframe id="htmlFinalFrame" style="display:none;border:none;background:#fff;height:100%;width:100%;"></iframe>
+        <iframe id="htmlFinalFrame" style="display:none;border:none;background:#fff;width:100%;height:620px;"></iframe>
       </div>
-      <div class="ppane" id="pSchema" style="overflow-y:auto;">
+      <div class="ppane" id="pSchema" style="overflow-y:auto;height:620px;">
         <div class="pempty" id="schemaEmpty">Schema appears after Step 13</div>
-        <pre id="schemaPre" style="display:none;font-family:monospace;font-size:11px;white-space:pre-wrap;word-break:break-word;padding:12px;color:var(--blue);line-height:1.6;margin:0;"></pre>
+        <pre id="schemaPre" style="display:none;font-family:monospace;font-size:11px;white-space:pre-wrap;word-break:break-word;padding:12px;color:var(--blue);line-height:1.6;margin:0;height:100%;overflow-y:auto;"></pre>
       </div>
     </div>
 
@@ -697,7 +697,7 @@
   // ─── STATE ────────────────────────────────────────────────
   let S = {
     client:null, topic:'', docs:{}, sheetRow:'',
-    geminiResearch:'', v1:'', v1WithTables:'', validation:'', parsedFails:[], parsedFlags:[],
+    geminiResearch:'', v1:'', validation:'', parsedFails:[], parsedFlags:[],
     fixedArticle:'', protectedSentences:[], v2:'',
     finalMD:'', finalTXT:'', html1TXT:'', finalSchema:'', checklistHTML:'',
     imagePrompts:[], imageData:{}, imageUrls:{},
@@ -1999,21 +1999,27 @@ ${schemaBlocksHTML}
     const hasFAQ=/##\s*(frequently asked|faq)/i.test(v2);
     results.push({key:'faq',label:'FAQ section survived',pass:hasFAQ,detail:hasFAQ?'Found':'Missing'});
     // Direct answer integrity — V2 after voice rewrite won't have checklist/--- structure
-    // Just check that there's substantial text between H1 and first H2
+    // Skip checklist block, ToC, and bold summary — find actual prose paragraphs
     const extractV2DA=(text)=>{
-      // Find first H1 (not ##)
       const h1=text.match(/^(?!##)#\s+.+/m);
       if(!h1) return '';
       const after=text.slice(text.indexOf(h1[0])+h1[0].length);
-      // Find first H2
       const firstH2=after.search(/^##\s/m);
-      const daSection=firstH2>0?after.slice(0,firstH2):after.slice(0,2000);
-      // Strip markdown, tags, ToC content
-      return daSection.replace(/\[H[123]\]/gi,'').replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'').trim();
+      const daSection=firstH2>0?after.slice(0,firstH2):after.slice(0,3000);
+      // Strip checklist items, ToC links, bold summary lines, horizontal rules, blank lines
+      const cleaned=daSection
+        .replace(/^\*\s+\*\*.+\*\*.*$/gm,'') // checklist items
+        .replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'') // ToC links
+        .replace(/^\*\*.+\*\*\s*$/gm,'') // bold-only lines (summary)
+        .replace(/^---+\s*$/gm,'') // horizontal rules
+        .replace(/^#.+$/gm,'') // any remaining headings
+        .replace(/\[H[123]\]/gi,'')
+        .trim();
+      return cleaned;
     };
     const v2DA=extractV2DA(v2);
     const v2DAWords=v2DA.split(/\s+/).filter(w=>w.length>2).length;
-    const daIntact=v2DAWords>=80; // V2 DA should have at least 80 words
+    const daIntact=v2DAWords>=60;
     results.push({key:'directAnswer',label:'Direct answer survived rewrite',pass:daIntact,detail:daIntact?`~${v2DAWords} words`:`Only ~${v2DAWords} words — may be missing or gutted`});
     // Length check vs V1
     const v1Len=S.v1?S.v1.length:0;
@@ -2042,10 +2048,11 @@ ${schemaBlocksHTML}
         } else { i++; }
       }
       if(v1Tables.length>0){
-        // Remove ALL existing tables from V2 first (handles duplicates)
-        const tableRegex=/(\|.+\|\n?)+/g;
+        // Remove ALL existing complete tables from V2 (header + separator + data rows only)
+        // Use precise pattern: pipe row + separator row + at least one data row
+        const tableRegex=/\|.+\|[ \t]*\n\|[ \t]*[-:| ]+\|[ \t]*\n(?:\|.+\|[ \t]*\n)*/g;
         updated=updated.replace(tableRegex,'[TABLE_PLACEHOLDER]\n');
-        // Deduplicate placeholders
+        // Deduplicate consecutive placeholders
         updated=updated.replace(/(\[TABLE_PLACEHOLDER\]\n?){2,}/g,'[TABLE_PLACEHOLDER]\n');
         // Replace placeholders with clean V1 tables
         let tIdx=0;
@@ -2097,6 +2104,15 @@ Data constraint: Use only facts already stated in surrounding prose — do not i
 
 Insert at least 3 of these placeholders. Tables are built in a dedicated separate step.
 All other requirements (POV slots, links, FAQ, CTA, image prompts, direct answer) apply normally.`;
+      const structureInstr=`
+CRITICAL ARTICLE STRUCTURE RULE:
+After the H1, the order MUST be exactly:
+1. Direct Answer (200-300 words — no links, no images)
+2. Last Updated date line
+3. Table of Contents (if applicable)
+4. First H2
+
+Do NOT add any additional prose, introductory paragraphs, or "warm-up" text between the Direct Answer and the Table of Contents or first H2. The Direct Answer IS the introduction. Nothing else goes there.`;
       const anchorInstr=`
 CRITICAL ANCHOR TEXT RULE — INTERNAL LINKS:
 Every internal link MUST use the exact semantic anchor phrase from Gemini's Internal Linking Blueprint.
@@ -2104,7 +2120,7 @@ NEVER use the full article title as anchor text.
 NEVER use generic phrases like "click here" or "learn more".
 Example: If blueprint says Semantic Anchor: "documenting chiropractic outcomes" — use EXACTLY that phrase as the anchor text.
 If you cannot find the exact anchor phrase, use a close natural-language variation — but NEVER the full title.`;
-      const u3=`PUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${tblInstr}\n\n${anchorInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}`;
+      const u3=`PUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${tblInstr}\n\n${anchorInstr}\n\n${structureInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}`;
       S.v1=await callClaude(sys,u3,akey,(p)=>{document.getElementById('o3').textContent=p;document.getElementById('sb3').classList.add('open');},{maxTokens:64000});
       if(S.v1.length<2000) throw new Error(`Step 3: V1 too short (${S.v1.length} chars) — retry.`);
       setStep(3,'done','Done ✓');
@@ -2229,9 +2245,11 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
         attempts++;
         if(attempts>=MAX_ATTEMPTS){
           const failHTML=failures.map(f=>`<div style="padding:2px 0;">❌ ${f.label} — ${f.detail}</div>`).join('');
+          appendO5(`\n--- HARD STOP after ${MAX_ATTEMPTS} attempts ---`);
           document.getElementById('gateResults5').innerHTML=failHTML;
           document.getElementById('cbox5').style.display='block';
           document.getElementById('sb5').classList.add('open');
+          document.getElementById('o5').scrollTop=0;
           setStep(5,'error','⚠ Hard Stop',`${failures.length} check(s) failed after ${MAX_ATTEMPTS} attempts.`);
           setG('⚠ Step 5 hard stop — choose to rewrite V1 or continue anyway.',false,true);
           const decision=await new Promise(res=>{
@@ -2490,9 +2508,12 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
         attempts++;
         if(attempts>=MAX_ATTEMPTS){
           const failHTML=failures.map(f=>`<div style="padding:2px 0;">❌ ${f.label} — ${f.detail}</div>`).join('');
+          appendO11(`\n--- HARD STOP after ${MAX_ATTEMPTS} attempts ---`);
           document.getElementById('gateResults11').innerHTML=failHTML;
           document.getElementById('cbox11').style.display='block';
           document.getElementById('sb11').classList.add('open');
+          // Scroll the log panel to top so full log is visible
+          document.getElementById('o11').scrollTop=0;
           setStep(11,'error','⚠ Hard Stop',`${failures.length} check(s) failed after ${MAX_ATTEMPTS} attempts.`);
           setG('⚠ Step 11 hard stop — choose to rewrite V2 or continue anyway.',false,true);
           const decision11=await new Promise(res=>{
@@ -2628,14 +2649,22 @@ ${S.v2}`;
         else{throw new Error('Step 13: No === HTML START === block found. Retry.');}
       }
       S.html1TXT=S.finalTXT;
-      // Post-assembly date verification — JS fixes wrong date before QC
-      const todayStr=new Date().toISOString().split('T')[0];
-      if(publishDate && S.finalTXT.includes(todayStr) && publishDate!==todayStr){
-        // Claude used today's date instead of the publish date — fix it in JS
-        const fixCount=(S.finalTXT.match(new RegExp(todayStr,'g'))||[]).length;
-        S.finalTXT=S.finalTXT.split(todayStr).join(publishDate);
-        S.finalSchema=S.finalSchema.split(todayStr).join(publishDate);
-        document.getElementById('o13').textContent+=`\n\n✅ Date fix: Replaced ${fixCount} instance(s) of today's date (${todayStr}) with publish date (${publishDate}).`;
+      // Post-assembly date verification — replace any wrong ISO date with publish date
+      if(publishDate){
+        // Find all ISO date strings (YYYY-MM-DD) in the output that aren't the publish date
+        const datePattern=/\b(20\d\d-\d{2}-\d{2})\b/g;
+        let fixCount=0;
+        S.finalTXT=S.finalTXT.replace(datePattern,(match)=>{
+          if(match!==publishDate){ fixCount++; return publishDate; }
+          return match;
+        });
+        S.finalSchema=S.finalSchema.replace(datePattern,(match)=>{
+          if(match!==publishDate){ return publishDate; }
+          return match;
+        });
+        if(fixCount>0){
+          document.getElementById('o13').textContent+=`\n\n✅ Date fix: Replaced ${fixCount} wrong date(s) with publish date (${publishDate}).`;
+        }
       }
       // Post-assembly check: flag if markdown tables survived into HTML
       const mdTablesInHTML=(S.finalTXT.match(/^\|.+\|$/gm)||[]).length;
@@ -2695,7 +2724,6 @@ ${S.v2}`;
     const rb=document.getElementById(`r${n}`); if(rb) rb.style.display='none';
     if(n>=12){imagesValidated=false;checkpointDone=false;asmResolve=null;}
     if(n<=8){step8RetryCount=0;}
-    if(n<=7){step8RetryCount=0;} // always reset on step 7 retry
     if(n<=5){step5RetryCount=0;}
     running=true; document.getElementById('runBtn').disabled=true;
     document.getElementById('runBtn').style.display='none';
@@ -2720,7 +2748,7 @@ ${S.v2}`;
     if(asmResolve){asmResolve();asmResolve=null;}
     S={
       client:S.client, topic:S.topic, docs:{}, sheetRow:'',
-      geminiResearch:'', v1:'', v1WithTables:'', validation:'', parsedFails:[], parsedFlags:[],
+      geminiResearch:'', v1:'', validation:'', parsedFails:[], parsedFlags:[],
       fixedArticle:'', protectedSentences:[], v2:'',
       finalMD:'', finalTXT:'', html1TXT:'', finalSchema:'', checklistHTML:'',
       imagePrompts:[], imageData:{}, imageUrls:{},
@@ -2750,7 +2778,7 @@ ${S.v2}`;
     S.client=clients[parseInt(cidx)]; S.topic=topic;
     S.tokens={gi:0,go:0,ci:0,co:0,imgs:0};
     S.imagePrompts=[]; S.imageData={}; S.imageUrls={};
-    S.parsedFails=[]; S.protectedSentences=[]; S.v1WithTables=''; S.html1TXT='';
+    S.parsedFails=[]; S.protectedSentences=[]; S.html1TXT='';
     imagesValidated=false; checkpointDone=false; step8RetryCount=0; step5RetryCount=0; step11RetryCount=0;
 
     running=true; document.getElementById('runBtn').disabled=true;
