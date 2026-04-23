@@ -806,8 +806,11 @@
     if(chev) chev.classList.toggle('closed',open);
   }
 
-  function setG(text,active=false) {
-    document.getElementById('gstatus').innerHTML=active?`<span class="spinner"></span>${text}`:text;
+  function setG(text,active=false,error=false) {
+    const el=document.getElementById('gstatus');
+    el.style.color=error?'var(--orange)':'';
+    el.style.fontWeight=error?'600':'';
+    el.innerHTML=active?`<span class="spinner"></span>${text}`:text;
   }
 
   function updateCost() {
@@ -1028,15 +1031,31 @@
     return r.text();
   }
 
+  function normalizeQuotes(str) {
+    return str
+      .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g,"'") // curly single quotes
+      .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g,'"') // curly double quotes
+      .replace(/[\u2014\u2013]/g,'-') // em/en dashes
+      .trim();
+  }
+
   function findRow(csv,topic) {
     const lines=csv.split('\n');
     const cols=parseCSV(lines[0]);
     const colIdx=cols.findIndex(c=>c.toLowerCase().includes('aeo question')||c.toLowerCase().includes('question title'));
     const col=colIdx>=0?colIdx:3;
+    const normTopic=normalizeQuotes(topic).toLowerCase();
+    let closest='';
     for(let i=1;i<lines.length;i++){
       const row=parseCSV(lines[i]);
-      if(row[col]&&row[col].trim().toLowerCase()===topic.trim().toLowerCase()) return {row:row.join(' | '),index:i};
+      if(!row[col]) continue;
+      const normRow=normalizeQuotes(row[col]).toLowerCase();
+      if(normRow===normTopic) return {row:row.join(' | '),index:i};
+      // Track closest match for error message
+      if(!closest && normRow.includes(normTopic.substring(0,20))) closest=row[col];
     }
+    // Return null with closest match hint stored
+    findRow._closest=closest;
     return null;
   }
 
@@ -2148,7 +2167,7 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
           document.getElementById('cbox5').style.display='block';
           document.getElementById('sb5').classList.add('open');
           setStep(5,'error','⚠ Hard Stop',`${failures.length} check(s) failed after ${MAX_ATTEMPTS} attempts.`);
-          setG('⚠ Step 5 hard stop — choose to rewrite V1 or continue anyway.');
+          setG('⚠ Step 5 hard stop — choose to rewrite V1 or continue anyway.',false,true);
           const decision=await new Promise(res=>{
             document.getElementById('gate5Rewrite').onclick=()=>{ document.getElementById('cbox5').style.display='none'; res('rewrite'); };
             document.getElementById('gate5Continue').onclick=()=>{ document.getElementById('cbox5').style.display='none'; res('continue'); };
@@ -2409,7 +2428,7 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
           document.getElementById('cbox11').style.display='block';
           document.getElementById('sb11').classList.add('open');
           setStep(11,'error','⚠ Hard Stop',`${failures.length} check(s) failed after ${MAX_ATTEMPTS} attempts.`);
-          setG('⚠ Step 11 hard stop — choose to rewrite V2 or continue anyway.');
+          setG('⚠ Step 11 hard stop — choose to rewrite V2 or continue anyway.',false,true);
           const decision11=await new Promise(res=>{
             document.getElementById('gate11Rewrite').onclick=()=>{ document.getElementById('cbox11').style.display='none'; res('rewrite'); };
             document.getElementById('gate11Continue').onclick=()=>{ document.getElementById('cbox11').style.display='none'; res('continue'); };
@@ -2589,7 +2608,7 @@ ${S.v2}`;
 
   // ─── HANDLE ERROR ─────────────────────────────────────────
   function handleErr(err) {
-    setG(`⚠ Error: ${err.message}`); console.error(err);
+    setG(`⚠ Error: ${err.message}`,false,true); console.error(err);
     for(let i=3;i<=15;i++){
       const card=document.getElementById(`step${i}`);
       if(card&&card.classList.contains('active')){
@@ -2690,7 +2709,10 @@ ${S.v2}`;
         fetchFile(S.client.folder43B,dkey),fetchSheet(S.client.sheet42,dkey)
       ]);
       const rowRes=findRow(sheetCSV,topic);
-      if(!rowRes) throw new Error(`Topic not found in sheet: "${topic}" — check spelling matches Column D exactly`);
+      if(!rowRes){
+        const hint=findRow._closest?`\n\nClosest match found: "${findRow._closest}"`:'';
+        throw new Error(`Topic not found in sheet: "${topic}" — check spelling matches Column D exactly${hint}`);
+      }
       S.docs={doc43A,doc44,doc22,doc23,doc43B}; S.sheetRow=rowRes.row;
       setStep(1,'done','Done ✓',`✓ 4.3A (${doc43A.length} chars)\n✓ 4.4 (${doc44.length} chars)\n✓ 2.2 (${doc22.length} chars)\n✓ 2.3 (${doc23.length} chars)\n✓ 4.3B (${doc43B.length} chars)\n✓ Sheet row: Row ${rowRes.index+1}\n\n${S.sheetRow}`);
 
