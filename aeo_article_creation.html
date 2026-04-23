@@ -22,7 +22,7 @@
 
   /* LAYOUT */
   .top-section { max-width:1600px; margin:0 auto 16px; }
-  .layout { max-width:1600px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
+  .layout { max-width:1600px; margin:0 auto; display:grid; grid-template-columns:2fr 3fr; gap:20px; align-items:start; }
   .left-col { min-width:0; }
   .right-col { position:sticky; top:20px; }
 
@@ -1009,7 +1009,7 @@
   }
 
   function getPrompt(doc44,n) {
-    const m={1:['PROMPT 1:','PROMPT 2:'],2:['PROMPT 2:','PROMPT 3:'],3:['PROMPT 3:','PROMPT 4:'],4:['PROMPT 4:','PROMPT 5:'],5:['PROMPT 5:','PROMPT 6:'],6:['PROMPT 6:','Table of Contents']};
+    const m={1:['PROMPT 1:','PROMPT 2:'],2:['PROMPT 2:','PROMPT 3:'],3:['PROMPT 3:','PROMPT 4:'],4:['PROMPT 4:','PROMPT 5:'],5:['PROMPT 5:','PROMPT 6:'],6:['PROMPT 6:','\nTable of Contents\n']};
     const [s,e]=m[n]; const si=doc44.indexOf(s); const ei=doc44.indexOf(e,si+1);
     if(si===-1) throw new Error(`Prompt ${n} not found in 4.4`);
     let text=doc44.substring(si+s.length,ei>0?ei:undefined).trim();
@@ -1663,12 +1663,12 @@ ${schemaBlocksHTML}
     for(const block of blocks){
       const id=(block.match(/ID:\s*(.+)/)||[])[1]?.trim()||'';
       const type=(block.match(/Type:\s*(.+)/)||[])[1]?.trim()||'WRONG';
-      const desc=(block.match(/Description:\s*(.+)/)||[])[1]?.trim()||'';
-      const find=(block.match(/Find:\s*(.+)/)||[])[1]?.trim()||'';
-      const replace=(block.match(/Replace:\s*(.+)/)||[])[1]?.trim()||'';
+      const desc=(block.match(/Description:\s*([\s\S]*?)(?=\nFind:|\nReplace:|\nWhat:|\nContext:|\nPlacement:|\nScope:|\nFAIL_END)/)||[])[1]?.trim()||'';
+      const find=(block.match(/Find:\s*([\s\S]*?)(?=\nReplace:|\nScope:|\nWhat:|\nContext:|\nPlacement:|\nFAIL_END)/)||[])[1]?.trim()||'';
+      const replace=(block.match(/Replace:\s*([\s\S]*?)(?=\nScope:|\nFAIL_END)/)||[])[1]?.trim()||'';
       const scope=(block.match(/Scope:\s*(.+)/)||[])[1]?.trim()||'FIRST_INSTANCE';
-      const what=(block.match(/What:\s*(.+)/)||[])[1]?.trim()||'';
-      const context=(block.match(/Context:\s*(.+)/)||[])[1]?.trim()||'';
+      const what=(block.match(/What:\s*([\s\S]*?)(?=\nContext:|\nPlacement:|\nFAIL_END)/)||[])[1]?.trim()||'';
+      const context=(block.match(/Context:\s*([\s\S]*?)(?=\nPlacement:|\nFAIL_END)/)||[])[1]?.trim()||'';
       const placement=(block.match(/Placement:\s*(.+)/)||[])[1]?.trim()||'';
       const missing=what||context||'';
       fails.push({id,type,desc,find,replace,scope,missing,what,context,placement});
@@ -1676,9 +1676,9 @@ ${schemaBlocksHTML}
     const flags=validationText.match(/FLAG_START[\s\S]*?FLAG_END/g)||[];
     for(const block of flags){
       const id=(block.match(/ID:\s*(.+)/)||[])[1]?.trim()||'';
-      const desc=(block.match(/Description:\s*(.+)/)||[])[1]?.trim()||'';
-      const flagFind=(block.match(/Find:\s*(.+)/)||[])[1]?.trim()||'';
-      const flagFix=(block.match(/Fix:\s*(.+)/)||[])[1]?.trim()||'';
+      const desc=(block.match(/Description:\s*([\s\S]*?)(?=\nFind:|\nFix:|\nFLAG_END)/)||[])[1]?.trim()||'';
+      const flagFind=(block.match(/Find:\s*([\s\S]*?)(?=\nFix:|\nFLAG_END)/)||[])[1]?.trim()||'';
+      const flagFix=(block.match(/Fix:\s*([\s\S]*?)(?=\nFLAG_END)/)||[])[1]?.trim()||'';
       fails.push({id,type:'FLAG',desc,find:flagFind,replace:flagFix,scope:'',missing:'',what:'',context:'',placement:''});
     }
     return fails;
@@ -1698,37 +1698,44 @@ ${schemaBlocksHTML}
   function runV1Check(v1, researchBrief) {
     const results=[];
     const tablePH=(v1.match(/\[TABLE NEEDED/gi)||[]).length;
-    results.push({label:'Min 3 [TABLE NEEDED] placeholders',pass:tablePH>=3,detail:`Found: ${tablePH}`});
+    const mdTableCount=(v1.match(/^\|.+\|/gm)||[]).length;
+    const tableOk=tablePH>=3||(tablePH===0&&mdTableCount>=4);
+    results.push({label:'Tables present (placeholders or markdown)',pass:tableOk,detail:tablePH>0?`${tablePH} placeholder(s)`:`${mdTableCount} markdown table rows`});
     const imgCount=(v1.match(/^PROMPT:/gim)||[]).length;
     results.push({label:'Image prompts present (PROMPT: blocks)',pass:imgCount>=3,detail:`Found: ${imgCount}`});
     const hasFAQ=/##\s*(frequently asked|faq)/i.test(v1);
     results.push({label:'FAQ section present',pass:hasFAQ,detail:hasFAQ?'Found':'Missing'});
-    // Find direct answer: text between H1 and first H2
-    // H1 is the first line starting with exactly one # (not ##)
+    // Find direct answer: text between H1/checklist and first H2
     const h1Match=v1.match(/^(?!##)#\s+.+/m);
     let daText='';
     if(h1Match){
       const afterH1=v1.slice(v1.indexOf(h1Match[0])+h1Match[0].length);
+      // Skip past the checklist block — everything up to the closing --- separator
+      let searchStart=0;
+      const separatorIdx=afterH1.indexOf('\n---');
+      if(separatorIdx>-1){
+        // Start looking for direct answer after the separator
+        searchStart=separatorIdx+4;
+      }
+      const afterChecklist=afterH1.slice(searchStart);
+      // Also skip a repeated H1 if present (some articles repeat H1 after checklist)
+      const repeatedH1=afterChecklist.match(/^(?!##)#\s+.+/m);
+      let daStart=0;
+      if(repeatedH1) daStart=afterChecklist.indexOf(repeatedH1[0])+repeatedH1[0].length;
+      const daSection=afterChecklist.slice(daStart);
       // Take everything up to the first H2
-      const firstH2=afterH1.search(/^##\s/m);
-      daText=firstH2>0?afterH1.slice(0,firstH2):afterH1.slice(0,1500);
-      // Strip checklist lines, separators, and [H1] tags
-      daText=daText
-        .replace(/^\*\s+\*\*.+\*\*:.+$/gm,'')
-        .replace(/^BLOG POST.+$/gm,'')
-        .replace(/^---$/gm,'')
-        .replace(/\[H[123]\]/gi,'')
-        .trim();
+      const firstH2=daSection.search(/^##\s/m);
+      daText=firstH2>0?daSection.slice(0,firstH2):daSection.slice(0,1500);
+      daText=daText.replace(/\[H[123]\]/gi,'').trim();
     }
     const daWords=daText.trim().split(/\s+/).filter(w=>w.length>2).length;
     const daOk=daWords>=150&&daWords<=450;
     results.push({label:'Direct answer ~200-300 words',pass:daOk,detail:`~${daWords} words`});
-    // External sources check: count URLs in Evidence Map section of research brief
-    const extUrls=(researchBrief.match(/https?:\/\/[^\s\)\]]+/g)||[]);
-    const uniqueExt=[...new Set(extUrls.map(u=>{const m=u.match(/https?:\/\/(?:www\.)?([^/]+)/);return m?m[1].split('.')[0]:'';}))].filter(Boolean);
-    const extInArticle=uniqueExt.filter(domain=>v1.toLowerCase().includes(domain.toLowerCase()));
-    const extOk=extInArticle.length>=3;
-    results.push({label:`External sources in article (need 4-8)`,pass:extOk,detail:`${extInArticle.length}/${uniqueExt.length} source domains found`});
+    // External sources check: count actual embedded external markdown hyperlinks in article
+    const extLinks=(v1.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g)||[])
+      .filter(l=>!l.match(/itechvalet\.com/i));
+    const extOk=extLinks.length>=4;
+    results.push({label:`External links embedded in article (need 4-8)`,pass:extOk,detail:`${extLinks.length} external hyperlinks found`});
     // Internal links check: look for markdown links in v1
     const intLinks=(v1.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[])
       .filter(l=>!l.match(/https?:\/\//)||l.match(/itechvalet\.com/i))
@@ -1757,11 +1764,16 @@ ${schemaBlocksHTML}
       .filter(l=>!l.match(/https?:\/\//)||l.match(/itechvalet\.com/i))
       .filter(l=>!l.match(/\(#/)); // exclude anchor-only ToC links
     results.push({label:'Internal links present after rewrite',pass:intLinksV2.length>=4,detail:`${intLinksV2.length} internal links`});
-    // Check external source domains survived
-    const extUrlsV2=(researchBrief.match(/https?:\/\/[^\s\)\]]+/g)||[]);
-    const uniqueExtV2=[...new Set(extUrlsV2.map(u=>{const m=u.match(/https?:\/\/(?:www\.)?([^/]+)/);return m?m[1].split('.')[0]:'';}))].filter(Boolean);
-    const extFoundV2=uniqueExtV2.filter(domain=>v2.toLowerCase().includes(domain.toLowerCase()));
-    results.push({label:'External sources survived rewrite',pass:extFoundV2.length>=3,detail:`${extFoundV2.length}/${uniqueExtV2.length} source domains found`});
+    // Check external links survived voice rewrite — count actual embedded external hyperlinks
+    const extLinksV2=(v2.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g)||[])
+      .filter(l=>!l.match(/itechvalet\.com/i));
+    results.push({label:'External links survived rewrite',pass:extLinksV2.length>=4,detail:`${extLinksV2.length} external hyperlinks found`});
+    // Check V2 isn't significantly shorter than V1 (content drop detection)
+    const v1Len=S.v1?S.v1.length:0;
+    const v2Len=v2.length;
+    const lengthRatio=v1Len>0?v2Len/v1Len:1;
+    const lengthOk=lengthRatio>=0.8;
+    results.push({label:'V2 length vs V1 (content drop check)',pass:lengthOk,detail:`V2 is ${Math.round(lengthRatio*100)}% of V1 length${lengthOk?'':' — possible content drop'}`});
     const allPass=results.every(r=>r.pass);
     const text=results.map(r=>`${r.pass?'✅':'⚠️'} ${r.label} — ${r.detail}`).join('\n');
     return {allPass,text};
@@ -1869,11 +1881,10 @@ All other requirements (POV slots, links, FAQ, CTA, image prompts, direct answer
 RESEARCH BRIEF (context only — do not add new data beyond what is already in the article):
 ${S.geminiResearch}
 
-YOUR ONLY JOB: For each TABLE NEEDED placeholder below, output a table block using this EXACT format:
+YOUR ONLY JOB: For each TABLE NEEDED placeholder below, output a markdown table block using this EXACT format:
 
 TABLE_START_[N]
-[markdown table here]
-[HTML table block here if client CMS requires it — check 4.3B CMS Table Delivery Format]
+[markdown table here — markdown only, no HTML]
 TABLE_END_[N]
 
 Where [N] is the placeholder number starting at 0.
@@ -1883,6 +1894,7 @@ Rules:
 - Do NOT invent statistics or new claims
 - Minimum 3 columns, maximum 5 columns per table
 - Include context in cells (not just checkmarks)
+- Output markdown tables ONLY — do NOT output any HTML blocks, style tags, or Beaver Builder code
 - Output ONLY the TABLE_START/TABLE_END blocks — nothing else
 
 PLACEHOLDERS TO BUILD:
@@ -2119,8 +2131,21 @@ ${S.v1}`;
       const fb=await waitCp14();
       if(fb){
         setStep(14,'active','Fixing...'); setG('Claude applying your feedback...',true);
-        const fix=`Operator flagged this issue in V2:\n\n"${fb}"\n\nFix only this issue. Preserve all structure, links, POV slots, and protected zones.\n\nCurrent V2:\n${S.v2}`;
-        S.v2=await callClaude(sys,fix,akey,(p)=>showV2(p),{maxTokens:64000});
+        const fixSys14=`You are applying operator-flagged fixes to an AEO article. Output ONLY DIFF_START/DIFF_END blocks — do NOT return the full article.\n\nExact format:\n\nDIFF_START\nFIND:\n[exact text to find in the article]\nREPLACE:\n[exact replacement text, or [DELETE] to remove]\nDIFF_END\n\nOne block per fix. No explanation. No preamble. ONLY diff blocks.\n\n4.3B:\n${S.docs.doc43B}`;
+        const fixUser14=`OPERATOR FEEDBACK:\n"${fb}"\n\nRULES:\n- Fix ONLY what the operator described\n- Do NOT touch any other prose, links, tables, POV slots, or protected zones\n- Output ONLY DIFF_START/DIFF_END blocks\n- If multiple sentences need changing, output one DIFF block per change\n\nARTICLE TO FIX:\n${S.v2}`;
+        const fix14Result=await callClaude(fixSys14,fixUser14,akey,(p)=>{document.getElementById('o14').textContent=p;document.getElementById('sb14').classList.add('open');},{maxTokens:64000});
+        if(fix14Result.includes('DIFF_START')){
+          const {result,applied,failed,log}=applyDiffs(S.v2,fix14Result);
+          S.v2=result;
+          showV2(S.v2);
+          document.getElementById('o14').textContent=log.join('\n')+`\n\nApplied: ${applied}, Failed: ${failed}`;
+        } else if(fix14Result.length>2000){
+          S.v2=fix14Result;
+          showV2(S.v2);
+          document.getElementById('o14').textContent='Fallback: Claude returned full article. Applied as V2.';
+        } else {
+          document.getElementById('o14').textContent=`Warning: Step 14 fix output unclear (${fix14Result.length} chars). V2 unchanged — check output.`;
+        }
       }
       setStep(14,'done','Done ✓');
       checkpointDone=true;
@@ -2154,6 +2179,8 @@ Replace image placeholders with:
 ${imgLines.join('\n')}
 Featured image: Image ${featNum}
 Publish date: ${publishDate}
+
+CRITICAL — TABLE CONVERSION: The V2 article contains markdown tables (| col | col | format). Convert every markdown table to the branded HTML table format defined in 4.3B. Use the exact CSS class naming, font, color, and mobile spec from 4.3B. Number tables sequentially (itv-table-1, itv-table-2, etc.). Do not leave any markdown tables in the HTML output — every table must be converted.
 
 V2 ARTICLE:
 ${S.v2}`;
@@ -2236,18 +2263,32 @@ ${S.v2}`;
 
   function stopPipeline() {
     running=false;
+    // Cancel any in-flight fetch via abort controller
+    if(window._activeAbort){ window._activeAbort.abort(); window._activeAbort=null; }
     document.getElementById('runBtn').disabled=false;
     document.getElementById('stopBtn').style.display='none';
     document.getElementById('runBtn').style.display='flex';
-    // Resolve any pending checkpoints so they don't hang
+    // Resolve any pending checkpoints so promises don't hang
     if(cp4Resolve){cp4Resolve();cp4Resolve=null;}
     if(cp8Resolve){cp8Resolve();cp8Resolve=null;}
     if(cp11Resolve){cp11Resolve();cp11Resolve=null;}
     if(cp14Resolve){cp14Resolve('');cp14Resolve=null;}
     if(cp16Resolve){cp16Resolve('');cp16Resolve=null;}
     if(asmResolve){asmResolve();asmResolve=null;}
+    // Reset all session state
+    S={
+      client:S.client, topic:S.topic, docs:{}, sheetRow:'',
+      geminiResearch:'', v1:'', v1WithTables:'', validation:'', parsedFails:[],
+      fixedArticle:'', protectedSentences:[], v2:'',
+      finalMD:'', finalTXT:'', html1TXT:'', finalSchema:'', checklistHTML:'',
+      imagePrompts:[], imageData:{}, imageUrls:{},
+      tokens:{gi:0,go:0,ci:0,co:0,imgs:0}
+    };
+    imagesValidated=false; checkpointDone=false; asmResolve=null; step9RetryCount=0;
+    // Clear session from localStorage
+    localStorage.removeItem(SESSION_KEY);
     stopTimer();
-    setG('⏹ Pipeline stopped. Session preserved — retry any step or start over.');
+    setG('⏹ Pipeline stopped. Session cleared — start a new run.');
   }
 
   // ─── MAIN PIPELINE ────────────────────────────────────────
