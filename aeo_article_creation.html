@@ -681,7 +681,7 @@
   // ─── STATE ────────────────────────────────────────────────
   let S = {
     client:null, topic:'', docs:{}, sheetRow:'',
-    geminiResearch:'', v1:'', v1WithTables:'', validation:'', parsedFails:[],
+    geminiResearch:'', v1:'', v1WithTables:'', validation:'', parsedFails:[], parsedFlags:[],
     fixedArticle:'', protectedSentences:[], v2:'',
     finalMD:'', finalTXT:'', html1TXT:'', finalSchema:'', checklistHTML:'',
     imagePrompts:[], imageData:{}, imageUrls:{},
@@ -1391,6 +1391,30 @@
   }
 
 
+  function dlHTML() {
+    if(!S.finalTXT){alert('Final HTML not ready yet — complete the pipeline first.');return;}
+    const slug=extractField(S.v2,'Permalink URL')||S.topic.replace(/[^a-z0-9]+/gi,'-').toLowerCase();
+    const fname=`${slug}-final.txt`;
+    const blob=new Blob([S.finalTXT],{type:'text/plain'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=fname;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function dlChecklist() {
+    if(!S.checklistHTML){alert('Checklist not ready yet — complete the pipeline first.');return;}
+    const slug=extractField(S.v2,'Permalink URL')||S.topic.replace(/[^a-z0-9]+/gi,'-').toLowerCase();
+    const fname=`${slug}-checklist.html`;
+    const blob=new Blob([S.checklistHTML],{type:'text/html'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=fname;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   function downloadAllImages() {
     const total=S.imagePrompts.length;
     if(total===0){alert('No images generated yet.');return;}
@@ -1604,14 +1628,13 @@ ${schemaBlocksHTML}
 
   // ─── FAIL PARSER ──────────────────────────────────────────
   function parseFails(validationText) {
-    // Strip markdown code fences that might wrap the output
     const cleaned=validationText.replace(/```[\w]*\n?/g,'').replace(/```/g,'');
     const fails=[];
     const blocks=cleaned.match(/FAIL_START[\s\S]*?FAIL_END/g)||[];
     let autoId=1;
     for(const block of blocks){
       let id=(block.match(/ID:\s*(.+)/)||[])[1]?.trim()||'';
-      if(!id) id=`FAIL_${String(autoId++).padStart(3,'0')}`; // fallback ID
+      if(!id) id=`FAIL_${String(autoId++).padStart(3,'0')}`;
       const type=(block.match(/Type:\s*(.+)/)||[])[1]?.trim()||'WRONG';
       const desc=(block.match(/Description:\s*([\s\S]*?)(?=\nFind:|\nReplace:|\nWhat:|\nContext:|\nPlacement:|\nScope:|\nFAIL_END)/)||[])[1]?.trim()||'';
       const find=(block.match(/Find:\s*([\s\S]*?)(?=\nReplace:|\nScope:|\nWhat:|\nContext:|\nPlacement:|\nFAIL_END)/)||[])[1]?.trim()||'';
@@ -1623,15 +1646,18 @@ ${schemaBlocksHTML}
       const missing=what||context||'';
       fails.push({id,type,desc,find,replace,scope,missing,what,context,placement});
     }
-    const flags=cleaned.match(/FLAG_START[\s\S]*?FLAG_END/g)||[];
-    for(const block of flags){
+    // FLAGS parsed separately — stored in S.parsedFlags, never enter fix loop
+    const flags=[];
+    const flagBlocks=cleaned.match(/FLAG_START[\s\S]*?FLAG_END/g)||[];
+    for(const block of flagBlocks){
       let id=(block.match(/ID:\s*(.+)/)||[])[1]?.trim()||'';
       if(!id) id=`FLAG_${String(autoId++).padStart(3,'0')}`;
       const desc=(block.match(/Description:\s*([\s\S]*?)(?=\nFind:|\nFix:|\nFLAG_END)/)||[])[1]?.trim()||'';
       const flagFind=(block.match(/Find:\s*([\s\S]*?)(?=\nFix:|\nFLAG_END)/)||[])[1]?.trim()||'';
       const flagFix=(block.match(/Fix:\s*([\s\S]*?)(?=\nFLAG_END)/)||[])[1]?.trim()||'';
-      fails.push({id,type:'FLAG',desc,find:flagFind,replace:flagFix,scope:'',missing:'',what:'',context:'',placement:''});
+      flags.push({id,desc,find:flagFind,fix:flagFix});
     }
+    S.parsedFlags=flags;
     return fails;
   }
 
@@ -2044,8 +2070,12 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
       const linkListStr=bpAnchors.map(a=>`Anchor text: "${a}"`).join('\n');
       const vp=`You are operating inside the iTech Valet AI Authority Pipeline as Quality Assurance Auditor.\n\nCRITICAL OUTPUT RULE: Output ALL FAIL_START/FAIL_END and FLAG_START/FLAG_END blocks FIRST. Output the summary line ("VALIDATION COMPLETE — X FAILs...") LAST, never first.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nBUSINESS IDENTITY LOCK (2.2):\n${S.docs.doc22}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${S.geminiResearch}\n\nLINK VERIFICATION — these anchor phrases should appear in the article:\n${linkListStr}\n\n---\n\n${p3}\n\nArticle text below:\n${S.v1}`;
       S.validation=await callGemini(vp,gkey);
-      setStep(7,'done','Done ✓',S.validation);
       S.parsedFails=parseFails(S.validation);
+      // Show FLAGS in Step 7 output as informational — they never enter the fix loop
+      const flagNote=S.parsedFlags.length>0
+        ?`\n\n--- VOICE FLAGS (informational — handled by Step 10 voice rewrite) ---\n${S.parsedFlags.map(f=>`🚩 ${f.id}: ${f.desc}`).join('\n')}`
+        :'';
+      setStep(7,'done','Done ✓',S.validation+flagNote);
       step=8;
     }
 
@@ -2114,10 +2144,13 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
     // STEP 10: Claude — Voice Rewrite Only
     if(step<=10){
       setStep(10,'active','Voice rewrite...'); setG('Claude rewriting in author voice...',true);
+      const flagContext=S.parsedFlags&&S.parsedFlags.length>0
+        ?`\n\nVOICE FLAGS FROM GEMINI VALIDATION (address these during rewrite — do not treat as structural fixes):\n${S.parsedFlags.map(f=>`• ${f.id}: ${f.desc}\n  Find: ${f.find}\n  Suggested fix: ${f.fix}`).join('\n\n')}`
+        :'';
       const protectedList=S.protectedSentences.length
         ?`\n\nPROTECTED SENTENCES (do NOT change these):\n${S.protectedSentences.map((s,i)=>`${i+1}. ${s}`).join('\n')}`:'';
       const p4=getPrompt(S.docs.doc44,4);
-      const voiceUser=`PUBLISH DATE: ${publishDate}\n\nRESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\n---\n${p4}\n${protectedList}\n\nIMPORTANT: No Gemini validation feedback is attached. Skip directly to Task 2 (Voice Rewrite).\n\nTASK: Voice rewrite ONLY. Structure, links, tables, and POV slots are already correct.\n\nProtected zones — do NOT touch:\n- Direct Answer section (first 200-300 words after H1)\n- FAQ question text and first 1-2 sentences of each FAQ answer\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- Blog Post Optimization Checklist\n- Any sentence listed in PROTECTED SENTENCES above\n- All internal and external links (keep URLs and anchor text exactly)\n\nRewrite everything else from blank page in the author's voice.\n\nARTICLE TO REWRITE:\n${S.v1}`;
+      const voiceUser=`PUBLISH DATE: ${publishDate}\n\nRESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\n---\n${p4}\n${protectedList}${flagContext}\n\nIMPORTANT: No Gemini validation feedback is attached. Skip directly to Task 2 (Voice Rewrite).\n\nTASK: Voice rewrite ONLY. Structure, links, tables, and POV slots are already correct.\n\nProtected zones — do NOT touch:\n- Direct Answer section (first 200-300 words after H1)\n- FAQ question text and first 1-2 sentences of each FAQ answer\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- Blog Post Optimization Checklist\n- Any sentence listed in PROTECTED SENTENCES above\n- All internal and external links (keep URLs and anchor text exactly)\n\nRewrite everything else from blank page in the author's voice.\n\nARTICLE TO REWRITE:\n${S.v1}`;
       S.v2=await callClaude(sys,voiceUser,akey,(p)=>{document.getElementById('o10').textContent=p;document.getElementById('sb10').classList.add('open');showV2(p);},{maxTokens:64000});
       if(S.v2.length<2000) throw new Error(`Step 10: V2 too short (${S.v2.length} chars) — retry.`);
       setStep(10,'done','Done ✓'); showV2(S.v2); updateWordCount(S.v2);
@@ -2333,7 +2366,7 @@ ${S.v2}`;
     if(asmResolve){asmResolve();asmResolve=null;}
     S={
       client:S.client, topic:S.topic, docs:{}, sheetRow:'',
-      geminiResearch:'', v1:'', v1WithTables:'', validation:'', parsedFails:[],
+      geminiResearch:'', v1:'', v1WithTables:'', validation:'', parsedFails:[], parsedFlags:[],
       fixedArticle:'', protectedSentences:[], v2:'',
       finalMD:'', finalTXT:'', html1TXT:'', finalSchema:'', checklistHTML:'',
       imagePrompts:[], imageData:{}, imageUrls:{},
