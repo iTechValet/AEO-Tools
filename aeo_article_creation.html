@@ -377,6 +377,16 @@
       <div class="stat-label">V2 Words</div>
       <div class="stat-value" id="v2WordCount">—</div>
     </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">Session Expiry</div>
+      <select id="sessionExpiry" onchange="saveSessionExpiry()" style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--blue);font-family:'Lexend',sans-serif;font-size:11px;outline:none;cursor:pointer;">
+        <option value="1">1 day</option>
+        <option value="3">3 days</option>
+        <option value="7" selected>7 days</option>
+        <option value="30">30 days</option>
+      </select>
+    </div>
   </div>
 
   <!-- RUN HISTORY -->
@@ -624,7 +634,6 @@
       <div class="preview-tabs">
         <button class="ptab active" id="tabV1" onclick="switchTab('v1')">V1 Article</button>
         <button class="ptab" id="tabV2" onclick="switchTab('v2')">V2 Article <span class="wc-badge" id="wcBadge" style="display:none;"></span></button>
-        <button class="ptab" id="tabHTML1" onclick="switchTab('html1')">HTML 1</button>
         <button class="ptab" id="tabHTMLFinal" onclick="switchTab('htmlFinal')">HTML Final</button>
       </div>
       <div class="ppane active" id="pV1">
@@ -634,10 +643,6 @@
       <div class="ppane" id="pV2">
         <div class="pempty" id="v2Empty">V2 article appears here after Step 10</div>
         <div class="md-preview" id="v2Pre" style="display:none;"></div>
-      </div>
-      <div class="ppane" id="pHTML1">
-        <div class="pempty" id="html1Empty">HTML 1 appears after Step 13 (pre-QC)</div>
-        <iframe id="html1Frame" style="display:none;border:none;background:#fff;height:480px;width:100%;"></iframe>
       </div>
       <div class="ppane" id="pHTMLFinal">
         <div class="pempty" id="htmlFinalEmpty">HTML Final appears after Step 14 QC</div>
@@ -697,7 +702,7 @@
 
   // ─── INIT ─────────────────────────────────────────────────
   window.addEventListener('load',()=>{
-    loadClients(); loadKeys();
+    loadClients(); loadKeys(); loadSessionExpiry();
     document.getElementById('publishDate').value = new Date().toISOString().split('T')[0];
     renderHistory();
     checkSessionRestore();
@@ -861,16 +866,33 @@
     } catch(e){ console.warn('Session save failed:',e); }
   }
 
+  function saveSessionExpiry() {
+    const days=document.getElementById('sessionExpiry').value;
+    localStorage.setItem('aeo_session_expiry',days);
+  }
+
+  function loadSessionExpiry() {
+    const saved=localStorage.getItem('aeo_session_expiry')||'7';
+    const el=document.getElementById('sessionExpiry');
+    if(el) el.value=saved;
+    return parseInt(saved);
+  }
+
+  function getSessionExpiryMs() {
+    return loadSessionExpiry() * 86400000;
+  }
+
   function checkSessionRestore() {
     try {
       const raw=localStorage.getItem(SESSION_KEY);
       if(!raw) return;
       const data=JSON.parse(raw);
-      // Only offer restore if session is less than 24 hours old and has content
-      if(!data.v2 || Date.now()-data.savedAt > 86400000) return;
+      const expiryMs=getSessionExpiryMs();
+      if(!data.v2 || Date.now()-data.savedAt > expiryMs) return;
       const age=Math.round((Date.now()-data.savedAt)/60000);
+      const ageStr=age<60?`${age}m ago`:`${Math.round(age/60)}h ago`;
       document.getElementById('restoreMsg').textContent=
-        `Session found: "${data.topic.substring(0,40)}" (${age}m ago) — restore V1, V2 and HTML?`;
+        `Session found: "${data.topic.substring(0,40)}" (${ageStr}) — restore V1, V2 and HTML?`;
       document.getElementById('restoreBanner').classList.add('show');
     } catch(e){}
   }
@@ -1236,18 +1258,17 @@
     }).catch(()=>{});
   }
   function switchTab(tab) {
+    // Redirect html1 to htmlFinal — tab removed but calls may still reference it
+    if(tab==='html1') tab='htmlFinal';
     activeTab = tab;
     document.getElementById('tabV1')?.classList.toggle('active',tab==='v1');
     document.getElementById('tabV2')?.classList.toggle('active',tab==='v2');
-    document.getElementById('tabHTML1')?.classList.toggle('active',tab==='html1');
     document.getElementById('tabHTMLFinal')?.classList.toggle('active',tab==='htmlFinal');
     document.getElementById('pV1')?.classList.toggle('active',tab==='v1');
     document.getElementById('pV2')?.classList.toggle('active',tab==='v2');
-    document.getElementById('pHTML1')?.classList.toggle('active',tab==='html1');
     document.getElementById('pHTMLFinal')?.classList.toggle('active',tab==='htmlFinal');
-    // Show copy button for tabs with copyable content (not V1 — that changes mid-run)
     const copyBtn = document.getElementById('btnCopyPane');
-    if(copyBtn) copyBtn.style.display = (tab==='v2'||tab==='html1'||tab==='htmlFinal') ? 'block' : 'none';
+    if(copyBtn) copyBtn.style.display = (tab==='v2'||tab==='htmlFinal') ? 'block' : 'none';
   }
 
   function showV1(text) {
@@ -1272,22 +1293,18 @@
   }
 
   function showHTML1(html) {
-    document.getElementById('html1Empty').style.display='none';
-    const frame=document.getElementById('html1Frame'); frame.style.display='block';
-    const doc=frame.contentDocument||frame.contentWindow.document;
-    doc.open(); doc.write(html); doc.close();
-    document.getElementById('prevBadge').textContent='HTML 1 ready';
-    switchTab('html1');
+    // HTML 1 tab removed — redirect to HTML Final
+    showHTMLFinal(html);
   }
   function showHTMLFinal(html) {
     document.getElementById('htmlFinalEmpty').style.display='none';
     const frame=document.getElementById('htmlFinalFrame'); frame.style.display='block';
     const doc=frame.contentDocument||frame.contentWindow.document;
     doc.open(); doc.write(html); doc.close();
-    document.getElementById('prevBadge').textContent='HTML Final ready';
+    document.getElementById('prevBadge').textContent='HTML ready';
     switchTab('htmlFinal');
   }
-  function showHTML(html) { showHTML1(html); } // legacy alias
+  function showHTML(html) { showHTMLFinal(html); } // legacy alias
 
   // ─── GEMINI ───────────────────────────────────────────────
   async function callGemini(prompt,gkey) {
@@ -1918,7 +1935,7 @@ All other requirements (POV slots, links, FAQ, CTA, image prompts, direct answer
       S.v1=await callClaude(sys,u3,akey,(p)=>{document.getElementById('o3').textContent=p;document.getElementById('sb3').classList.add('open');},{maxTokens:64000});
       if(S.v1.length<2000) throw new Error(`Step 3: V1 too short (${S.v1.length} chars) — retry.`);
       setStep(3,'done','Done ✓');
-      S.imagePrompts=extractImgPrompts(S.v1);
+      saveSession();
       showV1(S.v1);
       step=4;
     }
@@ -1985,6 +2002,7 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
           if(completeTableCount>=3){
             S.imagePrompts=extractImgPrompts(S.v1); showV1(S.v1);
             setStep(4,'done','Done ✓',`${insertCount} table(s) inserted. ${completeTableCount} complete tables verified.`);
+            saveSession();
             break;
           } else {
             tableAttempt++;
@@ -2020,6 +2038,7 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
         document.getElementById('sb5').classList.add('open');
         if(failures.length===0){
           setStep(5,'done','Done ✓',`All checks passed${attempts>0?` after ${attempts} fix attempt(s)`:''}.`);
+          saveSession();
           break;
         }
         attempts++;
@@ -2064,6 +2083,7 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
         buildImgGrid(S.imagePrompts);
         await genAllImages(S.imagePrompts,gkey);
         setStep(6,'done','Done ✓',`${S.imagePrompts.length} image(s) generated.`);
+        saveSession();
         const dlAllBtn=document.getElementById('dlAllBtn');if(dlAllBtn)dlAllBtn.disabled=false;
       } else {
         throw new Error('Step 6: No image prompts found in V1 — retry from Step 3.');
@@ -2164,6 +2184,78 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
       S.v2=await callClaude(sys,voiceUser,akey,(p)=>{document.getElementById('o10').textContent=p;document.getElementById('sb10').classList.add('open');showV2(p);},{maxTokens:64000});
       if(S.v2.length<2000) throw new Error(`Step 10: V2 too short (${S.v2.length} chars) — retry.`);
       setStep(10,'done','Done ✓'); showV2(S.v2); updateWordCount(S.v2);
+      saveSession();
+
+      // STEP 10B: Voice QC (hidden sub-step — pulls rules from 4.3B, auto-fixes, never surfaces unless hard fail)
+      setG('Running voice QC...', true);
+      const voiceQCPrompt=`You are a voice quality auditor for an AEO article. Your job is to check whether the article matches the author's voice as defined in the Client Identity Card below.
+
+CLIENT IDENTITY CARD (4.3B):
+${S.docs.doc43B}
+
+Using ONLY the Voice Calibration section, Author Voice examples, and Writing Pattern rules in the Client Identity Card above, audit the article for voice compliance. Check for:
+1. Does the writing lead with verdicts/points, not setups or mechanisms?
+2. Does it react then explain — never explain before landing the point?
+3. Are forbidden conclusion patterns present? (hedging, fence-sitting, "it depends")
+4. Are forbidden language terms present? (per the Terminology Lock and Messaging Guardrails)
+5. Does the tone match the defined voice standard (reading level, sentence length, contraction density)?
+
+OUTPUT FORMAT — output ONLY blocks for sections that fail. Silent pass for sections that pass.
+
+VOICEQC_START
+RULE: [which rule failed]
+DESCRIPTION: [what specifically fails and why]
+FIND: [exact sentence or phrase from the article]
+FIX: [rewrite in the author's voice per 4.3B]
+VOICEQC_END
+
+If all checks pass, output only: VOICE QC PASSED
+
+Do NOT flag structural issues (links, tables, schema) — only voice and tone. Do NOT flag the Direct Answer section or FAQ question text — those are protected zones.
+
+ARTICLE TO AUDIT:
+${S.v2}`;
+
+      const voiceQCResult=await callGemini(voiceQCPrompt,gkey);
+      const voiceQCBlocks=voiceQCResult.match(/VOICEQC_START[\s\S]*?VOICEQC_END/g)||[];
+
+      if(voiceQCBlocks.length===0||voiceQCResult.includes('VOICE QC PASSED')){
+        setG('Voice QC passed — proceeding to V2 integrity gate...',true);
+        document.getElementById('o10').textContent+=`\n\n--- VOICE QC ---\n✅ All voice checks passed.`;
+      } else {
+        let voiceQCAttempt=0;
+        const MAX_VOICE_ATTEMPTS=2;
+        let remainingBlocks=voiceQCBlocks;
+        while(voiceQCAttempt<MAX_VOICE_ATTEMPTS && remainingBlocks.length>0){
+          voiceQCAttempt++;
+          setG(`Voice QC: ${remainingBlocks.length} issue(s) — auto-fixing (${voiceQCAttempt}/${MAX_VOICE_ATTEMPTS})...`,true);
+          const fixItems=remainingBlocks.map(block=>{
+            const find=(block.match(/FIND:\s*([\s\S]*?)(?=\nFIX:|\nVOICEQC_END)/)||[])[1]?.trim()||'';
+            const fix=(block.match(/FIX:\s*([\s\S]*?)(?=\nVOICEQC_END)/)||[])[1]?.trim()||'';
+            const rule=(block.match(/RULE:\s*(.+)/)||[])[1]?.trim()||'';
+            return `RULE: ${rule}\nFind: ${find}\nReplace with: ${fix}`;
+          }).join('\n\n---\n\n');
+          const voiceFixSys=`You are applying targeted voice fixes to an AEO article. Output ONLY DIFF_START/DIFF_END blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement]\nDIFF_END\n\nOne block per fix. No explanation. ONLY diff blocks.\n\n4.3B:\n${S.docs.doc43B}`;
+          const voiceFixUser=`Fix ONLY the voice issues listed. Do NOT touch structure, links, tables, Direct Answer, or FAQ questions.\n\nVOICE ISSUES TO FIX:\n${fixItems}\n\nARTICLE:\n${S.v2}`;
+          const voiceFixResult=await callClaude(voiceFixSys,voiceFixUser,akey,(p)=>{document.getElementById('o10').textContent+='\n\nVoice QC fix:\n'+p;},{maxTokens:64000});
+          if(voiceFixResult.includes('DIFF_START')){
+            const {result,applied,failed}=applyDiffs(S.v2,voiceFixResult);
+            S.v2=result; showV2(S.v2);
+            document.getElementById('o10').textContent+=`\n\nVoice QC attempt ${voiceQCAttempt}: Applied ${applied}, Failed ${failed}`;
+          }
+          // Re-check with updated V2
+          const recheckPrompt=voiceQCPrompt.replace(/ARTICLE TO AUDIT:\n[\s\S]*/,'ARTICLE TO AUDIT:\n'+S.v2);
+          const recheck=await callGemini(recheckPrompt,gkey);
+          remainingBlocks=recheck.match(/VOICEQC_START[\s\S]*?VOICEQC_END/g)||[];
+          if(recheck.includes('VOICE QC PASSED')) remainingBlocks=[];
+        }
+        if(remainingBlocks.length>0){
+          document.getElementById('o10').textContent+=`\n\n⚠️ Voice QC: ${remainingBlocks.length} issue(s) could not be auto-fixed. Review V2 at Step 12.`;
+        } else {
+          document.getElementById('o10').textContent+=`\n\n✅ Voice QC: All issues resolved.`;
+        }
+        saveSession();
+      }
       step=11;
     }
 
@@ -2180,6 +2272,7 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
         document.getElementById('sb11').classList.add('open');
         if(failures.length===0){
           setStep(11,'done','Done ✓',`All checks passed${attempts>0?` after ${attempts} fix attempt(s)`:''}.`);
+          saveSession();
           break;
         }
         attempts++;
@@ -2202,6 +2295,7 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
         const stillFailing=checksAfterRestore.filter(c=>!c.pass);
         if(stillFailing.length===0){
           setStep(11,'done','Done ✓',`All checks passed after JS restore on attempt ${attempts}.`);
+          saveSession();
           step=12; break;
         }
         // Claude diff for remaining failures
@@ -2305,6 +2399,7 @@ ${S.v2}`;
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
       showHTML1(S.finalTXT);
       setStep(13,'done','Done ✓',step13Note);
+      saveSession();
       step=14;
     }
 
