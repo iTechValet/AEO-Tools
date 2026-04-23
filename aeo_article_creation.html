@@ -212,8 +212,8 @@
   .ptab:hover:not(.active) { color:var(--blue); }
   .ppane { display:none; flex-direction:column; overflow:hidden; }
   .ppane.active { display:flex; }
-  .ppane iframe { border:none; background:#fff; height:480px; }
-  .ppane .md-preview { overflow-y:auto; padding:14px 16px; background:#fff; height:480px; font-family:'Lexend',sans-serif; font-size:12px; line-height:1.7; color:var(--blue); }
+  .ppane iframe { border:none; background:#fff; height:620px; }
+  .ppane .md-preview { overflow-y:auto; padding:14px 16px; background:#fff; height:620px; font-family:'Lexend',sans-serif; font-size:12px; line-height:1.7; color:var(--blue); }
   /* Step 10 upload status */
   .upload-status { font-size:11px; padding:7px 10px; border-radius:6px; margin-top:6px; display:none; }
   .upload-status.ok { background:rgba(76,175,80,.1); color:var(--green); border:1px solid rgba(76,175,80,.3); display:block; }
@@ -232,7 +232,7 @@
   .md-preview li { margin-bottom:3px; }
   .md-preview blockquote { border-left:3px solid var(--accent); padding-left:10px; color:var(--muted); margin:8px 0; }
   .md-preview hr { border:none; border-top:1px solid var(--border); margin:10px 0; }
-  .pempty { padding:20px; text-align:center; font-size:12px; color:#ccc; height:480px; display:flex; align-items:center; justify-content:center; }
+  .pempty { padding:20px; text-align:center; font-size:12px; color:#ccc; height:620px; display:flex; align-items:center; justify-content:center; }
 
   .error-msg { color:var(--orange); font-size:11px; margin-top:5px; }
 
@@ -638,6 +638,7 @@
         <button class="ptab active" id="tabV1" onclick="switchTab('v1')">V1 Article</button>
         <button class="ptab" id="tabV2" onclick="switchTab('v2')">V2 Article <span class="wc-badge" id="wcBadge" style="display:none;"></span></button>
         <button class="ptab" id="tabHTMLFinal" onclick="switchTab('htmlFinal')">HTML Final</button>
+        <button class="ptab" id="tabSchema" onclick="switchTab('schema')">Schema</button>
       </div>
       <div class="ppane active" id="pV1">
         <div class="pempty" id="v1Empty">V1 article appears here after Step 3</div>
@@ -649,7 +650,11 @@
       </div>
       <div class="ppane" id="pHTMLFinal">
         <div class="pempty" id="htmlFinalEmpty">HTML Final appears after Step 14 QC</div>
-        <iframe id="htmlFinalFrame" style="display:none;border:none;background:#fff;height:480px;width:100%;"></iframe>
+        <iframe id="htmlFinalFrame" style="display:none;border:none;background:#fff;height:100%;width:100%;"></iframe>
+      </div>
+      <div class="ppane" id="pSchema" style="overflow-y:auto;">
+        <div class="pempty" id="schemaEmpty">Schema appears after Step 13</div>
+        <pre id="schemaPre" style="display:none;font-family:monospace;font-size:11px;white-space:pre-wrap;word-break:break-word;padding:12px;color:var(--blue);line-height:1.6;margin:0;"></pre>
       </div>
     </div>
 
@@ -932,9 +937,8 @@
       if(data.v2){ S.v2=data.v2; showV2(data.v2); updateWordCount(data.v2); }
       if(data.finalTXT){ S.finalTXT=data.finalTXT; showHTML1(data.finalTXT); showHTMLFinal(data.finalTXT); }
       if(data.finalSchema) S.finalSchema=data.finalSchema;
-      // Rebuild checklistHTML — use saved version or rebuild from schema
-      if(data.checklistHTML){ S.checklistHTML=data.checklistHTML; }
-      else if(data.finalSchema){ S.checklistHTML=buildChecklistHTML(data.finalSchema); }
+      if(data.finalSchema){ S.checklistHTML=buildChecklistHTML(data.finalSchema); showSchema(data.finalSchema, data.publishDate||'', ''); }
+      else if(data.checklistHTML){ S.checklistHTML=data.checklistHTML; }
       // Show download buttons if we have the outputs
       if(S.finalTXT||S.checklistHTML){
         document.getElementById('outputsSec').classList.add('open');
@@ -1277,17 +1281,45 @@
     }).catch(()=>{});
   }
   function switchTab(tab) {
-    // Redirect html1 to htmlFinal — tab removed but calls may still reference it
     if(tab==='html1') tab='htmlFinal';
     activeTab = tab;
+    ['v1','v2','htmlFinal','schema'].forEach(t=>{
+      document.getElementById(`tab${t.charAt(0).toUpperCase()+t.slice(1)}`)?.classList.toggle('active',tab===t);
+      document.getElementById(`p${t.charAt(0).toUpperCase()+t.slice(1)}`)?.classList.toggle('active',tab===t);
+    });
+    // Fix capitalisation for tab IDs
     document.getElementById('tabV1')?.classList.toggle('active',tab==='v1');
     document.getElementById('tabV2')?.classList.toggle('active',tab==='v2');
     document.getElementById('tabHTMLFinal')?.classList.toggle('active',tab==='htmlFinal');
+    document.getElementById('tabSchema')?.classList.toggle('active',tab==='schema');
     document.getElementById('pV1')?.classList.toggle('active',tab==='v1');
     document.getElementById('pV2')?.classList.toggle('active',tab==='v2');
     document.getElementById('pHTMLFinal')?.classList.toggle('active',tab==='htmlFinal');
+    document.getElementById('pSchema')?.classList.toggle('active',tab==='schema');
     const copyBtn = document.getElementById('btnCopyPane');
-    if(copyBtn) copyBtn.style.display = (tab==='v2'||tab==='htmlFinal') ? 'block' : 'none';
+    if(copyBtn) copyBtn.style.display = (tab==='v2'||tab==='htmlFinal'||tab==='schema') ? 'block' : 'none';
+  }
+
+  function showSchema(schemaText, publishDate, featuredUrl) {
+    if(!schemaText) return;
+    document.getElementById('schemaEmpty').style.display='none';
+    const pre=document.getElementById('schemaPre');
+    pre.style.display='block';
+    // Highlight publish date and featured image URL
+    let highlighted=schemaText
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    if(publishDate){
+      highlighted=highlighted.split(publishDate).join(
+        `<mark style="background:#fff3cd;font-weight:bold;">${publishDate}</mark>`
+      );
+    }
+    if(featuredUrl){
+      highlighted=highlighted.split(featuredUrl).join(
+        `<mark style="background:#d4edda;font-weight:bold;">${featuredUrl}</mark>`
+      );
+    }
+    pre.innerHTML=highlighted;
+    document.getElementById('prevBadge').textContent='Schema ready';
   }
 
   function showV1(text) {
@@ -2470,12 +2502,14 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
       const imgLines=[];
       for(let i=0;i<S.imagePrompts.length;i++){const u=S.imageUrls[i]||'';if(u)imgLines.push(`Image ${i+1} URL — ${u}`);}
       const featNum=getFeatured()+1;
+      const today=new Date().toISOString().split('T')[0];
       const htmlPrompt=`You are producing the Final HTML for an AEO article. Output TWO clearly labeled blocks and nothing else:
 
 BLOCK 1 — SCHEMA (label: === SCHEMA START === and === SCHEMA END ===)
 Complete schema: FAQPage, BlogPosting, BreadcrumbList, each in its own script tag.
 - Featured image URL: ${S.imageUrls[getFeatured()]||''}
-- Publish date: ${publishDate} — USE THIS DATE EXACTLY.
+- Publish date: ${publishDate}
+- CRITICAL DATE RULE: Use EXACTLY "${publishDate}" for ALL date fields (datePublished, dateModified, etc.). Do NOT use today's date (${today}). Do NOT use any other date. The date "${publishDate}" must appear in every date field, verbatim.
 - Entity data from 4.3B.
 
 BLOCK 2 — HTML (label: === HTML START === and === HTML END ===)
@@ -2483,7 +2517,7 @@ Complete article HTML. Pure HTML, paste-ready for Beaver Builder. No title tag, 
 Replace image placeholders with:
 ${imgLines.join('\n')}
 Featured image: Image ${featNum}
-Publish date: ${publishDate}
+- CRITICAL DATE RULE: Use EXACTLY "${publishDate}" everywhere a date appears (Last Updated, published date, etc.). Do NOT use today's date (${today}).
 
 CRITICAL — TABLE CONVERSION: The V2 article contains markdown tables (| col | col | format). Convert every markdown table to the branded HTML table format defined in 4.3B. Use the exact CSS class naming, font, color, and mobile spec from 4.3B. Number tables sequentially (itv-table-1, itv-table-2, etc.). Do not leave any markdown tables in the HTML output.
 
@@ -2506,15 +2540,25 @@ ${S.v2}`;
         else{throw new Error('Step 13: No === HTML START === block found. Retry.');}
       }
       S.html1TXT=S.finalTXT;
+      // Post-assembly date verification — JS fixes wrong date before QC
+      const todayStr=new Date().toISOString().split('T')[0];
+      if(publishDate && S.finalTXT.includes(todayStr) && publishDate!==todayStr){
+        // Claude used today's date instead of the publish date — fix it in JS
+        const fixCount=(S.finalTXT.match(new RegExp(todayStr,'g'))||[]).length;
+        S.finalTXT=S.finalTXT.split(todayStr).join(publishDate);
+        S.finalSchema=S.finalSchema.split(todayStr).join(publishDate);
+        document.getElementById('o13').textContent+=`\n\n✅ Date fix: Replaced ${fixCount} instance(s) of today's date (${todayStr}) with publish date (${publishDate}).`;
+      }
       // Post-assembly check: flag if markdown tables survived into HTML
       const mdTablesInHTML=(S.finalTXT.match(/^\|.+\|$/gm)||[]).length;
       const htmlTablesInHTML=(S.finalTXT.match(/<table/gi)||[]).length;
-      let step13Note='HTML generated — review HTML 1 tab. QC runs next.';
+      let step13Note='HTML generated — QC runs next.';
       if(mdTablesInHTML>3&&htmlTablesInHTML===0){
         step13Note=`⚠️ Warning: ${mdTablesInHTML} markdown table rows found in HTML — tables may not have been converted. Step 14 QC will flag this.`;
       }
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
-      showHTML1(S.finalTXT);
+      showHTMLFinal(S.finalTXT);
+      showSchema(S.finalSchema, publishDate, S.imageUrls[getFeatured()]||'');
       setStep(13,'done','Done ✓',step13Note);
       saveSession();
       step=14;
