@@ -58,8 +58,6 @@
 
   /* STATS ROW */
   .stat-item { display:flex; flex-direction:column; gap:3px; }
-  .stat-label { font-family:'Bebas Neue',sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--blue); opacity:0.55; }
-  .stat-value { font-family:'Bebas Neue',sans-serif; font-size:20px; color:var(--blue); letter-spacing:1px; line-height:1; }
   .stat-value.orange { color:var(--orange); }
   .stat-value.green { color:var(--green); }
   .stat-divider { width:1px; height:32px; background:var(--border); align-self:center; }
@@ -100,15 +98,15 @@
   .step-card.error { border-color:var(--orange); }
   .step-card.checkpoint { border-color:var(--orange); }
   .step-header { display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer; user-select:none; }
-  .step-num { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--border); line-height:1; min-width:22px; transition:color .3s; }
+  .step-num { font-family:'Bebas Neue',sans-serif; font-size:24px; color:var(--border); line-height:1; min-width:24px; transition:color .3s; }
   .step-card.active .step-num { color:var(--accent); }
   .step-card.done .step-num { color:var(--green); }
   .step-card.error .step-num, .step-card.checkpoint .step-num { color:var(--orange); }
   .step-info { flex:1; }
-  .step-title { font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1.5px; color:var(--blue); margin-bottom:1px; }
-  .step-desc { font-size:10px; color:var(--faint); }
+  .step-title { font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:1.5px; color:var(--blue); margin-bottom:1px; }
+  .step-desc { font-size:12px; color:var(--faint); }
   .step-right { display:flex; align-items:center; gap:7px; }
-  .sbadge { font-family:'Bebas Neue',sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:1px; padding:3px 8px; border-radius:4px; white-space:nowrap; }
+  .sbadge { font-family:'Bebas Neue',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:1px; padding:3px 8px; border-radius:4px; white-space:nowrap; }
   .b-waiting { background:#ececec; color:var(--faint); }
   .b-running { background:rgba(36,148,224,.15); color:var(--accent); }
   .b-done { background:rgba(76,175,80,.15); color:var(--green); }
@@ -263,10 +261,10 @@
   .history-empty { font-size:11px; color:#ccc; text-align:center; padding:10px 0; }
 
   /* SESSION RESTORE BANNER */
-  .restore-banner { background:rgba(36,148,224,.08); border:1px solid rgba(36,148,224,.3); border-radius:8px; padding:9px 14px; margin-bottom:10px; font-size:11px; color:var(--accent); display:none; align-items:center; justify-content:space-between; gap:10px; }
-  .restore-banner.show { display:flex; }
   .btn-restore { background:var(--accent); color:#fff; border:none; border-radius:5px; padding:4px 12px; font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1px; cursor:pointer; }
   .btn-dismiss { background:none; border:none; color:var(--faint); font-size:14px; cursor:pointer; padding:0 4px; }
+  .stat-label { font-family:'Bebas Neue',sans-serif; font-size:12px; text-transform:uppercase; letter-spacing:1.5px; color:var(--blue); opacity:0.55; }
+  .stat-value { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--blue); letter-spacing:1px; line-height:1; }
 </style>
 </head>
 <body>
@@ -332,14 +330,6 @@
 
   <!-- STATUS + RESTORE BANNER -->
   <div class="gstatus" id="gstatus"></div>
-  <div class="restore-banner" id="restoreBanner">
-    <span id="restoreMsg">Previous session found — restore V1, V2 and HTML?</span>
-    <div style="display:flex;gap:6px;flex-shrink:0;">
-      <button class="btn-restore" onclick="restoreSession()">Restore</button>
-      <button class="btn-dismiss" onclick="dismissRestore()">✕</button>
-    </div>
-  </div>
-
   <!-- ROW 3: STATS -->
   <div class="cp-row stats">
     <div class="stat-item">
@@ -386,6 +376,12 @@
         <option value="7" selected>7 days</option>
         <option value="30">30 days</option>
       </select>
+    </div>
+    <div class="stat-divider" id="restoreDivider" style="display:none;"></div>
+    <div class="stat-item" id="restoreBanner" style="display:none;align-items:center;gap:8px;flex-direction:row;">
+      <span id="restoreMsg" style="font-size:11px;color:var(--accent);white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis;"></span>
+      <button class="btn-restore" onclick="restoreSession()" style="white-space:nowrap;">Restore</button>
+      <button class="btn-dismiss" onclick="dismissRestore()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px;">✕</button>
     </div>
   </div>
 
@@ -892,9 +888,15 @@
       const age=Math.round((Date.now()-data.savedAt)/60000);
       const ageStr=age<60?`${age}m ago`:`${Math.round(age/60)}h ago`;
       document.getElementById('restoreMsg').textContent=
-        `Session found: "${data.topic.substring(0,40)}" (${ageStr}) — restore V1, V2 and HTML?`;
-      document.getElementById('restoreBanner').classList.add('show');
+        `"${data.topic.substring(0,35)}" (${ageStr})`;
+      document.getElementById('restoreBanner').style.display='flex';
+      document.getElementById('restoreDivider').style.display='block';
     } catch(e){}
+  }
+
+  function dismissRestore() {
+    document.getElementById('restoreBanner').style.display='none';
+    document.getElementById('restoreDivider').style.display='none';
   }
 
   function restoreSession() {
@@ -923,9 +925,6 @@
     } catch(e){ console.warn('Restore failed:',e); }
   }
 
-  function dismissRestore() {
-    document.getElementById('restoreBanner').classList.remove('show');
-  }
 
   // ─── RUN HISTORY ──────────────────────────────────────────
   function saveToHistory(entry) {
