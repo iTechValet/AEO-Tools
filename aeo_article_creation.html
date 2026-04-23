@@ -2116,21 +2116,18 @@ If you cannot find the exact anchor phrase, use a close natural-language variati
     // STEP 4: Claude — Build Tables Only
     if(step<=4){
       setStep(4,'active','Building tables...'); setG('Claude building tables...',true);
+      document.getElementById('o4').textContent='';
       let tableAttempt=0;
       const MAX_TABLE_ATTEMPTS=3;
-      // Save pre-table V1 so we can restore placeholders on retry
-      const v1PreTable=S.v1;
+      const v1PreTable=S.v1; // always scan from original V1 with all placeholders intact
+      const appendO4=(txt)=>{ document.getElementById('o4').textContent+=txt+'\n'; document.getElementById('sb4').classList.add('open'); };
       while(tableAttempt<MAX_TABLE_ATTEMPTS){
+        // Always scan from v1PreTable — it always has all 3+ placeholders
         const placeholderSpecs=[];
         const phRegex=/\[TABLE NEEDED[\s\S]*?\]/g;
         let phMatch; let phIdx=0;
-        const v1ForScan=tableAttempt===0?v1PreTable:S.v1;
-        // Restore placeholders if retrying and they're gone
-        if(tableAttempt>0){
-          const remainingPH=(S.v1.match(/\[TABLE NEEDED/gi)||[]).length;
-          if(remainingPH===0){ S.v1=v1PreTable; }
-        }
-        while((phMatch=phRegex.exec(S.v1))!==null) placeholderSpecs.push({index:phIdx++,spec:phMatch[0]});
+        while((phMatch=phRegex.exec(v1PreTable))!==null) placeholderSpecs.push({index:phIdx++,spec:phMatch[0]});
+        appendO4(`--- Attempt ${tableAttempt+1}/${MAX_TABLE_ATTEMPTS} — ${placeholderSpecs.length} placeholder(s) found ---`);
         const tabSys=`You are building markdown tables for an AEO article. Your ONLY job is to output table blocks for [TABLE NEEDED] placeholders. Do NOT return the full article. Output ONLY the table blocks in the exact format below.\n\n4.3B:\n${S.docs.doc43B}`;
         const tabUser=`PUBLISH DATE: ${publishDate}
 
@@ -2157,7 +2154,13 @@ Rules:
 
 PLACEHOLDERS TO BUILD (${placeholderSpecs.length} total — build ALL of them):
 ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}`;
-        const tableResult=await callClaude(tabSys,tabUser,akey,(p)=>{document.getElementById('o4').textContent=`Attempt ${tableAttempt+1}/${MAX_TABLE_ATTEMPTS}:\n${p}`;document.getElementById('sb4').classList.add('open');},{maxTokens:64000});
+        const tableResult=await callClaude(tabSys,tabUser,akey,(p)=>{
+          // Show last line of streaming without overwriting the log
+          const lines=document.getElementById('o4').textContent.split('\n');
+          const lastLogLine=lines.findLastIndex(l=>l.startsWith('---')||l.startsWith('✅')||l.startsWith('❌')||l.startsWith('⚠'));
+          lines.splice(lastLogLine+1,lines.length,`Building... ${p.slice(p.lastIndexOf('\n')+1).substring(0,80)}`);
+          document.getElementById('o4').textContent=lines.join('\n');
+        },{maxTokens:64000});
         const tableBlocks=[];
         const tbRegex=/TABLE_START_(\d+)([\s\S]*?)TABLE_END_\d+/g;
         let tbMatch;
@@ -2170,26 +2173,28 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
             return match;
           });
           S.v1=updated;
-          // Count complete tables — need header + separator + at least 1 data row
           const completeTableCount=countCompleteTables(S.v1);
           if(completeTableCount>=3){
             S.imagePrompts=extractImgPrompts(S.v1); showV1(S.v1);
+            appendO4(`✅ ${insertCount} table(s) inserted. ${completeTableCount} complete tables verified.`);
             setStep(4,'done','Done ✓',`${insertCount} table(s) inserted. ${completeTableCount} complete tables verified.`);
             saveSession();
             break;
           } else {
             tableAttempt++;
-            document.getElementById('o4').textContent+=`\n\n⚠ Only ${completeTableCount} complete table(s) found — need 3. ${tableAttempt<MAX_TABLE_ATTEMPTS?`Retrying (${tableAttempt}/${MAX_TABLE_ATTEMPTS})...`:'Hard stop.'}`;
+            appendO4(`⚠ Only ${completeTableCount} complete table(s) found — need 3. ${tableAttempt<MAX_TABLE_ATTEMPTS?`Retrying (${tableAttempt}/${MAX_TABLE_ATTEMPTS})...`:'Hard stop.'}`);
             if(tableAttempt>=MAX_TABLE_ATTEMPTS){
               throw new Error(`Step 4: Only ${completeTableCount} complete table(s) built after ${MAX_TABLE_ATTEMPTS} attempts. Retry from Step 3.`);
             }
           }
         } else if(tableResult.length>2000){
           S.v1=tableResult; S.imagePrompts=extractImgPrompts(S.v1); showV1(S.v1);
+          appendO4('Fallback: Claude returned full article.');
           setStep(4,'done','Done ✓','Fallback: full article used.');
           break;
         } else {
           tableAttempt++;
+          appendO4(`❌ No TABLE_START blocks found (${tableResult.length} chars). ${tableAttempt<MAX_TABLE_ATTEMPTS?`Retrying...`:'Hard stop.'}`);
           if(tableAttempt>=MAX_TABLE_ATTEMPTS){
             throw new Error(`Step 4: No TABLE_START blocks found after ${MAX_TABLE_ATTEMPTS} attempts. Retry from Step 3.`);
           }
