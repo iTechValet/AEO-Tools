@@ -435,30 +435,27 @@
     <div class="step-card" id="step4">
       <div class="step-header" onclick="toggleStep(4)">
         <div class="step-num">4</div>
-        <div class="step-info"><div class="step-title">⚠ V1 Integrity Check</div><div class="step-desc">Mechanical scorecard — table placeholders, links, images, FAQ, direct answer</div></div>
+        <div class="step-info"><div class="step-title">Claude — Build Tables Only</div><div class="step-desc">Receives V1 + placeholders — builds markdown tables from existing article content</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b4">Waiting</div><span class="schev closed" id="c4">▼</span></div>
       </div>
-      <div class="step-body" id="sb4">
-        <div class="sout-wrap"><div class="sout" id="o4"></div><button class="btn-copy-step" id="copy-btn-4" onclick="copyStepOutput(4)">Copy</button></div>
-        <div class="cbox" id="cbox4" style="display:none;">
-          <div class="ctitle">⚠ V1 Scorecard — Review Before Continuing</div>
-          <div id="scorecard4" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
-          <p style="font-size:11px;color:#888;margin-bottom:7px;">All green → continue. Any red → retry Step 3.</p>
-          <div style="display:flex;gap:8px;">
-            <button class="btn-proceed" onclick="proceedCp4()">Looks Good — Continue</button>
-            <button class="btn-retry" onclick="retryFrom(3)" style="margin-top:0;">↻ Retry Step 3</button>
-          </div>
-        </div>
-      </div>
+      <div class="step-body" id="sb4"><div class="sout-wrap"><div class="sout" id="o4"></div><button class="btn-copy-step" id="copy-btn-4" onclick="copyStepOutput(4)">Copy</button></div><div id="r4" style="display:none;"><button class="btn-retry" onclick="retryFrom(4)">↻ Retry from Step 4</button></div></div>
     </div>
 
     <div class="step-card" id="step5">
       <div class="step-header" onclick="toggleStep(5)">
         <div class="step-num">5</div>
-        <div class="step-info"><div class="step-title">Claude — Build Tables Only</div><div class="step-desc">Receives V1 + placeholders — builds exactly those tables from existing article content</div></div>
+        <div class="step-info"><div class="step-title">⚠ V1 Integrity Gate</div><div class="step-desc">JS checks all requirements — auto-fixes via Claude diffs — 3 strikes → hard stop</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b5">Waiting</div><span class="schev closed" id="c5">▼</span></div>
       </div>
-      <div class="step-body" id="sb5"><div class="sout-wrap"><div class="sout" id="o5"></div><button class="btn-copy-step" id="copy-btn-5" onclick="copyStepOutput(5)">Copy</button></div><div id="r5" style="display:none;"><button class="btn-retry" onclick="retryFrom(5)">↻ Retry from Step 5</button></div></div>
+      <div class="step-body" id="sb5">
+        <div class="sout-wrap"><div class="sout" id="o5"></div><button class="btn-copy-step" id="copy-btn-5" onclick="copyStepOutput(5)">Copy</button></div>
+        <div class="cbox" id="cbox5" style="display:none;">
+          <div class="ctitle">⚠ V1 Integrity Gate — 3 Fix Attempts Failed</div>
+          <div id="gateResults5" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
+          <p style="font-size:11px;color:#888;margin-bottom:7px;">Claude could not resolve all issues automatically. V1 needs a full rewrite.</p>
+          <button class="btn-retry" onclick="retryFrom(3)" style="margin-top:0;background:var(--orange);">↻ Full V1 Rewrite</button>
+        </div>
+      </div>
     </div>
 
     <div class="step-card" id="step6">
@@ -473,7 +470,7 @@
     <div class="step-card" id="step7">
       <div class="step-header" onclick="toggleStep(7)">
         <div class="step-num">7</div>
-        <div class="step-info"><div class="step-title">Gemini Validation</div><div class="step-desc">Prompt 3 — Structured WRONG/MISSING output, parsed by tool</div></div>
+        <div class="step-info"><div class="step-title">Gemini Validation</div><div class="step-desc">Prompt 3 — content accuracy, POV compliance, data verification, structured FAIL/FLAG output</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b7">Waiting</div><span class="schev closed" id="c7">▼</span></div>
       </div>
       <div class="step-body" id="sb7"><div class="sout-wrap"><div class="sout" id="o7"></div><button class="btn-copy-step" id="copy-btn-7" onclick="copyStepOutput(7)">Copy</button></div><div id="r7" style="display:none;"><button class="btn-retry" onclick="retryFrom(7)">↻ Retry from Step 7</button></div></div>
@@ -482,32 +479,35 @@
     <div class="step-card" id="step8">
       <div class="step-header" onclick="toggleStep(8)">
         <div class="step-num">8</div>
-        <div class="step-info"><div class="step-title">⚠ Review FAIL Items</div><div class="step-desc">Confirm parsed failures before Claude applies fixes</div></div>
+        <div class="step-info"><div class="step-title">Claude — Apply Gemini Fixes</div><div class="step-desc">FAIL list shown → Claude applies diffs → Gemini re-validates → auto-retries 2x if needed</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b8">Waiting</div><span class="schev closed" id="c8">▼</span></div>
       </div>
-      <div class="step-body" id="sb8">
-        <div class="sout-wrap"><div class="sout" id="o8"></div><button class="btn-copy-step" id="copy-btn-8" onclick="copyStepOutput(8)">Copy</button></div>
-        <div class="cbox" id="cbox8" style="display:none;">
-          <div class="ctitle">⚠ Gemini FAIL Items — Confirm to Apply Fixes</div>
-          <div id="failList8" style="margin-bottom:10px;font-size:11px;line-height:1.8;"></div>
-          <button class="btn-proceed" onclick="proceedCp8()">Apply These Fixes — Continue</button>
-        </div>
-      </div>
+      <div class="step-body" id="sb8"><div class="sout-wrap"><div class="sout" id="o8"></div><button class="btn-copy-step" id="copy-btn-8" onclick="copyStepOutput(8)">Copy</button></div><div id="r8" style="display:none;"><button class="btn-retry" onclick="retryFrom(7)">↻ Retry from Step 7</button></div></div>
     </div>
 
     <div class="step-card" id="step9">
       <div class="step-header" onclick="toggleStep(9)">
         <div class="step-num">9</div>
-        <div class="step-info"><div class="step-title">Claude — Apply Fixes Only</div><div class="step-desc">WRONG items: find/replace. MISSING items: insert. No voice rewrite.</div></div>
+        <div class="step-info"><div class="step-title">⚠ Fix Verification</div><div class="step-desc">Only appears if auto-retries exhausted — review remaining FAILs and decide</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b9">Waiting</div><span class="schev closed" id="c9">▼</span></div>
       </div>
-      <div class="step-body" id="sb9"><div class="sout-wrap"><div class="sout" id="o9"></div><button class="btn-copy-step" id="copy-btn-9" onclick="copyStepOutput(9)">Copy</button></div><div id="r9" style="display:none;"><button class="btn-retry" onclick="retryFrom(9)">↻ Retry from Step 9</button></div></div>
+      <div class="step-body" id="sb9">
+        <div class="sout-wrap"><div class="sout" id="o9"></div><button class="btn-copy-step" id="copy-btn-9" onclick="copyStepOutput(9)">Copy</button></div>
+        <div class="cbox" id="cbox9" style="display:none;">
+          <div class="ctitle">⚠ Some FAILs Could Not Be Resolved</div>
+          <div id="fixVerify9" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-proceed" onclick="proceedCp9()">Accept & Continue</button>
+            <button class="btn-retry" onclick="retryFrom(7)" style="margin-top:0;">↻ Retry from Step 7</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="step-card" id="step10">
       <div class="step-header" onclick="toggleStep(10)">
         <div class="step-num">10</div>
-        <div class="step-info"><div class="step-title">Gemini — Targeted Re-Validation</div><div class="step-desc">Checks only the FAIL items from Step 7 — PASS or still failing</div></div>
+        <div class="step-info"><div class="step-title">Claude — Voice Rewrite Only</div><div class="step-desc">Prose rebuilt in author's voice. Protected zones: structure, links, tables, direct answer.</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b10">Waiting</div><span class="schev closed" id="c10">▼</span></div>
       </div>
       <div class="step-body" id="sb10"><div class="sout-wrap"><div class="sout" id="o10"></div><button class="btn-copy-step" id="copy-btn-10" onclick="copyStepOutput(10)">Copy</button></div><div id="r10" style="display:none;"><button class="btn-retry" onclick="retryFrom(10)">↻ Retry from Step 10</button></div></div>
@@ -516,15 +516,16 @@
     <div class="step-card" id="step11">
       <div class="step-header" onclick="toggleStep(11)">
         <div class="step-num">11</div>
-        <div class="step-info"><div class="step-title">⚠ Fix Verification</div><div class="step-desc">Each FAIL shown as ✓ FIXED or ✗ STILL FAILING — auto-retries if red</div></div>
+        <div class="step-info"><div class="step-title">⚠ V2 Integrity Gate</div><div class="step-desc">JS checks V2 — restores from V1 where possible — Claude diffs for content — 3 strikes → hard stop</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b11">Waiting</div><span class="schev closed" id="c11">▼</span></div>
       </div>
       <div class="step-body" id="sb11">
         <div class="sout-wrap"><div class="sout" id="o11"></div><button class="btn-copy-step" id="copy-btn-11" onclick="copyStepOutput(11)">Copy</button></div>
         <div class="cbox" id="cbox11" style="display:none;">
-          <div class="ctitle">⚠ Fix Verification — Review Results</div>
-          <div id="fixVerify11" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
-          <button class="btn-proceed" onclick="proceedCp11()">All Good — Continue to Voice Rewrite</button>
+          <div class="ctitle">⚠ V2 Integrity Gate — 3 Fix Attempts Failed</div>
+          <div id="gateResults11" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
+          <p style="font-size:11px;color:#888;margin-bottom:7px;">Claude could not resolve all V2 issues automatically. Voice rewrite needs to run again.</p>
+          <button class="btn-retry" onclick="retryFrom(10)" style="margin-top:0;background:var(--orange);">↻ Full V2 Rewrite</button>
         </div>
       </div>
     </div>
@@ -532,33 +533,47 @@
     <div class="step-card" id="step12">
       <div class="step-header" onclick="toggleStep(12)">
         <div class="step-num">12</div>
-        <div class="step-info"><div class="step-title">Claude — Voice Rewrite Only</div><div class="step-desc">Prose rebuilt in author's voice. Protected zones: structure, links, tables, Step 9 injections.</div></div>
+        <div class="step-info"><div class="step-title">⚠ V2 Review</div><div class="step-desc">Read V2 in right panel — describe issues or continue to Final Assembly</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b12">Waiting</div><span class="schev closed" id="c12">▼</span></div>
       </div>
-      <div class="step-body" id="sb12"><div class="sout-wrap"><div class="sout" id="o12"></div><button class="btn-copy-step" id="copy-btn-12" onclick="copyStepOutput(12)">Copy</button></div><div id="r12" style="display:none;"><button class="btn-retry" onclick="retryFrom(12)">↻ Retry from Step 12</button></div></div>
+      <div class="step-body" id="sb12">
+        <div class="cbox" id="cbox12" style="display:none;">
+          <div class="ctitle">⚠ Review V2 in the right panel</div>
+          <p style="font-size:11px;color:#888;margin-bottom:7px;">Leave blank if V2 looks good. Describe any issues and Claude will fix them via diffs.</p>
+          <textarea id="cpFeedback12" placeholder="e.g. Fix the voice in the intro — or leave blank to continue" oninput="updateCpBtn12()"></textarea>
+          <button class="btn-proceed" id="cpBtn12" onclick="proceedCp12()">Looks Good — Continue</button>
+        </div>
+      </div>
     </div>
 
     <div class="step-card" id="step13">
       <div class="step-header" onclick="toggleStep(13)">
         <div class="step-num">13</div>
-        <div class="step-info"><div class="step-title">Pre-Assembly Integrity Check</div><div class="step-desc">Free check — verifies links, tables, images, publish date survived voice rewrite</div></div>
+        <div class="step-info"><div class="step-title">Claude Final Assembly</div><div class="step-desc">Schema + HTML — markdown tables converted to branded HTML — image URLs + publish date injected</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b13">Waiting</div><span class="schev closed" id="c13">▼</span></div>
       </div>
-      <div class="step-body" id="sb13"><div class="sout-wrap"><div class="sout" id="o13"></div><button class="btn-copy-step" id="copy-btn-13" onclick="copyStepOutput(13)">Copy</button></div></div>
+      <div class="step-body" id="sb13"><div class="sout-wrap"><div class="sout" id="o13"></div><button class="btn-copy-step" id="copy-btn-13" onclick="copyStepOutput(13)">Copy</button></div><div id="r13" style="display:none;"><button class="btn-retry" onclick="retryFrom(13)">↻ Retry from Step 13</button></div></div>
     </div>
 
     <div class="step-card" id="step14">
       <div class="step-header" onclick="toggleStep(14)">
         <div class="step-num">14</div>
-        <div class="step-info"><div class="step-title">⚠ V2 Review</div><div class="step-desc">Read V2 in right panel — describe issues or continue to Final Assembly</div></div>
+        <div class="step-info"><div class="step-title">Claude HTML QC</div><div class="step-desc">Prompt 6 — HTML audit against 4.3B spec + human checkpoint</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b14">Waiting</div><span class="schev closed" id="c14">▼</span></div>
       </div>
       <div class="step-body" id="sb14">
-        <div class="cbox" id="cbox14" style="display:none;">
-          <div class="ctitle">⚠ Review V2 in the right panel</div>
-          <p style="font-size:11px;color:#888;margin-bottom:7px;">Leave blank if V2 looks good. Describe any issues and Claude will fix them.</p>
-          <textarea id="cpFeedback14" placeholder="e.g. Fix the voice in the intro — or leave blank to continue" oninput="updateCpBtn14()"></textarea>
-          <button class="btn-proceed" id="cpBtn14" onclick="proceedCp14()">Looks Good — Continue</button>
+        <div class="sout-wrap"><div class="sout" id="o14"></div><button class="btn-copy-step" id="copy-btn-14" onclick="copyStepOutput(14)">Copy</button></div>
+        <div id="r14" style="display:none;"><button class="btn-retry" onclick="retryFrom(14)">↻ Retry QC</button></div>
+        <div id="rerunQC" style="display:none;margin-top:10px;">
+          <p style="font-size:11px;color:var(--muted);margin-bottom:6px;">Describe what looks wrong (optional):</p>
+          <textarea id="qcFeedback" style="width:100%;background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--blue);font-family:'Lexend',sans-serif;font-size:11px;line-height:1.6;outline:none;resize:vertical;min-height:50px;margin-bottom:7px;" placeholder="e.g. The ToC colors look wrong..."></textarea>
+          <button class="btn-retry" onclick="rerunQC()">↻ Run QC Again</button>
+        </div>
+        <div class="cbox" id="cbox14" style="display:none;margin-top:10px;">
+          <div class="ctitle">⚠ Review Final HTML in right panel</div>
+          <p style="font-size:11px;color:#888;margin-bottom:7px;">Leave blank if it looks good — describe any issues and Claude will fix them.</p>
+          <textarea id="cpFeedback14" placeholder="e.g. ToC is after the first H2 — or leave blank to continue" oninput="updateCpBtn14()"></textarea>
+          <button class="btn-proceed" id="cpBtn14" onclick="proceedCp14()">Looks Good — Finish</button>
         </div>
       </div>
     </div>
@@ -566,42 +581,10 @@
     <div class="step-card" id="step15">
       <div class="step-header" onclick="toggleStep(15)">
         <div class="step-num">15</div>
-        <div class="step-info"><div class="step-title">Claude Final — Assembly</div><div class="step-desc">Schema + HTML — image URLs and publish date injected from UI</div></div>
+        <div class="step-info"><div class="step-title">Complete</div><div class="step-desc">Article ready — use download buttons above</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b15">Waiting</div><span class="schev closed" id="c15">▼</span></div>
       </div>
-      <div class="step-body" id="sb15"><div class="sout-wrap"><div class="sout" id="o15"></div><button class="btn-copy-step" id="copy-btn-15" onclick="copyStepOutput(15)">Copy</button></div><div id="r15" style="display:none;"><button class="btn-retry" onclick="retryFrom(15)">↻ Retry from Step 15</button></div></div>
-    </div>
-
-    <div class="step-card" id="step16">
-      <div class="step-header" onclick="toggleStep(16)">
-        <div class="step-num">16</div>
-        <div class="step-info"><div class="step-title">Claude HTML QC</div><div class="step-desc">Prompt 6 — HTML audit against 4.3B spec + human checkpoint</div></div>
-        <div class="step-right"><div class="sbadge b-waiting" id="b16">Waiting</div><span class="schev closed" id="c16">▼</span></div>
-      </div>
-      <div class="step-body" id="sb16">
-        <div class="sout-wrap"><div class="sout" id="o16"></div><button class="btn-copy-step" id="copy-btn-16" onclick="copyStepOutput(16)">Copy</button></div>
-        <div id="r16" style="display:none;"><button class="btn-retry" onclick="retryFrom(16)">↻ Retry QC</button></div>
-        <div id="rerunQC" style="display:none;margin-top:10px;">
-          <p style="font-size:11px;color:var(--muted);margin-bottom:6px;">Describe what looks wrong (optional):</p>
-          <textarea id="qcFeedback" style="width:100%;background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--blue);font-family:'Lexend',sans-serif;font-size:11px;line-height:1.6;outline:none;resize:vertical;min-height:50px;margin-bottom:7px;" placeholder="e.g. The ToC colors look wrong..."></textarea>
-          <button class="btn-retry" onclick="rerunQC()">↻ Run QC Again</button>
-        </div>
-        <div class="cbox" id="cbox16" style="display:none;margin-top:10px;">
-          <div class="ctitle">⚠ Review Final HTML in right panel</div>
-          <p style="font-size:11px;color:#888;margin-bottom:7px;">Leave blank if it looks good — describe any issues and Claude will fix them.</p>
-          <textarea id="cpFeedback16" placeholder="e.g. ToC is after the first H2 — or leave blank to continue" oninput="updateCpBtn16()"></textarea>
-          <button class="btn-proceed" id="cpBtn16" onclick="proceedCp16()">Looks Good — Finish</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="step-card" id="step17">
-      <div class="step-header" onclick="toggleStep(17)">
-        <div class="step-num">17</div>
-        <div class="step-info"><div class="step-title">Complete</div><div class="step-desc">Article ready — use download buttons above</div></div>
-        <div class="step-right"><div class="sbadge b-waiting" id="b17">Waiting</div><span class="schev closed" id="c17">▼</span></div>
-      </div>
-      <div class="step-body" id="sb17"><div class="sout-wrap"><div class="sout" id="o17"></div><button class="btn-copy-step" id="copy-btn-17" onclick="copyStepOutput(17)">Copy</button></div></div>
+      <div class="step-body" id="sb15"><div class="sout-wrap"><div class="sout" id="o15"></div><button class="btn-copy-step" id="copy-btn-15" onclick="copyStepOutput(15)">Copy</button></div></div>
     </div>
 
   </div>
@@ -649,15 +632,15 @@
         <div class="md-preview" id="v1Pre" style="display:none;"></div>
       </div>
       <div class="ppane" id="pV2">
-        <div class="pempty" id="v2Empty">V2 article appears here after Step 12</div>
+        <div class="pempty" id="v2Empty">V2 article appears here after Step 10</div>
         <div class="md-preview" id="v2Pre" style="display:none;"></div>
       </div>
       <div class="ppane" id="pHTML1">
-        <div class="pempty" id="html1Empty">HTML 1 appears after Step 15 (pre-QC)</div>
+        <div class="pempty" id="html1Empty">HTML 1 appears after Step 13 (pre-QC)</div>
         <iframe id="html1Frame" style="display:none;border:none;background:#fff;height:480px;width:100%;"></iframe>
       </div>
       <div class="ppane" id="pHTMLFinal">
-        <div class="pempty" id="htmlFinalEmpty">HTML Final appears after Step 16 QC</div>
+        <div class="pempty" id="htmlFinalEmpty">HTML Final appears after Step 14 QC</div>
         <iframe id="htmlFinalFrame" style="display:none;border:none;background:#fff;height:480px;width:100%;"></iframe>
       </div>
     </div>
@@ -705,9 +688,9 @@
     tokens:{gi:0,go:0,ci:0,co:0,imgs:0}
   };
   let running=false;
-  let cp4Resolve=null, cp8Resolve=null, cp11Resolve=null, cp14Resolve=null, cp16Resolve=null, asmResolve=null;
+  let cp9Resolve=null, cp12Resolve=null, cp14Resolve=null, asmResolve=null;
   let imagesValidated=false, checkpointDone=false;
-  let step9RetryCount=0;
+  let step8RetryCount=0, step5RetryCount=0, step11RetryCount=0;
 
   // Timer state
   let timerStart=0, timerInterval=null, timerElapsed=0;
@@ -751,21 +734,18 @@
   // ─── STEP UI ──────────────────────────────────────────────
 
   function copyStepOutput(n) {
-    // Collect text from the sout div AND any scorecard/faillist divs in the same step body
     const body = document.getElementById(`sb${n}`);
     if(!body) return;
     const parts = [];
-    // Main output
     const sout = document.getElementById(`o${n}`);
     if(sout && sout.textContent.trim()) parts.push(sout.textContent.trim());
-    // Scorecard (step 4)
-    const sc = document.getElementById('scorecard4');
-    if(sc && body.contains(sc) && sc.innerText.trim()) parts.push(sc.innerText.trim());
-    // Fail list (step 8)
-    const fl = document.getElementById('failList8');
-    if(fl && body.contains(fl) && fl.innerText.trim()) parts.push(fl.innerText.trim());
-    // Fix verify (step 11)
-    const fv = document.getElementById('fixVerify11');
+    // Gate results (step 5, 11)
+    const gr5 = document.getElementById('gateResults5');
+    if(gr5 && body.contains(gr5) && gr5.innerText.trim()) parts.push(gr5.innerText.trim());
+    const gr11 = document.getElementById('gateResults11');
+    if(gr11 && body.contains(gr11) && gr11.innerText.trim()) parts.push(gr11.innerText.trim());
+    // Fix verify (step 9)
+    const fv = document.getElementById('fixVerify9');
     if(fv && body.contains(fv) && fv.innerText.trim()) parts.push(fv.innerText.trim());
     const text = parts.join('\n\n') || body.innerText.trim();
     navigator.clipboard.writeText(text).then(()=>{
@@ -1344,58 +1324,53 @@
 
   // ─── CHECKPOINT FUNCTIONS (ATOMIC PIPELINE) ───────────────
 
-  // Step 4 — V1 Scorecard
-  function waitCp4(scoreHTML) {
+  // ─── CHECKPOINT FUNCTIONS ─────────────────────────────────
+
+  // Step 9 — Fix verification (only when auto-retries exhausted)
+  function waitCp9(verifyHTML) {
     return new Promise(res=>{
-      cp4Resolve=res;
-      document.getElementById('scorecard4').innerHTML=scoreHTML;
-      document.getElementById('cbox4').style.display='block';
-      document.getElementById('sb4').classList.add('open');
-      document.getElementById('c4').classList.remove('closed');
-      setStep(4,'checkpoint','Your Turn');
+      cp9Resolve=res;
+      document.getElementById('fixVerify9').innerHTML=verifyHTML;
+      document.getElementById('cbox9').style.display='block';
+      document.getElementById('sb9').classList.add('open');
+      document.getElementById('c9').classList.remove('closed');
+      setStep(9,'checkpoint','Your Turn');
     });
   }
-  function proceedCp4() {
-    document.getElementById('cbox4').style.display='none';
-    if(cp4Resolve){cp4Resolve();cp4Resolve=null;}
+  function proceedCp9() {
+    document.getElementById('cbox9').style.display='none';
+    if(cp9Resolve){cp9Resolve();cp9Resolve=null;}
   }
 
-  // Step 8 — FAIL items review
-  function waitCp8(failHTML) {
+  // Step 12 — V2 review
+  function updateCpBtn12() {
+    const fb=document.getElementById('cpFeedback12').value.trim();
+    document.getElementById('cpBtn12').textContent=fb?'Make Fixes — Continue':'Looks Good — Continue';
+  }
+  function waitCp12() {
     return new Promise(res=>{
-      cp8Resolve=res;
-      document.getElementById('failList8').innerHTML=failHTML;
-      document.getElementById('cbox8').style.display='block';
-      document.getElementById('sb8').classList.add('open');
-      document.getElementById('c8').classList.remove('closed');
-      setStep(8,'checkpoint','Your Turn');
+      cp12Resolve=res;
+      document.getElementById('cbox12').style.display='block';
+      document.getElementById('sb12').classList.add('open');
+      document.getElementById('c12').classList.remove('closed');
+      setStep(12,'checkpoint','Your Turn');
+      switchTab('v2');
     });
   }
-  function proceedCp8() {
-    document.getElementById('cbox8').style.display='none';
-    if(cp8Resolve){cp8Resolve();cp8Resolve=null;}
+  function proceedCp12() {
+    const fb=document.getElementById('cpFeedback12').value.trim();
+    document.getElementById('cbox12').style.display='none';
+    document.getElementById('cpFeedback12').value='';
+    document.getElementById('cpBtn12').textContent='Looks Good — Continue';
+    checkpointDone=true;
+    if(imagesValidated) document.getElementById('assembleHint').textContent='All ready — assembling...';
+    if(cp12Resolve){cp12Resolve(fb);cp12Resolve=null;}
   }
 
-  // Step 11 — Fix verification
-  function waitCp11(verifyHTML, allFixed) {
-    return new Promise(res=>{
-      cp11Resolve=res;
-      document.getElementById('fixVerify11').innerHTML=verifyHTML;
-      document.getElementById('cbox11').style.display='block';
-      document.getElementById('sb11').classList.add('open');
-      document.getElementById('c11').classList.remove('closed');
-      setStep(11,'checkpoint', allFixed ? 'Review' : '\u26a0 Issues');
-    });
-  }
-  function proceedCp11() {
-    document.getElementById('cbox11').style.display='none';
-    if(cp11Resolve){cp11Resolve();cp11Resolve=null;}
-  }
-
-  // Step 14 — V2 review
+  // Step 14 — HTML QC checkpoint
   function updateCpBtn14() {
     const fb=document.getElementById('cpFeedback14').value.trim();
-    document.getElementById('cpBtn14').textContent=fb?'Make Fixes — Continue':'Looks Good — Continue';
+    document.getElementById('cpBtn14').textContent=fb?'Make Fixes — Finish':'Looks Good — Finish';
   }
   function waitCp14() {
     return new Promise(res=>{
@@ -1404,40 +1379,15 @@
       document.getElementById('sb14').classList.add('open');
       document.getElementById('c14').classList.remove('closed');
       setStep(14,'checkpoint','Your Turn');
-      switchTab('v2');
+      switchTab('htmlFinal');
     });
   }
   function proceedCp14() {
     const fb=document.getElementById('cpFeedback14').value.trim();
     document.getElementById('cbox14').style.display='none';
     document.getElementById('cpFeedback14').value='';
-    document.getElementById('cpBtn14').textContent='Looks Good — Continue';
-    checkpointDone=true;
-    if(imagesValidated) document.getElementById('assembleHint').textContent='All ready — assembling...';
+    document.getElementById('cpBtn14').textContent='Looks Good — Finish';
     if(cp14Resolve){cp14Resolve(fb);cp14Resolve=null;}
-  }
-
-  // Step 16 — HTML QC checkpoint
-  function updateCpBtn16() {
-    const fb=document.getElementById('cpFeedback16').value.trim();
-    document.getElementById('cpBtn16').textContent=fb?'Make Fixes — Finish':'Looks Good — Finish';
-  }
-  function waitCp16() {
-    return new Promise(res=>{
-      cp16Resolve=res;
-      document.getElementById('cbox16').style.display='block';
-      document.getElementById('sb16').classList.add('open');
-      document.getElementById('c16').classList.remove('closed');
-      setStep(16,'checkpoint','Your Turn');
-      switchTab('htmlFinal');
-    });
-  }
-  function proceedCp16() {
-    const fb=document.getElementById('cpFeedback16').value.trim();
-    document.getElementById('cbox16').style.display='none';
-    document.getElementById('cpFeedback16').value='';
-    document.getElementById('cpBtn16').textContent='Looks Good — Finish';
-    if(cp16Resolve){cp16Resolve(fb);cp16Resolve=null;}
   }
 
 
@@ -1604,7 +1554,7 @@ ${schemaBlocksHTML}
 
   // ─── HTML QC (Step 16) ────────────────────────────────────
   async function runQC(akey, feedback, publishDate) {
-    setStep(16,'active','Running QC...'); setG('Claude running HTML QC...',true);
+    setStep(14,'active','Running QC...'); setG('Claude running HTML QC...',true);
     const p6=getPrompt(S.docs.doc44,6);
     const feedbackLine=feedback?`\n\nOPERATOR NOTES: ${feedback}\n\nFix these specific issues in addition to the standard QC checks.`:'';
     const pubDateLine=publishDate?`\n\nPUBLISH DATE: ${publishDate} — If any date in the HTML does not match this exactly, correct it.`:'';
@@ -1612,36 +1562,32 @@ ${schemaBlocksHTML}
     const res=await callClaude(
       `You are an expert AEO article HTML QC specialist. Output ONLY DIFF blocks for any corrections needed — do not return the full HTML. Use this exact format for each fix:\n\nDIFF_START\nFIND:\n[exact HTML string to find]\nREPLACE:\n[exact replacement HTML, or [DELETE] to remove]\nDIFF_END\n\nIf no corrections are needed, output only: QC COMPLETE — NO CHANGES NEEDED\n\n4.3B — CLIENT IDENTITY CARD + HTML STYLE SPEC:\n${S.docs.doc43B}`,
       qcUser, akey,
-      (partial)=>{document.getElementById('o16').textContent=partial;document.getElementById('sb16').classList.add('open');}
+      (partial)=>{document.getElementById('o14').textContent=partial;document.getElementById('sb14').classList.add('open');}
     );
     if(res.includes('QC COMPLETE — NO CHANGES NEEDED')){
-      // No changes needed — keep existing HTML
-      document.getElementById('o16').textContent='QC passed — no changes needed.';
+      document.getElementById('o14').textContent='QC passed — no changes needed.';
     } else if(res.includes('DIFF_START')){
-      // Apply surgical diffs
       const {result,applied,failed,log}=applyDiffs(S.finalTXT,res);
       S.finalTXT=result;
-      document.getElementById('o16').textContent=log.join('\n')+`\n\nApplied: ${applied}, Failed: ${failed}`;
+      document.getElementById('o14').textContent=log.join('\n')+`\n\nApplied: ${applied}, Failed: ${failed}`;
     } else {
-      // Fallback: Claude returned full HTML (shouldn't happen but handle gracefully)
       const m=res.match(/=== HTML START ===([\s\S]*?)=== HTML END ===/i);
       const m2=res.match(/```(?:html)?\n([\s\S]*?)```/i);
       if(m && m[1] && m[1].trim().length>100){S.finalTXT=m[1].trim();}
       else if(m2 && m2[1].trim().length>100){S.finalTXT=m2[1].trim();}
-      console.warn('Step 16: Claude returned full HTML instead of diffs');
+      console.warn('Step 14: Claude returned full HTML instead of diffs');
     }
     showHTMLFinal(S.finalTXT);
     S.checklistHTML=buildChecklistHTML(S.finalSchema);
     document.getElementById('rerunQC').style.display='block';
-    // Always pause for human review — you decide if QC passed
-    const cp16Fb=await waitCp16();
-    if(cp16Fb){
-      setStep(16,'active','Fixing HTML...'); setG('Claude fixing HTML issues...',true);
-      await runQC(akey,cp16Fb,publishDate);
+    const cp14Fb=await waitCp14();
+    if(cp14Fb){
+      setStep(14,'active','Fixing HTML...'); setG('Claude fixing HTML issues...',true);
+      await runQC(akey,cp14Fb,publishDate);
       return;
     }
     saveSession();
-    setStep(16,'done','Done ✓','QC approved.');
+    setStep(14,'done','Done ✓','QC approved.');
   }
 
   async function rerunQC() {
@@ -1694,93 +1640,7 @@ ${schemaBlocksHTML}
       </div>`).join('');
   }
 
-  // ─── V1 MECHANICAL CHECK (Step 4) ─────────────────────────
-  function runV1Check(v1, researchBrief) {
-    const results=[];
-    const tablePH=(v1.match(/\[TABLE NEEDED/gi)||[]).length;
-    const mdTableCount=(v1.match(/^\|.+\|/gm)||[]).length;
-    const tableOk=tablePH>=3||(tablePH===0&&mdTableCount>=4);
-    results.push({label:'Tables present (placeholders or markdown)',pass:tableOk,detail:tablePH>0?`${tablePH} placeholder(s)`:`${mdTableCount} markdown table rows`});
-    const imgCount=(v1.match(/^PROMPT:/gim)||[]).length;
-    results.push({label:'Image prompts present (PROMPT: blocks)',pass:imgCount>=3,detail:`Found: ${imgCount}`});
-    const hasFAQ=/##\s*(frequently asked|faq)/i.test(v1);
-    results.push({label:'FAQ section present',pass:hasFAQ,detail:hasFAQ?'Found':'Missing'});
-    // Find direct answer: text between H1/checklist and first H2
-    const h1Match=v1.match(/^(?!##)#\s+.+/m);
-    let daText='';
-    if(h1Match){
-      const afterH1=v1.slice(v1.indexOf(h1Match[0])+h1Match[0].length);
-      // Skip past the checklist block — everything up to the closing --- separator
-      let searchStart=0;
-      const separatorIdx=afterH1.indexOf('\n---');
-      if(separatorIdx>-1){
-        // Start looking for direct answer after the separator
-        searchStart=separatorIdx+4;
-      }
-      const afterChecklist=afterH1.slice(searchStart);
-      // Also skip a repeated H1 if present (some articles repeat H1 after checklist)
-      const repeatedH1=afterChecklist.match(/^(?!##)#\s+.+/m);
-      let daStart=0;
-      if(repeatedH1) daStart=afterChecklist.indexOf(repeatedH1[0])+repeatedH1[0].length;
-      const daSection=afterChecklist.slice(daStart);
-      // Take everything up to the first H2
-      const firstH2=daSection.search(/^##\s/m);
-      daText=firstH2>0?daSection.slice(0,firstH2):daSection.slice(0,1500);
-      daText=daText.replace(/\[H[123]\]/gi,'').trim();
-    }
-    const daWords=daText.trim().split(/\s+/).filter(w=>w.length>2).length;
-    const daOk=daWords>=150&&daWords<=450;
-    results.push({label:'Direct answer ~200-300 words',pass:daOk,detail:`~${daWords} words`});
-    // External sources check: count actual embedded external markdown hyperlinks in article
-    const extLinks=(v1.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g)||[])
-      .filter(l=>!l.match(/itechvalet\.com/i));
-    const extOk=extLinks.length>=4;
-    results.push({label:`External links embedded in article (need 4-8)`,pass:extOk,detail:`${extLinks.length} external hyperlinks found`});
-    // Internal links check: look for markdown links in v1
-    const intLinks=(v1.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[])
-      .filter(l=>!l.match(/https?:\/\//)||l.match(/itechvalet\.com/i))
-      .filter(l=>!l.match(/\(#/)); // exclude anchor-only ToC links
-    const intOk=intLinks.length>=4;
-    results.push({label:`Internal links in article (need 6-10)`,pass:intOk,detail:`${intLinks.length} internal links found`});
-    // Sacred Ground check: no links allowed in Direct Answer
-    const daLinks=(daText.match(/\[([^\]]+)\]\([^)]+\)/g)||[]).filter(l=>!l.match(/\(#/));
-    results.push({label:'No links in Direct Answer (Sacred Ground)',pass:daLinks.length===0,detail:daLinks.length===0?'Clean':`${daLinks.length} link(s) found — violates Sacred Ground`});
-    const allPass=results.every(r=>r.pass);
-    const html=results.map(r=>`<div style="padding:3px 0;">${r.pass?'✅':'❌'} <strong>${r.label}</strong> — ${r.detail}</div>`).join('');
-    return {allPass,html};
-  }
 
-  // ─── PRE-ASSEMBLY INTEGRITY CHECK (Step 13) ───────────────
-  function runIntegrityCheck(v2, researchBrief) {
-    const results=[];
-    const mdTableRows=(v2.match(/^\|.+\|/gm)||[]).length;
-    const htmlTableCount=(v2.match(/<table/gi)||[]).length;
-    const tableOk=mdTableRows>=4||htmlTableCount>=2;
-    results.push({label:'Tables present',pass:tableOk,detail:`${htmlTableCount} HTML tables, ~${mdTableRows} md rows`});
-    const imgCount=(v2.match(/^PROMPT:/gim)||[]).length;
-    results.push({label:'Image prompts present',pass:imgCount>=1,detail:`${imgCount} PROMPT: blocks`});
-    // Check internal links survived voice rewrite
-    const intLinksV2=(v2.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[])
-      .filter(l=>!l.match(/https?:\/\//)||l.match(/itechvalet\.com/i))
-      .filter(l=>!l.match(/\(#/)); // exclude anchor-only ToC links
-    results.push({label:'Internal links present after rewrite',pass:intLinksV2.length>=4,detail:`${intLinksV2.length} internal links`});
-    // Check external links survived voice rewrite — count actual embedded external hyperlinks
-    const extLinksV2=(v2.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g)||[])
-      .filter(l=>!l.match(/itechvalet\.com/i));
-    results.push({label:'External links survived rewrite',pass:extLinksV2.length>=4,detail:`${extLinksV2.length} external hyperlinks found`});
-    // Check V2 isn't significantly shorter than V1 (content drop detection)
-    const v1Len=S.v1?S.v1.length:0;
-    const v2Len=v2.length;
-    const lengthRatio=v1Len>0?v2Len/v1Len:1;
-    const lengthOk=lengthRatio>=0.8;
-    results.push({label:'V2 length vs V1 (content drop check)',pass:lengthOk,detail:`V2 is ${Math.round(lengthRatio*100)}% of V1 length${lengthOk?'':' — possible content drop'}`});
-    const allPass=results.every(r=>r.pass);
-    const text=results.map(r=>`${r.pass?'✅':'⚠️'} ${r.label} — ${r.detail}`).join('\n');
-    return {allPass,text};
-  }
-
-
-  // ─── DIFF APPLICATOR ─────────────────────────────────────
   function applyDiffs(article, diffText) {
     const blocks = diffText.match(/DIFF_START[\s\S]*?DIFF_END/g) || [];
     let result = article;
@@ -1821,18 +1681,135 @@ ${schemaBlocksHTML}
   }
 
 
-  // ─── SHARED RUNNER (ATOMIC PIPELINE) ──────────────────────
+  // ─── V1 INTEGRITY GATE CHECKS (Step 5) ───────────────────
+  function runV1GateChecks(v1) {
+    const results=[];
+    // Tables
+    const mdTableRows=(v1.match(/^\|.+\|/gm)||[]).length;
+    const tablePH=(v1.match(/\[TABLE NEEDED/gi)||[]).length;
+    const tableOk=mdTableRows>=4||tablePH>=3;
+    results.push({key:'tables',label:'Min 3 tables',pass:tableOk,detail:tablePH>0?`${tablePH} placeholder(s) remaining`:`~${mdTableRows} table rows`});
+    // External links
+    const extLinks=(v1.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g)||[]).filter(l=>!l.match(/itechvalet\.com/i));
+    results.push({key:'extLinks',label:'Min 4 external hyperlinks',pass:extLinks.length>=4,detail:`${extLinks.length} found`});
+    // Internal links
+    const intLinks=(v1.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[]).filter(l=>!l.match(/https?:\/\//)||l.match(/itechvalet\.com/i)).filter(l=>!l.match(/\(#/));
+    results.push({key:'intLinks',label:'6-10 internal links',pass:intLinks.length>=6&&intLinks.length<=10,detail:`${intLinks.length} found`});
+    // Image prompts
+    const imgCount=(v1.match(/^PROMPT:/gim)||[]).length;
+    results.push({key:'images',label:'Min 3 image prompts',pass:imgCount>=3,detail:`${imgCount} found`});
+    // FAQ
+    const hasFAQ=/##\s*(frequently asked|faq)/i.test(v1);
+    results.push({key:'faq',label:'FAQ section present',pass:hasFAQ,detail:hasFAQ?'Found':'Missing'});
+    // Direct answer
+    const h1Match=v1.match(/^(?!##)#\s+.+/m);
+    let daWords=0;
+    if(h1Match){
+      const afterH1=v1.slice(v1.indexOf(h1Match[0])+h1Match[0].length);
+      let searchStart=0;
+      const separatorIdx=afterH1.indexOf('\n---');
+      if(separatorIdx>-1) searchStart=separatorIdx+4;
+      const afterChecklist=afterH1.slice(searchStart);
+      const repeatedH1=afterChecklist.match(/^(?!##)#\s+.+/m);
+      let daStart=0;
+      if(repeatedH1) daStart=afterChecklist.indexOf(repeatedH1[0])+repeatedH1[0].length;
+      const daSection=afterChecklist.slice(daStart);
+      const firstH2=daSection.search(/^##\s/m);
+      const daText=(firstH2>0?daSection.slice(0,firstH2):daSection.slice(0,1500)).replace(/\[H[123]\]/gi,'').trim();
+      daWords=daText.split(/\s+/).filter(w=>w.length>2).length;
+    }
+    results.push({key:'directAnswer',label:'Direct answer 150-450 words',pass:daWords>=150&&daWords<=450,detail:`~${daWords} words`});
+    // No links in direct answer
+    const h1M=v1.match(/^(?!##)#\s+.+/m);
+    let daLinksClean=true;
+    if(h1M){
+      const afterH1=v1.slice(v1.indexOf(h1M[0])+h1M[0].length);
+      const sep=afterH1.indexOf('\n---');
+      const afterSep=sep>-1?afterH1.slice(sep+4):afterH1;
+      const firstH2=afterSep.search(/^##\s/m);
+      const daZone=firstH2>0?afterSep.slice(0,firstH2):afterSep.slice(0,1500);
+      const daLinks=(daZone.match(/\[([^\]]+)\]\([^)]+\)/g)||[]).filter(l=>!l.match(/\(#/));
+      daLinksClean=daLinks.length===0;
+      results.push({key:'sacredGround',label:'No links in Direct Answer',pass:daLinksClean,detail:daLinksClean?'Clean':`${daLinks.length} link(s) found`});
+    }
+    return results;
+  }
+
+  // ─── V2 INTEGRITY GATE CHECKS (Step 11) ──────────────────
+  function runV2GateChecks(v2) {
+    const results=[];
+    // Tables
+    const mdTableRows=(v2.match(/^\|.+\|/gm)||[]).length;
+    results.push({key:'tables',label:'Min 3 tables survived rewrite',pass:mdTableRows>=4,detail:`~${mdTableRows} table rows`});
+    // External links
+    const extLinks=(v2.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g)||[]).filter(l=>!l.match(/itechvalet\.com/i));
+    results.push({key:'extLinks',label:'Min 4 external links survived',pass:extLinks.length>=4,detail:`${extLinks.length} found`});
+    // Internal links
+    const intLinks=(v2.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[]).filter(l=>!l.match(/https?:\/\//)||l.match(/itechvalet\.com/i)).filter(l=>!l.match(/\(#/));
+    results.push({key:'intLinks',label:'Internal links survived (need 6+)',pass:intLinks.length>=6,detail:`${intLinks.length} found`});
+    // Image prompts
+    const imgCount=(v2.match(/^PROMPT:/gim)||[]).length;
+    results.push({key:'images',label:'Image prompts survived',pass:imgCount>=3,detail:`${imgCount} found`});
+    // FAQ
+    const hasFAQ=/##\s*(frequently asked|faq)/i.test(v2);
+    results.push({key:'faq',label:'FAQ section survived',pass:hasFAQ,detail:hasFAQ?'Found':'Missing'});
+    // Length check vs V1
+    const v1Len=S.v1?S.v1.length:0;
+    const ratio=v1Len>0?v2.length/v1Len:1;
+    results.push({key:'length',label:'V2 length vs V1 (>80%)',pass:ratio>=0.8,detail:`V2 is ${Math.round(ratio*100)}% of V1`});
+    return results;
+  }
+
+  // ─── JS RESTORE FROM V1 (Step 11 free fixes) ─────────────
+  function restoreFromV1(v2, checks) {
+    let updated=v2;
+    const log=[];
+    // Restore tables from V1 if missing
+    if(!checks.find(c=>c.key==='tables')?.pass){
+      const v1Tables=[];
+      const tblRegex=/(\|.+\|\n)+/g;
+      let m;
+      while((m=tblRegex.exec(S.v1))!==null) v1Tables.push(m[0].trim());
+      if(v1Tables.length>0){
+        // Append missing tables before FAQ section
+        const faqIdx=updated.search(/^##\s*(frequently asked|faq)/im);
+        if(faqIdx>-1){
+          updated=updated.slice(0,faqIdx)+'\n\n'+v1Tables.join('\n\n')+'\n\n'+updated.slice(faqIdx);
+          log.push(`✅ Restored ${v1Tables.length} table(s) from V1`);
+        }
+      }
+    }
+    // Restore image prompts from V1 if missing
+    if(!checks.find(c=>c.key==='images')?.pass){
+      const v1Prompts=[];
+      const lines=S.v1.split('\n');
+      let inPrompt=false;
+      let cur='';
+      for(const line of lines){
+        if(line.trim().toUpperCase().startsWith('PROMPT:')){ inPrompt=true; cur=line+'\n'; }
+        else if(inPrompt&&line.trim().toUpperCase().startsWith('**ALT TEXT:')){ cur+=line; v1Prompts.push(cur); cur=''; inPrompt=false; }
+        else if(inPrompt){ cur+=line+'\n'; }
+      }
+      if(v1Prompts.length>0){
+        updated=updated+'\n\n'+v1Prompts.join('\n\n');
+        log.push(`✅ Restored ${v1Prompts.length} image prompt(s) from V1`);
+      }
+    }
+    return {updated,log};
+  }
+
+  // ─── SHARED RUNNER (15-STEP PIPELINE) ────────────────────
   async function runFrom(start,sys,akey,gkey,dkey='') {
     let step=start;
     const publishDate=document.getElementById('publishDate').value||new Date().toISOString().split('T')[0];
 
-    // STEP 3: Claude V1 — Prose + Structure (table placeholders only)
+    // STEP 3: Claude V1
     if(step<=3){
       setStep(3,'active','Building V1...'); setG('Claude building article structure...',true);
       const p2=getPrompt(S.docs.doc44,2);
       const tblInstr=`
 CRITICAL CHANGE FOR THIS CALL — TABLE PLACEHOLDERS ONLY:
-Do NOT build actual markdown tables in this draft.
+Do NOT build actual tables in this draft.
 Instead, wherever a table is needed, insert this exact placeholder:
 
 [TABLE NEEDED
@@ -1852,33 +1829,17 @@ All other requirements (POV slots, links, FAQ, CTA, image prompts, direct answer
       step=4;
     }
 
-    // STEP 4: Human Checkpoint — V1 Scorecard
+    // STEP 4: Claude — Build Tables Only
     if(step<=4){
-      const {allPass,html}=runV1Check(S.v1,S.geminiResearch);
-      document.getElementById('o4').textContent=allPass?'All checks passed.':'Some checks failed — review below.';
-      document.getElementById('sb4').classList.add('open');
-      await waitCp4(html);
-      setStep(4,'done','Done ✓');
-      step=5;
-    }
-
-    // STEP 5: Claude — Build Tables Only
-    if(step<=5){
-      setStep(5,'active','Building tables...'); setG('Claude building tables...',true);
-      const tablePH=(S.v1.match(/\[TABLE NEEDED/gi)||[]).length;
-      const tabSys=`You are building tables for an AEO article. Your ONLY job is to output table blocks for [TABLE NEEDED] placeholders. Do NOT return the full article. Output ONLY the table blocks in the exact format below.\n\n4.3B:\n${S.docs.doc43B}`;
-      // Extract placeholder specs from article
+      setStep(4,'active','Building tables...'); setG('Claude building tables...',true);
       const placeholderSpecs=[];
       const phRegex=/\[TABLE NEEDED[\s\S]*?\]/g;
-      let phMatch;
-      let phIdx=0;
-      const v1ForPH=S.v1;
-      while((phMatch=phRegex.exec(v1ForPH))!==null){
-        placeholderSpecs.push({index:phIdx++,spec:phMatch[0],pos:phMatch.index});
-      }
+      let phMatch; let phIdx=0;
+      while((phMatch=phRegex.exec(S.v1))!==null) placeholderSpecs.push({index:phIdx++,spec:phMatch[0]});
+      const tabSys=`You are building markdown tables for an AEO article. Your ONLY job is to output table blocks for [TABLE NEEDED] placeholders. Do NOT return the full article. Output ONLY the table blocks in the exact format below.\n\n4.3B:\n${S.docs.doc43B}`;
       const tabUser=`PUBLISH DATE: ${publishDate}
 
-RESEARCH BRIEF (context only — do not add new data beyond what is already in the article):
+RESEARCH BRIEF (context only):
 ${S.geminiResearch}
 
 YOUR ONLY JOB: For each TABLE NEEDED placeholder below, output a markdown table block using this EXACT format:
@@ -1894,42 +1855,81 @@ Rules:
 - Do NOT invent statistics or new claims
 - Minimum 3 columns, maximum 5 columns per table
 - Include context in cells (not just checkmarks)
-- Output markdown tables ONLY — do NOT output any HTML blocks, style tags, or Beaver Builder code
+- Output markdown tables ONLY — no HTML, no style tags
 - Output ONLY the TABLE_START/TABLE_END blocks — nothing else
 
 PLACEHOLDERS TO BUILD:
 ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}`;
-      const tableResult=await callClaude(tabSys,tabUser,akey,(p)=>{document.getElementById('o5').textContent=p;document.getElementById('sb5').classList.add('open');},{maxTokens:64000});
-      // Parse TABLE_START_N / TABLE_END_N blocks and insert at placeholder locations
+      const tableResult=await callClaude(tabSys,tabUser,akey,(p)=>{document.getElementById('o4').textContent=p;document.getElementById('sb4').classList.add('open');},{maxTokens:64000});
       const tableBlocks=[];
       const tbRegex=/TABLE_START_(\d+)([\s\S]*?)TABLE_END_\d+/g;
       let tbMatch;
-      while((tbMatch=tbRegex.exec(tableResult))!==null){
-        tableBlocks[parseInt(tbMatch[1])]=tbMatch[2].trim();
-      }
+      while((tbMatch=tbRegex.exec(tableResult))!==null) tableBlocks[parseInt(tbMatch[1])]=tbMatch[2].trim();
       if(tableBlocks.length>0){
-        let updated=S.v1;
-        let insertCount=0;
-        // Replace each [TABLE NEEDED...] block with corresponding table
-        const phRe=/\[TABLE NEEDED[\s\S]*?\]/g;
+        let updated=S.v1; let insertCount=0;
         let idx2=0;
-        updated=updated.replace(phRe,(match)=>{
+        updated=updated.replace(/\[TABLE NEEDED[\s\S]*?\]/g,(match)=>{
           const tbl=tableBlocks[idx2++];
-          if(tbl){ insertCount++; return tbl; }
-          return match; // leave placeholder if no table built
+          if(tbl){insertCount++;return tbl;}
+          return match;
         });
-        S.v1=updated;
-        S.imagePrompts=extractImgPrompts(S.v1);
-        showV1(S.v1);
-        setStep(5,'done','Done ✓',`${insertCount} table(s) inserted via diff. ${tableBlocks.length} built.`);
+        S.v1=updated; S.imagePrompts=extractImgPrompts(S.v1); showV1(S.v1);
+        setStep(4,'done','Done ✓',`${insertCount} table(s) inserted. ${tableBlocks.length} built.`);
       } else if(tableResult.length>2000){
-        // Fallback: Claude returned full article — use it
-        S.v1=tableResult;
-        S.imagePrompts=extractImgPrompts(S.v1);
-        showV1(S.v1);
-        setStep(5,'done','Done ✓',`Fallback: full article used. ${tablePH} placeholder(s) processed.`);
+        S.v1=tableResult; S.imagePrompts=extractImgPrompts(S.v1); showV1(S.v1);
+        setStep(4,'done','Done ✓','Fallback: full article used.');
       } else {
-        throw new Error(`Step 5: No TABLE_START blocks found and output too short (${tableResult.length} chars). Retry from Step 5.`);
+        throw new Error(`Step 4: No TABLE_START blocks found (${tableResult.length} chars). Retry.`);
+      }
+      step=5;
+    }
+
+    // STEP 5: V1 Integrity Gate
+    if(step<=5){
+      setStep(5,'active','Checking V1...'); setG('Running V1 integrity checks...',true);
+      let attempts=0;
+      const MAX_ATTEMPTS=3;
+      while(attempts<MAX_ATTEMPTS){
+        const checks=runV1GateChecks(S.v1);
+        const failures=checks.filter(c=>!c.pass);
+        const resultText=checks.map(c=>`${c.pass?'✅':'❌'} ${c.label} — ${c.detail}`).join('\n');
+        document.getElementById('o5').textContent=`Attempt ${attempts+1}/${MAX_ATTEMPTS}:\n${resultText}`;
+        document.getElementById('sb5').classList.add('open');
+        if(failures.length===0){
+          setStep(5,'done','Done ✓',`All checks passed${attempts>0?` after ${attempts} fix attempt(s)`:''}.`);
+          break;
+        }
+        attempts++;
+        if(attempts>=MAX_ATTEMPTS){
+          // Hard stop
+          const failHTML=failures.map(f=>`<div style="padding:2px 0;">❌ ${f.label} — ${f.detail}</div>`).join('');
+          document.getElementById('gateResults5').innerHTML=failHTML;
+          document.getElementById('cbox5').style.display='block';
+          setStep(5,'error','⚠ Hard Stop',`${failures.length} check(s) failed after ${MAX_ATTEMPTS} attempts. V1 needs full rewrite.`);
+          throw new Error(`Step 5: V1 integrity gate failed after ${MAX_ATTEMPTS} attempts. Use Rewrite V1 button.`);
+        }
+        // Build fix instructions for Claude
+        setG(`V1 gate attempt ${attempts}/${MAX_ATTEMPTS} — applying fixes...`,true);
+        const failDesc=failures.map(f=>{
+          if(f.key==='extLinks') return `MISSING: ${4-((S.v1.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g)||[]).filter(l=>!l.match(/itechvalet\.com/i)).length)} external hyperlink(s). Embed from research brief URLs adjacent to relevant claims. Do NOT add to Direct Answer section.`;
+          if(f.key==='intLinks') return `MISSING: Need 6-10 internal links, found ${f.detail}. Add missing internal links from the sheet row sibling articles or trunk/branch URLs.`;
+          if(f.key==='tables') return `MISSING: Need min 3 tables. Add markdown table(s) using only data already in the article prose.`;
+          if(f.key==='images') return `MISSING: Need image prompts after H2 headings. Add PROMPT:/ALT TEXT: blocks after H2s that are missing them.`;
+          if(f.key==='faq') return `MISSING: FAQ section not found. Add a FAQ section with 5-8 H3 questions before the conclusion.`;
+          if(f.key==='directAnswer') return `WRONG: Direct answer word count is ${f.detail}. Adjust to 150-450 words.`;
+          if(f.key==='sacredGround') return `WRONG: Links found in Direct Answer section. Remove all hyperlinks from the first section after H1.`;
+          return `ISSUE: ${f.label} — ${f.detail}`;
+        }).join('\n\n');
+        const fixSys5=`You are applying targeted fixes to an AEO article V1. Output ONLY DIFF_START/DIFF_END blocks — do NOT return the full article.\n\nFormat:\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement]\nDIFF_END\n\nOne block per fix. No explanation. ONLY diff blocks.\n\n4.3B:\n${S.docs.doc43B}`;
+        const fixUser5=`RESEARCH BRIEF (source for external URLs and internal link targets):\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFIX THESE ISSUES:\n${failDesc}\n\nRULES:\n- Fix ONLY the listed issues\n- Do NOT rewrite prose\n- Do NOT touch Direct Answer section\n- External links: embed as [anchor text](URL) adjacent to a relevant claim\n- Output ONLY DIFF_START/DIFF_END blocks\n\nARTICLE:\n${S.v1}`;
+        const fixResult=await callClaude(fixSys5,fixUser5,akey,(p)=>{document.getElementById('o5').textContent=`Attempt ${attempts}/${MAX_ATTEMPTS} — fixing:\n`+p;},{maxTokens:64000});
+        if(fixResult.includes('DIFF_START')){
+          const {result,applied,failed,log}=applyDiffs(S.v1,fixResult);
+          S.v1=result; showV1(S.v1);
+          document.getElementById('o5').textContent+=`\n\nApplied: ${applied}, Failed: ${failed}`;
+        } else if(fixResult.length>2000){
+          S.v1=fixResult; showV1(S.v1);
+        }
       }
       step=6;
     }
@@ -1943,16 +1943,15 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
         setStep(6,'done','Done ✓',`${S.imagePrompts.length} image(s) generated.`);
         const dlAllBtn=document.getElementById('dlAllBtn');if(dlAllBtn)dlAllBtn.disabled=false;
       } else {
-        setStep(6,'error','Failed','No image prompts found in V1 — retry from Step 3.');
-        throw new Error('Step 6: No image prompts extracted from V1.');
+        throw new Error('Step 6: No image prompts found in V1 — retry from Step 3.');
       }
       checkUrls();
       step=7;
     }
 
-    // STEP 7: Gemini Full Validation
+    // STEP 7: Gemini Validation
     if(step<=7){
-      setStep(7,'active','Validating...'); setG('Gemini running validation pass...',true);
+      setStep(7,'active','Validating...'); setG('Gemini running content validation...',true);
       const p3=getPrompt(S.docs.doc44,3);
       const bpAnchors=(S.geminiResearch.match(/Semantic Anchor:\s*"([^"]+)"/g)||[]).map(l=>l.replace(/Semantic Anchor:\s*"/,'').replace(/"$/,''));
       const linkListStr=bpAnchors.map(a=>`Anchor text: "${a}"`).join('\n');
@@ -1963,205 +1962,167 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
       step=8;
     }
 
-    // STEP 8: Human Checkpoint — Review FAIL items
+    // STEP 8: Claude Apply Gemini Fixes (auto — with FAIL list shown, 2 auto-retries)
     if(step<=8){
       const allPass=S.parsedFails.length===0||S.validation.toLowerCase().includes('all items pass');
       if(allPass){
-        setStep(8,'done','Skipped — No FAILs','Validation passed. No fixes needed.');
+        setStep(8,'done','Skipped — No FAILs','Gemini validation passed. No fixes needed.');
         setStep(9,'done','Skipped — N/A');
-        setStep(10,'done','Skipped — N/A');
-        setStep(11,'done','Skipped — N/A');
-        step9RetryCount=0; step=12;
+        step8RetryCount=0; step=10;
       } else {
-        document.getElementById('o8').textContent=`${S.parsedFails.length} FAIL item(s) found.`;
+        setStep(8,'active','Applying fixes...'); setG('Claude applying Gemini fixes...',true);
+        // Show FAIL list at top of output
+        const failSummary=S.parsedFails.map(f=>`${f.type==='FLAG'?'🚩':'❌'} ${f.id}: ${f.desc}`).join('\n');
+        document.getElementById('o8').textContent=`GEMINI FAILs TO FIX:\n${failSummary}\n\nApplying fixes...`;
         document.getElementById('sb8').classList.add('open');
-        await waitCp8(buildFailHTML(S.parsedFails));
+        // Apply fixes
+        const failInstructions=S.parsedFails.map(f=>{
+          if(f.type==='FLAG') return `FLAG (no action required): ${f.desc}`;
+          if(f.type==='MISSING') return `INSERT MISSING:\nDescription: ${f.desc}\nWhat to insert: ${f.what||f.missing||f.desc}\nContext: ${f.context||'see surrounding content'}\nPlacement: ${f.placement||'NEAR_CLAIM'}`;
+          return `FIX WRONG:\nDescription: ${f.desc}\nFind: ${f.find}\nReplace with: ${f.replace}\nScope: ${f.scope}`;
+        }).join('\n\n---\n\n');
+        const fixSys=`You are applying targeted fixes to an AEO article. Output ONLY DIFF blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement or [DELETE]]\nDIFF_END\n\nDo NOT output the full article. ONLY DIFF blocks.\n\n4.3B:\n${S.docs.doc43B}`;
+        const fixUser=`PUBLISH DATE: ${publishDate}\n\nRESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFAIL ITEMS:\n${failInstructions}\n\nRULES:\n- Fix only what is listed\n- Do NOT touch prose outside FAIL items\n- Output ONLY DIFF_START/DIFF_END blocks\n\nARTICLE:\n${S.v1}`;
+        const fixResult=await callClaude(fixSys,fixUser,akey,(p)=>{document.getElementById('o8').textContent=`GEMINI FAILs:\n${failSummary}\n\n---\n\n${p}`;},{maxTokens:64000});
+        if(fixResult.includes('DIFF_START')){
+          const {result,applied,failed,log}=applyDiffs(S.v1,fixResult);
+          S.protectedSentences=S.parsedFails.filter(f=>f.replace&&f.replace.length>20).map(f=>f.replace);
+          S.v1=result; showV1(S.v1);
+          document.getElementById('o8').textContent=`GEMINI FAILs:\n${failSummary}\n\n---\n\n${log.join('\n')}\n\nApplied: ${applied}, Failed: ${failed}`;
+        } else if(fixResult.length>2000){
+          S.v1=fixResult; showV1(S.v1);
+        }
+        // Gemini re-validation
+        setG('Gemini re-validating fixes...',true);
+        const originalFailList=S.parsedFails.map(f=>`${f.id}: ${f.desc}`).join('\n');
+        const revalPrompt=`You previously flagged FAIL items in an AEO article. Fixes have been applied. Check ONLY whether each item was resolved.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nORIGINAL FAIL ITEMS:\n${originalFailList}\n\nFIXED ARTICLE:\n${S.v1}\n\nOutput for each item:\n[ITEM_ID]: PASS — [brief confirmation]\nor\n[ITEM_ID]: FAIL — [what is still wrong]`;
+        const revalResult=await callGemini(revalPrompt,gkey);
+        document.getElementById('o8').textContent+=`\n\n--- GEMINI RE-VALIDATION ---\n${revalResult}`;
+        S.parsedFails=S.parsedFails.filter(f=>{
+          const pat=new RegExp(f.id+':\\s*FAIL','i');
+          return pat.test(revalResult);
+        });
+        step8RetryCount++;
+        if(S.parsedFails.length>0&&step8RetryCount<=2){
+          setG(`Some FAILs remain — auto-retry ${step8RetryCount}/2...`,true);
+          try{ await runFrom(8,sys,akey,gkey,dkey); } catch(e){ handleErr(e); }
+          return;
+        }
         setStep(8,'done','Done ✓');
-        step=9;
+        if(S.parsedFails.length>0){
+          // Still failing after 2 retries — surface to human at Step 9
+          const verifyLines=S.parsedFails.map(f=>`<div style="padding:2px 0;">❌ ${f.id}: ${f.desc}</div>`).join('');
+          await waitCp9(verifyLines);
+          setStep(9,'done','Done ✓ — Accepted');
+        } else {
+          setStep(9,'done','Skipped — All Fixed');
+        }
+        step8RetryCount=0; step=10;
       }
     }
 
-    // STEP 9: Claude — Apply Fixes Only
-    if(step<=9){
-      setStep(9,'active','Applying fixes...'); setG('Claude applying fixes...',true);
-      const failInstructions=S.parsedFails.map(f=>{
-        if(f.type==='FLAG') return `FLAG (no action required): ${f.desc}`;
-        if(f.type==='MISSING') return `INSERT MISSING:\nDescription: ${f.desc}\nWhat to insert: ${f.what||f.missing||f.desc}\nContext: ${f.context||'see surrounding content'}\nPlacement: ${f.placement||'NEAR_CLAIM'}`;
-        return `FIX WRONG:\nDescription: ${f.desc}\nFind: ${f.find}\nReplace with: ${f.replace}\nScope: ${f.scope}`;
-      }).join('\n\n---\n\n');
-      const fixSys=`You are applying targeted fixes to an AEO article. Output ONLY a series of DIFF blocks — do not return the full article. Each block must use this exact format:\n\nDIFF_START\nFIND:\n[exact text to find]\nREPLACE:\n[exact replacement text, or [DELETE] to remove]\nDIFF_END\n\nDo NOT output the full article. Do NOT add explanation. Output ONLY DIFF blocks.\n\n4.3B:\n${S.docs.doc43B}`;
-      const fixUser=`PUBLISH DATE: ${publishDate}
-
-RESEARCH BRIEF (spec all fixes must conform to):
-${S.geminiResearch}
-
-SHEET ROW:
-${S.sheetRow}
-
-FAIL ITEMS TO FIX:
-${failInstructions}
-
-RULES:
-- WRONG: find exact text and replace as specified
-- MISSING: insert at appropriate location
-- FLAG: no action required
-- Do NOT touch any prose outside the FAIL items
-- Output ONLY DIFF_START/DIFF_END blocks — one per fix
-- Do NOT return the full article
-
-ARTICLE TO FIX:
-${S.v1}`;
-      const fixResult=await callClaude(fixSys,fixUser,akey,(p)=>{document.getElementById('o9').textContent=p;document.getElementById('sb9').classList.add('open');},{maxTokens:64000});
-      // Apply diffs surgically — tool does the find/replace, no full article regeneration
-      if(fixResult.includes('DIFF_START')){
-        const {result,applied,failed,log}=applyDiffs(S.v1,fixResult);
-        S.protectedSentences=S.parsedFails.filter(f=>f.replace&&f.replace.length>20).map(f=>f.replace);
-        S.v1=result;
-        showV1(S.v1);
-        document.getElementById('o9').textContent=log.join('\n')+`\n\nApplied: ${applied}, Failed: ${failed}`;
-      } else if(fixResult.length>2000){
-        // Fallback: Claude returned full article instead of diffs
-        S.protectedSentences=S.parsedFails.filter(f=>f.replace&&f.replace.length>20).map(f=>f.replace);
-        S.v1=fixResult;
-        showV1(S.v1);
-        document.getElementById('o9').textContent='Fallback: Claude returned full article. Applied as V1.';
-      } else {
-        // Claude returned neither diffs nor a full article — something went wrong
-        document.getElementById('o9').textContent=`Warning: Step 9 output unclear (${fixResult.length} chars). Article unchanged — check output and retry.`;
-      }
-      setStep(9,'done','Done ✓');
-      step=10;
-    }
-
-    // STEP 10: Gemini Targeted Re-Validation
+    // STEP 10: Claude — Voice Rewrite Only
     if(step<=10){
-      setStep(10,'active','Re-validating...'); setG('Gemini checking fixes...',true);
-      const originalFailList=S.parsedFails.map(f=>`${f.id}: ${f.desc}`).join('\n');
-      const revalPrompt=`You previously flagged FAIL items in an AEO article. Fixes have been applied. Check ONLY whether each item was resolved.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nORIGINAL FAIL ITEMS:\n${originalFailList}\n\nFIXED ARTICLE:\n${S.v1}\n\nOutput for each item:\n[ITEM_ID]: PASS — [brief confirmation]\nor\n[ITEM_ID]: FAIL — [what is still wrong]`;
-      const revalResult=await callGemini(revalPrompt,gkey);
-      setStep(10,'done','Done ✓',revalResult);
-      S.parsedFails=S.parsedFails.filter(f=>{
-        const pat=new RegExp(f.id+':\\s*FAIL','i');
-        return pat.test(revalResult);
-      });
+      setStep(10,'active','Voice rewrite...'); setG('Claude rewriting in author voice...',true);
+      const protectedList=S.protectedSentences.length
+        ?`\n\nPROTECTED SENTENCES (do NOT change these):\n${S.protectedSentences.map((s,i)=>`${i+1}. ${s}`).join('\n')}`:'';
+      const p4=getPrompt(S.docs.doc44,4);
+      const voiceUser=`PUBLISH DATE: ${publishDate}\n\nRESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\n---\n${p4}\n${protectedList}\n\nIMPORTANT: No Gemini validation feedback is attached. Skip directly to Task 2 (Voice Rewrite).\n\nTASK: Voice rewrite ONLY. Structure, links, tables, and POV slots are already correct.\n\nProtected zones — do NOT touch:\n- Direct Answer section (first 200-300 words after H1)\n- FAQ question text and first 1-2 sentences of each FAQ answer\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- Blog Post Optimization Checklist\n- Any sentence listed in PROTECTED SENTENCES above\n- All internal and external links (keep URLs and anchor text exactly)\n\nRewrite everything else from blank page in the author's voice.\n\nARTICLE TO REWRITE:\n${S.v1}`;
+      S.v2=await callClaude(sys,voiceUser,akey,(p)=>{document.getElementById('o10').textContent=p;document.getElementById('sb10').classList.add('open');showV2(p);},{maxTokens:64000});
+      if(S.v2.length<2000) throw new Error(`Step 10: V2 too short (${S.v2.length} chars) — retry.`);
+      setStep(10,'done','Done ✓'); showV2(S.v2); updateWordCount(S.v2);
       step=11;
     }
 
-    // STEP 11: Human Checkpoint — Fix Verification
+    // STEP 11: V2 Integrity Gate
     if(step<=11){
-      const allFixed=S.parsedFails.length===0;
-      step9RetryCount++;
-      if(!allFixed&&step9RetryCount<=2){
-        setStep(11,'active',`Auto-retry ${step9RetryCount}/2`,'');
-        setG(`Fixes incomplete — auto-retrying Step 9 (${step9RetryCount}/2)...`,true);
-        try{ await runFrom(9,sys,akey,gkey,dkey); }
-        catch(e){ handleErr(e); }
-        return;
-      }
-      const verifyLines=allFixed
-        ?['✅ All FAIL items resolved. Ready for voice rewrite.']
-        :S.parsedFails.map(f=>`❌ ${f.id}: ${f.desc}`);
-      const verifyHTML=verifyLines.map(l=>`<div style="padding:2px 0;">${l}</div>`).join('');
-      document.getElementById('o11').textContent=allFixed?'All fixed — proceeding to voice rewrite.':'Some items still failing — review below.';
-      document.getElementById('sb11').classList.add('open');
-      if(allFixed){
-        setStep(11,'done','Done ✓','All fixes verified — auto-proceeding to voice rewrite.');
-      } else {
-        await waitCp11(verifyHTML,allFixed);
-        setStep(11,'done','Done ✓');
+      setStep(11,'active','Checking V2...'); setG('Running V2 integrity checks...',true);
+      let attempts=0;
+      const MAX_ATTEMPTS=3;
+      while(attempts<MAX_ATTEMPTS){
+        const checks=runV2GateChecks(S.v2);
+        const failures=checks.filter(c=>!c.pass);
+        const resultText=checks.map(c=>`${c.pass?'✅':'❌'} ${c.label} — ${c.detail}`).join('\n');
+        document.getElementById('o11').textContent=`Attempt ${attempts+1}/${MAX_ATTEMPTS}:\n${resultText}`;
+        document.getElementById('sb11').classList.add('open');
+        if(failures.length===0){
+          setStep(11,'done','Done ✓',`All checks passed${attempts>0?` after ${attempts} fix attempt(s)`:''}.`);
+          break;
+        }
+        attempts++;
+        if(attempts>=MAX_ATTEMPTS){
+          const failHTML=failures.map(f=>`<div style="padding:2px 0;">❌ ${f.label} — ${f.detail}</div>`).join('');
+          document.getElementById('gateResults11').innerHTML=failHTML;
+          document.getElementById('cbox11').style.display='block';
+          setStep(11,'error','⚠ Hard Stop',`${failures.length} check(s) failed after ${MAX_ATTEMPTS} attempts. V2 needs full rewrite.`);
+          throw new Error(`Step 11: V2 integrity gate failed after ${MAX_ATTEMPTS} attempts. Use Rewrite V2 button.`);
+        }
+        setG(`V2 gate attempt ${attempts}/${MAX_ATTEMPTS} — fixing...`,true);
+        // JS restore first (free)
+        const {updated,log:restoreLog}=restoreFromV1(S.v2,failures);
+        if(restoreLog.length>0){
+          S.v2=updated; showV2(S.v2);
+          document.getElementById('o11').textContent+=`\n\nJS Restore:\n${restoreLog.join('\n')}`;
+        }
+        // Re-check after JS restore
+        const checksAfterRestore=runV2GateChecks(S.v2);
+        const stillFailing=checksAfterRestore.filter(c=>!c.pass);
+        if(stillFailing.length===0){
+          setStep(11,'done','Done ✓',`All checks passed after JS restore on attempt ${attempts}.`);
+          step=12; break;
+        }
+        // Claude diff for remaining failures
+        const failDesc=stillFailing.map(f=>{
+          if(f.key==='extLinks') return `MISSING external hyperlinks. Embed from research brief URLs adjacent to relevant claims.`;
+          if(f.key==='intLinks') return `MISSING internal links. Need 6+, found ${f.detail}. Add from sheet row data.`;
+          if(f.key==='faq') return `MISSING FAQ section. Add 5-8 H3 questions before conclusion.`;
+          if(f.key==='length') return `FLAG ONLY: V2 is shorter than expected (${f.detail}). Check for missing sections.`;
+          return `ISSUE: ${f.label} — ${f.detail}`;
+        }).filter(d=>!d.startsWith('FLAG')).join('\n\n');
+        if(failDesc){
+          const fixSys11=`You are applying targeted fixes to an AEO article V2. Output ONLY DIFF_START/DIFF_END blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement]\nDIFF_END\n\nDo NOT rewrite prose. ONLY diff blocks.\n\n4.3B:\n${S.docs.doc43B}`;
+          const fixUser11=`RESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFIX THESE:\n${failDesc}\n\nRULES:\n- Do NOT touch protected zones (Direct Answer, FAQ questions, tables, image prompts)\n- Output ONLY DIFF_START/DIFF_END blocks\n\nARTICLE:\n${S.v2}`;
+          const fix11Result=await callClaude(fixSys11,fixUser11,akey,(p)=>{document.getElementById('o11').textContent+='\n\nFix:\n'+p;},{maxTokens:64000});
+          if(fix11Result.includes('DIFF_START')){
+            const {result,applied,failed}=applyDiffs(S.v2,fix11Result);
+            S.v2=result; showV2(S.v2);
+            document.getElementById('o11').textContent+=`\nApplied: ${applied}, Failed: ${failed}`;
+          }
+        }
       }
       step=12;
     }
 
-    // STEP 12: Claude — Voice Rewrite Only
+    // STEP 12: V2 Review (human checkpoint)
     if(step<=12){
-      setStep(12,'active','Voice rewrite...'); setG('Claude rewriting in author voice...',true);
-      const protectedList=S.protectedSentences.length
-        ?`\n\nPROTECTED SENTENCES (fixed in Step 9 — do NOT change these):\n${S.protectedSentences.map((s,i)=>`${i+1}. ${s}`).join('\n')}`:'';
-      const p4=getPrompt(S.docs.doc44,4);
-      const voiceUser=`PUBLISH DATE: ${publishDate}
-
-RESEARCH BRIEF:
-${S.geminiResearch}
-
-SHEET ROW:
-${S.sheetRow}
-
----
-${p4}
-${protectedList}
-
-IMPORTANT: No Gemini validation feedback is attached. Task 1 (Apply Gemini Fixes) is complete — skip directly to Task 2 (Voice Rewrite). Do not look for or apply any fixes.
-
-TASK: Voice rewrite ONLY. Structure, links, tables, and POV slots are already correct.
-Your only job: rewrite prose in the author's voice per 4.3B.
-
-Protected zones — do NOT touch:
-- Direct Answer section (first 200-300 words after H1)
-- FAQ question text and first 1-2 sentences of each FAQ answer
-- All tables (markdown and HTML blocks)
-- All PROMPT:/ALT TEXT: image blocks
-- Blog Post Optimization Checklist
-- Any sentence listed in PROTECTED SENTENCES above
-- All internal and external links (keep URLs and anchor text exactly)
-
-Rewrite everything else from blank page in the author's voice.
-
-ARTICLE TO REWRITE:
-${S.v1}`;
-      S.v2=await callClaude(sys,voiceUser,akey,(p)=>{document.getElementById('o12').textContent=p;document.getElementById('sb12').classList.add('open');showV2(p);},{maxTokens:64000});
-      if(S.v2.length<2000) throw new Error(`Step 12: V2 too short (${S.v2.length} chars) — retry.`);
-      setStep(12,'done','Done ✓'); showV2(S.v2); updateWordCount(S.v2);
-      step=13;
-    }
-
-    // STEP 13: Pre-Assembly Integrity Check (free — no API)
-    if(step<=13){
-      setStep(13,'active','Checking...');
-      const {allPass,text}=runIntegrityCheck(S.v2,S.geminiResearch);
-      document.getElementById('o13').textContent=text;
-      document.getElementById('sb13').classList.add('open');
-      setStep(13,allPass?'done':'error',allPass?'Done ✓':'⚠ Issues Found',text);
-      step=14;
-    }
-
-    // STEP 14: Human Checkpoint — V2 Review
-    if(step<=14){
-      setStep(14,'active','Your Turn'); setG('⚠ Review V2 in right panel — then click Looks Good or describe issues');
-      const fb=await waitCp14();
+      setStep(12,'active','Your Turn'); setG('⚠ Review V2 in right panel — then click Looks Good or describe issues');
+      const fb=await waitCp12();
       if(fb){
-        setStep(14,'active','Fixing...'); setG('Claude applying your feedback...',true);
-        const fixSys14=`You are applying operator-flagged fixes to an AEO article. Output ONLY DIFF_START/DIFF_END blocks — do NOT return the full article.\n\nExact format:\n\nDIFF_START\nFIND:\n[exact text to find in the article]\nREPLACE:\n[exact replacement text, or [DELETE] to remove]\nDIFF_END\n\nOne block per fix. No explanation. No preamble. ONLY diff blocks.\n\n4.3B:\n${S.docs.doc43B}`;
-        const fixUser14=`OPERATOR FEEDBACK:\n"${fb}"\n\nRULES:\n- Fix ONLY what the operator described\n- Do NOT touch any other prose, links, tables, POV slots, or protected zones\n- Output ONLY DIFF_START/DIFF_END blocks\n- If multiple sentences need changing, output one DIFF block per change\n\nARTICLE TO FIX:\n${S.v2}`;
-        const fix14Result=await callClaude(fixSys14,fixUser14,akey,(p)=>{document.getElementById('o14').textContent=p;document.getElementById('sb14').classList.add('open');},{maxTokens:64000});
-        if(fix14Result.includes('DIFF_START')){
-          const {result,applied,failed,log}=applyDiffs(S.v2,fix14Result);
-          S.v2=result;
-          showV2(S.v2);
-          document.getElementById('o14').textContent=log.join('\n')+`\n\nApplied: ${applied}, Failed: ${failed}`;
-        } else if(fix14Result.length>2000){
-          S.v2=fix14Result;
-          showV2(S.v2);
-          document.getElementById('o14').textContent='Fallback: Claude returned full article. Applied as V2.';
-        } else {
-          document.getElementById('o14').textContent=`Warning: Step 14 fix output unclear (${fix14Result.length} chars). V2 unchanged — check output.`;
+        setStep(12,'active','Fixing...'); setG('Claude applying your feedback...',true);
+        const fixSys12=`You are applying operator-flagged fixes to an AEO article. Output ONLY DIFF_START/DIFF_END blocks — do NOT return the full article.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement or [DELETE]]\nDIFF_END\n\nOne block per fix. No explanation. ONLY diff blocks.\n\n4.3B:\n${S.docs.doc43B}`;
+        const fixUser12=`OPERATOR FEEDBACK:\n"${fb}"\n\nRULES:\n- Fix ONLY what the operator described\n- Do NOT touch protected zones (direct answer, tables, image prompts, links)\n- Output ONLY DIFF_START/DIFF_END blocks\n\nARTICLE:\n${S.v2}`;
+        const fix12Result=await callClaude(fixSys12,fixUser12,akey,(p)=>{const el=document.getElementById('o12');if(el)el.textContent=p;},{maxTokens:64000});
+        if(fix12Result.includes('DIFF_START')){
+          const {result,applied,failed,log}=applyDiffs(S.v2,fix12Result);
+          S.v2=result; showV2(S.v2);
+        } else if(fix12Result.length>2000){
+          S.v2=fix12Result; showV2(S.v2);
         }
       }
-      setStep(14,'done','Done ✓');
-      checkpointDone=true;
-      checkUrls();
+      setStep(12,'done','Done ✓');
+      checkpointDone=true; checkUrls();
       if(!imagesValidated){
         setG('⚠ Upload images to WordPress, paste URLs in right panel, then click Validate Images');
       } else {
         setG('✓ Both gates clear — assembling now...');
       }
       await waitAssemble();
-      step=15;
+      step=13;
     }
 
-    // STEP 15: Claude Final Assembly
-    if(step<=15){
-      setStep(15,'active','Assembling...'); setG('Claude producing Final HTML...',true);
+    // STEP 13: Claude Final Assembly
+    if(step<=13){
+      setStep(13,'active','Assembling...'); setG('Claude producing Final HTML...',true);
       const imgLines=[];
       for(let i=0;i<S.imagePrompts.length;i++){const u=S.imageUrls[i]||'';if(u)imgLines.push(`Image ${i+1} URL — ${u}`);}
       const featNum=getFeatured()+1;
@@ -2170,7 +2131,7 @@ ${S.v1}`;
 BLOCK 1 — SCHEMA (label: === SCHEMA START === and === SCHEMA END ===)
 Complete schema: FAQPage, BlogPosting, BreadcrumbList, each in its own script tag.
 - Featured image URL: ${S.imageUrls[getFeatured()]||''}
-- Publish date: ${publishDate} — USE THIS DATE EXACTLY. Do not use today's date or any other date.
+- Publish date: ${publishDate} — USE THIS DATE EXACTLY.
 - Entity data from 4.3B.
 
 BLOCK 2 — HTML (label: === HTML START === and === HTML END ===)
@@ -2180,14 +2141,14 @@ ${imgLines.join('\n')}
 Featured image: Image ${featNum}
 Publish date: ${publishDate}
 
-CRITICAL — TABLE CONVERSION: The V2 article contains markdown tables (| col | col | format). Convert every markdown table to the branded HTML table format defined in 4.3B. Use the exact CSS class naming, font, color, and mobile spec from 4.3B. Number tables sequentially (itv-table-1, itv-table-2, etc.). Do not leave any markdown tables in the HTML output — every table must be converted.
+CRITICAL — TABLE CONVERSION: The V2 article contains markdown tables (| col | col | format). Convert every markdown table to the branded HTML table format defined in 4.3B. Use the exact CSS class naming, font, color, and mobile spec from 4.3B. Number tables sequentially (itv-table-1, itv-table-2, etc.). Do not leave any markdown tables in the HTML output.
 
 V2 ARTICLE:
 ${S.v2}`;
       const assemblyResult=await callClaude(
         `You are an expert AEO article HTML producer.\n\n4.3B — CLIENT IDENTITY CARD + HTML STYLE SPEC:\n${S.docs.doc43B}`,
         htmlPrompt,akey,
-        (p)=>{document.getElementById('o15').textContent=p;document.getElementById('sb15').classList.add('open');},
+        (p)=>{document.getElementById('o13').textContent=p;document.getElementById('sb13').classList.add('open');},
         {maxTokens:64000}
       );
       const schemaMatch=assemblyResult.match(/=== SCHEMA START ===([\s\S]*?)=== SCHEMA END ===/i);
@@ -2198,23 +2159,23 @@ ${S.v2}`;
       } else {
         const mdMatch=assemblyResult.match(/```(?:html)?\n([\s\S]*?)```/i);
         if(mdMatch&&mdMatch[1].trim().length>100){S.finalTXT=mdMatch[1].trim();}
-        else{throw new Error('Step 15: No === HTML START === block found. Retry.');}
+        else{throw new Error('Step 13: No === HTML START === block found. Retry.');}
       }
-      S.html1TXT=S.finalTXT; // snapshot pre-QC HTML
+      S.html1TXT=S.finalTXT;
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
       showHTML1(S.finalTXT);
-      setStep(15,'done','Done ✓','HTML generated — review HTML 1 tab. QC runs next.');
-      step=16;
+      setStep(13,'done','Done ✓','HTML generated — review HTML 1 tab. QC runs next.');
+      step=14;
     }
 
-    // STEP 16: HTML QC + Checkpoint
-    if(step<=16){
+    // STEP 14: HTML QC + Checkpoint
+    if(step<=14){
       await runQC(akey,'',publishDate);
-      step=17;
+      step=15;
     }
 
-    // STEP 17: Show download buttons — no auto-download
-    if(step<=17){
+    // STEP 15: Complete
+    if(step<=15){
       stopTimer();
       const cost=((S.tokens.ci/1e6*3)+(S.tokens.co/1e6*15)).toFixed(3);
       const wc=countWords(S.v2);
@@ -2222,7 +2183,7 @@ ${S.v2}`;
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
       saveSession();
       document.getElementById('outputsSec').classList.add('open');
-      setStep(17,'done','Done ✓','✓ Article complete — use download buttons above.');
+      setStep(15,'done','Done ✓','✓ Article complete — use download buttons above.');
       setG('✓ Article complete — download your files above.');
     }
   }
@@ -2230,7 +2191,7 @@ ${S.v2}`;
   // ─── HANDLE ERROR ─────────────────────────────────────────
   function handleErr(err) {
     setG(`⚠ Error: ${err.message}`); console.error(err);
-    for(let i=3;i<=17;i++){
+    for(let i=3;i<=15;i++){
       const card=document.getElementById(`step${i}`);
       if(card&&card.classList.contains('active')){
         setStep(i,'error','Failed');
@@ -2248,8 +2209,9 @@ ${S.v2}`;
     const dkey=document.getElementById('keyDrive').value.trim();
     if(!akey||!gkey){alert('API keys required.');return;}
     const rb=document.getElementById(`r${n}`); if(rb) rb.style.display='none';
-    if(n>=14){imagesValidated=false;checkpointDone=false;asmResolve=null;}
-    if(n<=11){step9RetryCount=0;} // reset auto-retry counter on manual retry
+    if(n>=12){imagesValidated=false;checkpointDone=false;asmResolve=null;}
+    if(n<=8){step8RetryCount=0;}
+    if(n<=5){step5RetryCount=0;}
     running=true; document.getElementById('runBtn').disabled=true;
     document.getElementById('runBtn').style.display='none';
     document.getElementById('stopBtn').style.display='flex';
@@ -2263,19 +2225,14 @@ ${S.v2}`;
 
   function stopPipeline() {
     running=false;
-    // Cancel any in-flight fetch via abort controller
     if(window._activeAbort){ window._activeAbort.abort(); window._activeAbort=null; }
     document.getElementById('runBtn').disabled=false;
     document.getElementById('stopBtn').style.display='none';
     document.getElementById('runBtn').style.display='flex';
-    // Resolve any pending checkpoints so promises don't hang
-    if(cp4Resolve){cp4Resolve();cp4Resolve=null;}
-    if(cp8Resolve){cp8Resolve();cp8Resolve=null;}
-    if(cp11Resolve){cp11Resolve();cp11Resolve=null;}
+    if(cp9Resolve){cp9Resolve();cp9Resolve=null;}
+    if(cp12Resolve){cp12Resolve('');cp12Resolve=null;}
     if(cp14Resolve){cp14Resolve('');cp14Resolve=null;}
-    if(cp16Resolve){cp16Resolve('');cp16Resolve=null;}
     if(asmResolve){asmResolve();asmResolve=null;}
-    // Reset all session state
     S={
       client:S.client, topic:S.topic, docs:{}, sheetRow:'',
       geminiResearch:'', v1:'', v1WithTables:'', validation:'', parsedFails:[],
@@ -2284,8 +2241,8 @@ ${S.v2}`;
       imagePrompts:[], imageData:{}, imageUrls:{},
       tokens:{gi:0,go:0,ci:0,co:0,imgs:0}
     };
-    imagesValidated=false; checkpointDone=false; asmResolve=null; step9RetryCount=0;
-    // Clear session from localStorage
+    imagesValidated=false; checkpointDone=false; asmResolve=null;
+    step8RetryCount=0; step5RetryCount=0; step11RetryCount=0;
     localStorage.removeItem(SESSION_KEY);
     stopTimer();
     setG('⏹ Pipeline stopped. Session cleared — start a new run.');
@@ -2309,16 +2266,16 @@ ${S.v2}`;
     S.tokens={gi:0,go:0,ci:0,co:0,imgs:0};
     S.imagePrompts=[]; S.imageData={}; S.imageUrls={};
     S.parsedFails=[]; S.protectedSentences=[]; S.v1WithTables=''; S.html1TXT='';
-    imagesValidated=false; checkpointDone=false; step9RetryCount=0;
+    imagesValidated=false; checkpointDone=false; step8RetryCount=0; step5RetryCount=0; step11RetryCount=0;
 
     running=true; document.getElementById('runBtn').disabled=true;
     document.getElementById('runBtn').style.display='none';
     document.getElementById('stopBtn').style.display='flex';
     document.getElementById('outputsSec').classList.remove('open');
     document.getElementById('uploadStatus').className='upload-status';
-    for(let i=1;i<=17;i++) setStep(i,'waiting','Waiting');
+    for(let i=1;i<=15;i++) setStep(i,'waiting','Waiting');
     document.getElementById('assembleBtn').disabled=true;
-    document.getElementById('assembleHint').textContent='Complete steps 1–14 first';
+    document.getElementById('assembleHint').textContent='Complete steps 1–12 first';
     document.getElementById('v1WordCount').textContent='—';
     document.getElementById('v2WordCount').textContent='—';
     resetTimer(); startTimer();
@@ -2344,7 +2301,7 @@ ${S.v2}`;
       S.geminiResearch=await callGemini(gp,gkey);
       setStep(2,'done','Done ✓',S.geminiResearch);
 
-      // STEPS 3-17
+      // STEPS 3-15
       await runFrom(3,buildSys(),akey,gkey,dkey);
 
     }catch(err){handleErr(err);stopTimer();}
