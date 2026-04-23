@@ -1394,6 +1394,7 @@
     document.getElementById('pV2')?.classList.toggle('active',tab==='v2');
     document.getElementById('pHTMLFinal')?.classList.toggle('active',tab==='htmlFinal');
     document.getElementById('pSchema')?.classList.toggle('active',tab==='schema');
+    const copyBtn = document.getElementById('btnCopyPane');
     if(copyBtn) copyBtn.style.display = (tab==='v2'||tab==='htmlFinal'||tab==='schema') ? 'block' : 'none';
   }
 
