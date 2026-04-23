@@ -2851,19 +2851,14 @@ V2 ARTICLE:\n${S.v2}`;
     if(voice11Resolve){voice11Resolve();voice11Resolve=null;}
     if(qc14Resolve){qc14Resolve();qc14Resolve=null;}
     if(asmResolve){asmResolve();asmResolve=null;}
-    S={
-      client:S.client, topic:S.topic, docs:{}, sheetRow:'',
-      geminiResearch:'', v1:'', validation:'', parsedFails:[], parsedFlags:[],
-      fixedArticle:'', protectedSentences:[], v2:'',
-      finalMD:'', finalTXT:'', html1TXT:'', finalSchema:'', checklistHTML:'',
-      imagePrompts:[], imageData:{}, imageUrls:{},
-      tokens:{gi:0,go:0,ci:0,co:0,imgs:0}
-    };
+    // DO NOT clear S or localStorage — preserve everything saved so far
+    // User can restore and continue from where they left off
     imagesValidated=false; checkpointDone=false; asmResolve=null;
     step8RetryCount=0;
-    localStorage.removeItem(SESSION_KEY);
     stopTimer();
-    setG('⏹ Pipeline stopped. Session cleared — start a new run.');
+    setG('⏹ Stopped. Session preserved — reload and use Restore to continue.');
+    // Show restore banner immediately so user knows they can continue
+    checkSessionRestore();
   }
 
   // ─── MAIN PIPELINE ────────────────────────────────────────
@@ -2884,8 +2879,12 @@ V2 ARTICLE:\n${S.v2}`;
     S.tokens={gi:0,go:0,ci:0,co:0,imgs:0};
     S.imagePrompts=[]; S.imageData={}; S.imageUrls={};
     S.parsedFails=[]; S.protectedSentences=[]; S.html1TXT='';
+    S.geminiResearch=''; S.sheetRow=''; S.v1=''; S.v2='';
+    S.finalTXT=''; S.finalSchema=''; S.checklistHTML='';
     imagesValidated=false; checkpointDone=false; step8RetryCount=0;
     voice11Resolve=null; qc14Resolve=null;
+    // Clear session on fresh run — not on stop
+    localStorage.removeItem(SESSION_KEY);
 
     running=true; document.getElementById('runBtn').disabled=true;
     document.getElementById('runBtn').style.display='none';
