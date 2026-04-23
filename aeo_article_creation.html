@@ -454,7 +454,8 @@
         <div class="step-right"><div class="sbadge b-waiting" id="b5">Waiting</div><span class="schev closed" id="c5">▼</span></div>
       </div>
       <div class="step-body" id="sb5">
-        <div class="sout-wrap"><div class="sout" id="o5"></div><button class="btn-copy-step" id="copy-btn-5" onclick="copyStepOutput(5)">Copy</button></div>
+        <div class="sout-wrap"><div class="sout" id="o5" style="white-space:pre-wrap;"></div><button class="btn-copy-step" id="copy-btn-5" onclick="copyStepOutput(5)">Copy</button></div>
+        <div id="r5" style="display:none;"><button class="btn-retry" onclick="retryFrom(5)">↻ Retry Step 5</button></div>
         <div class="cbox" id="cbox5" style="display:none;">
           <div class="ctitle">⚠ V1 Integrity Gate — 3 Fix Attempts Failed</div>
           <div id="gateResults5" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
@@ -2085,14 +2086,21 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
     // STEP 5: V1 Integrity Gate
     if(step<=5){
       setStep(5,'active','Checking V1...'); setG('Running V1 integrity checks...',true);
+      document.getElementById('o5').textContent='';
+      document.getElementById('r5').style.display='none';
+      document.getElementById('cbox5').style.display='none';
       let attempts=0;
       const MAX_ATTEMPTS=3;
+      const appendO5=(txt)=>{
+        document.getElementById('o5').textContent+=txt+'\n';
+        document.getElementById('sb5').classList.add('open');
+      };
+      let gateError=false;
       while(attempts<MAX_ATTEMPTS){
         const checks=runV1GateChecks(S.v1);
         const failures=checks.filter(c=>!c.pass);
         const resultText=checks.map(c=>`${c.pass?'✅':'❌'} ${c.label} — ${c.detail}`).join('\n');
-        document.getElementById('o5').textContent=`Attempt ${attempts+1}/${MAX_ATTEMPTS}:\n${resultText}`;
-        document.getElementById('sb5').classList.add('open');
+        appendO5(`--- Attempt ${attempts+1}/${MAX_ATTEMPTS} ---\n${resultText}`);
         if(failures.length===0){
           setStep(5,'done','Done ✓',`All checks passed${attempts>0?` after ${attempts} fix attempt(s)`:''}.`);
           saveSession();
@@ -2110,36 +2118,44 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
             document.getElementById('gate5Rewrite').onclick=()=>{ document.getElementById('cbox5').style.display='none'; res('rewrite'); };
             document.getElementById('gate5Continue').onclick=()=>{ document.getElementById('cbox5').style.display='none'; res('continue'); };
           });
-          if(decision==='rewrite'){
-            retryFrom(3); return;
-          } else {
-            setStep(5,'done','Overridden ✓','Operator chose to continue despite failed checks.');
-            break;
-          }
+          if(decision==='rewrite'){ retryFrom(3); return; }
+          else { setStep(5,'done','Overridden ✓','Operator chose to continue despite failed checks.'); break; }
         }
-        // Build fix instructions for Claude
         setG(`V1 gate attempt ${attempts}/${MAX_ATTEMPTS} — applying fixes...`,true);
         const failDesc=failures.map(f=>{
-          if(f.key==='extLinks') return `MISSING: ${4-((S.v1.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g)||[]).filter(l=>!l.match(/itechvalet\.com/i)).length)} external hyperlink(s). Embed from research brief URLs adjacent to relevant claims. Do NOT add to Direct Answer section.`;
-          if(f.key==='intLinks') return `MISSING: Need 6-10 internal links, found ${f.detail}. Add missing internal links from the sheet row sibling articles or trunk/branch URLs.`;
-          if(f.key==='tables') return `MISSING: Need min 3 tables. Add markdown table(s) using only data already in the article prose.`;
+          if(f.key==='extLinks') return `MISSING: Need min 4 external hyperlinks embedded adjacent to relevant claims. Do NOT add to Direct Answer section.`;
+          if(f.key==='intLinks') return `MISSING: Need min 6 internal links, found ${f.detail}. Add missing internal links from the sheet row sibling articles or trunk/branch URLs.`;
+          if(f.key==='tables') return `MISSING: Need min 3 complete markdown tables. Add using only data already in the article prose.`;
           if(f.key==='images') return `MISSING: Need image prompts after H2 headings. Add PROMPT:/ALT TEXT: blocks after H2s that are missing them.`;
           if(f.key==='faq') return `MISSING: FAQ section not found. Add a FAQ section with 5-8 H3 questions before the conclusion.`;
           if(f.key==='directAnswer') return `WRONG: Direct answer word count is ${f.detail}. Adjust to 150-450 words.`;
-          if(f.key==='sacredGround') return `WRONG: Links found in Direct Answer section. Remove all hyperlinks from the first section after H1.`;
+          if(f.key==='sacredGround') return `WRONG: Link(s) found in Direct Answer sacred ground. Remove ALL hyperlinks — both markdown [text](url) format AND HTML <a href="..."> tags — from the opening paragraphs before the first H2 heading. Replace with plain text.`;
           return `ISSUE: ${f.label} — ${f.detail}`;
         }).join('\n\n');
-        const fixSys5=`You are applying targeted fixes to an AEO article V1. Output ONLY DIFF_START/DIFF_END blocks — do NOT return the full article.\n\nFormat:\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement]\nDIFF_END\n\nOne block per fix. No explanation. ONLY diff blocks.\n\n4.3B:\n${S.docs.doc43B}`;
-        const fixUser5=`RESEARCH BRIEF (source for external URLs and internal link targets):\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFIX THESE ISSUES:\n${failDesc}\n\nRULES:\n- Fix ONLY the listed issues\n- Do NOT rewrite prose\n- Do NOT touch Direct Answer section\n- External links: embed as [anchor text](URL) adjacent to a relevant claim\n- Output ONLY DIFF_START/DIFF_END blocks\n\nARTICLE:\n${S.v1}`;
-        const fixResult=await callClaude(fixSys5,fixUser5,akey,(p)=>{document.getElementById('o5').textContent=`Attempt ${attempts}/${MAX_ATTEMPTS} — fixing:\n`+p;},{maxTokens:64000});
-        if(fixResult.includes('DIFF_START')){
-          const {result,applied,failed,log}=applyDiffs(S.v1,fixResult);
-          S.v1=result; showV1(S.v1);
-          document.getElementById('o5').textContent+=`\n\nApplied: ${applied}, Failed: ${failed}`;
-        } else if(fixResult.length>2000){
-          S.v1=fixResult; showV1(S.v1);
+        const fixSys5=`You are applying targeted fixes to an AEO article V1. Output ONLY DIFF_START/DIFF_END blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement]\nDIFF_END\n\nOne block per fix. No explanation. ONLY diff blocks.\n\n4.3B:\n${S.docs.doc43B}`;
+        const fixUser5=`RESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFIX THESE ISSUES:\n${failDesc}\n\nRULES:\n- Fix ONLY the listed issues\n- Do NOT rewrite prose\n- For sacredGround: find and remove every link in the Direct Answer section, converting to plain text\n- Output ONLY DIFF_START/DIFF_END blocks\n\nARTICLE:\n${S.v1}`;
+        try {
+          appendO5(`\nApplying fixes...`);
+          const fixResult=await callClaude(fixSys5,fixUser5,akey,null,{maxTokens:64000});
+          if(fixResult.includes('DIFF_START')){
+            const {result,applied,failed,log}=applyDiffs(S.v1,fixResult);
+            S.v1=result; showV1(S.v1);
+            appendO5(`Applied: ${applied}, Failed: ${failed}\n${log.join('\n')}`);
+          } else if(fixResult.length>2000){
+            S.v1=fixResult; showV1(S.v1);
+            appendO5('Fallback: Claude returned full article.');
+          } else {
+            appendO5(`Warning: Unexpected Claude output (${fixResult.length} chars).`);
+          }
+        } catch(e) {
+          appendO5(`\n❌ Claude error: ${e.message}\nUse the Retry button to try Step 5 again.`);
+          setStep(5,'error','Failed — Retry');
+          document.getElementById('r5').style.display='block';
+          gateError=true;
+          break;
         }
       }
+      if(gateError) throw new Error('Step 5 failed due to Claude error — use Retry button.');
       step=6;
     }
 
@@ -2333,14 +2349,19 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
     // STEP 11: V2 Integrity Gate
     if(step<=11){
       setStep(11,'active','Checking V2...'); setG('Running V2 integrity checks...',true);
+      document.getElementById('o11').textContent='';
+      document.getElementById('cbox11').style.display='none';
       let attempts=0;
       const MAX_ATTEMPTS=3;
+      const appendO11=(txt)=>{
+        document.getElementById('o11').textContent+=txt+'\n';
+        document.getElementById('sb11').classList.add('open');
+      };
       while(attempts<MAX_ATTEMPTS){
         const checks=runV2GateChecks(S.v2);
         const failures=checks.filter(c=>!c.pass);
         const resultText=checks.map(c=>`${c.pass?'✅':'❌'} ${c.label} — ${c.detail}`).join('\n');
-        document.getElementById('o11').textContent=`Attempt ${attempts+1}/${MAX_ATTEMPTS}:\n${resultText}`;
-        document.getElementById('sb11').classList.add('open');
+        appendO11(`--- Attempt ${attempts+1}/${MAX_ATTEMPTS} ---\n${resultText}`);
         if(failures.length===0){
           setStep(11,'done','Done ✓',`All checks passed${attempts>0?` after ${attempts} fix attempt(s)`:''}.`);
           saveSession();
@@ -2370,7 +2391,7 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
         const {updated,log:restoreLog}=restoreFromV1(S.v2,failures);
         if(restoreLog.length>0){
           S.v2=updated; showV2(S.v2);
-          document.getElementById('o11').textContent+=`\n\nJS Restore:\n${restoreLog.join('\n')}`;
+          document.getElementById('o11').textContent+=`\nJS Restore:\n${restoreLog.join('\n')}`;
         }
         // Re-check after JS restore
         const checksAfterRestore=runV2GateChecks(S.v2);
@@ -2391,11 +2412,18 @@ ${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}
         if(failDesc){
           const fixSys11=`You are applying targeted fixes to an AEO article V2. Output ONLY DIFF_START/DIFF_END blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement]\nDIFF_END\n\nDo NOT rewrite prose. ONLY diff blocks.\n\n4.3B:\n${S.docs.doc43B}`;
           const fixUser11=`RESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFIX THESE:\n${failDesc}\n\nRULES:\n- Do NOT touch protected zones (Direct Answer, FAQ questions, tables, image prompts)\n- Output ONLY DIFF_START/DIFF_END blocks\n\nARTICLE:\n${S.v2}`;
-          const fix11Result=await callClaude(fixSys11,fixUser11,akey,(p)=>{document.getElementById('o11').textContent+='\n\nFix:\n'+p;},{maxTokens:64000});
-          if(fix11Result.includes('DIFF_START')){
-            const {result,applied,failed}=applyDiffs(S.v2,fix11Result);
-            S.v2=result; showV2(S.v2);
-            document.getElementById('o11').textContent+=`\nApplied: ${applied}, Failed: ${failed}`;
+          try {
+            const fix11Result=await callClaude(fixSys11,fixUser11,akey,null,{maxTokens:64000});
+            if(fix11Result.includes('DIFF_START')){
+              const {result,applied,failed}=applyDiffs(S.v2,fix11Result);
+              S.v2=result; showV2(S.v2);
+              document.getElementById('o11').textContent+=`\nApplied: ${applied}, Failed: ${failed}`;
+            }
+          } catch(e) {
+            document.getElementById('o11').textContent+=`\n❌ Claude error: ${e.message}\nUse Retry from Step 11 to try again.`;
+            setStep(11,'error','Failed — Retry');
+            document.getElementById('r11')||document.getElementById('sb11').insertAdjacentHTML('beforeend','<div id="r11" style="margin-top:8px;"><button class="btn-retry" onclick="retryFrom(11)">↻ Retry Step 11</button></div>');
+            throw e;
           }
         }
       }
