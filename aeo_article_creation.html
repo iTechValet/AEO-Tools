@@ -236,6 +236,14 @@
 
   .error-msg { color:var(--orange); font-size:11px; margin-top:5px; }
 
+  /* STEP 14 CHAT */
+  .qc-bubble { padding:9px 12px; border-radius:8px; font-size:11px; line-height:1.6; max-width:100%; word-break:break-word; }
+  .qc-bubble.user { background:var(--accent); color:#fff; align-self:flex-end; border-bottom-right-radius:2px; }
+  .qc-bubble.claude { background:#f0f4f8; color:var(--blue); border-bottom-left-radius:2px; border:1px solid var(--border); }
+  .qc-bubble.system { background:rgba(76,175,80,.08); color:var(--blue); border:1px solid rgba(76,175,80,.25); font-family:monospace; font-size:10.5px; white-space:pre-wrap; }
+  .qc-bubble-wrap { display:flex; flex-direction:column; }
+  .qc-bubble-label { font-size:9px; text-transform:uppercase; letter-spacing:1px; color:var(--faint); margin-bottom:3px; font-family:'Bebas Neue',sans-serif; }
+
   /* TIMER */
   .timer-display { font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--blue); letter-spacing:1px; }
   .timer-display.running { color:var(--accent); }
@@ -369,6 +377,14 @@
     </div>
   </div>
 
+  <!-- RUN HISTORY — full width inside control panel -->
+  <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:2px;">
+    <div class="history-toggle" onclick="toggleHistory()">
+      <span>Run History <span id="histCount" style="font-size:11px;opacity:0.6;margin-left:4px;"></span></span>
+      <span id="histChev" style="font-size:11px;">▼</span>
+    </div>
+    <div class="history-list" id="historyList"></div>
+  </div>
 
 </div><!-- end control-panel -->
 </div><!-- end top-section -->
@@ -549,23 +565,22 @@
     <div class="step-card" id="step14">
       <div class="step-header" onclick="toggleStep(14)">
         <div class="step-num">14</div>
-        <div class="step-info"><div class="step-title">Claude HTML QC</div><div class="step-desc">Prompt 6 — HTML audit against 4.3B spec + human checkpoint</div></div>
+        <div class="step-info"><div class="step-title">HTML Review &amp; Chat Fixes</div><div class="step-desc">Claude audits HTML — then chat to fix anything you see in the preview — hit Finalize when done</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b14">Waiting</div><span class="schev closed" id="c14">▼</span></div>
       </div>
       <div class="step-body" id="sb14">
-        <div class="sout-wrap"><div class="sout" id="o14"></div><button class="btn-copy-step" id="copy-btn-14" onclick="copyStepOutput(14)">Copy</button></div>
-        <div id="r14" style="display:none;"><button class="btn-retry" onclick="retryFrom(14)">↻ Retry QC</button></div>
-        <div id="rerunQC" style="display:none;margin-top:10px;">
-          <p style="font-size:11px;color:var(--muted);margin-bottom:6px;">Describe what looks wrong (optional):</p>
-          <textarea id="qcFeedback" style="width:100%;background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--blue);font-family:'Lexend',sans-serif;font-size:11px;line-height:1.6;outline:none;resize:vertical;min-height:50px;margin-bottom:7px;" placeholder="e.g. The ToC colors look wrong..."></textarea>
-          <button class="btn-retry" onclick="rerunQC()">↻ Run QC Again</button>
+        <!-- CHAT THREAD -->
+        <div id="qcChatThread" style="display:none;margin-bottom:10px;max-height:380px;overflow-y:auto;flex-direction:column;gap:8px;padding:4px 0;"></div>
+        <!-- CHAT INPUT -->
+        <div id="qcChatInput" style="display:none;margin-top:4px;">
+          <textarea id="qcMsg" placeholder="Describe what to fix — e.g. 'Remove the CTA button at the bottom' or 'There's a link in the direct answer, remove it'" style="width:100%;background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--blue);font-family:'Lexend',sans-serif;font-size:11px;line-height:1.6;outline:none;resize:vertical;min-height:56px;margin-bottom:7px;box-sizing:border-box;" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){sendQCMsg();}"></textarea>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn-proceed" id="qcSendBtn" onclick="sendQCMsg()" style="background:var(--accent);">Send Fix →</button>
+            <span style="font-size:10px;color:var(--faint);">Ctrl+Enter to send</span>
+            <button class="btn-proceed" id="qcFinalizeBtn" onclick="finalizeQC()" style="margin-left:auto;background:var(--green);">✓ Finalize — Done</button>
+          </div>
         </div>
-        <div class="cbox" id="cbox14" style="display:none;margin-top:10px;">
-          <div class="ctitle">⚠ Review Final HTML in right panel</div>
-          <p style="font-size:11px;color:#888;margin-bottom:7px;">Leave blank if it looks good — describe any issues and Claude will fix them.</p>
-          <textarea id="cpFeedback14" placeholder="e.g. ToC is after the first H2 — or leave blank to continue" oninput="updateCpBtn14()"></textarea>
-          <button class="btn-proceed" id="cpBtn14" onclick="proceedCp14()">Looks Good — Finish</button>
-        </div>
+        <div id="r14" style="display:none;margin-top:8px;"><button class="btn-retry" onclick="retryFrom(13)">↻ Retry from Step 13</button></div>
       </div>
     </div>
 
@@ -584,15 +599,6 @@
 <!-- RIGHT -->
 <div class="right-col">
   <div class="right-panel">
-
-    <!-- RUN HISTORY -->
-    <div class="panel-card" style="padding:0;">
-      <div class="history-toggle" onclick="toggleHistory()" style="border-radius:10px;margin:0;">
-        <span>Run History <span id="histCount" style="font-size:10px;opacity:0.6;margin-left:4px;"></span></span>
-        <span id="histChev" style="font-size:11px;">▼</span>
-      </div>
-      <div class="history-list" id="historyList"></div>
-    </div>
 
     <!-- IMAGES -->
     <div class="panel-card">
@@ -688,7 +694,7 @@
     tokens:{gi:0,go:0,ci:0,co:0,imgs:0}
   };
   let running=false;
-  let cp9Resolve=null, cp12Resolve=null, cp14Resolve=null, asmResolve=null;
+  let cp9Resolve=null, cp12Resolve=null, asmResolve=null;
   let imagesValidated=false, checkpointDone=false;
   let step8RetryCount=0, step5RetryCount=0, step11RetryCount=0;
 
@@ -1517,30 +1523,6 @@
     if(cp12Resolve){cp12Resolve(fb);cp12Resolve=null;}
   }
 
-  // Step 14 — HTML QC checkpoint
-  function updateCpBtn14() {
-    const fb=document.getElementById('cpFeedback14').value.trim();
-    document.getElementById('cpBtn14').textContent=fb?'Make Fixes — Finish':'Looks Good — Finish';
-  }
-  function waitCp14() {
-    return new Promise(res=>{
-      cp14Resolve=res;
-      document.getElementById('cbox14').style.display='block';
-      document.getElementById('sb14').classList.add('open');
-      document.getElementById('c14').classList.remove('closed');
-      setStep(14,'checkpoint','Your Turn');
-      switchTab('htmlFinal');
-    });
-  }
-  function proceedCp14() {
-    const fb=document.getElementById('cpFeedback14').value.trim();
-    document.getElementById('cbox14').style.display='none';
-    document.getElementById('cpFeedback14').value='';
-    document.getElementById('cpBtn14').textContent='Looks Good — Finish';
-    if(cp14Resolve){cp14Resolve(fb);cp14Resolve=null;}
-  }
-
-
   function dlHTML() {
     if(!S.finalTXT){alert('Final HTML not ready yet — complete the pipeline first.');return;}
     const slug=extractField(S.v2,'Permalink URL')||S.topic.replace(/[^a-z0-9]+/gi,'-').toLowerCase();
@@ -1727,52 +1709,180 @@ ${schemaBlocksHTML}
 
 
   // ─── HTML QC (Step 16) ────────────────────────────────────
-  async function runQC(akey, initialFeedback, publishDate) {
-    // Flattened loop — no recursion. Only one waitCp14 ever active at a time.
-    let feedback = initialFeedback || '';
-    const qcSys = `You are an expert AEO article HTML QC specialist. Output ONLY DIFF blocks for any corrections needed — do not return the full HTML. Use this exact format for each fix:\n\nDIFF_START\nFIND:\n[exact HTML string to find]\nREPLACE:\n[exact replacement HTML, or [DELETE] to remove]\nDIFF_END\n\nIf no corrections are needed, output only: QC COMPLETE — NO CHANGES NEEDED\n\nCRITICAL CHECK: Scan for any markdown table syntax (lines starting with | and ending with |, separator rows with ---). If found, these are unconverted markdown tables — convert them to proper branded HTML tables per 4.3B spec before anything else.\n\n4.3B — CLIENT IDENTITY CARD + HTML STYLE SPEC:\n${S.docs.doc43B}`;
-    const p6 = getPrompt(S.docs.doc44, 6);
-    const pubDateLine = publishDate ? `\n\nPUBLISH DATE: ${publishDate} — If any date in the HTML does not match this exactly, correct it.` : '';
+  // ─── STEP 14: CHAT-BASED HTML QC ─────────────────────────
+  let qc14History = []; // full message history for this session
+  let qc14Resolve = null; // resolves when user hits Finalize
+  let qc14AKey = '';
+  let qc14PublishDate = '';
+  let qc14Busy = false;
 
-    while(true) {
-      setStep(14,'active','Running QC...'); setG('Claude running HTML QC...',true);
-      const feedbackLine = feedback ? `\n\nOPERATOR NOTES: ${feedback}\n\nFix these specific issues in addition to the standard QC checks.` : '';
-      const qcUser = `${p6}${pubDateLine}${feedbackLine}\n\nFINAL HTML TO QC:\n${S.finalTXT}`;
-      const res = await callClaude(qcSys, qcUser, akey,
-        (partial)=>{document.getElementById('o14').textContent=partial; document.getElementById('sb14').classList.add('open');}
-      );
-      if(res.includes('QC COMPLETE — NO CHANGES NEEDED')){
-        document.getElementById('o14').textContent='QC passed — no changes needed.';
-      } else if(res.includes('DIFF_START')){
-        const {result,applied,failed,log}=applyDiffs(S.finalTXT,res);
-        S.finalTXT=result;
-        document.getElementById('o14').textContent=log.join('\n')+`\n\nApplied: ${applied}, Failed: ${failed}`;
-      } else {
-        const m=res.match(/=== HTML START ===([\s\S]*?)=== HTML END ===/i);
-        const m2=res.match(/```(?:html)?\n([\s\S]*?)```/i);
-        if(m&&m[1]&&m[1].trim().length>100){S.finalTXT=m[1].trim();}
-        else if(m2&&m2[1].trim().length>100){S.finalTXT=m2[1].trim();}
-      }
-      showHTMLFinal(S.finalTXT);
-      S.checklistHTML=buildChecklistHTML(S.finalSchema);
-      document.getElementById('rerunQC').style.display='block';
-      // Single waitCp14 per loop iteration — no nested promises
-      const cp14Fb = await waitCp14();
-      if(!cp14Fb) break; // blank = approved, exit loop
-      feedback = cp14Fb;
-      setStep(14,'active','Fixing HTML...'); setG('Claude applying your fixes...',true);
+  function qcAppendBubble(role, text) {
+    // role: 'user' | 'claude' | 'system'
+    const thread = document.getElementById('qcChatThread');
+    const wrap = document.createElement('div');
+    wrap.className = 'qc-bubble-wrap';
+    const label = document.createElement('div');
+    label.className = 'qc-bubble-label';
+    label.textContent = role === 'user' ? 'You' : role === 'claude' ? 'Claude' : 'System';
+    const bubble = document.createElement('div');
+    bubble.className = `qc-bubble ${role}`;
+    bubble.textContent = text;
+    wrap.appendChild(label);
+    wrap.appendChild(bubble);
+    thread.appendChild(wrap);
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  async function runQC(akey, initialFeedback, publishDate) {
+    qc14AKey = akey;
+    qc14PublishDate = publishDate;
+    qc14History = [];
+
+    // Show chat UI
+    const thread = document.getElementById('qcChatThread');
+    thread.style.display = 'flex';
+    thread.innerHTML = '';
+    document.getElementById('qcChatInput').style.display = 'block';
+    document.getElementById('sb14').classList.add('open');
+    document.getElementById('c14').classList.remove('closed');
+    setStep(14, 'checkpoint', 'Your Turn');
+    switchTab('htmlFinal');
+
+    // Build system prompt
+    const p6 = getPrompt(S.docs.doc44, 6);
+    const pubDateLine = publishDate ? `\n\nPUBLISH DATE: ${publishDate} — every date in the HTML must match this exactly.` : '';
+    const qcSys = `You are an expert HTML QC specialist for the iTech Valet AEO pipeline. You make surgical fixes to HTML articles.\n\nRULES:\n- Output ONLY DIFF_START/DIFF_END blocks for fixes. Never return the full HTML.\n- Format:\nDIFF_START\nFIND:\n[exact HTML to find]\nREPLACE:\n[replacement, or [DELETE] to remove]\nDIFF_END\n- If nothing needs fixing, output only: QC COMPLETE — NO CHANGES NEEDED\n- Fix ONLY what the operator describes. Do not touch anything else.\n- No CTAs with buttons. No background colors on CTA sections. No links in the Direct Answer section (before the first H2). These are hard violations.\n\n4.3B — CLIENT IDENTITY CARD + HTML SPEC:\n${S.docs.doc43B}${pubDateLine}`;
+
+    // Auto-run initial QC audit
+    setG('Claude auditing HTML...', true);
+    qcAppendBubble('system', '⏳ Running initial HTML audit...');
+
+    const auditPrompt = `${p6}${pubDateLine}\n\nReview this HTML for violations. Check specifically:\n1. Any link (<a href>) in the Direct Answer section (content before the first H2 heading)\n2. Any CTA button element added at the bottom\n3. Any background-color applied to the CTA section\n4. Publish date correctness — must be exactly "${publishDate}"\n5. Any unconverted markdown tables\n6. Any other spec violations per 4.3B\n\nReport what you find clearly, then output DIFF blocks for each fix. If clean, output: QC COMPLETE — NO CHANGES NEEDED\n\nHTML:\n${S.finalTXT}`;
+
+    const auditMsg = { role: 'user', content: auditPrompt };
+    qc14History.push(auditMsg);
+
+    let auditResult = '';
+    try {
+      auditResult = await callClaude(qcSys, auditPrompt, akey, (p) => {
+        // stream into last system bubble
+        const bubbles = thread.querySelectorAll('.qc-bubble.system');
+        const last = bubbles[bubbles.length - 1];
+        if (last) last.textContent = p;
+      });
+    } catch(e) {
+      qcAppendBubble('system', `⚠ Audit error: ${e.message}`);
+      setStep(14, 'error', 'Failed');
+      document.getElementById('r14').style.display = 'block';
+      return;
     }
+
+    qc14History.push({ role: 'assistant', content: auditResult });
+
+    // Apply any diffs from the audit
+    if (auditResult.includes('DIFF_START')) {
+      const { result, applied, failed, log } = applyDiffs(S.finalTXT, auditResult);
+      S.finalTXT = result;
+      showHTMLFinal(S.finalTXT);
+      S.checklistHTML = buildChecklistHTML(S.finalSchema);
+      // Update the system bubble with result summary
+      const bubbles = thread.querySelectorAll('.qc-bubble.system');
+      const last = bubbles[bubbles.length - 1];
+      // Extract readable summary (strip diff blocks)
+      const summary = auditResult.replace(/DIFF_START[\s\S]*?DIFF_END/g, '').trim() || 'Fixes applied.';
+      if (last) last.textContent = `${summary}\n\n✅ Applied: ${applied} fix(es). Failed: ${failed}.`;
+    } else if (auditResult.includes('QC COMPLETE — NO CHANGES NEEDED')) {
+      const bubbles = thread.querySelectorAll('.qc-bubble.system');
+      const last = bubbles[bubbles.length - 1];
+      if (last) last.textContent = '✅ Initial audit passed — no violations found. Review the HTML preview and describe anything to fix, or hit Finalize.';
+    } else {
+      // Narrative response — just show it
+      const bubbles = thread.querySelectorAll('.qc-bubble.system');
+      const last = bubbles[bubbles.length - 1];
+      if (last) last.textContent = auditResult;
+    }
+
+    thread.scrollTop = thread.scrollHeight;
+    setG('Review HTML preview — chat below to fix anything, then Finalize.');
+    document.getElementById('qcMsg').focus();
+
+    // Wait for user to finalize
+    return new Promise(res => { qc14Resolve = res; });
+  }
+
+  async function sendQCMsg() {
+    if (qc14Busy) return;
+    const input = document.getElementById('qcMsg');
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+    qc14Busy = true;
+
+    const sendBtn = document.getElementById('qcSendBtn');
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending...';
+
+    qcAppendBubble('user', msg);
+
+    // Build message for Claude — include current HTML so diffs are accurate
+    const userContent = `${msg}\n\nCURRENT HTML (apply diffs against this exact content):\n${S.finalTXT}`;
+    qc14History.push({ role: 'user', content: userContent });
+
+    // Add Claude bubble placeholder
+    const thread = document.getElementById('qcChatThread');
+    const wrap = document.createElement('div');
+    wrap.className = 'qc-bubble-wrap';
+    const label = document.createElement('div');
+    label.className = 'qc-bubble-label';
+    label.textContent = 'Claude';
+    const bubble = document.createElement('div');
+    bubble.className = 'qc-bubble claude';
+    bubble.textContent = '...';
+    wrap.appendChild(label);
+    wrap.appendChild(bubble);
+    thread.appendChild(wrap);
+    thread.scrollTop = thread.scrollHeight;
+
+    const qcSys = `You are an expert HTML QC specialist for the iTech Valet AEO pipeline. You make surgical fixes to HTML articles.\n\nRULES:\n- Output ONLY DIFF_START/DIFF_END blocks for fixes. Never return the full HTML.\n- Format:\nDIFF_START\nFIND:\n[exact HTML to find]\nREPLACE:\n[replacement, or [DELETE] to remove]\nDIFF_END\n- If nothing needs fixing, output only: QC COMPLETE — NO CHANGES NEEDED\n- Fix ONLY what the operator describes. Do not touch anything else.\n- No CTAs with buttons. No background colors on CTA sections. No links in the Direct Answer section (before the first H2). These are hard violations.\n\n4.3B — CLIENT IDENTITY CARD + HTML SPEC:\n${S.docs.doc43B}`;
+
+    try {
+      const result = await callClaude(qcSys, userContent, qc14AKey, (p) => {
+        bubble.textContent = p;
+        thread.scrollTop = thread.scrollHeight;
+      });
+
+      qc14History.push({ role: 'assistant', content: result });
+
+      if (result.includes('DIFF_START')) {
+        const { result: fixed, applied, failed, log } = applyDiffs(S.finalTXT, result);
+        S.finalTXT = fixed;
+        showHTMLFinal(S.finalTXT);
+        S.checklistHTML = buildChecklistHTML(S.finalSchema);
+        const summary = result.replace(/DIFF_START[\s\S]*?DIFF_END/g, '').trim();
+        bubble.textContent = (summary ? summary + '\n\n' : '') + `✅ Applied: ${applied} fix(es)${failed > 0 ? `, Failed: ${failed}` : ''}.`;
+      } else {
+        bubble.textContent = result;
+      }
+    } catch(e) {
+      bubble.textContent = `⚠ Error: ${e.message}`;
+    }
+
+    thread.scrollTop = thread.scrollHeight;
+    qc14Busy = false;
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'Send Fix →';
+    document.getElementById('qcMsg').focus();
+  }
+
+  function finalizeQC() {
     saveSession();
-    setStep(14,'done','Done ✓','QC approved.');
+    setStep(14, 'done', 'Done ✓');
+    setG('✓ HTML finalized.');
+    if (qc14Resolve) { qc14Resolve(); qc14Resolve = null; }
   }
 
   async function rerunQC() {
-    const akey=document.getElementById('keyAnthropic').value.trim();
-    const feedback=document.getElementById('qcFeedback').value.trim();
-    const publishDate=document.getElementById('publishDate').value;
-    if(!publishDate){alert('Publish date is required before running QC. Set it in the right panel first.');return;}
-    document.getElementById('qcFeedback').value='';
-    await runQC(akey,feedback,publishDate);
+    // Legacy stub — no longer used but kept to avoid reference errors
   }
 
   function buildSys() {
@@ -2779,7 +2889,7 @@ ${S.v2}`;
     document.getElementById('runBtn').style.display='flex';
     if(cp9Resolve){cp9Resolve();cp9Resolve=null;}
     if(cp12Resolve){cp12Resolve('');cp12Resolve=null;}
-    if(cp14Resolve){cp14Resolve('');cp14Resolve=null;}
+    if(qc14Resolve){qc14Resolve();qc14Resolve=null;}
     if(asmResolve){asmResolve();asmResolve=null;}
     S={
       client:S.client, topic:S.topic, docs:{}, sheetRow:'',
