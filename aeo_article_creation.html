@@ -66,9 +66,9 @@
   .gstatus { font-size:12px; color:var(--accent); min-height:16px; font-weight:400; padding:6px 0 2px; }
 
   /* HISTORY inside panel */
-  .history-toggle { font-family:'Bebas Neue',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:2px; color:var(--blue); opacity:0.55; cursor:pointer; display:flex; align-items:center; justify-content:space-between; user-select:none; padding-top:10px; border-top:1px solid var(--border); margin-top:10px; }
+  .history-toggle { font-family:'Bebas Neue',sans-serif; font-size:13px; text-transform:uppercase; letter-spacing:2px; color:var(--blue); opacity:0.85; cursor:pointer; display:flex; align-items:center; justify-content:space-between; user-select:none; padding:12px 14px; }
   .history-toggle:hover { opacity:1; color:var(--accent); }
-  .history-list { display:none; margin-top:10px; }
+  .history-list { display:none; padding:0 10px 10px; }
   .history-list.open { display:block; }
   .history-item { background:#fff; border:1px solid var(--border); border-radius:8px; padding:9px 12px; margin-bottom:7px; font-size:11px; }
   .history-item:last-child { margin-bottom:0; }
@@ -243,22 +243,6 @@
 
   /* WORD COUNT BADGE */
   .wc-badge { font-size:10px; background:rgba(36,148,224,.12); color:var(--accent); border:1px solid rgba(36,148,224,.25); border-radius:4px; padding:2px 7px; font-family:'Bebas Neue',sans-serif; letter-spacing:1px; margin-left:6px; }
-
-  /* HISTORY PANEL */
-  .history-panel { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px; margin-bottom:14px; }
-  .history-toggle { font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:2px; color:var(--faint); cursor:pointer; display:flex; align-items:center; justify-content:space-between; user-select:none; }
-  .history-toggle:hover { color:var(--accent); }
-  .history-list { display:none; margin-top:10px; }
-  .history-list.open { display:block; }
-  .history-item { background:#fff; border:1px solid var(--border); border-radius:8px; padding:9px 12px; margin-bottom:7px; font-size:11px; }
-  .history-item:last-child { margin-bottom:0; }
-  .history-topic { font-weight:500; color:var(--blue); margin-bottom:4px; word-break:break-word; }
-  .history-meta { color:var(--faint); font-size:10px; display:flex; gap:10px; flex-wrap:wrap; margin-bottom:5px; }
-  .history-actions { display:flex; gap:6px; }
-  .btn-hist { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; padding:3px 9px; font-family:'Bebas Neue',sans-serif; font-size:10px; letter-spacing:1px; cursor:pointer; transition:border-color .2s,color .2s; }
-  .btn-hist:hover { border-color:var(--accent); color:var(--accent); }
-  .btn-hist.orange:hover { border-color:var(--orange); color:var(--orange); }
-  .history-empty { font-size:11px; color:#ccc; text-align:center; padding:10px 0; }
 
   /* SESSION RESTORE BANNER */
   .btn-restore { background:var(--accent); color:#fff; border:none; border-radius:5px; padding:4px 12px; font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1px; cursor:pointer; }
@@ -989,6 +973,9 @@
           <div class="history-actions">
             <button class="btn-hist" onclick="copyHistTopic(${i})">⎘ Copy Topic</button>
             <button class="btn-hist orange" onclick="deleteHist(${i})">✕ Remove</button>
+            ${h.finalTXT?`<button class="btn-hist" onclick="restoreFromHistory(${i})" style="border-color:var(--accent);color:var(--accent);">↩ Restore</button>`:''}
+            ${h.finalTXT?`<button class="btn-hist" onclick="dlFromHistory(${i},'html')" style="border-color:var(--green);color:var(--green);">↓ HTML</button>`:''}
+            ${h.checklistHTML?`<button class="btn-hist" onclick="dlFromHistory(${i},'checklist')" style="border-color:var(--green);color:var(--green);">↓ Checklist</button>`:''}
           </div>
         </div>`).join('');
     } catch(e){}
@@ -1015,6 +1002,36 @@
       localStorage.setItem(HISTORY_KEY,JSON.stringify(hist));
       renderHistory();
     } catch(e){}
+  }
+
+  function restoreFromHistory(i) {
+    try {
+      const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+      const h=hist[i]; if(!h) return;
+      if(h.v2){ S.v2=h.v2; showV2(h.v2); updateWordCount(h.v2); }
+      if(h.finalTXT){ S.finalTXT=h.finalTXT; showHTMLFinal(h.finalTXT); }
+      if(h.finalSchema){ S.finalSchema=h.finalSchema; showSchema(h.finalSchema,'',''); }
+      if(h.checklistHTML){ S.checklistHTML=h.checklistHTML; }
+      if(h.finalTXT||h.checklistHTML){ document.getElementById('outputsSec').classList.add('open'); }
+      setG(`✓ Restored: "${h.topic.substring(0,50)}" — download buttons active.`);
+    } catch(e){ console.warn('History restore failed:',e); }
+  }
+
+  function dlFromHistory(i, type) {
+    try {
+      const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+      const h=hist[i]; if(!h) return;
+      const slug=(h.topic||'article').replace(/[^a-z0-9]+/gi,'-').toLowerCase().substring(0,60);
+      if(type==='html' && h.finalTXT){
+        const blob=new Blob([h.finalTXT],{type:'text/plain'});
+        const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+        a.download=`${slug}-final.txt`; a.click(); URL.revokeObjectURL(a.href);
+      } else if(type==='checklist' && h.checklistHTML){
+        const blob=new Blob([h.checklistHTML],{type:'text/html'});
+        const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+        a.download=`${slug}-checklist.html`; a.click(); URL.revokeObjectURL(a.href);
+      }
+    } catch(e){ console.warn('History download failed:',e); }
   }
 
   // ─── DRIVE ────────────────────────────────────────────────
@@ -1327,14 +1344,14 @@
   function copyActivePane() {
     let text = '';
     if(activeTab === 'v2') text = S.v2 || '';
-    else if(activeTab === 'html1') text = S.html1TXT || S.finalTXT || '';
     else if(activeTab === 'htmlFinal') text = S.finalTXT || '';
+    else if(activeTab === 'schema') text = S.finalSchema || '';
     else text = S.v1 || '';
     if(!text){ alert('No content to copy yet.'); return; }
     navigator.clipboard.writeText(text).then(()=>{
       const btn = document.getElementById('btnCopyPane');
       if(btn){ const orig=btn.textContent; btn.textContent='✓ Copied'; setTimeout(()=>{ btn.textContent=orig; },1500); }
-    }).catch(()=>{});
+    }).catch(()=>{ alert('Copy failed — try selecting the text manually.'); });
   }
   function switchTab(tab) {
     if(tab==='html1') tab='htmlFinal';
@@ -1352,7 +1369,6 @@
     document.getElementById('pV2')?.classList.toggle('active',tab==='v2');
     document.getElementById('pHTMLFinal')?.classList.toggle('active',tab==='htmlFinal');
     document.getElementById('pSchema')?.classList.toggle('active',tab==='schema');
-    const copyBtn = document.getElementById('btnCopyPane');
     if(copyBtn) copyBtn.style.display = (tab==='v2'||tab==='htmlFinal'||tab==='schema') ? 'block' : 'none';
   }
 
@@ -1607,7 +1623,7 @@
   // ─── BUILD CHECKLIST HTML ────────────────────────────────
   function buildChecklistHTML(schema) {
     const featUrl=S.imageUrls[getFeatured()]||'';
-    const today=document.getElementById('publishDate').value||new Date().toISOString().split('T')[0];
+    const today=document.getElementById('publishDate').value||'[PUBLISH DATE NOT SET]';
     const title=extractField(S.v2,'Meta Title')||extractField(S.v2,'H1')||S.topic;
     const slug=extractField(S.v2,'Permalink URL')||'';
     const fullUrl=extractField(S.v2,'Full Blog Post URL')||'';
@@ -1711,38 +1727,40 @@ ${schemaBlocksHTML}
 
 
   // ─── HTML QC (Step 16) ────────────────────────────────────
-  async function runQC(akey, feedback, publishDate) {
-    setStep(14,'active','Running QC...'); setG('Claude running HTML QC...',true);
-    const p6=getPrompt(S.docs.doc44,6);
-    const feedbackLine=feedback?`\n\nOPERATOR NOTES: ${feedback}\n\nFix these specific issues in addition to the standard QC checks.`:'';
-    const pubDateLine=publishDate?`\n\nPUBLISH DATE: ${publishDate} — If any date in the HTML does not match this exactly, correct it.`:'';
-    const qcUser=`${p6}${pubDateLine}${feedbackLine}\n\nFINAL HTML TO QC:\n${S.finalTXT}`;
-    const res=await callClaude(
-      `You are an expert AEO article HTML QC specialist. Output ONLY DIFF blocks for any corrections needed — do not return the full HTML. Use this exact format for each fix:\n\nDIFF_START\nFIND:\n[exact HTML string to find]\nREPLACE:\n[exact replacement HTML, or [DELETE] to remove]\nDIFF_END\n\nIf no corrections are needed, output only: QC COMPLETE — NO CHANGES NEEDED\n\nCRITICAL CHECK: Scan for any markdown table syntax (lines starting with | and ending with |, separator rows with ---). If found, these are unconverted markdown tables — convert them to proper branded HTML tables per 4.3B spec before anything else.\n\n4.3B — CLIENT IDENTITY CARD + HTML STYLE SPEC:\n${S.docs.doc43B}`,
-      qcUser, akey,
-      (partial)=>{document.getElementById('o14').textContent=partial;document.getElementById('sb14').classList.add('open');}
-    );
-    if(res.includes('QC COMPLETE — NO CHANGES NEEDED')){
-      document.getElementById('o14').textContent='QC passed — no changes needed.';
-    } else if(res.includes('DIFF_START')){
-      const {result,applied,failed,log}=applyDiffs(S.finalTXT,res);
-      S.finalTXT=result;
-      document.getElementById('o14').textContent=log.join('\n')+`\n\nApplied: ${applied}, Failed: ${failed}`;
-    } else {
-      const m=res.match(/=== HTML START ===([\s\S]*?)=== HTML END ===/i);
-      const m2=res.match(/```(?:html)?\n([\s\S]*?)```/i);
-      if(m && m[1] && m[1].trim().length>100){S.finalTXT=m[1].trim();}
-      else if(m2 && m2[1].trim().length>100){S.finalTXT=m2[1].trim();}
-      console.warn('Step 14: Claude returned full HTML instead of diffs');
-    }
-    showHTMLFinal(S.finalTXT);
-    S.checklistHTML=buildChecklistHTML(S.finalSchema);
-    document.getElementById('rerunQC').style.display='block';
-    const cp14Fb=await waitCp14();
-    if(cp14Fb){
-      setStep(14,'active','Fixing HTML...'); setG('Claude fixing HTML issues...',true);
-      await runQC(akey,cp14Fb,publishDate);
-      return;
+  async function runQC(akey, initialFeedback, publishDate) {
+    // Flattened loop — no recursion. Only one waitCp14 ever active at a time.
+    let feedback = initialFeedback || '';
+    const qcSys = `You are an expert AEO article HTML QC specialist. Output ONLY DIFF blocks for any corrections needed — do not return the full HTML. Use this exact format for each fix:\n\nDIFF_START\nFIND:\n[exact HTML string to find]\nREPLACE:\n[exact replacement HTML, or [DELETE] to remove]\nDIFF_END\n\nIf no corrections are needed, output only: QC COMPLETE — NO CHANGES NEEDED\n\nCRITICAL CHECK: Scan for any markdown table syntax (lines starting with | and ending with |, separator rows with ---). If found, these are unconverted markdown tables — convert them to proper branded HTML tables per 4.3B spec before anything else.\n\n4.3B — CLIENT IDENTITY CARD + HTML STYLE SPEC:\n${S.docs.doc43B}`;
+    const p6 = getPrompt(S.docs.doc44, 6);
+    const pubDateLine = publishDate ? `\n\nPUBLISH DATE: ${publishDate} — If any date in the HTML does not match this exactly, correct it.` : '';
+
+    while(true) {
+      setStep(14,'active','Running QC...'); setG('Claude running HTML QC...',true);
+      const feedbackLine = feedback ? `\n\nOPERATOR NOTES: ${feedback}\n\nFix these specific issues in addition to the standard QC checks.` : '';
+      const qcUser = `${p6}${pubDateLine}${feedbackLine}\n\nFINAL HTML TO QC:\n${S.finalTXT}`;
+      const res = await callClaude(qcSys, qcUser, akey,
+        (partial)=>{document.getElementById('o14').textContent=partial; document.getElementById('sb14').classList.add('open');}
+      );
+      if(res.includes('QC COMPLETE — NO CHANGES NEEDED')){
+        document.getElementById('o14').textContent='QC passed — no changes needed.';
+      } else if(res.includes('DIFF_START')){
+        const {result,applied,failed,log}=applyDiffs(S.finalTXT,res);
+        S.finalTXT=result;
+        document.getElementById('o14').textContent=log.join('\n')+`\n\nApplied: ${applied}, Failed: ${failed}`;
+      } else {
+        const m=res.match(/=== HTML START ===([\s\S]*?)=== HTML END ===/i);
+        const m2=res.match(/```(?:html)?\n([\s\S]*?)```/i);
+        if(m&&m[1]&&m[1].trim().length>100){S.finalTXT=m[1].trim();}
+        else if(m2&&m2[1].trim().length>100){S.finalTXT=m2[1].trim();}
+      }
+      showHTMLFinal(S.finalTXT);
+      S.checklistHTML=buildChecklistHTML(S.finalSchema);
+      document.getElementById('rerunQC').style.display='block';
+      // Single waitCp14 per loop iteration — no nested promises
+      const cp14Fb = await waitCp14();
+      if(!cp14Fb) break; // blank = approved, exit loop
+      feedback = cp14Fb;
+      setStep(14,'active','Fixing HTML...'); setG('Claude applying your fixes...',true);
     }
     saveSession();
     setStep(14,'done','Done ✓','QC approved.');
@@ -1751,7 +1769,8 @@ ${schemaBlocksHTML}
   async function rerunQC() {
     const akey=document.getElementById('keyAnthropic').value.trim();
     const feedback=document.getElementById('qcFeedback').value.trim();
-    const publishDate=document.getElementById('publishDate').value||new Date().toISOString().split('T')[0];
+    const publishDate=document.getElementById('publishDate').value;
+    if(!publishDate){alert('Publish date is required before running QC. Set it in the right panel first.');return;}
     document.getElementById('qcFeedback').value='';
     await runQC(akey,feedback,publishDate);
   }
@@ -1951,18 +1970,15 @@ ${schemaBlocksHTML}
       daWords=daText.split(/\s+/).filter(w=>w.length>2).length;
     }
     results.push({key:'directAnswer',label:'Direct answer 150-450 words',pass:daWords>=150&&daWords<=450,detail:`~${daWords} words`});
-    // No links in direct answer
-    const h1M=v1.match(/^(?!##)#\s+.+/m);
-    let daLinksClean=true;
-    if(h1M){
-      const afterH1=v1.slice(v1.indexOf(h1M[0])+h1M[0].length);
-      const sep=afterH1.indexOf('\n---');
-      const afterSep=sep>-1?afterH1.slice(sep+4):afterH1;
-      const firstH2=afterSep.search(/^##\s/m);
-      const daZone=firstH2>0?afterSep.slice(0,firstH2):afterSep.slice(0,1500);
-      const daLinksFound=countLinks(daZone).filter(u=>!u.startsWith('#'));
-      daLinksClean=daLinksFound.length===0;
-      results.push({key:'sacredGround',label:'No links in Direct Answer',pass:daLinksClean,detail:daLinksClean?'Clean':`${daLinksFound.length} link(s) found`});
+    // No links in direct answer — find everything before the first H2
+    {
+      const firstH2Idx=v1.search(/^##\s/m);
+      const daZone=firstH2Idx>0?v1.slice(0,firstH2Idx):v1.slice(0,2000);
+      const mdLinksInDA=(daZone.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[]).filter(l=>!/\]\(#/.test(l));
+      const htmlLinksInDA=(daZone.match(/<a\s[^>]*href\s*=/gi)||[]);
+      const totalDALinks=mdLinksInDA.length+htmlLinksInDA.length;
+      const daLinksClean=totalDALinks===0;
+      results.push({key:'sacredGround',label:'No links in Direct Answer',pass:daLinksClean,detail:daLinksClean?'Clean':`${totalDALinks} link(s) found — must remove all links before first H2`});
     }
     return results;
   }
@@ -2021,6 +2037,16 @@ ${schemaBlocksHTML}
     const v2DAWords=v2DA.split(/\s+/).filter(w=>w.length>2).length;
     const daIntact=v2DAWords>=60;
     results.push({key:'directAnswer',label:'Direct answer survived rewrite',pass:daIntact,detail:daIntact?`~${v2DAWords} words`:`Only ~${v2DAWords} words — may be missing or gutted`});
+    // No links in direct answer (V2 check — same logic as V1 gate)
+    {
+      const firstH2Idx=v2.search(/^##\s/m);
+      const daZone=firstH2Idx>0?v2.slice(0,firstH2Idx):v2.slice(0,2000);
+      const mdLinksInDA=(daZone.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[]).filter(l=>!/\]\(#/.test(l));
+      const htmlLinksInDA=(daZone.match(/<a\s[^>]*href\s*=/gi)||[]);
+      const totalDALinks=mdLinksInDA.length+htmlLinksInDA.length;
+      const daLinksClean=totalDALinks===0;
+      results.push({key:'sacredGround',label:'No links in Direct Answer (V2)',pass:daLinksClean,detail:daLinksClean?'Clean':`${totalDALinks} link(s) found — must remove all links before first H2`});
+    }
     // Length check vs V1
     const v1Len=S.v1?S.v1.length:0;
     const ratio=v1Len>0?v2.length/v1Len:1;
@@ -2085,7 +2111,7 @@ ${schemaBlocksHTML}
   // ─── SHARED RUNNER (15-STEP PIPELINE) ────────────────────
   async function runFrom(start,sys,akey,gkey,dkey='') {
     let step=start;
-    const publishDate=document.getElementById('publishDate').value||new Date().toISOString().split('T')[0];
+    const publishDate=document.getElementById('publishDate').value||'';
 
     // STEP 3: Claude V1
     if(step<=3){
@@ -2677,6 +2703,18 @@ ${S.v2}`;
       showHTMLFinal(S.finalTXT);
       showSchema(S.finalSchema, publishDate, S.imageUrls[getFeatured()]||'');
       setStep(13,'done','Done ✓',step13Note);
+      // Save to history immediately after Step 13 so outputs are never lost
+      {
+        const cost13=((S.tokens.ci/1e6*3)+(S.tokens.co/1e6*15)).toFixed(3);
+        const wc13=countWords(S.v2);
+        saveToHistory({
+          topic:S.topic, client:S.client?.name||'—',
+          date:new Date().toLocaleDateString(), duration:getTimerStr(),
+          cost:`$${cost13}`, words:`~${wc13.toLocaleString()}`,
+          finalTXT:S.finalTXT, finalSchema:S.finalSchema, checklistHTML:S.checklistHTML,
+          v2:S.v2
+        });
+      }
       saveSession();
       step=14;
     }
@@ -2690,9 +2728,6 @@ ${S.v2}`;
     // STEP 15: Complete
     if(step<=15){
       stopTimer();
-      const cost=((S.tokens.ci/1e6*3)+(S.tokens.co/1e6*15)).toFixed(3);
-      const wc=countWords(S.v2);
-      saveToHistory({topic:S.topic,client:S.client?.name||'—',date:new Date().toLocaleDateString(),duration:getTimerStr(),cost:`$${cost}`,words:`~${wc.toLocaleString()}`});
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
       saveSession();
       document.getElementById('outputsSec').classList.add('open');
