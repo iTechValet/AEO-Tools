@@ -66,19 +66,6 @@
   .gstatus { font-size:12px; color:var(--accent); min-height:16px; font-weight:400; padding:6px 0 2px; }
 
   /* HISTORY inside panel */
-  .history-toggle { font-family:'Bebas Neue',sans-serif; font-size:13px; text-transform:uppercase; letter-spacing:2px; color:var(--blue); opacity:0.85; cursor:pointer; display:flex; align-items:center; justify-content:space-between; user-select:none; padding:12px 14px; }
-  .history-toggle:hover { opacity:1; color:var(--accent); }
-  .history-list { display:none; padding:0 10px 10px; }
-  .history-list.open { display:block; }
-  .history-item { background:#fff; border:1px solid var(--border); border-radius:8px; padding:9px 12px; margin-bottom:7px; font-size:11px; }
-  .history-item:last-child { margin-bottom:0; }
-  .history-topic { font-weight:500; color:var(--blue); margin-bottom:4px; word-break:break-word; font-size:12px; }
-  .history-meta { color:var(--muted); font-size:10px; display:flex; gap:10px; flex-wrap:wrap; margin-bottom:5px; }
-  .history-actions { display:flex; gap:6px; }
-  .btn-hist { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; padding:3px 9px; font-family:'Bebas Neue',sans-serif; font-size:10px; letter-spacing:1px; cursor:pointer; transition:border-color .2s,color .2s; }
-  .btn-hist:hover { border-color:var(--accent); color:var(--accent); }
-  .btn-hist.orange:hover { border-color:var(--orange); color:var(--orange); }
-  .history-empty { font-size:11px; color:#ccc; text-align:center; padding:10px 0; }
 
   /* CARDS — still used in left col */
   .card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 18px; margin-bottom:14px; }
@@ -377,15 +364,6 @@
     </div>
   </div>
 
-  <!-- RUN HISTORY — full width inside control panel -->
-  <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:2px;">
-    <div class="history-toggle" onclick="toggleHistory()">
-      <span>Run History <span id="histCount" style="font-size:11px;opacity:0.6;margin-left:4px;"></span></span>
-      <span id="histChev" style="font-size:11px;">▼</span>
-    </div>
-    <div class="history-list" id="historyList"></div>
-  </div>
-
 </div><!-- end control-panel -->
 </div><!-- end top-section -->
 
@@ -626,7 +604,7 @@
         <div class="panel-badge" id="imgBadge">Waiting for V1...</div>
       </div>
       <div class="img-grid" id="imgGrid">
-        <div style="padding:16px;text-align:center;color:#ccc;font-size:11px;">Images appear here after Step 3</div>
+        <div style="padding:16px;text-align:center;color:#ccc;font-size:11px;">Images appear here after Step 5</div>
       </div>
       <div class="pub-row">
         <label style="color:var(--orange);font-weight:600;">Publish Date <span style="font-size:10px;opacity:0.8;">(required before Step 13)</span></label>
@@ -653,7 +631,7 @@
         <button class="ptab" id="tabSchema" onclick="switchTab('schema')">Schema</button>
       </div>
       <div class="ppane active" id="pV1">
-        <div class="pempty" id="v1Empty">V1 article appears here after Step 3</div>
+        <div class="pempty" id="v1Empty">V1 article appears here after Step 5</div>
         <div class="md-preview" id="v1Pre" style="display:none;"></div>
       </div>
       <div class="ppane" id="pV2">
@@ -697,7 +675,7 @@
 
   // ─── CONSTANTS ────────────────────────────────────────────
   const CLIENTS_KEY='aeo_clients', GLOBALS_KEY='aeo_globals', KEYS_KEY='aeo_session_keys';
-  const HISTORY_KEY='aeo_run_history', SESSION_KEY='aeo_session_state';
+  const SESSION_KEY='aeo_session_state';
   const PROXY='https://anthropic-proxy.gerek.workers.dev';
   const GEMINI_MODEL='gemini-2.5-pro';
   const GEMINI_IMG_MODEL='gemini-3.1-flash-image-preview';
@@ -725,7 +703,6 @@
     loadClients(); loadKeys(); loadSessionExpiry();
     // Publish date defaults to blank — must be set before Step 13
     document.getElementById('publishDate').value = '';
-    renderHistory();
     checkSessionRestore();
   });
 
@@ -924,11 +901,12 @@
       if(!raw) return;
       const data=JSON.parse(raw);
       const expiryMs=getSessionExpiryMs();
-      if(!data.v2 || Date.now()-data.savedAt > expiryMs) return;
+      if((!data.v1&&!data.v2) || Date.now()-data.savedAt > expiryMs) return;
       const age=Math.round((Date.now()-data.savedAt)/60000);
       const ageStr=age<60?`${age}m ago`:`${Math.round(age/60)}h ago`;
+      const stage=data.finalTXT?'HTML ready':data.v2?'V2 ready':data.v1?'V1 ready':'';
       document.getElementById('restoreMsg').textContent=
-        `"${data.topic.substring(0,35)}" (${ageStr})`;
+        `"${data.topic.substring(0,35)}" — ${stage} (${ageStr})`;
       document.getElementById('restoreBanner').style.display='flex';
       document.getElementById('restoreDivider').style.display='block';
     } catch(e){}
@@ -948,116 +926,25 @@
       if(data.protectedSentences) S.protectedSentences=data.protectedSentences;
       if(data.html1TXT) S.html1TXT=data.html1TXT;
       if(data.imageUrls) S.imageUrls=data.imageUrls;
+      // Populate topic input so user can see what was restored
+      const topicInput=document.getElementById('topicInput');
+      if(topicInput && data.topic) topicInput.value=data.topic;
       if(data.v1){ S.v1=data.v1; showV1(data.v1); }
       if(data.v2){ S.v2=data.v2; showV2(data.v2); updateWordCount(data.v2); }
       if(data.finalTXT){ S.finalTXT=data.finalTXT; showHTML1(data.finalTXT); showHTMLFinal(data.finalTXT); }
       if(data.finalSchema) S.finalSchema=data.finalSchema;
       if(data.finalSchema){ S.checklistHTML=buildChecklistHTML(data.finalSchema); showSchema(data.finalSchema, data.publishDate||'', ''); }
       else if(data.checklistHTML){ S.checklistHTML=data.checklistHTML; }
-      // Show download buttons if we have the outputs
       if(S.finalTXT||S.checklistHTML){
         document.getElementById('outputsSec').classList.add('open');
       }
       updateCost();
       dismissRestore();
-      setG(`✓ Session restored: "${data.topic.substring(0,50)}" — download buttons active.`);
+      const stage=data.finalTXT?'HTML ready — download buttons active':data.v2?'V2 ready — retry from Step 12':data.v1?'V1 ready — retry from Step 4':'';
+      setG(`✓ Session restored: "${data.topic.substring(0,50)}" — ${stage}.`);
     } catch(e){ console.warn('Restore failed:',e); }
   }
 
-
-  // ─── RUN HISTORY ──────────────────────────────────────────
-  function saveToHistory(entry) {
-    try {
-      const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-      hist.unshift(entry);
-      if(hist.length>20) hist.pop(); // keep last 20
-      localStorage.setItem(HISTORY_KEY,JSON.stringify(hist));
-      renderHistory();
-    } catch(e){}
-  }
-
-  function renderHistory() {
-    try {
-      const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-      const el=document.getElementById('historyList');
-      document.getElementById('histCount').textContent=hist.length?`(${hist.length})`:'';
-      if(!hist.length){
-        el.innerHTML='<div class="history-empty">No runs yet</div>';
-        return;
-      }
-      el.innerHTML=hist.map((h,i)=>`
-        <div class="history-item">
-          <div class="history-topic">${h.topic||'—'}</div>
-          <div class="history-meta">
-            <span>Client: ${h.client||'—'}</span>
-            <span>Date: ${h.date||'—'}</span>
-            <span>Time: ${h.duration||'—'}</span>
-            <span>Cost: ${h.cost||'—'}</span>
-            <span>Words: ${h.words||'—'}</span>
-          </div>
-          <div class="history-actions">
-            <button class="btn-hist" onclick="copyHistTopic(${i})">⎘ Copy Topic</button>
-            <button class="btn-hist orange" onclick="deleteHist(${i})">✕ Remove</button>
-            ${h.finalTXT?`<button class="btn-hist" onclick="restoreFromHistory(${i})" style="border-color:var(--accent);color:var(--accent);">↩ Restore</button>`:''}
-            ${h.finalTXT?`<button class="btn-hist" onclick="dlFromHistory(${i},'html')" style="border-color:var(--green);color:var(--green);">↓ HTML</button>`:''}
-            ${h.checklistHTML?`<button class="btn-hist" onclick="dlFromHistory(${i},'checklist')" style="border-color:var(--green);color:var(--green);">↓ Checklist</button>`:''}
-          </div>
-        </div>`).join('');
-    } catch(e){}
-  }
-
-  function toggleHistory() {
-    const list=document.getElementById('historyList');
-    const chev=document.getElementById('histChev');
-    const open=list.classList.toggle('open');
-    chev.textContent=open?'▲':'▼';
-  }
-
-  function copyHistTopic(i) {
-    try {
-      const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-      if(hist[i]) navigator.clipboard.writeText(hist[i].topic||'');
-    } catch(e){}
-  }
-
-  function deleteHist(i) {
-    try {
-      const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-      hist.splice(i,1);
-      localStorage.setItem(HISTORY_KEY,JSON.stringify(hist));
-      renderHistory();
-    } catch(e){}
-  }
-
-  function restoreFromHistory(i) {
-    try {
-      const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-      const h=hist[i]; if(!h) return;
-      if(h.v2){ S.v2=h.v2; showV2(h.v2); updateWordCount(h.v2); }
-      if(h.finalTXT){ S.finalTXT=h.finalTXT; showHTMLFinal(h.finalTXT); }
-      if(h.finalSchema){ S.finalSchema=h.finalSchema; showSchema(h.finalSchema,'',''); }
-      if(h.checklistHTML){ S.checklistHTML=h.checklistHTML; }
-      if(h.finalTXT||h.checklistHTML){ document.getElementById('outputsSec').classList.add('open'); }
-      setG(`✓ Restored: "${h.topic.substring(0,50)}" — download buttons active.`);
-    } catch(e){ console.warn('History restore failed:',e); }
-  }
-
-  function dlFromHistory(i, type) {
-    try {
-      const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-      const h=hist[i]; if(!h) return;
-      const slug=(h.topic||'article').replace(/[^a-z0-9]+/gi,'-').toLowerCase().substring(0,60);
-      if(type==='html' && h.finalTXT){
-        const blob=new Blob([h.finalTXT],{type:'text/plain'});
-        const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-        a.download=`${slug}-final.txt`; a.click(); URL.revokeObjectURL(a.href);
-      } else if(type==='checklist' && h.checklistHTML){
-        const blob=new Blob([h.checklistHTML],{type:'text/html'});
-        const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-        a.download=`${slug}-checklist.html`; a.click(); URL.revokeObjectURL(a.href);
-      }
-    } catch(e){ console.warn('History download failed:',e); }
-  }
 
   // ─── DRIVE ────────────────────────────────────────────────
   async function fetchFile(id,key) {
@@ -2829,7 +2716,6 @@ V2 ARTICLE:\n${S.v2}`;
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
       showHTMLFinal(S.finalTXT); showSchema(S.finalSchema,publishDate,S.imageUrls[getFeatured()]||'');
       // Save to history immediately — outputs never lost even if Step 14 dies
-      { const cost13=((S.tokens.ci/1e6*3)+(S.tokens.co/1e6*15)).toFixed(3); const wc13=countWords(S.v2); saveToHistory({topic:S.topic,client:S.client?.name||'—',date:new Date().toLocaleDateString(),duration:getTimerStr(),cost:`$${cost13}`,words:`~${wc13.toLocaleString()}`,finalTXT:S.finalTXT,finalSchema:S.finalSchema,checklistHTML:S.checklistHTML,v2:S.v2}); }
       setStep(13,'done','Done ✓'); saveSession();
       step=14;
     }
