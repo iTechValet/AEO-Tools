@@ -423,132 +423,151 @@
       <div class="step-body" id="sb2"><div class="sout-wrap"><div class="sout" id="o2"></div><button class="btn-copy-step" id="copy-btn-2" onclick="copyStepOutput(2)">Copy</button></div></div>
     </div>
 
+    <!-- STEP 3: Skeleton + Direct Answer -->
     <div class="step-card" id="step3">
       <div class="step-header" onclick="toggleStep(3)">
         <div class="step-num">3</div>
-        <div class="step-info"><div class="step-title">Claude V1 — Prose + Structure</div><div class="step-desc">Full article prose, all links, POV slots, FAQ, CTA, image prompts — table placeholders only</div></div>
+        <div class="step-info"><div class="step-title">Claude — Structure Skeleton</div><div class="step-desc">Direct Answer + all headings, link placements, POV slot markers, FAQ questions, image placeholders — no body prose</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b3">Waiting</div><span class="schev closed" id="c3">▼</span></div>
       </div>
       <div class="step-body" id="sb3"><div class="sout-wrap"><div class="sout" id="o3"></div><button class="btn-copy-step" id="copy-btn-3" onclick="copyStepOutput(3)">Copy</button></div><div id="r3" style="display:none;"><button class="btn-retry" onclick="retryFrom(3)">↻ Retry from Step 3</button></div></div>
     </div>
 
+    <!-- STEP 4: Skeleton Integrity Check -->
     <div class="step-card" id="step4">
       <div class="step-header" onclick="toggleStep(4)">
         <div class="step-num">4</div>
-        <div class="step-info"><div class="step-title">Claude — Build Tables Only</div><div class="step-desc">Receives V1 + placeholders — builds markdown tables from existing article content</div></div>
+        <div class="step-info"><div class="step-title">Skeleton Integrity Check</div><div class="step-desc">JS verifies Gemini deliverables made it in — links, POV slots, FAQ seeds, image placeholders, Direct Answer</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b4">Waiting</div><span class="schev closed" id="c4">▼</span></div>
       </div>
-      <div class="step-body" id="sb4"><div class="sout-wrap"><div class="sout" id="o4"></div><button class="btn-copy-step" id="copy-btn-4" onclick="copyStepOutput(4)">Copy</button></div><div id="r4" style="display:none;"><button class="btn-retry" onclick="retryFrom(4)">↻ Retry from Step 4</button></div></div>
+      <div class="step-body" id="sb4">
+        <div class="sout-wrap"><div class="sout" id="o4" style="white-space:pre-wrap;"></div><button class="btn-copy-step" id="copy-btn-4" onclick="copyStepOutput(4)">Copy</button></div>
+        <div id="r4" style="display:none;"><button class="btn-retry" onclick="retryFrom(3)">↻ Rebuild Skeleton (Step 3)</button></div>
+      </div>
     </div>
 
+    <!-- STEP 5: Full Prose -->
     <div class="step-card" id="step5">
       <div class="step-header" onclick="toggleStep(5)">
         <div class="step-num">5</div>
-        <div class="step-info"><div class="step-title">⚠ V1 Integrity Gate</div><div class="step-desc">JS checks all requirements — auto-fixes via Claude diffs — 3 strikes → hard stop</div></div>
+        <div class="step-info"><div class="step-title">Claude — Full Prose + Tables</div><div class="step-desc">Fills skeleton with body prose, POV slots, tables, CTA — Direct Answer untouched</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b5">Waiting</div><span class="schev closed" id="c5">▼</span></div>
       </div>
-      <div class="step-body" id="sb5">
-        <div class="sout-wrap"><div class="sout" id="o5" style="white-space:pre-wrap;"></div><button class="btn-copy-step" id="copy-btn-5" onclick="copyStepOutput(5)">Copy</button></div>
-        <div id="r5" style="display:none;"><button class="btn-retry" onclick="retryFrom(5)">↻ Retry Step 5</button></div>
-        <div class="cbox" id="cbox5" style="display:none;">
+      <div class="step-body" id="sb5"><div class="sout-wrap"><div class="sout" id="o5"></div><button class="btn-copy-step" id="copy-btn-5" onclick="copyStepOutput(5)">Copy</button></div><div id="r5" style="display:none;"><button class="btn-retry" onclick="retryFrom(5)">↻ Retry from Step 5</button></div></div>
+    </div>
+
+    <!-- STEP 6: V1 Integrity Gate -->
+    <div class="step-card" id="step6">
+      <div class="step-header" onclick="toggleStep(6)">
+        <div class="step-num">6</div>
+        <div class="step-info"><div class="step-title">⚠ V1 Integrity Gate</div><div class="step-desc">JS checks structure, links, sacred ground, DA-to-H2 gap — Claude diffs — 3 strikes → hard stop</div></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b6">Waiting</div><span class="schev closed" id="c6">▼</span></div>
+      </div>
+      <div class="step-body" id="sb6">
+        <div class="sout-wrap"><div class="sout" id="o6" style="white-space:pre-wrap;"></div><button class="btn-copy-step" id="copy-btn-6" onclick="copyStepOutput(6)">Copy</button></div>
+        <div id="r6" style="display:none;"><button class="btn-retry" onclick="retryFrom(6)">↻ Retry Step 6</button></div>
+        <div class="cbox" id="cbox6" style="display:none;">
           <div class="ctitle">⚠ V1 Integrity Gate — 3 Fix Attempts Failed</div>
-          <div id="gateResults5" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
-          <p style="font-size:11px;color:#888;margin-bottom:7px;">Claude could not resolve all issues automatically. Rewrite V1 or continue anyway.</p>
+          <div id="gateResults6" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
+          <p style="font-size:11px;color:#888;margin-bottom:7px;">Could not resolve all issues automatically. Rewrite or continue anyway.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn-retry" id="gate5Rewrite" style="margin-top:0;background:var(--orange);">↻ Full V1 Rewrite</button>
-            <button class="btn-proceed" id="gate5Continue" style="margin-top:0;">Continue Anyway →</button>
+            <button class="btn-retry" id="gate6Rewrite" style="margin-top:0;background:var(--orange);">↻ Rebuild from Step 3</button>
+            <button class="btn-proceed" id="gate6Continue" style="margin-top:0;">Continue Anyway →</button>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="step-card" id="step6">
-      <div class="step-header" onclick="toggleStep(6)">
-        <div class="step-num">6</div>
-        <div class="step-info"><div class="step-title">Image Generation</div><div class="step-desc">Gemini generates all article images sequentially</div></div>
-        <div class="step-right"><div class="sbadge b-waiting" id="b6">Waiting</div><span class="schev closed" id="c6">▼</span></div>
-      </div>
-      <div class="step-body" id="sb6"><div class="sout-wrap"><div class="sout" id="o6"></div><button class="btn-copy-step" id="copy-btn-6" onclick="copyStepOutput(6)">Copy</button></div><div id="r6" style="display:none;"><button class="btn-retry" onclick="retryFrom(6)">↻ Retry from Step 6</button></div></div>
-    </div>
-
+    <!-- STEP 7: Image Generation -->
     <div class="step-card" id="step7">
       <div class="step-header" onclick="toggleStep(7)">
         <div class="step-num">7</div>
-        <div class="step-info"><div class="step-title">Gemini Validation</div><div class="step-desc">Prompt 3 — content accuracy, POV compliance, data verification, structured FAIL/FLAG output</div></div>
+        <div class="step-info"><div class="step-title">Image Generation</div><div class="step-desc">Gemini generates all article images sequentially</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b7">Waiting</div><span class="schev closed" id="c7">▼</span></div>
       </div>
       <div class="step-body" id="sb7"><div class="sout-wrap"><div class="sout" id="o7"></div><button class="btn-copy-step" id="copy-btn-7" onclick="copyStepOutput(7)">Copy</button></div><div id="r7" style="display:none;"><button class="btn-retry" onclick="retryFrom(7)">↻ Retry from Step 7</button></div></div>
     </div>
 
+    <!-- STEP 8: Gemini Validation -->
     <div class="step-card" id="step8">
       <div class="step-header" onclick="toggleStep(8)">
         <div class="step-num">8</div>
-        <div class="step-info"><div class="step-title">Claude — Apply Gemini Fixes</div><div class="step-desc">FAIL list shown → Claude applies diffs → Gemini re-validates → auto-retries 2x if needed</div></div>
+        <div class="step-info"><div class="step-title">Gemini Validation</div><div class="step-desc">Content accuracy, POV compliance, data verification — structured FAIL/FLAG output</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b8">Waiting</div><span class="schev closed" id="c8">▼</span></div>
       </div>
-      <div class="step-body" id="sb8"><div class="sout-wrap"><div class="sout" id="o8"></div><button class="btn-copy-step" id="copy-btn-8" onclick="copyStepOutput(8)">Copy</button></div><div id="r8" style="display:none;"><button class="btn-retry" onclick="retryFrom(7)">↻ Retry from Step 7</button></div></div>
+      <div class="step-body" id="sb8"><div class="sout-wrap"><div class="sout" id="o8"></div><button class="btn-copy-step" id="copy-btn-8" onclick="copyStepOutput(8)">Copy</button></div><div id="r8" style="display:none;"><button class="btn-retry" onclick="retryFrom(8)">↻ Retry from Step 8</button></div></div>
     </div>
 
+    <!-- STEP 9: Apply Gemini Fixes -->
     <div class="step-card" id="step9">
       <div class="step-header" onclick="toggleStep(9)">
         <div class="step-num">9</div>
-        <div class="step-info"><div class="step-title">⚠ Fix Verification</div><div class="step-desc">Only appears if auto-retries exhausted — review remaining FAILs and decide</div></div>
+        <div class="step-info"><div class="step-title">Claude — Apply Gemini Fixes</div><div class="step-desc">FAILs shown → Claude diffs → Gemini re-validates → 2 auto-retries → human fallback</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b9">Waiting</div><span class="schev closed" id="c9">▼</span></div>
       </div>
       <div class="step-body" id="sb9">
         <div class="sout-wrap"><div class="sout" id="o9"></div><button class="btn-copy-step" id="copy-btn-9" onclick="copyStepOutput(9)">Copy</button></div>
+        <div id="r9" style="display:none;"><button class="btn-retry" onclick="retryFrom(8)" style="margin-top:8px;">↻ Retry from Step 8</button></div>
         <div class="cbox" id="cbox9" style="display:none;">
           <div class="ctitle">⚠ Some FAILs Could Not Be Resolved</div>
           <div id="fixVerify9" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
           <div style="display:flex;gap:8px;">
             <button class="btn-proceed" onclick="proceedCp9()">Accept & Continue</button>
-            <button class="btn-retry" onclick="retryFrom(7)" style="margin-top:0;">↻ Retry from Step 7</button>
+            <button class="btn-retry" onclick="retryFrom(8)" style="margin-top:0;">↻ Retry from Step 8</button>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- STEP 10: Voice Rewrite -->
     <div class="step-card" id="step10">
       <div class="step-header" onclick="toggleStep(10)">
         <div class="step-num">10</div>
-        <div class="step-info"><div class="step-title">Claude — Voice Rewrite Only</div><div class="step-desc">Prose rebuilt in author's voice. Protected zones: structure, links, tables, direct answer.</div></div>
+        <div class="step-info"><div class="step-title">Claude — Voice Rewrite</div><div class="step-desc">Blank-page prose rewrite in author voice. Protected: Direct Answer, tables, links, image prompts.</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b10">Waiting</div><span class="schev closed" id="c10">▼</span></div>
       </div>
       <div class="step-body" id="sb10"><div class="sout-wrap"><div class="sout" id="o10"></div><button class="btn-copy-step" id="copy-btn-10" onclick="copyStepOutput(10)">Copy</button></div><div id="r10" style="display:none;"><button class="btn-retry" onclick="retryFrom(10)">↻ Retry from Step 10</button></div></div>
     </div>
 
+    <!-- STEP 11: Voice Audit Chat -->
     <div class="step-card" id="step11">
       <div class="step-header" onclick="toggleStep(11)">
         <div class="step-num">11</div>
-        <div class="step-info"><div class="step-title">⚠ V2 Integrity Gate</div><div class="step-desc">JS checks V2 — restores from V1 where possible — Claude diffs for content — 3 strikes → hard stop</div></div>
+        <div class="step-info"><div class="step-title">⚠ Voice Audit + Chat Fixes</div><div class="step-desc">Claude flags AI tells, hedging, setup-before-point patterns — chat to fix, then Approve</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b11">Waiting</div><span class="schev closed" id="c11">▼</span></div>
       </div>
       <div class="step-body" id="sb11">
-        <div class="sout-wrap"><div class="sout" id="o11"></div><button class="btn-copy-step" id="copy-btn-11" onclick="copyStepOutput(11)">Copy</button></div>
-        <div class="cbox" id="cbox11" style="display:none;">
-          <div class="ctitle">⚠ V2 Integrity Gate — 3 Fix Attempts Failed</div>
-          <div id="gateResults11" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
-          <p style="font-size:11px;color:#888;margin-bottom:7px;">Claude could not resolve all V2 issues automatically. Rewrite V2 or continue anyway.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn-retry" id="gate11Rewrite" style="margin-top:0;background:var(--orange);">↻ Full V2 Rewrite</button>
-            <button class="btn-proceed" id="gate11Continue" style="margin-top:0;">Continue Anyway →</button>
+        <div id="voiceChatThread" style="display:none;margin-bottom:10px;max-height:380px;overflow-y:auto;flex-direction:column;gap:8px;padding:4px 0;"></div>
+        <div id="voiceChatInput" style="display:none;margin-top:4px;">
+          <textarea id="voiceMsg" placeholder="Describe what to fix — e.g. 'The third paragraph under H2 two sounds robotic' or 'The conclusion feels generic'" style="width:100%;background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--blue);font-family:'Lexend',sans-serif;font-size:11px;line-height:1.6;outline:none;resize:vertical;min-height:56px;margin-bottom:7px;box-sizing:border-box;" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){sendVoiceMsg();}"></textarea>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn-proceed" id="voiceSendBtn" onclick="sendVoiceMsg()" style="background:var(--accent);">Send Fix →</button>
+            <span style="font-size:10px;color:var(--faint);">Ctrl+Enter to send</span>
+            <button class="btn-proceed" id="voiceApproveBtn" onclick="approveVoice()" style="margin-left:auto;background:var(--green);">✓ Voice Approved</button>
           </div>
         </div>
+        <div id="r11" style="display:none;"><button class="btn-retry" onclick="retryFrom(10)">↻ Retry from Step 10</button></div>
       </div>
     </div>
 
+    <!-- STEP 12: V2 Integrity Gate -->
     <div class="step-card" id="step12">
       <div class="step-header" onclick="toggleStep(12)">
         <div class="step-num">12</div>
-        <div class="step-info"><div class="step-title">⚠ V2 Review</div><div class="step-desc">Read V2 in right panel — describe issues or continue to Final Assembly</div></div>
+        <div class="step-info"><div class="step-title">⚠ V2 Integrity Gate</div><div class="step-desc">JS checks V2 — restores from V1 where possible — Claude diffs — 3 strikes → hard stop</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b12">Waiting</div><span class="schev closed" id="c12">▼</span></div>
       </div>
       <div class="step-body" id="sb12">
+        <div class="sout-wrap"><div class="sout" id="o12" style="white-space:pre-wrap;"></div><button class="btn-copy-step" id="copy-btn-12" onclick="copyStepOutput(12)">Copy</button></div>
+        <div id="r12" style="display:none;"><button class="btn-retry" onclick="retryFrom(12)">↻ Retry Step 12</button></div>
         <div class="cbox" id="cbox12" style="display:none;">
-          <div class="ctitle">⚠ Review V2 in the right panel</div>
-          <p style="font-size:11px;color:#888;margin-bottom:7px;">Leave blank if V2 looks good. Describe any issues and Claude will fix them via diffs.</p>
-          <textarea id="cpFeedback12" placeholder="e.g. Fix the voice in the intro — or leave blank to continue" oninput="updateCpBtn12()"></textarea>
-          <button class="btn-proceed" id="cpBtn12" onclick="proceedCp12()">Looks Good — Continue</button>
+          <div class="ctitle">⚠ V2 Integrity Gate — 3 Fix Attempts Failed</div>
+          <div id="gateResults12" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
+          <p style="font-size:11px;color:#888;margin-bottom:7px;">Could not resolve all V2 issues. Rewrite or continue anyway.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn-retry" id="gate12Rewrite" style="margin-top:0;background:var(--orange);">↻ Rewrite Voice (Step 10)</button>
+            <button class="btn-proceed" id="gate12Continue" style="margin-top:0;">Continue Anyway →</button>
+          </div>
         </div>
       </div>
     </div>
@@ -694,9 +713,9 @@
     tokens:{gi:0,go:0,ci:0,co:0,imgs:0}
   };
   let running=false;
-  let cp9Resolve=null, cp12Resolve=null, asmResolve=null;
+  let cp9Resolve=null, asmResolve=null;
   let imagesValidated=false, checkpointDone=false;
-  let step8RetryCount=0, step5RetryCount=0, step11RetryCount=0;
+  let step8RetryCount=0;
 
   // Timer state
   let timerStart=0, timerInterval=null, timerElapsed=0;
@@ -758,11 +777,11 @@
     const parts = [];
     const sout = document.getElementById(`o${n}`);
     if(sout && sout.textContent.trim()) parts.push(sout.textContent.trim());
-    // Gate results (step 5, 11)
-    const gr5 = document.getElementById('gateResults5');
-    if(gr5 && body.contains(gr5) && gr5.innerText.trim()) parts.push(gr5.innerText.trim());
-    const gr11 = document.getElementById('gateResults11');
-    if(gr11 && body.contains(gr11) && gr11.innerText.trim()) parts.push(gr11.innerText.trim());
+    // Gate results (step 6 = V1 gate, step 12 = V2 gate)
+    const gr6 = document.getElementById('gateResults6');
+    if(gr6 && body.contains(gr6) && gr6.innerText.trim()) parts.push(gr6.innerText.trim());
+    const gr12 = document.getElementById('gateResults12');
+    if(gr12 && body.contains(gr12) && gr12.innerText.trim()) parts.push(gr12.innerText.trim());
     // Fix verify (step 9)
     const fv = document.getElementById('fixVerify9');
     if(fv && body.contains(fv) && fv.innerText.trim()) parts.push(fv.innerText.trim());
@@ -1498,31 +1517,6 @@
     if(cp9Resolve){cp9Resolve();cp9Resolve=null;}
   }
 
-  // Step 12 — V2 review
-  function updateCpBtn12() {
-    const fb=document.getElementById('cpFeedback12').value.trim();
-    document.getElementById('cpBtn12').textContent=fb?'Make Fixes — Continue':'Looks Good — Continue';
-  }
-  function waitCp12() {
-    return new Promise(res=>{
-      cp12Resolve=res;
-      document.getElementById('cbox12').style.display='block';
-      document.getElementById('sb12').classList.add('open');
-      document.getElementById('c12').classList.remove('closed');
-      setStep(12,'checkpoint','Your Turn');
-      switchTab('v2');
-    });
-  }
-  function proceedCp12() {
-    const fb=document.getElementById('cpFeedback12').value.trim();
-    document.getElementById('cbox12').style.display='none';
-    document.getElementById('cpFeedback12').value='';
-    document.getElementById('cpBtn12').textContent='Looks Good — Continue';
-    checkpointDone=true;
-    if(imagesValidated) document.getElementById('assembleHint').textContent='All ready — assembling...';
-    if(cp12Resolve){cp12Resolve(fb);cp12Resolve=null;}
-  }
-
   function dlHTML() {
     if(!S.finalTXT){alert('Final HTML not ready yet — complete the pipeline first.');return;}
     const slug=extractField(S.v2,'Permalink URL')||S.topic.replace(/[^a-z0-9]+/gi,'-').toLowerCase();
@@ -1885,6 +1879,161 @@ ${schemaBlocksHTML}
     // Legacy stub — no longer used but kept to avoid reference errors
   }
 
+  // ─── STEP 11: VOICE AUDIT CHAT ────────────────────────────
+  let voice11Resolve = null;
+  let voice11Busy = false;
+  let voice11AKey = '';
+
+  function voiceAppendBubble(role, text) {
+    const thread = document.getElementById('voiceChatThread');
+    const wrap = document.createElement('div');
+    wrap.className = 'qc-bubble-wrap';
+    const label = document.createElement('div');
+    label.className = 'qc-bubble-label';
+    label.textContent = role === 'user' ? 'You' : role === 'claude' ? 'Claude' : 'System';
+    const bubble = document.createElement('div');
+    bubble.className = `qc-bubble ${role}`;
+    bubble.textContent = text;
+    wrap.appendChild(label);
+    wrap.appendChild(bubble);
+    thread.appendChild(wrap);
+    thread.scrollTop = thread.scrollHeight;
+    return bubble;
+  }
+
+  async function runVoiceAudit(akey) {
+    voice11AKey = akey;
+    const thread = document.getElementById('voiceChatThread');
+    thread.style.display = 'flex';
+    thread.innerHTML = '';
+    document.getElementById('voiceChatInput').style.display = 'block';
+    document.getElementById('sb11').classList.add('open');
+    document.getElementById('c11').classList.remove('closed');
+    setStep(11, 'checkpoint', 'Your Turn');
+    switchTab('v2');
+
+    // Pull voice examples from 4.3B
+    const voiceSection = S.docs.doc43B.match(/AUTHOR VOICE TEST[\s\S]*?(?=POV SLOT VOICE|SECTION \d+:|________________\s*END|$)/i);
+    const povVoiceSection = S.docs.doc43B.match(/POV SLOT VOICE EXAMPLES[\s\S]*?(?=CTA VARIATION|________________\s*END|$)/i);
+    const wrongRightPairs = voiceSection ? voiceSection[0].trim() : '';
+    const povExamples = povVoiceSection ? povVoiceSection[0].trim() : '';
+
+    // Terminology lock from 4.3B
+    const termSection = S.docs.doc43B.match(/TERMINOLOGY LOCK[\s\S]*?(?=SECTION \d+:|________________\s*END|$)/i);
+    const termLock = termSection ? termSection[0].trim() : '';
+
+    const auditSys = `You are a voice quality auditor for AEO articles. Your job is to scan the article and flag specific passages that sound like AI output — NOT to rewrite them. Just identify and explain the problem.
+
+You know the author's voice from these wrong/right pairs:
+${wrongRightPairs}
+
+POV slot voice examples:
+${povExamples}
+
+Terminology lock (flag any violations):
+${termLock}
+
+WHAT TO FLAG (be specific — quote the exact passage):
+1. Setup-before-point: paragraph explains mechanism before landing the verdict (wrong order)
+2. Hedging language: "can often," "may help," "in some cases," "it's worth noting," "it's important to understand"
+3. Passive constructions: "it has been shown," "studies suggest," "it can be argued"
+4. Corporate phrasing: "leverage," "utilize," "take into account," "it's important to note," "in order to"
+5. Generic openers: H2 section starts with context/background instead of a reaction or direct point
+6. Neutral conclusion: conclusion paragraph doesn't land anywhere — no directional stance
+7. Forbidden terms from terminology lock
+8. First-person POV in the Direct Answer (before the first H2) — that section must be neutral
+
+FORMAT each flag as:
+🚩 [TYPE]: "[exact quote from article — first 10-15 words]..."
+WHY: [one sentence explaining what's wrong]
+FIX: [one sentence on what to do instead]
+
+Be direct. Don't pad. If a section sounds genuinely human and on-brand, don't flag it.
+After all flags, write: "AUDIT COMPLETE — [N] issue(s) found."`;
+
+    const auditBubble = voiceAppendBubble('system', '⏳ Scanning V2 for AI tells and voice violations...');
+    setG('Claude auditing V2 voice...', true);
+
+    try {
+      const auditResult = await callClaude(auditSys, `Audit this article for voice violations:\n\n${S.v2}`, akey, (p) => {
+        auditBubble.textContent = p;
+        thread.scrollTop = thread.scrollHeight;
+      });
+
+      // Clean up the bubble to show final result
+      auditBubble.textContent = auditResult;
+      thread.scrollTop = thread.scrollHeight;
+    } catch(e) {
+      auditBubble.textContent = `⚠ Audit error: ${e.message}`;
+      setStep(11, 'error', 'Failed');
+      document.getElementById('r11').style.display = 'block';
+      return;
+    }
+
+    setG('Review V2 in preview — chat to fix anything, then Approve.');
+    document.getElementById('voiceMsg').focus();
+    return new Promise(res => { voice11Resolve = res; });
+  }
+
+  async function sendVoiceMsg() {
+    if (voice11Busy) return;
+    const input = document.getElementById('voiceMsg');
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+    voice11Busy = true;
+    const sendBtn = document.getElementById('voiceSendBtn');
+    sendBtn.disabled = true; sendBtn.textContent = 'Sending...';
+
+    voiceAppendBubble('user', msg);
+    const thread = document.getElementById('voiceChatThread');
+    const claudeBubble = voiceAppendBubble('claude', '...');
+
+    const fixSys = `You are making surgical voice fixes to an AEO article. The author's voice is direct, blunt, conversational — leads with the point, then explains. Short sentences. Heavy contractions.
+
+Fix ONLY what the operator described. Output ONLY DIFF_START/DIFF_END blocks.
+DIFF_START
+FIND:
+[exact text to find]
+REPLACE:
+[replacement]
+DIFF_END
+
+Do NOT rewrite anything the operator didn't mention. Do NOT touch: Direct Answer (before first H2), tables, image prompts, links, headings.
+
+4.3B:\n${S.docs.doc43B}`;
+
+    try {
+      const result = await callClaude(fixSys, `${msg}\n\nCURRENT ARTICLE:\n${S.v2}`, voice11AKey, (p) => {
+        claudeBubble.textContent = p;
+        thread.scrollTop = thread.scrollHeight;
+      });
+
+      if (result.includes('DIFF_START')) {
+        const { result: fixed, applied, failed } = applyDiffs(S.v2, result);
+        S.v2 = fixed; showV2(S.v2); updateWordCount(S.v2);
+        const summary = result.replace(/DIFF_START[\s\S]*?DIFF_END/g, '').trim();
+        claudeBubble.textContent = (summary ? summary + '\n\n' : '') + `✅ Applied: ${applied} fix(es)${failed > 0 ? `, Failed: ${failed}` : ''}.`;
+      } else {
+        claudeBubble.textContent = result;
+      }
+    } catch(e) {
+      claudeBubble.textContent = `⚠ Error: ${e.message}`;
+    }
+
+    thread.scrollTop = thread.scrollHeight;
+    voice11Busy = false;
+    sendBtn.disabled = false; sendBtn.textContent = 'Send Fix →';
+    document.getElementById('voiceMsg').focus();
+  }
+
+  function approveVoice() {
+    saveSession();
+    setStep(11, 'done', 'Done ✓');
+    setG('✓ Voice approved.');
+    if (voice11Resolve) { voice11Resolve(); voice11Resolve = null; }
+  }
+
   function buildSys() {
     return `You are an expert AEO article writer. Your client's identity card (4.3B) is loaded below.\n\n4.3B — CLIENT IDENTITY CARD:\n${S.docs.doc43B}`;
   }
@@ -2090,6 +2239,27 @@ ${schemaBlocksHTML}
       const daLinksClean=totalDALinks===0;
       results.push({key:'sacredGround',label:'No links in Direct Answer',pass:daLinksClean,detail:daLinksClean?'Clean':`${totalDALinks} link(s) found — must remove all links before first H2`});
     }
+    // DA-to-H2 gap check: only Last Updated and ToC allowed between DA and first H2
+    {
+      const firstH2Idx=v1.search(/^##\s/m);
+      if(firstH2Idx>0){
+        const gapZone=v1.slice(0,firstH2Idx);
+        // Strip: H1, checklist block (--- separators), Last Updated line, ToC links, image prompts, blank lines
+        const cleaned=gapZone
+          .replace(/^#\s+.+$/gm,'')                          // H1
+          .replace(/^---+\s*$/gm,'')                         // separators
+          .replace(/last updated.*/gim,'')                   // Last Updated line
+          .replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'')     // ToC anchor links
+          .replace(/^\*\s+\*\*.+\*\*.*$/gm,'')              // checklist bullet items
+          .replace(/PROMPT:[\s\S]*?ALT TEXT:.*$/gm,'')       // image prompts
+          .replace(/\[.*?\]/g,'')                            // bracket placeholders
+          .replace(/\*\*.+\*\*/g,'')                         // bold text (meta fields)
+          .trim();
+        const gapWords=cleaned.split(/\s+/).filter(w=>w.length>3).length;
+        const gapClean=gapWords<12;
+        results.push({key:'daGap',label:'No stray prose between DA and first H2',pass:gapClean,detail:gapClean?'Clean':`~${gapWords} word(s) of unexpected content found between Direct Answer and first H2 — only Last Updated and ToC allowed`});
+      }
+    }
     return results;
   }
 
@@ -2218,624 +2388,458 @@ ${schemaBlocksHTML}
     return {updated,log};
   }
 
-  // ─── SHARED RUNNER (15-STEP PIPELINE) ────────────────────
+  // ─── SHARED RUNNER (14-STEP PIPELINE) ────────────────────
   async function runFrom(start,sys,akey,gkey,dkey='') {
     let step=start;
     const publishDate=document.getElementById('publishDate').value||'';
 
-    // STEP 3: Claude V1
+    // ── STEP 3: Skeleton + Direct Answer ──────────────────────
     if(step<=3){
-      setStep(3,'active','Building V1...'); setG('Claude building article structure...',true);
+      setStep(3,'active','Building skeleton...'); setG('Claude building article skeleton...',true);
       const p2=getPrompt(S.docs.doc44,2);
-      const tblInstr=`
-CRITICAL CHANGE FOR THIS CALL — TABLE PLACEHOLDERS ONLY:
-Do NOT build actual tables in this draft.
-Instead, wherever a table is needed, insert this exact placeholder:
+      const skeletonInstr=`
+CRITICAL — THIS IS A SKELETON PASS ONLY:
+Your job in this call is to produce the article SKELETON — not full prose.
 
-[TABLE NEEDED
-Topic: [what this table covers]
-Columns: [Column A] | [Column B] | [Column C]
-Data constraint: Use only facts already stated in surrounding prose — do not introduce new data
-]
+WHAT TO WRITE IN FULL:
+1. The Blog Post Optimization Checklist (complete, with all metadata)
+2. The Direct Answer — 200-300 words. This is FINAL prose, written once, never rewritten. Sacred ground rules apply: NO links, NO images.
+3. Last Updated line
+4. Table of Contents (with anchor links to all H2s)
 
-Insert at least 3 of these placeholders. Tables are built in a dedicated separate step.
-All other requirements (POV slots, links, FAQ, CTA, image prompts, direct answer) apply normally.`;
-      const structureInstr=`
-CRITICAL ARTICLE STRUCTURE RULE:
-After the H1, the order MUST be exactly:
-1. Direct Answer (200-300 words — no links, no images)
-2. Last Updated date line
-3. Table of Contents (if applicable)
-4. First H2
+WHAT TO WRITE AS SKELETON (not full prose):
+- All H2 and H3 headings (write these in full — they are final)
+- After each H2 heading: one line — PROMPT: [image prompt here] / ALT TEXT: [alt text here]
+- Under each H3: write [POV SLOT X: brief description] OR [BODY PROSE: topic] as a single placeholder line
+- Mark exactly where each internal link belongs: [LINK: anchor text → URL]
+- Mark exactly where each external link belongs: [EXTERNAL LINK: source name → URL]
+- FAQ section: write all 5-8 questions in full as H3 headings, each followed by [FAQ ANSWER: topic]
+- Conclusion: [CONCLUSION — SLOT 5 CONVICTION]
+- CTA: [CTA BLOCK — diagnostic intent, text link only, NO button]
+- Schema block: [SCHEMA PLACEHOLDER]
 
-Do NOT add any additional prose, introductory paragraphs, or "warm-up" text between the Direct Answer and the Table of Contents or first H2. The Direct Answer IS the introduction. Nothing else goes there.`;
+STRUCTURE ORDER (mandatory, no exceptions):
+H1 → Direct Answer → Last Updated → Table of Contents → First H2 → ...
+
+CRITICAL RULES:
+- NO body prose between the Direct Answer and the first H2 except Last Updated and ToC
+- NO links anywhere in the Direct Answer
+- Minimum 3 [TABLE NEEDED: topic, columns] placeholders distributed across H2 sections
+- Every H2 must have a PROMPT:/ALT TEXT: block immediately after it (except FAQ and Conclusion)
+- All 5 POV slots must be marked: [POV SLOT 1: INTRO FRICTION], [POV SLOT 2: FRICTION H3], [POV SLOT 3: ANTI-PERSONA], [POV SLOT 4: COUNTER-INTENT], [POV SLOT 5: CONCLUSION]`;
+
       const anchorInstr=`
-CRITICAL ANCHOR TEXT RULE — INTERNAL LINKS:
-Every internal link MUST use the exact semantic anchor phrase from Gemini's Internal Linking Blueprint.
-NEVER use the full article title as anchor text.
-NEVER use generic phrases like "click here" or "learn more".
-Example: If blueprint says Semantic Anchor: "documenting chiropractic outcomes" — use EXACTLY that phrase as the anchor text.
-If you cannot find the exact anchor phrase, use a close natural-language variation — but NEVER the full title.`;
-      const u3=`PUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${tblInstr}\n\n${anchorInstr}\n\n${structureInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}`;
-      S.v1=await callClaude(sys,u3,akey,(p)=>{document.getElementById('o3').textContent=p;document.getElementById('sb3').classList.add('open');},{maxTokens:64000});
-      if(S.v1.length<2000) throw new Error(`Step 3: V1 too short (${S.v1.length} chars) — retry.`);
-      setStep(3,'done','Done ✓');
-      saveSession();
-      showV1(S.v1);
+INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phrase from Gemini's blueprint. NEVER use the full article title as anchor text.`;
+
+      const u3=`EXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${skeletonInstr}\n\n${anchorInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}`;
+      S.v1=await callClaude(sys,u3,akey,(p)=>{document.getElementById('o3').textContent=p;document.getElementById('sb3').classList.add('open');},{maxTokens:32000});
+      if(S.v1.length<1000) throw new Error(`Step 3: Skeleton too short (${S.v1.length} chars) — retry.`);
+      setStep(3,'done','Done ✓'); showV1(S.v1); saveSession();
       step=4;
     }
 
-    // STEP 4: Claude — Build Tables Only
+    // ── STEP 4: Skeleton Integrity Check ──────────────────────
     if(step<=4){
-      setStep(4,'active','Building tables...'); setG('Claude building tables...',true);
-      document.getElementById('o4').textContent='';
-      let tableAttempt=0;
-      const MAX_TABLE_ATTEMPTS=3;
-      const v1PreTable=S.v1; // always scan from original V1 with all placeholders intact
-      const appendO4=(txt)=>{ document.getElementById('o4').textContent+=txt+'\n'; document.getElementById('sb4').classList.add('open'); };
-      while(tableAttempt<MAX_TABLE_ATTEMPTS){
-        // Always scan from v1PreTable — it always has all 3+ placeholders
-        const placeholderSpecs=[];
-        const phRegex=/\[TABLE NEEDED[\s\S]*?\]/g;
-        let phMatch; let phIdx=0;
-        while((phMatch=phRegex.exec(v1PreTable))!==null) placeholderSpecs.push({index:phIdx++,spec:phMatch[0]});
-        appendO4(`--- Attempt ${tableAttempt+1}/${MAX_TABLE_ATTEMPTS} — ${placeholderSpecs.length} placeholder(s) found ---`);
-        const tabSys=`You are building markdown tables for an AEO article. Your ONLY job is to output table blocks for [TABLE NEEDED] placeholders. Do NOT return the full article. Output ONLY the table blocks in the exact format below.\n\n4.3B:\n${S.docs.doc43B}`;
-        const tabUser=`PUBLISH DATE: ${publishDate}
+      setStep(4,'active','Checking skeleton...'); setG('Verifying Gemini deliverables made it into skeleton...',true);
+      const o4=document.getElementById('o4');
+      o4.textContent='';
+      document.getElementById('sb4').classList.add('open');
+      const append4=(t)=>{ o4.textContent+=t+'\n'; };
 
-RESEARCH BRIEF (context only):
-${S.geminiResearch}
+      const checks4=[];
+      const skel=S.v1;
 
-YOUR ONLY JOB: For each TABLE NEEDED placeholder below, output a markdown table block using this EXACT format:
+      // 1. Direct Answer present and clean
+      const firstH2pos=skel.search(/^##\s/m);
+      const daZone=firstH2pos>0?skel.slice(0,firstH2pos):skel.slice(0,2000);
+      const daWords=daZone.replace(/^#.+$/gm,'').replace(/\[.*?\]/g,'').trim().split(/\s+/).filter(w=>w.length>2).length;
+      const daLinksFound=(daZone.match(/\[([^\]]+)\]\(([^)#][^)]*)\)/g)||[]).length;
+      checks4.push({label:'Direct Answer present (150-400 words)',pass:daWords>=150&&daWords<=400,detail:`~${daWords} words`});
+      checks4.push({label:'No links in Direct Answer',pass:daLinksFound===0,detail:daLinksFound===0?'Clean':`${daLinksFound} link(s) found`});
 
-TABLE_START_[N]
-[markdown table here — markdown only, no HTML]
-TABLE_END_[N]
+      // 2. No prose between DA and first H2 (only ToC and Last Updated allowed)
+      if(firstH2pos>0){
+        const gapZone=daZone.replace(/^#.+$/gm,'').replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'').replace(/last updated.*/gim,'').replace(/\[.*?\]/g,'').replace(/\*\*.*?\*\*/g,'').trim();
+        const gapWords=gapZone.split(/\s+/).filter(w=>w.length>3).length;
+        checks4.push({label:'No stray prose between DA and first H2',pass:gapWords<15,detail:gapWords<15?'Clean':`~${gapWords} words of unexpected prose found — will be flagged at Step 6`});
+      }
 
-Where [N] is the placeholder number starting at 0.
+      // 3. POV slot markers present
+      const povSlots=[1,2,3,4,5];
+      const povsFound=povSlots.filter(n=>new RegExp(`POV SLOT ${n}`,'i').test(skel));
+      checks4.push({label:'All 5 POV slot markers present',pass:povsFound.length===5,detail:`${povsFound.length}/5 found`});
 
-CRITICAL: You MUST output a TABLE_START/TABLE_END block for EVERY placeholder listed below. Missing a placeholder is a failure.
+      // 4. Image placeholders
+      const imgCount=(skel.match(/^PROMPT:/gim)||[]).length;
+      checks4.push({label:'Min 3 image prompt placeholders',pass:imgCount>=3,detail:`${imgCount} found`});
 
-Rules:
-- Use ONLY data and claims already present in the article prose surrounding each placeholder
-- Do NOT invent statistics or new claims
-- Minimum 3 columns, maximum 5 columns per table
-- Include context in cells (not just checkmarks)
-- Output markdown tables ONLY — no HTML, no style tags
-- Output ONLY the TABLE_START/TABLE_END blocks — nothing else
+      // 5. Table placeholders
+      const tblCount=(skel.match(/TABLE NEEDED/gi)||[]).length;
+      checks4.push({label:'Min 3 table placeholders',pass:tblCount>=3,detail:`${tblCount} found`});
 
-PLACEHOLDERS TO BUILD (${placeholderSpecs.length} total — build ALL of them):
-${placeholderSpecs.map((p,i)=>`Placeholder ${i} spec:\n${p.spec}`).join('\n\n')}`;
-        const tableResult=await callClaude(tabSys,tabUser,akey,(p)=>{
-          // Show last line of streaming without overwriting the log
-          const lines=document.getElementById('o4').textContent.split('\n');
-          const lastLogLine=lines.findLastIndex(l=>l.startsWith('---')||l.startsWith('✅')||l.startsWith('❌')||l.startsWith('⚠'));
-          lines.splice(lastLogLine+1,lines.length,`Building... ${p.slice(p.lastIndexOf('\n')+1).substring(0,80)}`);
-          document.getElementById('o4').textContent=lines.join('\n');
-        },{maxTokens:64000});
-        const tableBlocks=[];
-        const tbRegex=/TABLE_START_(\d+)([\s\S]*?)TABLE_END_\d+/g;
-        let tbMatch;
-        while((tbMatch=tbRegex.exec(tableResult))!==null) tableBlocks[parseInt(tbMatch[1])]=tbMatch[2].trim();
-        if(tableBlocks.length>0){
-          let updated=v1PreTable; let insertCount=0; let idx2=0;
-          updated=updated.replace(/\[TABLE NEEDED[\s\S]*?\]/g,(match)=>{
-            const tbl=tableBlocks[idx2++];
-            if(tbl){insertCount++;return tbl;}
-            return match;
-          });
-          S.v1=updated;
-          const completeTableCount=countCompleteTables(S.v1);
-          if(completeTableCount>=3){
-            S.imagePrompts=extractImgPrompts(S.v1); showV1(S.v1);
-            appendO4(`✅ ${insertCount} table(s) inserted. ${completeTableCount} complete tables verified.`);
-            setStep(4,'done','Done ✓',`${insertCount} table(s) inserted. ${completeTableCount} complete tables verified.`);
-            saveSession();
-            break;
-          } else {
-            tableAttempt++;
-            appendO4(`⚠ Only ${completeTableCount} complete table(s) found — need 3. ${tableAttempt<MAX_TABLE_ATTEMPTS?`Retrying (${tableAttempt}/${MAX_TABLE_ATTEMPTS})...`:'Hard stop.'}`);
-            if(tableAttempt>=MAX_TABLE_ATTEMPTS){
-              throw new Error(`Step 4: Only ${completeTableCount} complete table(s) built after ${MAX_TABLE_ATTEMPTS} attempts. Retry from Step 3.`);
-            }
-          }
-        } else if(tableResult.length>2000){
-          S.v1=tableResult; S.imagePrompts=extractImgPrompts(S.v1); showV1(S.v1);
-          appendO4('Fallback: Claude returned full article.');
-          setStep(4,'done','Done ✓','Fallback: full article used.');
-          break;
+      // 6. FAQ present
+      const hasFAQ=/##\s*(frequently asked|faq)/i.test(skel);
+      checks4.push({label:'FAQ section present',pass:hasFAQ,detail:hasFAQ?'Found':'Missing'});
+
+      // 7. Internal links from research brief
+      const bpAnchors=(S.geminiResearch.match(/Semantic Anchor:\s*"([^"]+)"/g)||[]).map(l=>l.replace(/Semantic Anchor:\s*"/,'').replace(/"$/,''));
+      const missingAnchors=bpAnchors.filter(a=>!skel.toLowerCase().includes(a.toLowerCase().substring(0,20)));
+      checks4.push({label:`Gemini link anchors present (${bpAnchors.length} required)`,pass:missingAnchors.length===0,detail:missingAnchors.length===0?'All present':`Missing: ${missingAnchors.slice(0,3).join(', ')}${missingAnchors.length>3?'...':''}`});
+
+      const failures4=checks4.filter(c=>!c.pass);
+      checks4.forEach(c=>append4(`${c.pass?'✅':'❌'} ${c.label} — ${c.detail}`));
+
+      if(failures4.length===0){
+        setStep(4,'done','Done ✓','All skeleton checks passed — proceeding to prose.');
+      } else {
+        const hardFails=failures4.filter(c=>!c.label.includes('stray prose')); // stray prose is a warning, not hard stop
+        if(hardFails.length>0){
+          append4(`\n⚠ ${hardFails.length} check(s) failed — rebuilding skeleton from Step 3.`);
+          setStep(4,'error','Skeleton Failed');
+          document.getElementById('r4').style.display='block';
+          throw new Error(`Step 4: Skeleton integrity failed (${hardFails.length} checks). Rebuild from Step 3.`);
         } else {
-          tableAttempt++;
-          appendO4(`❌ No TABLE_START blocks found (${tableResult.length} chars). ${tableAttempt<MAX_TABLE_ATTEMPTS?`Retrying...`:'Hard stop.'}`);
-          if(tableAttempt>=MAX_TABLE_ATTEMPTS){
-            throw new Error(`Step 4: No TABLE_START blocks found after ${MAX_TABLE_ATTEMPTS} attempts. Retry from Step 3.`);
-          }
+          append4(`\nWarnings noted — proceeding. Step 6 will enforce.`);
+          setStep(4,'done','Done ✓ (warnings)');
         }
       }
       step=5;
     }
 
-    // STEP 5: V1 Integrity Gate
+    // ── STEP 5: Full Prose + Tables ────────────────────────────
     if(step<=5){
-      setStep(5,'active','Checking V1...'); setG('Running V1 integrity checks...',true);
-      document.getElementById('o5').textContent='';
-      document.getElementById('r5').style.display='none';
-      document.getElementById('cbox5').style.display='none';
-      let attempts=0;
-      const MAX_ATTEMPTS=3;
-      const appendO5=(txt)=>{
-        document.getElementById('o5').textContent+=txt+'\n';
-        document.getElementById('sb5').classList.add('open');
-      };
+      setStep(5,'active','Writing prose...'); setG('Claude filling skeleton with full prose and tables...',true);
+      const p2=getPrompt(S.docs.doc44,2);
+      const proseInstr=`
+CRITICAL — THIS IS THE PROSE PASS:
+You are filling in a skeleton. The skeleton is provided below.
+
+PROTECTED ZONES — DO NOT TOUCH:
+- The Direct Answer (everything before the first H2) — it is FINAL, do not rewrite a single word
+- All H2 and H3 headings — they are final
+- All PROMPT:/ALT TEXT: image blocks — they are final
+- The Blog Post Optimization Checklist — it is final
+- The ToC and Last Updated line — final
+
+YOUR JOB:
+1. Replace every [POV SLOT X: ...] placeholder with the actual POV content per 4.3A rules
+2. Replace every [BODY PROSE: ...] placeholder with full body prose in the author voice
+3. Replace every [TABLE NEEDED: ...] placeholder with a complete markdown table (min 3 cols, use only data from surrounding prose)
+4. Replace every [LINK: anchor → URL] with the actual markdown hyperlink in natural prose
+5. Replace every [EXTERNAL LINK: source → URL] with embedded citation in natural prose
+6. Replace every [FAQ ANSWER: ...] with a 2-4 paragraph answer
+7. Replace [CONCLUSION — SLOT 5 CONVICTION] with the directional conclusion
+8. Replace [CTA BLOCK] with the diagnostic CTA — text link ONLY, NO button element, NO background color on the CTA section
+9. Replace [SCHEMA PLACEHOLDER] with complete schema markup (FAQPage + BlogPosting + BreadcrumbList)
+
+HARD RULES:
+- Minimum 3 complete markdown tables
+- NO links in the Direct Answer (before first H2)
+- NO prose between Direct Answer and first H2 (only Last Updated and ToC belong there)
+- CTA must be a text link — NOT a button, NOT a styled element
+- Every H2 section addresses at least 3-4 of the 5 intent layers
+- Voice: lead with the point, then explain — NEVER setup before verdict`;
+
+      const u5=`PUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${proseInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}\n\n---\nSKELETON TO FILL:\n${S.v1}`;
+      const v1prose=await callClaude(sys,u5,akey,(p)=>{document.getElementById('o5').textContent=p;document.getElementById('sb5').classList.add('open');},{maxTokens:64000});
+      if(v1prose.length<3000) throw new Error(`Step 5: Prose output too short (${v1prose.length} chars) — retry.`);
+      S.v1=v1prose;
+      S.imagePrompts=extractImgPrompts(S.v1);
+      showV1(S.v1); saveSession();
+      setStep(5,'done','Done ✓');
+      step=6;
+    }
+
+    // ── STEP 6: V1 Integrity Gate ──────────────────────────────
+    if(step<=6){
+      setStep(6,'active','Checking V1...'); setG('Running V1 integrity checks...',true);
+      document.getElementById('o6').textContent='';
+      document.getElementById('r6').style.display='none';
+      document.getElementById('cbox6').style.display='none';
+      let attempts=0; const MAX_ATTEMPTS=3;
+      const appendO6=(txt)=>{ document.getElementById('o6').textContent+=txt+'\n'; document.getElementById('sb6').classList.add('open'); };
       let gateError=false;
       while(attempts<MAX_ATTEMPTS){
         const checks=runV1GateChecks(S.v1);
         const failures=checks.filter(c=>!c.pass);
-        const resultText=checks.map(c=>`${c.pass?'✅':'❌'} ${c.label} — ${c.detail}`).join('\n');
-        appendO5(`--- Attempt ${attempts+1}/${MAX_ATTEMPTS} ---\n${resultText}`);
-        if(failures.length===0){
-          setStep(5,'done','Done ✓',`All checks passed${attempts>0?` after ${attempts} fix attempt(s)`:''}.`);
-          saveSession();
-          break;
-        }
+        appendO6(`--- Attempt ${attempts+1}/${MAX_ATTEMPTS} ---\n${checks.map(c=>`${c.pass?'✅':'❌'} ${c.label} — ${c.detail}`).join('\n')}`);
+        if(failures.length===0){ setStep(6,'done','Done ✓'); saveSession(); break; }
         attempts++;
         if(attempts>=MAX_ATTEMPTS){
           const failHTML=failures.map(f=>`<div style="padding:2px 0;">❌ ${f.label} — ${f.detail}</div>`).join('');
-          appendO5(`\n--- HARD STOP after ${MAX_ATTEMPTS} attempts ---`);
-          document.getElementById('gateResults5').innerHTML=failHTML;
-          document.getElementById('cbox5').style.display='block';
-          document.getElementById('sb5').classList.add('open');
-          document.getElementById('o5').scrollTop=0;
-          setStep(5,'error','⚠ Hard Stop',`${failures.length} check(s) failed after ${MAX_ATTEMPTS} attempts.`);
-          setG('⚠ Step 5 hard stop — choose to rewrite V1 or continue anyway.',false,true);
-          const decision=await new Promise(res=>{
-            document.getElementById('gate5Rewrite').onclick=()=>{ document.getElementById('cbox5').style.display='none'; res('rewrite'); };
-            document.getElementById('gate5Continue').onclick=()=>{ document.getElementById('cbox5').style.display='none'; res('continue'); };
+          appendO6(`\n--- HARD STOP after ${MAX_ATTEMPTS} attempts ---`);
+          document.getElementById('gateResults6').innerHTML=failHTML;
+          document.getElementById('cbox6').style.display='block';
+          setStep(6,'error','⚠ Hard Stop'); setG('⚠ Step 6 hard stop.',false,true);
+          const dec=await new Promise(res=>{
+            document.getElementById('gate6Rewrite').onclick=()=>{ document.getElementById('cbox6').style.display='none'; res('rewrite'); };
+            document.getElementById('gate6Continue').onclick=()=>{ document.getElementById('cbox6').style.display='none'; res('continue'); };
           });
-          if(decision==='rewrite'){ retryFrom(3); return; }
-          else { setStep(5,'done','Overridden ✓','Operator chose to continue despite failed checks.'); break; }
+          if(dec==='rewrite'){ retryFrom(3); return; }
+          else { setStep(6,'done','Overridden ✓'); break; }
         }
-        setG(`V1 gate attempt ${attempts}/${MAX_ATTEMPTS} — applying fixes...`,true);
+        setG(`V1 gate attempt ${attempts}/${MAX_ATTEMPTS} — fixing...`,true);
         const failDesc=failures.map(f=>{
-          if(f.key==='extLinks') return `MISSING: Need min 4 external hyperlinks embedded adjacent to relevant claims. Do NOT add to Direct Answer section.`;
-          if(f.key==='intLinks') return `MISSING: Need min 6 internal links, found ${f.detail}. Add missing internal links from the sheet row sibling articles or trunk/branch URLs.`;
-          if(f.key==='tables') return `MISSING: Need min 3 complete markdown tables. Add using only data already in the article prose.`;
-          if(f.key==='images') return `MISSING: Need image prompts after H2 headings. Add PROMPT:/ALT TEXT: blocks after H2s that are missing them.`;
-          if(f.key==='faq') return `MISSING: FAQ section not found. Add a FAQ section with 5-8 H3 questions before the conclusion.`;
-          if(f.key==='directAnswer') return `WRONG: Direct answer word count is ${f.detail}. Adjust to 150-450 words.`;
-          if(f.key==='sacredGround') return `WRONG: Link(s) found in Direct Answer sacred ground. Remove ALL hyperlinks — both markdown [text](url) format AND HTML <a href="..."> tags — from the opening paragraphs before the first H2 heading. Replace with plain text.`;
+          if(f.key==='extLinks') return `MISSING: Embed min 4 external hyperlinks from research brief adjacent to claims. NOT in Direct Answer.`;
+          if(f.key==='intLinks') return `MISSING: Need min 6 internal links. Add from sheet row sibling slugs and trunk/branch URLs.`;
+          if(f.key==='tables') return `MISSING: Need min 3 complete markdown tables with min 3 columns each.`;
+          if(f.key==='images') return `MISSING: Add PROMPT:/ALT TEXT: blocks after H2 headings that are missing them.`;
+          if(f.key==='faq') return `MISSING: FAQ section with 5-8 H3 questions before conclusion.`;
+          if(f.key==='directAnswer') return `WRONG: Direct answer word count ${f.detail}. Adjust to 150-450 words.`;
+          if(f.key==='sacredGround') return `CRITICAL: Remove ALL links from Direct Answer section (before first H2). Convert to plain text.`;
+          if(f.key==='daGap') return `CRITICAL: Remove all prose between the Direct Answer and first H2. Only Last Updated and ToC are allowed in that gap.`;
           return `ISSUE: ${f.label} — ${f.detail}`;
         }).join('\n\n');
-        const fixSys5=`You are applying targeted fixes to an AEO article V1. Output ONLY DIFF_START/DIFF_END blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement]\nDIFF_END\n\nOne block per fix. No explanation. ONLY diff blocks.\n\n4.3B:\n${S.docs.doc43B}`;
-        const fixUser5=`RESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFIX THESE ISSUES:\n${failDesc}\n\nRULES:\n- Fix ONLY the listed issues\n- Do NOT rewrite prose\n- For sacredGround: find and remove every link in the Direct Answer section, converting to plain text\n- Output ONLY DIFF_START/DIFF_END blocks\n\nARTICLE:\n${S.v1}`;
+        const fixSys6=`You are applying targeted fixes to an AEO article. Output ONLY DIFF_START/DIFF_END blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement]\nDIFF_END\n\n4.3B:\n${S.docs.doc43B}`;
+        const fixUser6=`RESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFIX THESE:\n${failDesc}\n\nARTICLE:\n${S.v1}`;
         try {
-          appendO5(`\nApplying fixes...`);
-          const fixResult=await callClaude(fixSys5,fixUser5,akey,null,{maxTokens:64000});
-          if(fixResult.includes('DIFF_START')){
-            const {result,applied,failed,log}=applyDiffs(S.v1,fixResult);
-            S.v1=result; showV1(S.v1);
-            appendO5(`Applied: ${applied}, Failed: ${failed}\n${log.join('\n')}`);
-          } else if(fixResult.length>2000){
-            S.v1=fixResult; showV1(S.v1);
-            appendO5('Fallback: Claude returned full article.');
-          } else {
-            appendO5(`Warning: Unexpected Claude output (${fixResult.length} chars).`);
-          }
-        } catch(e) {
-          appendO5(`\n❌ Claude error: ${e.message}\nUse the Retry button to try Step 5 again.`);
-          setStep(5,'error','Failed — Retry');
-          document.getElementById('r5').style.display='block';
-          gateError=true;
-          break;
-        }
+          const fixRes=await callClaude(fixSys6,fixUser6,akey,null,{maxTokens:64000});
+          if(fixRes.includes('DIFF_START')){ const {result,applied,failed,log}=applyDiffs(S.v1,fixRes); S.v1=result; showV1(S.v1); appendO6(`Applied: ${applied}, Failed: ${failed}\n${log.join('\n')}`); }
+          else if(fixRes.length>2000){ S.v1=fixRes; showV1(S.v1); appendO6('Fallback: full article used.'); }
+        } catch(e){ appendO6(`\n❌ Claude error: ${e.message}`); setStep(6,'error','Failed — Retry'); document.getElementById('r6').style.display='block'; gateError=true; break; }
       }
-      if(gateError) throw new Error('Step 5 failed due to Claude error — use Retry button.');
-      step=6;
-    }
-
-    // STEP 6: Image Generation
-    if(step<=6){
-      setStep(6,'active','Generating images...'); setG('Generating images...',true);
-      if(S.imagePrompts.length>0){
-        buildImgGrid(S.imagePrompts);
-        await genAllImages(S.imagePrompts,gkey);
-        setStep(6,'done','Done ✓',`${S.imagePrompts.length} image(s) generated.`);
-        saveSession();
-        const dlAllBtn=document.getElementById('dlAllBtn');
-        const failedCount=S.imagePrompts.length-Object.keys(S.imageData).length;
-        if(dlAllBtn){
-          if(failedCount>0){
-            dlAllBtn.disabled=true;
-            dlAllBtn.textContent=`⚠ ${failedCount} Failed`;
-            dlAllBtn.style.background='var(--orange)';
-            dlAllBtn.title=`${failedCount} image(s) failed — regenerate before downloading`;
-            setStep(6,'error','⚠ Some Failed',`${S.imagePrompts.length-failedCount}/${S.imagePrompts.length} images generated. ${failedCount} failed — use Regenerate on failed cards.`);
-          } else {
-            dlAllBtn.disabled=false;
-          }
-        }
-      } else {
-        throw new Error('Step 6: No image prompts found in V1 — retry from Step 3.');
-      }
-      checkUrls();
+      if(gateError) throw new Error('Step 6 failed — use Retry button.');
       step=7;
     }
 
-    // STEP 7: Gemini Validation
+    // ── STEP 7: Image Generation ───────────────────────────────
     if(step<=7){
-      setStep(7,'active','Validating...'); setG('Gemini running content validation...',true);
+      setStep(7,'active','Generating images...'); setG('Generating images...',true);
+      S.imagePrompts=extractImgPrompts(S.v1);
+      if(S.imagePrompts.length>0){
+        buildImgGrid(S.imagePrompts);
+        await genAllImages(S.imagePrompts,gkey);
+        const failedCount=S.imagePrompts.length-Object.keys(S.imageData).length;
+        const dlAllBtn=document.getElementById('dlAllBtn');
+        if(failedCount>0){
+          if(dlAllBtn){dlAllBtn.disabled=true;dlAllBtn.textContent=`⚠ ${failedCount} Failed`;dlAllBtn.style.background='var(--orange)';}
+          setStep(7,'error','⚠ Some Failed',`${S.imagePrompts.length-failedCount}/${S.imagePrompts.length} generated. ${failedCount} failed — use Regenerate.`);
+        } else {
+          if(dlAllBtn) dlAllBtn.disabled=false;
+          setStep(7,'done','Done ✓',`${S.imagePrompts.length} image(s) generated.`);
+        }
+        saveSession();
+      } else { throw new Error('Step 7: No image prompts found in V1 — retry from Step 3.'); }
+      checkUrls(); step=8;
+    }
+
+    // ── STEP 8: Gemini Validation ──────────────────────────────
+    if(step<=8){
+      setStep(8,'active','Validating...'); setG('Gemini running content validation...',true);
       const p3=getPrompt(S.docs.doc44,3);
       const bpAnchors=(S.geminiResearch.match(/Semantic Anchor:\s*"([^"]+)"/g)||[]).map(l=>l.replace(/Semantic Anchor:\s*"/,'').replace(/"$/,''));
       const linkListStr=bpAnchors.map(a=>`Anchor text: "${a}"`).join('\n');
-      const vp=`You are operating inside the iTech Valet AI Authority Pipeline as Quality Assurance Auditor.\n\nCRITICAL OUTPUT RULE: Output ALL FAIL_START/FAIL_END and FLAG_START/FLAG_END blocks FIRST. Output the summary line ("VALIDATION COMPLETE — X FAILs...") LAST, never first.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nBUSINESS IDENTITY LOCK (2.2):\n${S.docs.doc22}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${S.geminiResearch}\n\nLINK VERIFICATION — these anchor phrases should appear in the article:\n${linkListStr}\n\n---\n\n${p3}\n\nArticle text below:\n${S.v1}`;
+      const vp=`You are operating inside the AEO Authority Pipeline as Quality Assurance Auditor.\n\nCRITICAL OUTPUT RULE: Output ALL FAIL_START/FAIL_END and FLAG_START/FLAG_END blocks FIRST. Summary line LAST.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${S.geminiResearch}\n\nLINK VERIFICATION — these anchor phrases should appear:\n${linkListStr}\n\n---\n\n${p3}\n\nArticle text below:\n${S.v1}`;
       S.validation=await callGemini(vp,gkey);
       S.parsedFails=parseFails(S.validation);
-      // Show FLAGS in Step 7 output as informational — they never enter the fix loop
-      const flagNote=S.parsedFlags.length>0
-        ?`\n\n--- VOICE FLAGS (informational — handled by Step 10 voice rewrite) ---\n${S.parsedFlags.map(f=>`🚩 ${f.id}: ${f.desc}`).join('\n')}`
-        :'';
-      setStep(7,'done','Done ✓',S.validation+flagNote);
-      step=8;
+      const flagNote=S.parsedFlags.length>0?`\n\n--- VOICE FLAGS (for Step 10 voice rewrite) ---\n${S.parsedFlags.map(f=>`🚩 ${f.id}: ${f.desc}`).join('\n')}`:'';
+      setStep(8,'done','Done ✓',S.validation+flagNote);
+      step=9;
     }
 
-    // STEP 8: Claude Apply Gemini Fixes (auto — with FAIL list shown, 2 auto-retries)
-    if(step<=8){
+    // ── STEP 9: Apply Gemini Fixes ─────────────────────────────
+    if(step<=9){
       const hasFails=S.validation.includes('FAIL_START')||S.parsedFails.length>0;
-      const allPass=!hasFails&&S.validation.toLowerCase().includes('all items pass');
-      if(allPass){
-        setStep(8,'done','Skipped — No FAILs','Gemini validation passed. No fixes needed.');
-        setStep(9,'done','Skipped — N/A');
+      if(!hasFails){
+        setStep(9,'done','Skipped — No FAILs','Gemini validation passed.');
         step8RetryCount=0; step=10;
       } else {
-        setStep(8,'active','Applying fixes...'); setG('Claude applying Gemini fixes...',true);
-        // Show FAIL list at top of output
+        setStep(9,'active','Applying fixes...'); setG('Claude applying Gemini fixes...',true);
         const failSummary=S.parsedFails.map(f=>`${f.type==='FLAG'?'🚩':'❌'} ${f.id}: ${f.desc}`).join('\n');
-        document.getElementById('o8').textContent=`GEMINI FAILs TO FIX:\n${failSummary}\n\nApplying fixes...`;
-        document.getElementById('sb8').classList.add('open');
-        // Apply fixes
+        document.getElementById('o9').textContent=`GEMINI FAILs:\n${failSummary}\n\nApplying...`;
+        document.getElementById('sb9').classList.add('open');
         const failInstructions=S.parsedFails.map(f=>{
-          if(f.type==='FLAG') return `FLAG (no action required): ${f.desc}`;
-          if(f.type==='MISSING') return `INSERT MISSING:\nDescription: ${f.desc}\nWhat to insert: ${f.what||f.missing||f.desc}\nContext: ${f.context||'see surrounding content'}\nPlacement: ${f.placement||'NEAR_CLAIM'}`;
-          return `FIX WRONG:\nDescription: ${f.desc}\nFind: ${f.find}\nReplace with: ${f.replace}\nScope: ${f.scope}`;
-        }).join('\n\n---\n\n');
-        const fixSys=`You are applying targeted fixes to an AEO article. Output ONLY DIFF blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement or [DELETE]]\nDIFF_END\n\nDo NOT output the full article. ONLY DIFF blocks.\n\n4.3B:\n${S.docs.doc43B}`;
-        const fixUser=`PUBLISH DATE: ${publishDate}\n\nRESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFAIL ITEMS:\n${failInstructions}\n\nRULES:\n- Fix only what is listed\n- Do NOT touch prose outside FAIL items\n- Output ONLY DIFF_START/DIFF_END blocks\n\nARTICLE:\n${S.v1}`;
-        const fixResult=await callClaude(fixSys,fixUser,akey,(p)=>{document.getElementById('o8').textContent=`GEMINI FAILs:\n${failSummary}\n\n---\n\n${p}`;},{maxTokens:64000});
+          if(f.type==='FLAG') return null;
+          if(f.type==='MISSING') return `INSERT:\nDesc: ${f.desc}\nWhat: ${f.what||f.missing}\nContext: ${f.context||'see surrounding content'}\nPlacement: ${f.placement||'NEAR_CLAIM'}`;
+          return `FIX:\nDesc: ${f.desc}\nFind: ${f.find}\nReplace: ${f.replace}\nScope: ${f.scope}`;
+        }).filter(Boolean).join('\n\n---\n\n');
+        const fixSys9=`You are applying targeted fixes to an AEO article. Output ONLY DIFF blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement or [DELETE]]\nDIFF_END\n\n4.3B:\n${S.docs.doc43B}`;
+        const fixUser9=`RESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFAILS:\n${failInstructions}\n\nARTICLE:\n${S.v1}`;
+        const fixResult=await callClaude(fixSys9,fixUser9,akey,(p)=>{document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\n${p}`;},{maxTokens:64000});
         if(fixResult.includes('DIFF_START')){
           const {result,applied,failed,log}=applyDiffs(S.v1,fixResult);
           S.protectedSentences=S.parsedFails.filter(f=>f.replace&&f.replace.length>20).map(f=>f.replace);
-          // Track which FAILs had diffs that couldn't be applied — for unverified flagging
-          const failedDiffIds=[];
-          if(failed>0){
-            // Match failed diffs back to FAIL IDs by checking if the find text appears in any FAIL
-            S.parsedFails.forEach(f=>{
-              if(f.find && log.some(l=>l.includes('❌')&&l.includes(f.find.substring(0,40)))){
-                failedDiffIds.push(f.id);
-              }
-            });
-          }
           S.v1=result; showV1(S.v1);
-          const failNote=failed>0?`\n\n⚠️ ${failed} diff(s) failed to apply — these items may still need fixing.`:'';
-          document.getElementById('o8').textContent=`GEMINI FAILs:\n${failSummary}\n\n---\n\n${log.join('\n')}\n\nApplied: ${applied}, Failed: ${failed}${failNote}`;
-          // Store failed diff IDs for use in re-validation
-          S._failedDiffIds=failedDiffIds;
-        } else if(fixResult.length>2000){
-          S.v1=fixResult; showV1(S.v1);
-          S._failedDiffIds=[];
-        }
+          document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\n${log.join('\n')}\n\nApplied: ${applied}, Failed: ${failed}`;
+        } else if(fixResult.length>2000){ S.v1=fixResult; showV1(S.v1); }
         // Gemini re-validation
         setG('Gemini re-validating fixes...',true);
-        const originalFailList=S.parsedFails.map(f=>`${f.id}: ${f.desc}`).join('\n');
-        const revalPrompt=`You previously flagged FAIL items in an AEO article. Fixes have been applied. Check ONLY whether each item was resolved.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nORIGINAL FAIL ITEMS:\n${originalFailList}\n\nFIXED ARTICLE:\n${S.v1}\n\nOutput for each item:\n[ITEM_ID]: PASS — [brief confirmation]\nor\n[ITEM_ID]: FAIL — [what is still wrong]`;
+        const revalPrompt=`Fixes applied to article. Check ONLY whether each original FAIL item was resolved.\n\nORIGINAL FAILs:\n${S.parsedFails.map(f=>`${f.id}: ${f.desc}`).join('\n')}\n\nFIXED ARTICLE:\n${S.v1}\n\nOutput: [ITEM_ID]: PASS — [confirmation] OR [ITEM_ID]: FAIL — [what's still wrong]`;
         const revalResult=await callGemini(revalPrompt,gkey);
-        // Flag items where diff failed but Gemini says PASS — these are unverified
-        const unverifiedIds=S._failedDiffIds||[];
-        let revalDisplay=revalResult;
-        if(unverifiedIds.length>0){
-          revalDisplay+=`\n\n⚠️ UNVERIFIED: ${unverifiedIds.join(', ')} — diff failed to apply but Gemini may still show PASS. Treat these as suspect.`;
-        }
-        document.getElementById('o8').textContent+=`\n\n--- GEMINI RE-VALIDATION ---\n${revalDisplay}`;
+        document.getElementById('o9').textContent+=`\n\n--- GEMINI RE-VALIDATION ---\n${revalResult}`;
         S.parsedFails=S.parsedFails.filter(f=>{
-          if(!f.id||f.type==='FLAG') return false; // never re-queue flags or empty IDs
-          const pat=new RegExp('\\b'+f.id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b[^:]*:\\s*FAIL','i');
-          return pat.test(revalResult);
+          if(!f.id||f.type==='FLAG') return false;
+          return new RegExp('\\b'+f.id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b[^:]*:\\s*FAIL','i').test(revalResult);
         });
         step8RetryCount++;
         if(S.parsedFails.length>0&&step8RetryCount<=2){
-          setG(`Some FAILs remain — auto-retry ${step8RetryCount}/2...`,true);
-          try{ await runFrom(8,sys,akey,gkey,dkey); } catch(e){ handleErr(e); }
+          setG(`FAILs remain — auto-retry ${step8RetryCount}/2...`,true);
+          try{ await runFrom(9,sys,akey,gkey,dkey); } catch(e){ handleErr(e); }
           return;
         }
-        setStep(8,'done','Done ✓');
+        setStep(9,'done','Done ✓');
         if(S.parsedFails.length>0){
-          // Still failing after 2 retries — surface to human at Step 9
           const verifyLines=S.parsedFails.map(f=>`<div style="padding:2px 0;">❌ ${f.id}: ${f.desc}</div>`).join('');
           await waitCp9(verifyLines);
           setStep(9,'done','Done ✓ — Accepted');
-        } else {
-          setStep(9,'done','Skipped — All Fixed');
         }
         step8RetryCount=0; step=10;
       }
     }
 
-    // STEP 10: Claude — Voice Rewrite Only
+    // ── STEP 10: Voice Rewrite ─────────────────────────────────
     if(step<=10){
       setStep(10,'active','Voice rewrite...'); setG('Claude rewriting in author voice...',true);
-      const flagContext=S.parsedFlags&&S.parsedFlags.length>0
-        ?`\n\nVOICE FLAGS FROM GEMINI VALIDATION (address these during rewrite — do not treat as structural fixes):\n${S.parsedFlags.map(f=>`• ${f.id}: ${f.desc}\n  Find: ${f.find}\n  Suggested fix: ${f.fix}`).join('\n\n')}`
-        :'';
-      const protectedList=S.protectedSentences.length
-        ?`\n\nPROTECTED SENTENCES (do NOT change these):\n${S.protectedSentences.map((s,i)=>`${i+1}. ${s}`).join('\n')}`:'';
       const p4=getPrompt(S.docs.doc44,4);
-      // Extract Voice Refinement Layer examples from 4.3B dynamically
-      const voiceRefinementMatch=S.docs.doc43B.match(/Voice Refinement Layer[\s\S]*?(?=SECTION \d+:|________________\s*SECTION \d+:|$)/i);
-      const voiceExamples=voiceRefinementMatch
-        ?`CRITICAL VOICE PATTERN EXAMPLES — study these before rewriting:\n\n${voiceRefinementMatch[0].trim()}\n\nTHE PATTERN: Lead with the point. React, then explain — NEVER explain before landing the point. Short sentences. Heavy contractions. Sound like a human who gives a damn, not a marketing writer.`
-        :`CRITICAL VOICE PATTERN: Lead with the point. React, then explain — NEVER explain before landing the point. Short sentences. Heavy contractions. Sound like the author, not a marketing writer.`;
+      const flagContext=S.parsedFlags&&S.parsedFlags.length>0
+        ?`\n\nVOICE FLAGS FROM GEMINI (address during rewrite):\n${S.parsedFlags.map(f=>`• ${f.id}: ${f.desc}\n  Find: ${f.find}\n  Fix: ${f.fix}`).join('\n\n')}`:'';
+      const protectedList=S.protectedSentences.length
+        ?`\n\nPROTECTED SENTENCES:\n${S.protectedSentences.map((s,i)=>`${i+1}. ${s}`).join('\n')}`:'';
+      // Pull wrong/right pairs + POV slot voice examples from 4.3B
+      const voiceSection=S.docs.doc43B.match(/AUTHOR VOICE TEST[\s\S]*?(?=SECTION \d+:|________________\s*END|$)/i);
+      const povVoiceSection=S.docs.doc43B.match(/POV SLOT VOICE EXAMPLES[\s\S]*?(?=CTA VARIATION|________________\s*END|$)/i);
+      const voiceExamples=[
+        voiceSection?`AUTHOR VOICE — WRONG/RIGHT PAIRS (study before rewriting):\n${voiceSection[0].trim()}`:'',
+        povVoiceSection?`POV SLOT VOICE EXAMPLES:\n${povVoiceSection[0].trim()}`:'',
+        `THE PATTERN: Lead with the verdict. React, then explain. NEVER explain before landing the point. Short sentences. Heavy contractions. Sound like the author, not a marketing writer.`
+      ].filter(Boolean).join('\n\n');
 
-      const voiceUser=`PUBLISH DATE: ${publishDate}\n\nRESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\n---\n${p4}\n${protectedList}${flagContext}\n\n${voiceExamples}\n\nIMPORTANT: No Gemini validation feedback is attached. Skip directly to Task 2 (Voice Rewrite).\n\nTASK: Voice rewrite ONLY. Structure, links, tables, and POV slots are already correct.\n\nProtected zones — do NOT touch:\n- Direct Answer section (first 200-300 words after H1)\n- FAQ question text and first 1-2 sentences of each FAQ answer\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- Blog Post Optimization Checklist\n- Any sentence listed in PROTECTED SENTENCES above\n- All internal and external links (keep URLs and anchor text exactly)\n\nRewrite everything else from blank page in the author's voice.\n\nARTICLE TO REWRITE:\n${S.v1}`;
+      const voiceUser=`PUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p4}\n${protectedList}${flagContext}\n\n${voiceExamples}\n\nTASK: Voice rewrite ONLY. Structure, links, tables, POV slots already correct.\n\nPROTECTED ZONES — DO NOT TOUCH:\n- Direct Answer (everything before first H2) — sacred ground, final, do not change a word\n- All H2 and H3 headings\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- Blog Post Optimization Checklist\n- All internal and external hyperlinks (URLs and anchor text must stay exactly)\n- Any sentence in PROTECTED SENTENCES above\n\nEverything else: rewrite from blank page in the author's voice.\n\nARTICLE:\n${S.v1}`;
       S.v2=await callClaude(sys,voiceUser,akey,(p)=>{document.getElementById('o10').textContent=p;document.getElementById('sb10').classList.add('open');showV2(p);},{maxTokens:64000});
-      if(S.v2.length<2000) throw new Error(`Step 10: V2 too short (${S.v2.length} chars) — retry.`);
-      setStep(10,'done','Done ✓'); showV2(S.v2); updateWordCount(S.v2);
-      saveSession();
+      if(S.v2.length<2000) throw new Error(`Step 10: V2 too short — retry.`);
 
-      // STEP 10B: Voice QC — 3 binary checks only (fast, surgical, no rewrite loop)
-      setG('Running voice QC binary checks...', true);
-      const forbiddenConclusions=['it depends on your situation','varies by case','there\'s no one-size-fits-all','both options have pros and cons','talk to a professional to decide','consult with a','it really depends'];
-      const forbiddenTerms=['guaranteed results','proven roi','affordable','budget-friendly','grow your practice','tips and tricks','seo secrets','guide to marketing','fast results','quick wins','guaranteed rankings','free audit','free website audit'];
-
-      // Check 1: Forbidden conclusion patterns
-      const foundConclusions=forbiddenConclusions.filter(p=>S.v2.toLowerCase().includes(p.toLowerCase()));
-      // Check 2: Forbidden terminology
-      const foundTerms=forbiddenTerms.filter(t=>S.v2.toLowerCase().includes(t.toLowerCase()));
-      // Check 3: Direct answer neutrality — no first-person POV in first 300 words after H1
+      // Binary QC checks
+      const forbiddenConclusions=['it depends on your situation','varies by case','there\'s no one-size-fits-all','both options have pros and cons','talk to a professional'];
+      const forbiddenTerms=['guaranteed results','proven roi','affordable','budget-friendly','grow your practice','tips and tricks','fast results','quick wins','guaranteed rankings','free audit'];
+      const foundConc=forbiddenConclusions.filter(p=>S.v2.toLowerCase().includes(p));
+      const foundTerms=forbiddenTerms.filter(t=>S.v2.toLowerCase().includes(t));
       const h1m=S.v2.match(/^(?!##)#\s+.+/m);
-      let daZone='';
-      if(h1m){ const after=S.v2.slice(S.v2.indexOf(h1m[0])+h1m[0].length); const fh2=after.search(/^##\s/m); daZone=(fh2>0?after.slice(0,fh2):after.slice(0,1500)); }
-      const daHasPOV=daZone&&/\bI (believe|think|recommend|always|tell|watch|see|know)\b/i.test(daZone);
-
+      let daZ=''; if(h1m){ const after=S.v2.slice(S.v2.indexOf(h1m[0])+h1m[0].length); const fh2=after.search(/^##\s/m); daZ=fh2>0?after.slice(0,fh2):after.slice(0,1500); }
+      const daHasPOV=daZ&&/\bI (believe|think|recommend|always|tell|watch|see|know)\b/i.test(daZ);
       const qcIssues=[];
-      if(foundConclusions.length>0) qcIssues.push(`❌ Forbidden conclusions found: "${foundConclusions.join('", "')}" — remove or reframe`);
-      if(foundTerms.length>0) qcIssues.push(`❌ Forbidden terms found: "${foundTerms.join('", "')}" — replace with canonical terms`);
-      if(daHasPOV) qcIssues.push(`❌ POV language in Direct Answer (sacred ground must be neutral) — remove first-person from opening section`);
-
-      if(qcIssues.length===0){
-        document.getElementById('o10').textContent=`Voice rewrite complete.\n\n--- VOICE QC ---\n✅ All binary checks passed.`;
-      } else {
-        // Apply surgical diffs for binary violations only
-        setG(`Voice QC: ${qcIssues.length} violation(s) — auto-fixing...`,true);
-        const vcFixSys=`You are fixing specific voice violations in an AEO article. Output ONLY DIFF_START/DIFF_END blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement]\nDIFF_END\n\nFix ONLY the listed violations. Do NOT touch anything else.\n\n4.3B:\n${S.docs.doc43B}`;
-        const vcFixUser=`Fix ONLY these specific violations:\n${qcIssues.join('\n')}\n\nRules:\n- Remove or reframe forbidden conclusion patterns to take a clear directional stance\n- Replace forbidden terms with canonical alternatives from 4.3B Terminology Lock\n- Remove first-person POV from Direct Answer section only\n- Do NOT rewrite anything else\n\nARTICLE:\n${S.v2}`;
-        const vcResult=await callClaude(vcFixSys,vcFixUser,akey,(p)=>{document.getElementById('o10').textContent=`Voice rewrite complete.\n\n--- VOICE QC FIXES ---\n${p}`;},{maxTokens:16000});
-        if(vcResult.includes('DIFF_START')){
-          const {result,applied,failed}=applyDiffs(S.v2,vcResult);
-          S.v2=result; showV2(S.v2);
-          document.getElementById('o10').textContent=`Voice rewrite complete.\n\n--- VOICE QC ---\n${qcIssues.join('\n')}\n\nFixes applied: ${applied}, Failed: ${failed}`;
-        } else {
-          document.getElementById('o10').textContent=`Voice rewrite complete.\n\n--- VOICE QC ---\n${qcIssues.join('\n')}\n\n⚠️ Could not auto-fix — review at Step 12.`;
-        }
-        saveSession();
+      if(foundConc.length>0) qcIssues.push(`❌ Forbidden conclusions: "${foundConc.join('", "')}"`);
+      if(foundTerms.length>0) qcIssues.push(`❌ Forbidden terms: "${foundTerms.join('", "')}"`);
+      if(daHasPOV) qcIssues.push(`❌ POV language in Direct Answer — remove first-person from opening section`);
+      if(qcIssues.length>0){
+        const vcSys=`Fix specific voice violations. ONLY DIFF blocks.\n\nDIFF_START\nFIND:\n[text]\nREPLACE:\n[fix]\nDIFF_END\n\n4.3B:\n${S.docs.doc43B}`;
+        const vcUser=`Fix ONLY:\n${qcIssues.join('\n')}\n\nARTICLE:\n${S.v2}`;
+        const vcRes=await callClaude(vcSys,vcUser,akey,null,{maxTokens:16000});
+        if(vcRes.includes('DIFF_START')){ const {result}=applyDiffs(S.v2,vcRes); S.v2=result; showV2(S.v2); }
       }
+      setStep(10,'done','Done ✓'); showV2(S.v2); updateWordCount(S.v2); saveSession();
       step=11;
     }
 
-    // STEP 11: V2 Integrity Gate
+    // ── STEP 11: Voice Audit Chat ──────────────────────────────
     if(step<=11){
-      setStep(11,'active','Checking V2...'); setG('Running V2 integrity checks...',true);
-      document.getElementById('o11').textContent='';
-      document.getElementById('cbox11').style.display='none';
-      let attempts=0;
-      const MAX_ATTEMPTS=3;
-      const appendO11=(txt)=>{
-        document.getElementById('o11').textContent+=txt+'\n';
-        document.getElementById('sb11').classList.add('open');
-      };
-      while(attempts<MAX_ATTEMPTS){
-        const checks=runV2GateChecks(S.v2);
-        const failures=checks.filter(c=>!c.pass);
-        const resultText=checks.map(c=>`${c.pass?'✅':'❌'} ${c.label} — ${c.detail}`).join('\n');
-        appendO11(`--- Attempt ${attempts+1}/${MAX_ATTEMPTS} ---\n${resultText}`);
-        if(failures.length===0){
-          setStep(11,'done','Done ✓',`All checks passed${attempts>0?` after ${attempts} fix attempt(s)`:''}.`);
-          saveSession();
-          break;
-        }
-        attempts++;
-        if(attempts>=MAX_ATTEMPTS){
-          const failHTML=failures.map(f=>`<div style="padding:2px 0;">❌ ${f.label} — ${f.detail}</div>`).join('');
-          appendO11(`\n--- HARD STOP after ${MAX_ATTEMPTS} attempts ---`);
-          document.getElementById('gateResults11').innerHTML=failHTML;
-          document.getElementById('cbox11').style.display='block';
-          document.getElementById('sb11').classList.add('open');
-          // Scroll the log panel to top so full log is visible
-          document.getElementById('o11').scrollTop=0;
-          setStep(11,'error','⚠ Hard Stop',`${failures.length} check(s) failed after ${MAX_ATTEMPTS} attempts.`);
-          setG('⚠ Step 11 hard stop — choose to rewrite V2 or continue anyway.',false,true);
-          const decision11=await new Promise(res=>{
-            document.getElementById('gate11Rewrite').onclick=()=>{ document.getElementById('cbox11').style.display='none'; res('rewrite'); };
-            document.getElementById('gate11Continue').onclick=()=>{ document.getElementById('cbox11').style.display='none'; res('continue'); };
-          });
-          if(decision11==='rewrite'){
-            retryFrom(10); return;
-          } else {
-            setStep(11,'done','Overridden ✓','Operator chose to continue despite failed checks.');
-            break;
-          }
-        }
-        setG(`V2 gate attempt ${attempts}/${MAX_ATTEMPTS} — fixing...`,true);
-        // JS restore first (free)
-        const {updated,log:restoreLog}=restoreFromV1(S.v2,failures);
-        if(restoreLog.length>0){
-          S.v2=updated; showV2(S.v2);
-          document.getElementById('o11').textContent+=`\nJS Restore:\n${restoreLog.join('\n')}`;
-        }
-        // Re-check after JS restore
-        const checksAfterRestore=runV2GateChecks(S.v2);
-        const stillFailing=checksAfterRestore.filter(c=>!c.pass);
-        if(stillFailing.length===0){
-          setStep(11,'done','Done ✓',`All checks passed after JS restore on attempt ${attempts}.`);
-          saveSession();
-          step=12; break;
-        }
-        // Claude diff for remaining failures
-        const failDesc=stillFailing.map(f=>{
-          if(f.key==='extLinks') return `MISSING external hyperlinks. Embed from research brief URLs adjacent to relevant claims.`;
-          if(f.key==='intLinks') return `MISSING internal links. Need 6+, found ${f.detail}. Add from sheet row data.`;
-          if(f.key==='faq') return `MISSING FAQ section. Add 5-8 H3 questions before conclusion.`;
-          if(f.key==='length') return `FLAG ONLY: V2 is shorter than expected (${f.detail}). Check for missing sections.`;
-          return `ISSUE: ${f.label} — ${f.detail}`;
-        }).filter(d=>!d.startsWith('FLAG')).join('\n\n');
-        if(failDesc){
-          const fixSys11=`You are applying targeted fixes to an AEO article V2. Output ONLY DIFF_START/DIFF_END blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement]\nDIFF_END\n\nDo NOT rewrite prose. ONLY diff blocks.\n\n4.3B:\n${S.docs.doc43B}`;
-          const fixUser11=`RESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFIX THESE:\n${failDesc}\n\nRULES:\n- Do NOT touch protected zones (Direct Answer, FAQ questions, tables, image prompts)\n- Output ONLY DIFF_START/DIFF_END blocks\n\nARTICLE:\n${S.v2}`;
-          try {
-            const fix11Result=await callClaude(fixSys11,fixUser11,akey,null,{maxTokens:64000});
-            if(fix11Result.includes('DIFF_START')){
-              const {result,applied,failed}=applyDiffs(S.v2,fix11Result);
-              S.v2=result; showV2(S.v2);
-              document.getElementById('o11').textContent+=`\nApplied: ${applied}, Failed: ${failed}`;
-            }
-          } catch(e) {
-            document.getElementById('o11').textContent+=`\n❌ Claude error: ${e.message}\nUse Retry from Step 11 to try again.`;
-            setStep(11,'error','Failed — Retry');
-            document.getElementById('r11')||document.getElementById('sb11').insertAdjacentHTML('beforeend','<div id="r11" style="margin-top:8px;"><button class="btn-retry" onclick="retryFrom(11)">↻ Retry Step 11</button></div>');
-            throw e;
-          }
-        }
-      }
+      await runVoiceAudit(akey);
       step=12;
     }
 
-    // STEP 12: V2 Review (human checkpoint)
+    // ── STEP 12: V2 Integrity Gate ─────────────────────────────
     if(step<=12){
-      setStep(12,'active','Your Turn'); setG('⚠ Review V2 in right panel — then click Looks Good or describe issues');
-      const fb=await waitCp12();
-      if(fb){
-        setStep(12,'active','Fixing...'); setG('Claude applying your feedback...',true);
-        const fixSys12=`You are applying operator-flagged fixes to an AEO article. Output ONLY DIFF_START/DIFF_END blocks — do NOT return the full article.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement or [DELETE]]\nDIFF_END\n\nOne block per fix. No explanation. ONLY diff blocks.\n\n4.3B:\n${S.docs.doc43B}`;
-        const fixUser12=`OPERATOR FEEDBACK:\n"${fb}"\n\nRULES:\n- Fix ONLY what the operator described\n- Do NOT touch protected zones (direct answer, tables, image prompts, links)\n- Output ONLY DIFF_START/DIFF_END blocks\n\nARTICLE:\n${S.v2}`;
-        const fix12Result=await callClaude(fixSys12,fixUser12,akey,(p)=>{const el=document.getElementById('o12');if(el)el.textContent=p;},{maxTokens:64000});
-        if(fix12Result.includes('DIFF_START')){
-          const {result,applied,failed,log}=applyDiffs(S.v2,fix12Result);
-          S.v2=result; showV2(S.v2);
-        } else if(fix12Result.length>2000){
-          S.v2=fix12Result; showV2(S.v2);
+      setStep(12,'active','Checking V2...'); setG('Running V2 integrity checks...',true);
+      document.getElementById('o12').textContent='';
+      document.getElementById('cbox12').style.display='none';
+      let attempts=0; const MAX12=3;
+      const appendO12=(txt)=>{ document.getElementById('o12').textContent+=txt+'\n'; document.getElementById('sb12').classList.add('open'); };
+      while(attempts<MAX12){
+        const checks=runV2GateChecks(S.v2);
+        const failures=checks.filter(c=>!c.pass);
+        appendO12(`--- Attempt ${attempts+1}/${MAX12} ---\n${checks.map(c=>`${c.pass?'✅':'❌'} ${c.label} — ${c.detail}`).join('\n')}`);
+        if(failures.length===0){ setStep(12,'done','Done ✓'); saveSession(); break; }
+        attempts++;
+        if(attempts>=MAX12){
+          document.getElementById('gateResults12').innerHTML=failures.map(f=>`<div style="padding:2px 0;">❌ ${f.label} — ${f.detail}</div>`).join('');
+          document.getElementById('cbox12').style.display='block';
+          setStep(12,'error','⚠ Hard Stop'); setG('⚠ Step 12 hard stop.',false,true);
+          const dec12=await new Promise(res=>{
+            document.getElementById('gate12Rewrite').onclick=()=>{ document.getElementById('cbox12').style.display='none'; res('rewrite'); };
+            document.getElementById('gate12Continue').onclick=()=>{ document.getElementById('cbox12').style.display='none'; res('continue'); };
+          });
+          if(dec12==='rewrite'){ retryFrom(10); return; }
+          else { setStep(12,'done','Overridden ✓'); break; }
+        }
+        const {updated,log}=restoreFromV1(S.v2,failures); if(log.length>0){ S.v2=updated; showV2(S.v2); appendO12(`JS Restore:\n${log.join('\n')}`); }
+        const stillFail=runV2GateChecks(S.v2).filter(c=>!c.pass);
+        if(stillFail.length===0){ setStep(12,'done','Done ✓'); saveSession(); break; }
+        const fd12=stillFail.map(f=>{
+          if(f.key==='extLinks') return `MISSING external hyperlinks. Need 4+ embedded adjacent to claims.`;
+          if(f.key==='intLinks') return `MISSING internal links. Need 6+.`;
+          if(f.key==='faq') return `MISSING FAQ section.`;
+          if(f.key==='sacredGround') return `CRITICAL: Remove all links from Direct Answer (before first H2).`;
+          return `ISSUE: ${f.label} — ${f.detail}`;
+        }).filter(Boolean).join('\n\n');
+        if(fd12){
+          const fs12=`Fix AEO article V2. ONLY DIFF blocks.\n\nDIFF_START\nFIND:\n[text]\nREPLACE:\n[fix]\nDIFF_END\n\n4.3B:\n${S.docs.doc43B}`;
+          const fu12=`BRIEF:\n${S.geminiResearch}\n\nFIX:\n${fd12}\n\nARTICLE:\n${S.v2}`;
+          try{ const fr12=await callClaude(fs12,fu12,akey,null,{maxTokens:64000}); if(fr12.includes('DIFF_START')){ const {result,applied,failed}=applyDiffs(S.v2,fr12); S.v2=result; showV2(S.v2); appendO12(`Applied: ${applied}, Failed: ${failed}`); } }
+          catch(e){ appendO12(`\n❌ ${e.message}`); setStep(12,'error','Failed'); document.getElementById('r12').style.display='block'; throw e; }
         }
       }
-      setStep(12,'done','Done ✓');
       checkpointDone=true; checkUrls();
-      if(!imagesValidated){
-        setG('⚠ Upload images to WordPress, paste URLs in right panel, then click Validate Images');
-      } else {
-        setG('✓ Both gates clear — assembling now...');
-      }
+      if(!imagesValidated) setG('⚠ Upload images to WordPress, paste URLs, then Validate Images.');
+      else setG('✓ Images validated — assembling now...');
       await waitAssemble();
       step=13;
     }
 
-    // STEP 13: Claude Final Assembly
+    // ── STEP 13: Final Assembly ────────────────────────────────
     if(step<=13){
-      // Hard stop if publish date not set
       const pd=document.getElementById('publishDate').value;
-      if(!pd){
-        setStep(13,'error','⚠ Set Publish Date','Publish date is required before assembly. Set it in the right panel and retry.');
-        document.getElementById('publishDate').focus();
-        throw new Error('Step 13: Publish date is required. Set it in the right panel and retry from Step 13.');
-      }
+      if(!pd){ setStep(13,'error','⚠ Set Publish Date','Publish date required.'); document.getElementById('publishDate').focus(); throw new Error('Step 13: Publish date required.'); }
       setStep(13,'active','Assembling...'); setG('Claude producing Final HTML...',true);
-      const imgLines=[];
-      for(let i=0;i<S.imagePrompts.length;i++){const u=S.imageUrls[i]||'';if(u)imgLines.push(`Image ${i+1} URL — ${u}`);}
+      const imgLines=[]; for(let i=0;i<S.imagePrompts.length;i++){const u=S.imageUrls[i]||'';if(u)imgLines.push(`Image ${i+1} URL — ${u}`);}
       const featNum=getFeatured()+1;
       const today=new Date().toISOString().split('T')[0];
-      const htmlPrompt=`You are producing the Final HTML for an AEO article. Output TWO clearly labeled blocks and nothing else:
+      const htmlPrompt=`You are producing the Final HTML for an AEO article. Output TWO labeled blocks only:
 
-BLOCK 1 — SCHEMA (label: === SCHEMA START === and === SCHEMA END ===)
-Complete schema: FAQPage, BlogPosting, BreadcrumbList, each in its own script tag.
+BLOCK 1 — SCHEMA (=== SCHEMA START === / === SCHEMA END ===)
+Complete schema: FAQPage, BlogPosting, BreadcrumbList — each in own script tag.
 - Featured image URL: ${S.imageUrls[getFeatured()]||''}
 - Publish date: ${publishDate}
-- CRITICAL DATE RULE: Use EXACTLY "${publishDate}" for ALL date fields (datePublished, dateModified, etc.). Do NOT use today's date (${today}). Do NOT use any other date. The date "${publishDate}" must appear in every date field, verbatim.
+- CRITICAL DATE RULE: Use EXACTLY "${publishDate}" for ALL date fields. NOT today (${today}). NOT any other date.
 - Entity data from 4.3B.
 
-BLOCK 2 — HTML (label: === HTML START === and === HTML END ===)
-Complete article HTML. Pure HTML, paste-ready for Beaver Builder. No title tag, no outer wrapper.
-Replace image placeholders with:
-${imgLines.join('\n')}
-Featured image: Image ${featNum}
-- CRITICAL DATE RULE: Use EXACTLY "${publishDate}" everywhere a date appears (Last Updated, published date, etc.). Do NOT use today's date (${today}).
+BLOCK 2 — HTML (=== HTML START === / === HTML END ===)
+Complete article HTML. Pure HTML, paste-ready for Beaver Builder. No title tag, no wrapper.
+Images: ${imgLines.join(' | ')}
+Featured: Image ${featNum}
+- CRITICAL DATE RULE: Use EXACTLY "${publishDate}" everywhere a date appears (Last Updated, schema, etc.)
+- CTA must be a plain text link — NOT a button, NOT a styled div, NO background color on CTA section
+- Convert all markdown tables to branded HTML tables per 4.3B spec (itv-table-1, itv-table-2, etc.)
+- No link in the Direct Answer section (content before the first H2 heading)
 
-CRITICAL — TABLE CONVERSION: The V2 article contains markdown tables (| col | col | format). Convert every markdown table to the branded HTML table format defined in 4.3B. Use the exact CSS class naming, font, color, and mobile spec from 4.3B. Number tables sequentially (itv-table-1, itv-table-2, etc.). Do not leave any markdown tables in the HTML output.
-
-V2 ARTICLE:
-${S.v2}`;
-      const assemblyResult=await callClaude(
-        `You are an expert AEO article HTML producer.\n\n4.3B — CLIENT IDENTITY CARD + HTML STYLE SPEC:\n${S.docs.doc43B}`,
-        htmlPrompt,akey,
-        (p)=>{document.getElementById('o13').textContent=p;document.getElementById('sb13').classList.add('open');},
-        {maxTokens:64000}
-      );
+V2 ARTICLE:\n${S.v2}`;
+      const assemblyResult=await callClaude(`You are an expert AEO article HTML producer.\n\n4.3B:\n${S.docs.doc43B}`,htmlPrompt,akey,(p)=>{document.getElementById('o13').textContent=p;document.getElementById('sb13').classList.add('open');},{maxTokens:64000});
       const schemaMatch=assemblyResult.match(/=== SCHEMA START ===([\s\S]*?)=== SCHEMA END ===/i);
       S.finalSchema=schemaMatch?schemaMatch[1].trim():'';
       const htmlMatch=assemblyResult.match(/=== HTML START ===([\s\S]*?)=== HTML END ===/i);
-      if(htmlMatch&&htmlMatch[1].trim().length>100){
-        S.finalTXT=htmlMatch[1].trim();
-      } else {
-        const mdMatch=assemblyResult.match(/```(?:html)?\n([\s\S]*?)```/i);
-        if(mdMatch&&mdMatch[1].trim().length>100){S.finalTXT=mdMatch[1].trim();}
-        else{throw new Error('Step 13: No === HTML START === block found. Retry.');}
-      }
+      if(htmlMatch&&htmlMatch[1].trim().length>100){ S.finalTXT=htmlMatch[1].trim(); }
+      else { const m2=assemblyResult.match(/```(?:html)?\n([\s\S]*?)```/i); if(m2&&m2[1].trim().length>100){ S.finalTXT=m2[1].trim(); } else { throw new Error('Step 13: No HTML block found. Retry.'); } }
       S.html1TXT=S.finalTXT;
-      // Post-assembly date verification — replace any wrong ISO date with publish date
+      // Post-assembly date fix
       if(publishDate){
-        // Find all ISO date strings (YYYY-MM-DD) in the output that aren't the publish date
-        const datePattern=/\b(20\d\d-\d{2}-\d{2})\b/g;
-        let fixCount=0;
-        S.finalTXT=S.finalTXT.replace(datePattern,(match)=>{
-          if(match!==publishDate){ fixCount++; return publishDate; }
-          return match;
-        });
-        S.finalSchema=S.finalSchema.replace(datePattern,(match)=>{
-          if(match!==publishDate){ return publishDate; }
-          return match;
-        });
-        if(fixCount>0){
-          document.getElementById('o13').textContent+=`\n\n✅ Date fix: Replaced ${fixCount} wrong date(s) with publish date (${publishDate}).`;
-        }
-      }
-      // Post-assembly check: flag if markdown tables survived into HTML
-      const mdTablesInHTML=(S.finalTXT.match(/^\|.+\|$/gm)||[]).length;
-      const htmlTablesInHTML=(S.finalTXT.match(/<table/gi)||[]).length;
-      let step13Note='HTML generated — QC runs next.';
-      if(mdTablesInHTML>3&&htmlTablesInHTML===0){
-        step13Note=`⚠️ Warning: ${mdTablesInHTML} markdown table rows found in HTML — tables may not have been converted. Step 14 QC will flag this.`;
+        const dp=/\b(20\d\d-\d{2}-\d{2})\b/g; let fc=0;
+        S.finalTXT=S.finalTXT.replace(dp,(m)=>{ if(m!==publishDate){fc++;return publishDate;} return m; });
+        S.finalSchema=S.finalSchema.replace(dp,(m)=>m!==publishDate?publishDate:m);
+        if(fc>0) document.getElementById('o13').textContent+=`\n\n✅ Date fix: replaced ${fc} wrong date(s) with ${publishDate}.`;
       }
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
-      showHTMLFinal(S.finalTXT);
-      showSchema(S.finalSchema, publishDate, S.imageUrls[getFeatured()]||'');
-      setStep(13,'done','Done ✓',step13Note);
-      // Save to history immediately after Step 13 so outputs are never lost
-      {
-        const cost13=((S.tokens.ci/1e6*3)+(S.tokens.co/1e6*15)).toFixed(3);
-        const wc13=countWords(S.v2);
-        saveToHistory({
-          topic:S.topic, client:S.client?.name||'—',
-          date:new Date().toLocaleDateString(), duration:getTimerStr(),
-          cost:`$${cost13}`, words:`~${wc13.toLocaleString()}`,
-          finalTXT:S.finalTXT, finalSchema:S.finalSchema, checklistHTML:S.checklistHTML,
-          v2:S.v2
-        });
-      }
-      saveSession();
+      showHTMLFinal(S.finalTXT); showSchema(S.finalSchema,publishDate,S.imageUrls[getFeatured()]||'');
+      // Save to history immediately — outputs never lost even if Step 14 dies
+      { const cost13=((S.tokens.ci/1e6*3)+(S.tokens.co/1e6*15)).toFixed(3); const wc13=countWords(S.v2); saveToHistory({topic:S.topic,client:S.client?.name||'—',date:new Date().toLocaleDateString(),duration:getTimerStr(),cost:`$${cost13}`,words:`~${wc13.toLocaleString()}`,finalTXT:S.finalTXT,finalSchema:S.finalSchema,checklistHTML:S.checklistHTML,v2:S.v2}); }
+      setStep(13,'done','Done ✓'); saveSession();
       step=14;
     }
 
-    // STEP 14: HTML QC + Checkpoint
+    // ── STEP 14: HTML Review Chat ──────────────────────────────
     if(step<=14){
       await runQC(akey,'',publishDate);
       step=15;
     }
 
-    // STEP 15: Complete
+    // ── STEP 15: Complete ──────────────────────────────────────
     if(step<=15){
       stopTimer();
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
@@ -2867,9 +2871,11 @@ ${S.v2}`;
     const dkey=document.getElementById('keyDrive').value.trim();
     if(!akey||!gkey){alert('API keys required.');return;}
     const rb=document.getElementById(`r${n}`); if(rb) rb.style.display='none';
-    if(n>=12){imagesValidated=false;checkpointDone=false;asmResolve=null;}
-    if(n<=8){step8RetryCount=0;}
-    if(n<=5){step5RetryCount=0;}
+    if(n>=13){imagesValidated=false;checkpointDone=false;asmResolve=null;}
+    if(n<=9){step8RetryCount=0;}
+    // Reset voice/qc resolves if retrying before them
+    if(n<=11&&voice11Resolve){voice11Resolve();voice11Resolve=null;}
+    if(n<=14&&qc14Resolve){qc14Resolve();qc14Resolve=null;}
     running=true; document.getElementById('runBtn').disabled=true;
     document.getElementById('runBtn').style.display='none';
     document.getElementById('stopBtn').style.display='flex';
@@ -2880,7 +2886,6 @@ ${S.v2}`;
     document.getElementById('stopBtn').style.display='none';
   }
 
-
   function stopPipeline() {
     running=false;
     if(window._activeAbort){ window._activeAbort.abort(); window._activeAbort=null; }
@@ -2888,7 +2893,7 @@ ${S.v2}`;
     document.getElementById('stopBtn').style.display='none';
     document.getElementById('runBtn').style.display='flex';
     if(cp9Resolve){cp9Resolve();cp9Resolve=null;}
-    if(cp12Resolve){cp12Resolve('');cp12Resolve=null;}
+    if(voice11Resolve){voice11Resolve();voice11Resolve=null;}
     if(qc14Resolve){qc14Resolve();qc14Resolve=null;}
     if(asmResolve){asmResolve();asmResolve=null;}
     S={
@@ -2900,7 +2905,7 @@ ${S.v2}`;
       tokens:{gi:0,go:0,ci:0,co:0,imgs:0}
     };
     imagesValidated=false; checkpointDone=false; asmResolve=null;
-    step8RetryCount=0; step5RetryCount=0; step11RetryCount=0;
+    step8RetryCount=0;
     localStorage.removeItem(SESSION_KEY);
     stopTimer();
     setG('⏹ Pipeline stopped. Session cleared — start a new run.');
@@ -2924,7 +2929,8 @@ ${S.v2}`;
     S.tokens={gi:0,go:0,ci:0,co:0,imgs:0};
     S.imagePrompts=[]; S.imageData={}; S.imageUrls={};
     S.parsedFails=[]; S.protectedSentences=[]; S.html1TXT='';
-    imagesValidated=false; checkpointDone=false; step8RetryCount=0; step5RetryCount=0; step11RetryCount=0;
+    imagesValidated=false; checkpointDone=false; step8RetryCount=0;
+    voice11Resolve=null; qc14Resolve=null;
 
     running=true; document.getElementById('runBtn').disabled=true;
     document.getElementById('runBtn').style.display='none';
