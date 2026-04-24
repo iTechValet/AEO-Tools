@@ -24,7 +24,7 @@
   .top-section { max-width:1600px; margin:0 auto 16px; }
   .layout { max-width:1600px; margin:0 auto; display:grid; grid-template-columns:2fr 3fr; gap:20px; align-items:start; }
   .left-col { min-width:0; }
-  .right-col { position:sticky; top:20px; }
+  .right-col { position:relative; top:0; }
 
   /* UNIFIED CONTROL PANEL */
   .control-panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; }
@@ -133,7 +133,7 @@
   .btn-out.orange { background:var(--orange); }
 
   /* RIGHT PANEL */
-  .right-panel { display:flex; flex-direction:column; gap:14px; max-height:calc(100vh - 40px); }
+  .right-panel { display:flex; flex-direction:column; gap:14px; }
 
   .panel-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; }
 
@@ -347,6 +347,10 @@
       <div class="stat-value" id="v2WordCount">—</div>
     </div>
     <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">Emergency</div>
+      <button onclick="emergencySave()" style="background:var(--orange);color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:10px;font-family:'Lexend',sans-serif;cursor:pointer;font-weight:600;" title="Save current session state immediately">💾 Save Now</button>
+    </div>
     <div class="stat-divider" id="restoreDivider" style="display:none;"></div>
     <div class="stat-item" id="restoreBanner" style="display:none;align-items:center;gap:8px;flex-direction:row;">
       <span id="restoreMsg" style="font-size:11px;color:var(--accent);white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis;"></span>
@@ -508,8 +512,12 @@
       </div>
       <div class="step-body" id="sb11">
         <div id="voiceChatThread" style="display:none;margin-bottom:10px;max-height:380px;overflow-y:auto;flex-direction:column;gap:8px;padding:4px 0;"></div>
+        <div id="voiceQuickActions" style="display:none;margin-bottom:8px;gap:8px;display:none;flex-direction:row;">
+          <button class="btn-proceed" id="voiceApplyAllBtn" onclick="applyAllVoiceFixes()" style="background:var(--orange);flex:1;">⚡ Apply All 3 Fixes</button>
+          <button class="btn-proceed" id="voiceSkipBtn" onclick="approveVoice()" style="background:#888;flex:1;">Continue Without Fixes</button>
+        </div>
         <div id="voiceChatInput" style="display:none;margin-top:4px;">
-          <textarea id="voiceMsg" placeholder="Describe what to fix — e.g. 'The third paragraph under H2 two sounds robotic' or 'The conclusion feels generic'" style="width:100%;background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--blue);font-family:'Lexend',sans-serif;font-size:11px;line-height:1.6;outline:none;resize:vertical;min-height:56px;margin-bottom:7px;box-sizing:border-box;" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){sendVoiceMsg();}"></textarea>
+          <textarea id="voiceMsg" placeholder="Describe a specific fix — or use the buttons above for the recommended fixes" style="width:100%;background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--blue);font-family:'Lexend',sans-serif;font-size:11px;line-height:1.6;outline:none;resize:vertical;min-height:56px;margin-bottom:7px;box-sizing:border-box;" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){sendVoiceMsg();}"></textarea>
           <div style="display:flex;gap:8px;align-items:center;">
             <button class="btn-proceed" id="voiceSendBtn" onclick="sendVoiceMsg()" style="background:var(--accent);">Send Fix →</button>
             <span style="font-size:10px;color:var(--faint);">Ctrl+Enter to send</span>
@@ -617,14 +625,22 @@
         <button class="btn-copy-pane" id="btnCopyPane" onclick="copyActivePane()" style="display:none;">⎘ Copy</button>
       </div>
       <div class="preview-tabs">
-        <button class="ptab active" id="tabV1" onclick="switchTab('v1')">V1 Article</button>
-        <button class="ptab" id="tabV2" onclick="switchTab('v2')">V2 Article <span class="wc-badge" id="wcBadge" style="display:none;"></span></button>
+        <button class="ptab active" id="tabMeta" onclick="switchTab('meta')">Metadata</button>
         <button class="ptab" id="tabDA" onclick="switchTab('da')">Direct Answer</button>
-        <button class="ptab" id="tabMeta" onclick="switchTab('meta')">Metadata</button>
-        <button class="ptab" id="tabHTMLFinal" onclick="switchTab('htmlFinal')">HTML Final</button>
+        <button class="ptab" id="tabV1" onclick="switchTab('v1')">V1 Article</button>
+        <button class="ptab" id="tabV2" onclick="switchTab('v2')">V2 Article <span class="wc-badge" id="wcBadge" style="display:none;"></span></button>
         <button class="ptab" id="tabSchema" onclick="switchTab('schema')">Schema</button>
+        <button class="ptab" id="tabHTMLFinal" onclick="switchTab('htmlFinal')">HTML Final</button>
       </div>
-      <div class="ppane active" id="pV1">
+      <div class="ppane active" id="pMeta">
+        <div class="pempty" id="metaEmpty">Metadata appears here after Step 3</div>
+        <div class="md-preview" id="metaPre" style="display:none;font-family:monospace;font-size:12px;"></div>
+      </div>
+      <div class="ppane" id="pDA">
+        <div class="pempty" id="daEmpty">Direct Answer appears here after Step 3</div>
+        <div class="md-preview" id="daPre" style="display:none;"></div>
+      </div>
+      <div class="ppane" id="pV1">
         <div class="pempty" id="v1Empty">V1 article appears here after Step 5</div>
         <div class="md-preview" id="v1Pre" style="display:none;"></div>
       </div>
@@ -632,20 +648,13 @@
         <div class="pempty" id="v2Empty">V2 article appears here after Step 10</div>
         <div class="md-preview" id="v2Pre" style="display:none;"></div>
       </div>
-      <div class="ppane" id="pDA">
-        <div class="pempty" id="daEmpty">Direct Answer appears here after Step 3</div>
-        <div class="md-preview" id="daPre" style="display:none;"></div>
-      </div>
-      <div class="ppane" id="pMeta">
-        <div class="pempty" id="metaEmpty">Metadata appears here after Step 3</div>
-        <div class="md-preview" id="metaPre" style="display:none;font-family:monospace;font-size:12px;"></div>
-      </div>
-        <div class="pempty" id="htmlFinalEmpty">HTML Final appears after Step 14 QC</div>
-        <iframe id="htmlFinalFrame" style="display:none;border:none;background:#fff;width:100%;height:900px;"></iframe>
-      </div>
       <div class="ppane" id="pSchema" style="overflow-y:auto;height:900px;">
         <div class="pempty" id="schemaEmpty">Schema appears after Step 13</div>
         <pre id="schemaPre" style="display:none;font-family:monospace;font-size:11px;white-space:pre-wrap;word-break:break-word;padding:12px;color:var(--blue);line-height:1.6;margin:0;height:100%;overflow-y:auto;"></pre>
+      </div>
+      <div class="ppane" id="pHTMLFinal">
+        <div class="pempty" id="htmlFinalEmpty">HTML Final appears after Step 14 QC</div>
+        <iframe id="htmlFinalFrame" style="display:none;border:none;background:#fff;width:100%;height:900px;"></iframe>
       </div>
     </div>
 
@@ -887,6 +896,17 @@
       };
       localStorage.setItem(SESSION_KEY,JSON.stringify(data));
     } catch(e){ console.warn('Session save failed:',e); }
+  }
+
+  function emergencySave() {
+    const step = S._lastCompletedStep || 0;
+    saveSession(step);
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = '✓ Saved!';
+    btn.style.background = 'var(--green)';
+    setTimeout(() => { btn.textContent = orig; btn.style.background = 'var(--orange)'; }, 2000);
+    console.log('Emergency save fired. lastCompletedStep:', step, 'V1 length:', S.v1?.length, 'V2 length:', S.v2?.length);
   }
 
   function saveSessionExpiry() {
@@ -1328,7 +1348,7 @@
   // ─── PREVIEW PANEL ────────────────────────────────────────
 
   // ─── COPY ACTIVE PANE ─────────────────────────────────────
-  let activeTab = 'v1';
+  let activeTab = 'meta';
   let userSelectedTab = false; // Bug C fix: track if user manually selected a tab
 
   function switchTab(tab, fromSystem=false) {
@@ -2051,6 +2071,11 @@ After the 3 flags, write: "AUDIT COMPLETE — [N] issue(s) found. Showing top 3.
       // Clean up the bubble to show final result
       auditBubble.textContent = auditResult;
       thread.scrollTop = thread.scrollHeight;
+      // Store audit result for "Apply All" button
+      window._lastVoiceAudit = auditResult;
+      // Show quick action buttons
+      const qa = document.getElementById('voiceQuickActions');
+      if(qa) { qa.style.display='flex'; }
     } catch(e) {
       auditBubble.textContent = `⚠ Audit error: ${e.message}`;
       setStep(11, 'error', 'Failed');
@@ -2113,6 +2138,74 @@ Do NOT rewrite anything the operator didn't mention. Do NOT touch: Direct Answer
     voice11Busy = false;
     sendBtn.disabled = false; sendBtn.textContent = 'Send Fix →';
     document.getElementById('voiceMsg').focus();
+  }
+
+  async function applyAllVoiceFixes() {
+    const auditReport = window._lastVoiceAudit || '';
+    if(!auditReport){ alert('No audit report found.'); return; }
+
+    const applyBtn = document.getElementById('voiceApplyAllBtn');
+    const skipBtn = document.getElementById('voiceSkipBtn');
+    applyBtn.disabled = true; applyBtn.textContent = 'Applying...';
+    skipBtn.disabled = true;
+
+    // Save V2 snapshot BEFORE applying fixes — emergency recovery
+    window._v2Snapshot = S.v2;
+
+    const thread = document.getElementById('voiceChatThread');
+    const claudeBubble = voiceAppendBubble('system', '⏳ Applying fixes as DIFF blocks...');
+
+    const fixSys = `You are making EXACTLY 3 surgical voice fixes to an AEO article.
+
+CRITICAL RULES — NO EXCEPTIONS:
+1. Output ONLY DIFF_START/DIFF_END blocks. Nothing else. No prose. No explanation. No preamble.
+2. Maximum 3 DIFF blocks — one per flagged issue in the audit report.
+3. Each DIFF block replaces ONLY the specific flagged sentence or phrase — not the paragraph, not the section.
+4. NEVER rewrite sections, H2s, or multiple paragraphs.
+5. If you output anything other than DIFF blocks, the entire response will be discarded.
+
+FORMAT — use exactly this:
+DIFF_START
+FIND:
+[exact text from article — copy verbatim, 10-20 words max]
+REPLACE:
+[replacement text only]
+DIFF_END
+
+PROTECTED — never touch these:
+- Direct Answer (before first H2)
+- All tables
+- All image prompts
+- All links (internal and external)
+- All headings (H1/H2/H3)
+- Schema markup`;
+
+    const userMsg = `Apply the 3 fixes from this audit report as DIFF blocks. Use the FIX suggestions from the report as your REPLACE text.\n\nAUDIT REPORT:\n${auditReport}\n\nARTICLE (find exact text here):\n${S.v2}`;
+
+    try {
+      const result = await callClaude(fixSys, userMsg, voice11AKey, (p) => {
+        claudeBubble.textContent = p;
+        thread.scrollTop = thread.scrollHeight;
+      }, { maxTokens: 4000 }); // Hard cap — diffs only, never needs more than 4k
+
+      if(result.includes('DIFF_START')) {
+        const { result: fixed, applied, failed } = applyDiffs(S.v2, result);
+        S.v2 = fixed;
+        showV2(S.v2);
+        updateWordCount(S.v2);
+        saveSession(10); // Save immediately after successful fix
+        claudeBubble.textContent = `✅ Applied: ${applied} fix(es)${failed > 0 ? `. Failed: ${failed} — check manually.` : '. V2 saved.'}`;
+      } else {
+        // No diffs returned — show what came back, don't touch V2
+        claudeBubble.textContent = `⚠ No DIFF blocks returned. V2 unchanged.\n\nResponse: ${result.substring(0,300)}`;
+      }
+    } catch(e) {
+      claudeBubble.textContent = `⚠ Error: ${e.message}. V2 unchanged.`;
+    }
+
+    applyBtn.disabled = false; applyBtn.textContent = '⚡ Apply All 3 Fixes';
+    skipBtn.disabled = false;
+    thread.scrollTop = thread.scrollHeight;
   }
 
   function approveVoice() {
@@ -2293,9 +2386,17 @@ Do NOT rewrite anything the operator didn't mention. Do NOT touch: Direct Answer
     // Internal links — format agnostic, exclude ToC anchors (#)
     const intLinks=allLinks.filter(u=>isInternal(u)&&!u.startsWith('#'));
     results.push({key:'intLinks',label:'Min 6 internal links',pass:intLinks.length>=6,detail:`${intLinks.length} found`});
-    // Image prompts
-    const imgCount=(v1.match(/^PROMPT:/gim)||[]).length;
-    results.push({key:'images',label:'Min 3 image prompts',pass:imgCount>=3,detail:`${imgCount} found`});
+    // Image prompts — count unique by alt text (same logic as extractImgPrompts)
+    const imgPromptsRaw = v1.match(/PROMPT:[\s\S]*?ALT TEXT:[^\n]*/gim) || [];
+    const imgAltsSeen = new Set();
+    imgPromptsRaw.forEach(block => {
+      const alt = (block.match(/ALT TEXT:\s*(.+)/i)||[])[1]?.trim().toLowerCase();
+      if(alt) imgAltsSeen.add(alt);
+    });
+    const imgUnique = imgAltsSeen.size || imgPromptsRaw.length;
+    const imgRaw = (v1.match(/^PROMPT:/gim)||[]).length;
+    const imgDetail = imgRaw !== imgUnique ? `${imgUnique} unique (${imgRaw} total — ${imgRaw-imgUnique} duplicates removed)` : `${imgUnique} found`;
+    results.push({key:'images',label:'Min 3 image prompts',pass:imgUnique>=3,detail:imgDetail});
     // FAQ
     const hasFAQ=/##\s*(frequently asked|faq)/i.test(v1);
     results.push({key:'faq',label:'FAQ section present',pass:hasFAQ,detail:hasFAQ?'Found':'Missing'});
@@ -2551,10 +2652,26 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
       const skel=S.v1;
 
       // 1. Direct Answer present and clean
+      // Skip the checklist block by finding the repeated H1 after it
+      let daWords=0, daLinksFound=0;
+      const h1Match4=skel.match(/^(?!##)#\s+.+/m);
+      if(h1Match4){
+        const afterFirstH1=skel.slice(skel.indexOf(h1Match4[0])+h1Match4[0].length);
+        const repeatedH1=afterFirstH1.match(/^(?!##)#\s+.+/m);
+        let daSection4='';
+        if(repeatedH1){
+          const afterRepeated=afterFirstH1.slice(afterFirstH1.indexOf(repeatedH1[0])+repeatedH1[0].length);
+          const fh2=afterRepeated.search(/^##\s/m);
+          daSection4=fh2>0?afterRepeated.slice(0,fh2):afterRepeated.slice(0,1500);
+        } else {
+          const fh2=afterFirstH1.search(/^##\s/m);
+          daSection4=fh2>0?afterFirstH1.slice(0,fh2):afterFirstH1.slice(0,1500);
+        }
+        const daText4=daSection4.replace(/\[H[123]\]/gi,'').replace(/last updated.*/gim,'').replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'').replace(/^---+\s*$/gm,'').trim();
+        daWords=daText4.split(/\s+/).filter(w=>w.length>2).length;
+        daLinksFound=(daSection4.match(/\[([^\]]+)\]\(([^)#][^)]*)\)/g)||[]).length;
+      }
       const firstH2pos=skel.search(/^##\s/m);
-      const daZone=firstH2pos>0?skel.slice(0,firstH2pos):skel.slice(0,2000);
-      const daWords=daZone.replace(/^#.+$/gm,'').replace(/\[.*?\]/g,'').trim().split(/\s+/).filter(w=>w.length>2).length;
-      const daLinksFound=(daZone.match(/\[([^\]]+)\]\(([^)#][^)]*)\)/g)||[]).length;
       checks4.push({label:'Direct Answer present (150-400 words)',pass:daWords>=150&&daWords<=400,detail:`~${daWords} words`});
       checks4.push({label:'No links in Direct Answer',pass:daLinksFound===0,detail:daLinksFound===0?'Clean':`${daLinksFound} link(s) found`});
 
