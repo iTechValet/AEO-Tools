@@ -2445,15 +2445,17 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
       if(failures4.length===0){
         setStep(4,'done','Done ✓','All skeleton checks passed — proceeding to prose.');
       } else {
-        // Only hard-fail on structural issues — DA length and stray prose can be fixed at Step 6
-        const hardFails=failures4.filter(c=>!c.label.includes('stray prose')&&!c.label.includes('Direct Answer present'));
+        // Hard stops: missing POV slots, tables, FAQ, or Gemini anchors — Step 6 cannot fix these
+        // Warnings: DA length, stray prose, DA link — Step 6 catches and auto-fixes all of these
+        const warningKeys=['Direct Answer present','stray prose','No links in Direct Answer'];
+        const hardFails=failures4.filter(c=>!warningKeys.some(w=>c.label.includes(w)));
         if(hardFails.length>0){
-          append4(`\n⚠ ${hardFails.length} check(s) failed — rebuilding skeleton from Step 3.`);
+          append4(`\n⚠ ${hardFails.length} structural check(s) failed — rebuilding skeleton from Step 3.`);
           setStep(4,'error','Skeleton Failed');
           document.getElementById('r4').style.display='block';
           throw new Error(`Step 4: Skeleton integrity failed (${hardFails.length} checks). Rebuild from Step 3.`);
         } else {
-          append4(`\nWarnings noted (DA length/prose gap will be enforced at Step 6) — proceeding to prose.`);
+          append4(`\nWarnings noted (DA length, prose gap, DA link — Step 6 will enforce and auto-fix) — proceeding to prose.`);
           setStep(4,'done','Done ✓ (warnings)');
         }
       }
