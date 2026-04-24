@@ -858,13 +858,15 @@
   }
 
   // ─── SESSION PERSISTENCE ──────────────────────────────────
-  function saveSession() {
+  function saveSession(completedStep) {
     try {
+      if(completedStep) S._lastCompletedStep=completedStep;
       const data={
         topic:S.topic,
         clientName:S.client?.name||'',
         geminiResearch:S.geminiResearch||'',
         sheetRow:S.sheetRow||'',
+        lastCompletedStep:S._lastCompletedStep||0,
         v1:S.v1,
         v2:S.v2,
         finalTXT:S.finalTXT,
@@ -924,6 +926,7 @@
       const data=JSON.parse(localStorage.getItem(SESSION_KEY));
       if(!data) return;
       S.topic=data.topic||''; S.tokens=data.tokens||S.tokens;
+      S._lastCompletedStep=data.lastCompletedStep||0;
       if(data.parsedFails) S.parsedFails=data.parsedFails;
       if(data.protectedSentences) S.protectedSentences=data.protectedSentences;
       if(data.html1TXT) S.html1TXT=data.html1TXT;
@@ -940,11 +943,20 @@
       else if(data.checklistHTML){ S.checklistHTML=data.checklistHTML; }
       if(S.finalTXT||S.checklistHTML){ document.getElementById('outputsSec').classList.add('open'); }
       updateCost();
-      // Determine continue step and show green button
+      // Determine continue step from saved lastCompletedStep
       let continueStep=null;
-      if(data.finalTXT) continueStep=14;
-      else if(data.v2) continueStep=12;
-      else if(data.v1) continueStep=6; // V1 done — must still run integrity gate before images
+      const last=data.lastCompletedStep||0;
+      if(last>=14) continueStep=null; // already complete
+      else if(last>=13) continueStep=14;
+      else if(last>=12) continueStep=13;
+      else if(last>=11) continueStep=12;
+      else if(last>=10) continueStep=11;
+      else if(last>=9) continueStep=10;
+      else if(last>=7) continueStep=8;   // after images, go to Gemini validation
+      else if(last>=6) continueStep=7;   // after V1 gate, go to images
+      else if(last>=5) continueStep=6;   // after prose, go to V1 gate
+      else if(last>=3) continueStep=5;   // after skeleton, go to prose fill
+      else if(last>=2) continueStep=3;   // after Gemini research, go to skeleton
       const continueBtn=document.getElementById('continueFromBtn');
       if(continueStep && continueBtn){
         continueBtn.textContent=`Continue from Step ${continueStep} →`;
@@ -1817,7 +1829,7 @@ ${schemaBlocksHTML}
   }
 
   function finalizeQC() {
-    saveSession();
+    saveSession(14);
     setStep(14, 'done', 'Done ✓');
     setG('✓ HTML finalized.');
     if (qc14Resolve) { qc14Resolve(); qc14Resolve = null; }
@@ -1976,7 +1988,7 @@ Do NOT rewrite anything the operator didn't mention. Do NOT touch: Direct Answer
   }
 
   function approveVoice() {
-    saveSession();
+    saveSession(11);
     setStep(11, 'done', 'Done ✓');
     setG('✓ Voice approved.');
     if (voice11Resolve) { voice11Resolve(); voice11Resolve = null; }
@@ -2387,7 +2399,7 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
       const u3=`EXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${skeletonInstr}\n\n${anchorInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}`;
       S.v1=await callClaude(sys,u3,akey,(p)=>{document.getElementById('o3').textContent=p;document.getElementById('sb3').classList.add('open');},{maxTokens:32000});
       if(S.v1.length<1000) throw new Error(`Step 3: Skeleton too short (${S.v1.length} chars) — retry.`);
-      setStep(3,'done','Done ✓'); showV1(S.v1); saveSession();
+      setStep(3,"done","Done ✓"); showV1(S.v1); saveSession(3);
       step=4;
     }
 
@@ -2501,7 +2513,7 @@ HARD RULES:
       if(v1prose.length<3000) throw new Error(`Step 5: Prose output too short (${v1prose.length} chars) — retry.`);
       S.v1=v1prose;
       S.imagePrompts=extractImgPrompts(S.v1);
-      showV1(S.v1); saveSession();
+      showV1(S.v1); saveSession(5);
       setStep(5,'done','Done ✓');
       step=6;
     }
@@ -2519,7 +2531,7 @@ HARD RULES:
         const checks=runV1GateChecks(S.v1);
         const failures=checks.filter(c=>!c.pass);
         appendO6(`--- Attempt ${attempts+1}/${MAX_ATTEMPTS} ---\n${checks.map(c=>`${c.pass?'✅':'❌'} ${c.label} — ${c.detail}`).join('\n')}`);
-        if(failures.length===0){ setStep(6,'done','Done ✓'); saveSession(); break; }
+        if(failures.length===0){ setStep(6,'done','Done ✓'); saveSession(6); break; }
         attempts++;
         if(attempts>=MAX_ATTEMPTS){
           const failHTML=failures.map(f=>`<div style="padding:2px 0;">❌ ${f.label} — ${f.detail}</div>`).join('');
@@ -2574,7 +2586,7 @@ HARD RULES:
           if(dlAllBtn) dlAllBtn.disabled=false;
           setStep(7,'done','Done ✓',`${S.imagePrompts.length} image(s) generated.`);
         }
-        saveSession();
+        saveSession(7);
       } else { throw new Error('Step 7: No image prompts found in V1 — retry from Step 3.'); }
       checkUrls(); step=8;
     }
@@ -2682,7 +2694,7 @@ HARD RULES:
         const vcRes=await callClaude(vcSys,vcUser,akey,null,{maxTokens:16000});
         if(vcRes.includes('DIFF_START')){ const {result}=applyDiffs(S.v2,vcRes); S.v2=result; showV2(S.v2); }
       }
-      setStep(10,'done','Done ✓'); showV2(S.v2); updateWordCount(S.v2); saveSession();
+      setStep(10,'done','Done ✓'); showV2(S.v2); updateWordCount(S.v2); saveSession(10);
       step=11;
     }
 
@@ -2703,7 +2715,7 @@ HARD RULES:
         const checks=runV2GateChecks(S.v2);
         const failures=checks.filter(c=>!c.pass);
         appendO12(`--- Attempt ${attempts+1}/${MAX12} ---\n${checks.map(c=>`${c.pass?'✅':'❌'} ${c.label} — ${c.detail}`).join('\n')}`);
-        if(failures.length===0){ setStep(12,'done','Done ✓'); saveSession(); break; }
+        if(failures.length===0){ setStep(12,'done','Done ✓'); saveSession(12); break; }
         attempts++;
         if(attempts>=MAX12){
           document.getElementById('gateResults12').innerHTML=failures.map(f=>`<div style="padding:2px 0;">❌ ${f.label} — ${f.detail}</div>`).join('');
@@ -2718,7 +2730,7 @@ HARD RULES:
         }
         const {updated,log}=restoreFromV1(S.v2,failures); if(log.length>0){ S.v2=updated; showV2(S.v2); appendO12(`JS Restore:\n${log.join('\n')}`); }
         const stillFail=runV2GateChecks(S.v2).filter(c=>!c.pass);
-        if(stillFail.length===0){ setStep(12,'done','Done ✓'); saveSession(); break; }
+        if(stillFail.length===0){ setStep(12,'done','Done ✓'); saveSession(12); break; }
         const fd12=stillFail.map(f=>{
           if(f.key==='extLinks') return `MISSING external hyperlinks. Need 4+ embedded adjacent to claims.`;
           if(f.key==='intLinks') return `MISSING internal links. Need 6+.`;
@@ -2784,7 +2796,7 @@ V2 ARTICLE:\n${S.v2}`;
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
       showHTMLFinal(S.finalTXT); showSchema(S.finalSchema,publishDate,S.imageUrls[getFeatured()]||'');
       // Save to history immediately — outputs never lost even if Step 14 dies
-      setStep(13,'done','Done ✓'); saveSession();
+      setStep(13,'done','Done ✓'); saveSession(13);
       step=14;
     }
 
@@ -2798,7 +2810,7 @@ V2 ARTICLE:\n${S.v2}`;
     if(step<=15){
       stopTimer();
       S.checklistHTML=buildChecklistHTML(S.finalSchema);
-      saveSession();
+      saveSession(15);
       document.getElementById('outputsSec').classList.add('open');
       setStep(15,'done','Done ✓','✓ Article complete — use download buttons above.');
       setG('✓ Article complete — download your files above.');
