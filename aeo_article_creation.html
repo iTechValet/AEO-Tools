@@ -847,7 +847,7 @@
   function countWords(text) {
     // Strip markdown syntax, image prompts, checklist header, schema blocks
     const clean=text
-      .replace(/^BLOG POST OPTIMIZATION CHECKLIST[\s\S]*?---/m,'')
+      .replace(/^AI AUTHORITY ARTICLE OPTIMIZATION CHECKLIST[\s\S]*?---/m,'')
       .replace(/\[IMAGE:[\s\S]*?\*\*ALT TEXT:.*?\*\*/gm,'')
       .replace(/<script[\s\S]*?<\/script>/gi,'')
       .replace(/[#*`[\]()_~>|]/g,' ')
@@ -1264,6 +1264,7 @@
     const rb=document.getElementById(`ir${idx}`); if(rb) rb.disabled=true;
     try{
       await genOneImage(S.imagePrompts[idx].prompt,S.imagePrompts[idx].alt,idx,gkey);
+      S.tokens.imgs++; updateCost();
       // Re-check all image slots and update download button + step badge
       const failedCount=S.imagePrompts.length-Object.keys(S.imageData).length;
       const dlAllBtn=document.getElementById('dlAllBtn');
@@ -1669,7 +1670,7 @@
 <body>
 <div class="article-title">${title||S.topic}</div>
 <div class="article-meta">Client: ${S.client?.name||'\u2014'} &nbsp;\xb7&nbsp; Published: ${today} &nbsp;\xb7&nbsp; ${fullUrl||slug}</div>
-<h2>Blog Post Optimization Checklist</h2>
+<h2>AI Authority Article Optimization Checklist</h2>
 ${fieldsHTML}
 ${costReport}
 <h2>Schema Markup</h2>
@@ -1942,13 +1943,17 @@ WHAT TO FLAG (be specific — quote the exact passage):
 7. Forbidden terms from terminology lock
 8. First-person POV in the Direct Answer (before the first H2) — that section must be neutral
 
+CRITICAL INSTRUCTION: Find ALL issues above, then rank them by impact.
+Report ONLY the TOP 3 most impactful issues. Ignore the rest.
+An operator and VA need to act on this — 3 items max, no exceptions.
+
 FORMAT each flag as:
 🚩 [TYPE]: "[exact quote from article — first 10-15 words]..."
 WHY: [one sentence explaining what's wrong]
 FIX: [one sentence on what to do instead]
 
 Be direct. Don't pad. If a section sounds genuinely human and on-brand, don't flag it.
-After all flags, write: "AUDIT COMPLETE — [N] issue(s) found."`;
+After the 3 flags, write: "AUDIT COMPLETE — [N] issue(s) found. Showing top 3."`;
 
     const auditBubble = voiceAppendBubble('system', '⏳ Scanning V2 for AI tells and voice violations...');
     setG('Claude auditing V2 voice...', true);
@@ -2401,7 +2406,7 @@ CRITICAL — THIS IS A SKELETON PASS ONLY:
 Your job in this call is to produce the article SKELETON — not full prose.
 
 WHAT TO WRITE IN FULL:
-1. The Blog Post Optimization Checklist (complete, with all metadata)
+1. The AI Authority Article Optimization Checklist (complete, with all metadata)
 2. The Direct Answer — MINIMUM 200 words, TARGET 250 words. This is the most important section. Write it as 3-4 solid paragraphs that fully answer the H1 question. Do NOT write one short paragraph and call it done. Sacred ground rules: NO links, NO images, NO prose after it except Last Updated and ToC.
 3. Last Updated line
 4. Table of Contents (with anchor links to all H2s)
@@ -2525,7 +2530,7 @@ PROTECTED ZONES — DO NOT TOUCH:
 - The Direct Answer (everything before the first H2) — it is FINAL, do not rewrite a single word
 - All H2 and H3 headings — they are final
 - All PROMPT:/ALT TEXT: image blocks — they are final
-- The Blog Post Optimization Checklist — it is final
+- The AI Authority Article Optimization Checklist — it is final
 - The ToC and Last Updated line — final
 
 YOUR JOB:
@@ -2711,7 +2716,7 @@ HARD RULES:
         `THE PATTERN: Lead with the verdict. React, then explain. NEVER explain before landing the point. Short sentences. Heavy contractions. Sound like the author, not a marketing writer.`
       ].filter(Boolean).join('\n\n');
 
-      const voiceUser=`PUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p4}\n${protectedList}${flagContext}\n\n${voiceExamples}\n\nTASK: Voice rewrite ONLY. Structure, links, tables, POV slots already correct.\n\nPROTECTED ZONES — DO NOT TOUCH:\n- Direct Answer (everything before first H2) — sacred ground, final, do not change a word\n- All H2 and H3 headings\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- Blog Post Optimization Checklist\n- All internal and external hyperlinks (URLs and anchor text must stay exactly)\n- Any sentence in PROTECTED SENTENCES above\n\nEverything else: rewrite from blank page in the author's voice.\n\nARTICLE:\n${S.v1}`;
+      const voiceUser=`PUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p4}\n${protectedList}${flagContext}\n\n${voiceExamples}\n\nTASK: Voice rewrite ONLY. Structure, links, tables, POV slots already correct.\n\nPROTECTED ZONES — DO NOT TOUCH:\n- Direct Answer (everything before first H2) — sacred ground, final, do not change a word\n- All H2 and H3 headings\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- AI Authority Article Optimization Checklist\n- All internal and external hyperlinks (URLs and anchor text must stay exactly)\n- Any sentence in PROTECTED SENTENCES above\n\nEverything else: rewrite from blank page in the author's voice.\n\nARTICLE:\n${S.v1}`;
       S.v2=await callClaude(sys,voiceUser,akey,(p)=>{document.getElementById('o10').textContent=p;document.getElementById('sb10').classList.add('open');showV2(p);},{maxTokens:64000});
       if(S.v2.length<2000) throw new Error(`Step 10: V2 too short — retry.`);
 
@@ -2769,7 +2774,7 @@ HARD RULES:
             document.getElementById('gate12Continue').onclick=()=>{ document.getElementById('cbox12').style.display='none'; res('continue'); };
           });
           if(dec12==='rewrite'){ retryFrom(10); return; }
-          else { setStep(12,'done','Overridden ✓'); break; }
+          else { checkpointDone=true; setStep(12,'done','Overridden ✓'); break; }
         }
         const {updated,log}=restoreFromV1(S.v2,failures); if(log.length>0){ S.v2=updated; showV2(S.v2); appendO12(`JS Restore:\n${log.join('\n')}`); }
         const stillFail=runV2GateChecks(S.v2).filter(c=>!c.pass);
