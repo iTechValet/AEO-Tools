@@ -142,7 +142,7 @@
   .panel-badge { font-size:10px; color:var(--faint); }
 
   /* IMAGES PANEL */
-  .img-grid { padding:10px 14px; max-height:620px; overflow-y:auto; }
+  .img-grid { padding:10px 14px; height:900px; overflow-y:auto; }
   .img-card { background:#f9f9f9; border:1px solid var(--border); border-radius:10px; margin-bottom:10px; overflow:hidden; }
   .img-card:last-child { margin-bottom:0; }
   .img-card-head { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--border); gap:8px; flex-wrap:wrap; }
@@ -199,8 +199,8 @@
   .ptab:hover:not(.active) { color:var(--blue); }
   .ppane { display:none; flex-direction:column; overflow:hidden; }
   .ppane.active { display:flex; }
-  .ppane iframe { border:none; background:#fff; height:620px; }
-  .ppane .md-preview { overflow-y:auto; padding:14px 16px; background:#fff; height:620px; font-family:'Lexend',sans-serif; font-size:12px; line-height:1.7; color:var(--blue); }
+  .ppane iframe { border:none; background:#fff; height:900px; }
+  .ppane .md-preview { overflow-y:auto; padding:14px 16px; background:#fff; height:900px; font-family:'Lexend',sans-serif; font-size:12px; line-height:1.7; color:var(--blue); }
   /* Step 10 upload status */
   .upload-status { font-size:11px; padding:7px 10px; border-radius:6px; margin-top:6px; display:none; }
   .upload-status.ok { background:rgba(76,175,80,.1); color:var(--green); border:1px solid rgba(76,175,80,.3); display:block; }
@@ -219,7 +219,7 @@
   .md-preview li { margin-bottom:3px; }
   .md-preview blockquote { border-left:3px solid var(--accent); padding-left:10px; color:var(--muted); margin:8px 0; }
   .md-preview hr { border:none; border-top:1px solid var(--border); margin:10px 0; }
-  .pempty { padding:20px; text-align:center; font-size:12px; color:#ccc; height:620px; display:flex; align-items:center; justify-content:center; }
+  .pempty { padding:20px; text-align:center; font-size:12px; color:#ccc; height:900px; display:flex; align-items:center; justify-content:center; }
 
   .error-msg { color:var(--orange); font-size:11px; margin-top:5px; }
 
@@ -347,15 +347,6 @@
       <div class="stat-value" id="v2WordCount">—</div>
     </div>
     <div class="stat-divider"></div>
-    <div class="stat-item">
-      <div class="stat-label">Session Expiry</div>
-      <select id="sessionExpiry" onchange="saveSessionExpiry()" style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--blue);font-family:'Lexend',sans-serif;font-size:11px;outline:none;cursor:pointer;">
-        <option value="1">1 day</option>
-        <option value="3">3 days</option>
-        <option value="7" selected>7 days</option>
-        <option value="30">30 days</option>
-      </select>
-    </div>
     <div class="stat-divider" id="restoreDivider" style="display:none;"></div>
     <div class="stat-item" id="restoreBanner" style="display:none;align-items:center;gap:8px;flex-direction:row;">
       <span id="restoreMsg" style="font-size:11px;color:var(--accent);white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis;"></span>
@@ -628,6 +619,8 @@
       <div class="preview-tabs">
         <button class="ptab active" id="tabV1" onclick="switchTab('v1')">V1 Article</button>
         <button class="ptab" id="tabV2" onclick="switchTab('v2')">V2 Article <span class="wc-badge" id="wcBadge" style="display:none;"></span></button>
+        <button class="ptab" id="tabDA" onclick="switchTab('da')">Direct Answer</button>
+        <button class="ptab" id="tabMeta" onclick="switchTab('meta')">Metadata</button>
         <button class="ptab" id="tabHTMLFinal" onclick="switchTab('htmlFinal')">HTML Final</button>
         <button class="ptab" id="tabSchema" onclick="switchTab('schema')">Schema</button>
       </div>
@@ -639,11 +632,18 @@
         <div class="pempty" id="v2Empty">V2 article appears here after Step 10</div>
         <div class="md-preview" id="v2Pre" style="display:none;"></div>
       </div>
-      <div class="ppane" id="pHTMLFinal">
-        <div class="pempty" id="htmlFinalEmpty">HTML Final appears after Step 14 QC</div>
-        <iframe id="htmlFinalFrame" style="display:none;border:none;background:#fff;width:100%;height:620px;"></iframe>
+      <div class="ppane" id="pDA">
+        <div class="pempty" id="daEmpty">Direct Answer appears here after Step 3</div>
+        <div class="md-preview" id="daPre" style="display:none;"></div>
       </div>
-      <div class="ppane" id="pSchema" style="overflow-y:auto;height:620px;">
+      <div class="ppane" id="pMeta">
+        <div class="pempty" id="metaEmpty">Metadata appears here after Step 3</div>
+        <div class="md-preview" id="metaPre" style="display:none;font-family:monospace;font-size:12px;"></div>
+      </div>
+        <div class="pempty" id="htmlFinalEmpty">HTML Final appears after Step 14 QC</div>
+        <iframe id="htmlFinalFrame" style="display:none;border:none;background:#fff;width:100%;height:900px;"></iframe>
+      </div>
+      <div class="ppane" id="pSchema" style="overflow-y:auto;height:900px;">
         <div class="pempty" id="schemaEmpty">Schema appears after Step 13</div>
         <pre id="schemaPre" style="display:none;font-family:monospace;font-size:11px;white-space:pre-wrap;word-break:break-word;padding:12px;color:var(--blue);line-height:1.6;margin:0;height:100%;overflow-y:auto;"></pre>
       </div>
@@ -1329,36 +1329,53 @@
 
   // ─── COPY ACTIVE PANE ─────────────────────────────────────
   let activeTab = 'v1';
+  let userSelectedTab = false; // Bug C fix: track if user manually selected a tab
+
+  function switchTab(tab, fromSystem=false) {
+    if(tab==='html1') tab='htmlFinal';
+    // Bug C fix: if a system call tries to switch tab but user has manually selected, ignore it
+    if(fromSystem && userSelectedTab) return;
+    if(!fromSystem) userSelectedTab = true;
+    activeTab = tab;
+    const allTabs = ['v1','v2','da','meta','htmlFinal','schema'];
+    allTabs.forEach(t => {
+      const tabId = 'tab' + t.charAt(0).toUpperCase() + t.slice(1);
+      const paneId = 'p' + t.charAt(0).toUpperCase() + t.slice(1);
+      document.getElementById(tabId)?.classList.toggle('active', tab===t);
+      document.getElementById(paneId)?.classList.toggle('active', tab===t);
+    });
+    // Fix known capitalisation mismatches
+    document.getElementById('tabV1')?.classList.toggle('active',tab==='v1');
+    document.getElementById('tabV2')?.classList.toggle('active',tab==='v2');
+    document.getElementById('tabDA')?.classList.toggle('active',tab==='da');
+    document.getElementById('tabMeta')?.classList.toggle('active',tab==='meta');
+    document.getElementById('tabHTMLFinal')?.classList.toggle('active',tab==='htmlFinal');
+    document.getElementById('tabSchema')?.classList.toggle('active',tab==='schema');
+    document.getElementById('pV1')?.classList.toggle('active',tab==='v1');
+    document.getElementById('pV2')?.classList.toggle('active',tab==='v2');
+    document.getElementById('pDA')?.classList.toggle('active',tab==='da');
+    document.getElementById('pMeta')?.classList.toggle('active',tab==='meta');
+    document.getElementById('pHTMLFinal')?.classList.toggle('active',tab==='htmlFinal');
+    document.getElementById('pSchema')?.classList.toggle('active',tab==='schema');
+    const copyBtn = document.getElementById('btnCopyPane');
+    if(copyBtn) copyBtn.style.display = (tab==='v2'||tab==='htmlFinal'||tab==='schema'||tab==='da') ? 'block' : 'none';
+  }
+
+  // Reset userSelectedTab on fresh run so system can auto-switch tabs
+  function resetTabSelection() { userSelectedTab = false; }
+
   function copyActivePane() {
     let text = '';
     if(activeTab === 'v2') text = S.v2 || '';
     else if(activeTab === 'htmlFinal') text = S.finalTXT || '';
     else if(activeTab === 'schema') text = S.finalSchema || '';
+    else if(activeTab === 'da') text = extractDirectAnswer(S.v2||S.v1) || '';
     else text = S.v1 || '';
     if(!text){ alert('No content to copy yet.'); return; }
     navigator.clipboard.writeText(text).then(()=>{
       const btn = document.getElementById('btnCopyPane');
       if(btn){ const orig=btn.textContent; btn.textContent='✓ Copied'; setTimeout(()=>{ btn.textContent=orig; },1500); }
     }).catch(()=>{ alert('Copy failed — try selecting the text manually.'); });
-  }
-  function switchTab(tab) {
-    if(tab==='html1') tab='htmlFinal';
-    activeTab = tab;
-    ['v1','v2','htmlFinal','schema'].forEach(t=>{
-      document.getElementById(`tab${t.charAt(0).toUpperCase()+t.slice(1)}`)?.classList.toggle('active',tab===t);
-      document.getElementById(`p${t.charAt(0).toUpperCase()+t.slice(1)}`)?.classList.toggle('active',tab===t);
-    });
-    // Fix capitalisation for tab IDs
-    document.getElementById('tabV1')?.classList.toggle('active',tab==='v1');
-    document.getElementById('tabV2')?.classList.toggle('active',tab==='v2');
-    document.getElementById('tabHTMLFinal')?.classList.toggle('active',tab==='htmlFinal');
-    document.getElementById('tabSchema')?.classList.toggle('active',tab==='schema');
-    document.getElementById('pV1')?.classList.toggle('active',tab==='v1');
-    document.getElementById('pV2')?.classList.toggle('active',tab==='v2');
-    document.getElementById('pHTMLFinal')?.classList.toggle('active',tab==='htmlFinal');
-    document.getElementById('pSchema')?.classList.toggle('active',tab==='schema');
-    const copyBtn = document.getElementById('btnCopyPane');
-    if(copyBtn) copyBtn.style.display = (tab==='v2'||tab==='htmlFinal'||tab==='schema') ? 'block' : 'none';
   }
 
   function showSchema(schemaText, publishDate, featuredUrl) {
@@ -1381,6 +1398,7 @@
     }
     pre.innerHTML=highlighted;
     document.getElementById('prevBadge').textContent='Schema ready';
+    // Don't auto-switch tab for schema — user may be on another tab
   }
 
   function showV1(text) {
@@ -1391,7 +1409,17 @@
     document.getElementById('prevBadge').textContent='V1 ready';
     const wc=countWords(text);
     document.getElementById('v1WordCount').textContent='~'+wc.toLocaleString();
-    switchTab('v1');
+    // Populate DA tab
+    const da=extractDirectAnswer(text);
+    if(da){
+      document.getElementById('daEmpty').style.display='none';
+      const daPre=document.getElementById('daPre');
+      daPre.style.display='block';
+      daPre.innerHTML=typeof marked!=='undefined'?marked.parse(da):da.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    }
+    // Populate Metadata tab
+    populateMetaTab(text);
+    switchTab('v1',true);
   }
 
   function showV2(text) {
@@ -1401,7 +1429,17 @@
     div.innerHTML=typeof marked!=='undefined'?marked.parse(text):text.replace(/&/g,'&amp;').replace(/</g,'&lt;');
     document.getElementById('prevBadge').textContent='V2 ready';
     updateWordCount(text);
-    switchTab('v2');
+    // Update DA tab with V2 version
+    const da=extractDirectAnswer(text);
+    if(da){
+      document.getElementById('daEmpty').style.display='none';
+      const daPre=document.getElementById('daPre');
+      daPre.style.display='block';
+      daPre.innerHTML=typeof marked!=='undefined'?marked.parse(da):da.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    }
+    // Update metadata tab
+    populateMetaTab(text);
+    switchTab('v2',true);
   }
 
   function showHTML1(html) {
@@ -1414,9 +1452,35 @@
     const doc=frame.contentDocument||frame.contentWindow.document;
     doc.open(); doc.write(html); doc.close();
     document.getElementById('prevBadge').textContent='HTML ready';
-    switchTab('htmlFinal');
+    switchTab('htmlFinal',true);
   }
   function showHTML(html) { showHTMLFinal(html); } // legacy alias
+
+  function extractDirectAnswer(text) {
+    // DA = content after the H1 line and before the first H2
+    const h1Match = text.match(/^#\s+.+$/m);
+    if(!h1Match) return '';
+    const afterH1 = text.slice(text.indexOf(h1Match[0]) + h1Match[0].length);
+    const h2Match = afterH1.match(/^##\s+/m);
+    const da = h2Match ? afterH1.slice(0, afterH1.indexOf(h2Match[0])) : afterH1.slice(0, 1500);
+    return da.trim();
+  }
+
+  function populateMetaTab(text) {
+    const fields = ['Meta Title','H1','Permalink URL','Full Blog Post URL','Meta Description','Keywords','Category'];
+    const lines = fields.map(f => {
+      const val = extractField(text, f) || '—';
+      return `<div style="margin-bottom:12px;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#2494e0;font-weight:600;margin-bottom:3px;">${f}</div><div style="font-size:12px;color:#063a6c;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;padding:8px 10px;word-break:break-all;">${val}</div></div>`;
+    }).join('');
+    const metaEl = document.getElementById('metaPre');
+    const metaEmpty = document.getElementById('metaEmpty');
+    if(metaEl && lines) {
+      metaEmpty.style.display='none';
+      metaEl.style.display='block';
+      metaEl.style.fontFamily='Lexend,sans-serif';
+      metaEl.innerHTML = `<div style="padding:14px 16px;">${lines}</div>`;
+    }
+  }
 
   // ─── GEMINI ───────────────────────────────────────────────
   async function callGemini(prompt,gkey) {
@@ -1680,10 +1744,30 @@ ${costReport}
 ${schemaBlocksHTML}
 <`+'script>'+`
   var rawBlocks = `+schemaJSON+`;
-  function copyField(id,ok){navigator.clipboard.writeText(document.getElementById(id).innerText||'').then(function(){flash(ok)});}
-  function copySchema(i){navigator.clipboard.writeText(rawBlocks[i]).then(function(){flash('sok'+i)});}
-  function copyAllSchema(){navigator.clipboard.writeText(rawBlocks.join('\\n\\n')).then(function(){flash('sokAll')});}
-  function flash(id){var el=document.getElementById(id);if(!el)return;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},2000);}
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.top = '0'; ta.style.left = '0';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); } catch(e) {}
+    document.body.removeChild(ta);
+  }
+
+  function clipCopy(text, ok) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(function(){ flash(ok); }).catch(function(){ fallbackCopy(text); flash(ok); });
+    } else {
+      fallbackCopy(text); flash(ok);
+    }
+  }
+
+  function copyField(id, ok) { clipCopy(document.getElementById(id).innerText || '', ok); }
+  function copySchema(i) { clipCopy(rawBlocks[i], 'sok'+i); }
+  function copyAllSchema() { clipCopy(rawBlocks.join('\\n\\n'), 'sokAll'); }
+  function flash(id) { var el=document.getElementById(id); if(!el) return; el.classList.add('show'); setTimeout(function(){ el.classList.remove('show'); }, 2000); }
 `+'</'+'script>'+`
 </body>
 </html>`;
@@ -1740,7 +1824,7 @@ ${schemaBlocksHTML}
     document.getElementById('sb14').classList.add('open');
     document.getElementById('c14').classList.remove('closed');
     setStep(14, 'checkpoint', 'Your Turn');
-    switchTab('htmlFinal');
+    switchTab('htmlFinal',true);
 
     // Build system prompt
     const p6 = getPrompt(S.docs.doc44, 6);
@@ -1910,7 +1994,7 @@ ${schemaBlocksHTML}
     document.getElementById('sb11').classList.add('open');
     document.getElementById('c11').classList.remove('closed');
     setStep(11, 'checkpoint', 'Your Turn');
-    switchTab('v2');
+    switchTab('v2',true);
 
     // Pull voice examples from 4.3B
     const voiceSection = S.docs.doc43B.match(/AUTHOR VOICE TEST[\s\S]*?(?=POV SLOT VOICE|SECTION \d+:|________________\s*END|$)/i);
@@ -2215,21 +2299,29 @@ Do NOT rewrite anything the operator didn't mention. Do NOT touch: Direct Answer
     // FAQ
     const hasFAQ=/##\s*(frequently asked|faq)/i.test(v1);
     results.push({key:'faq',label:'FAQ section present',pass:hasFAQ,detail:hasFAQ?'Found':'Missing'});
-    // Direct answer
+    // Direct answer — skip checklist block before counting
     const h1Match=v1.match(/^(?!##)#\s+.+/m);
     let daWords=0;
     if(h1Match){
       const afterH1=v1.slice(v1.indexOf(h1Match[0])+h1Match[0].length);
-      let searchStart=0;
-      const separatorIdx=afterH1.indexOf('\n---');
-      if(separatorIdx>-1) searchStart=separatorIdx+4;
-      const afterChecklist=afterH1.slice(searchStart);
-      const repeatedH1=afterChecklist.match(/^(?!##)#\s+.+/m);
-      let daStart=0;
-      if(repeatedH1) daStart=afterChecklist.indexOf(repeatedH1[0])+repeatedH1[0].length;
-      const daSection=afterChecklist.slice(daStart);
-      const firstH2=daSection.search(/^##\s/m);
-      const daText=(firstH2>0?daSection.slice(0,firstH2):daSection.slice(0,1500)).replace(/\[H[123]\]/gi,'').trim();
+      // Find the repeated H1 (after the checklist block) — that's where the real article starts
+      const repeatedH1=afterH1.match(/^(?!##)#\s+.+/m);
+      let daSection='';
+      if(repeatedH1){
+        const afterRepeatedH1=afterH1.slice(afterH1.indexOf(repeatedH1[0])+repeatedH1[0].length);
+        const firstH2=afterRepeatedH1.search(/^##\s/m);
+        daSection=firstH2>0?afterRepeatedH1.slice(0,firstH2):afterRepeatedH1.slice(0,1500);
+      } else {
+        // No repeated H1 — fall back to first H2
+        const firstH2=afterH1.search(/^##\s/m);
+        daSection=firstH2>0?afterH1.slice(0,firstH2):afterH1.slice(0,1500);
+      }
+      const daText=daSection
+        .replace(/\[H[123]\]/gi,'')
+        .replace(/last updated.*/gim,'')
+        .replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'') // ToC links
+        .replace(/^---+\s*$/gm,'')
+        .trim();
       daWords=daText.split(/\s+/).filter(w=>w.length>2).length;
     }
     results.push({key:'directAnswer',label:'Direct answer 150-450 words',pass:daWords>=150&&daWords<=450,detail:`~${daWords} words`});
@@ -2956,6 +3048,7 @@ V2 ARTICLE:\n${S.v2}`;
     document.getElementById('assembleHint').textContent='Complete steps 1–12 first';
     document.getElementById('v1WordCount').textContent='—';
     document.getElementById('v2WordCount').textContent='—';
+    resetTabSelection();
     resetTimer(); startTimer();
     dismissRestore();
 
