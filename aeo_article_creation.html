@@ -686,8 +686,7 @@
   let S = {
     client:null, topic:'', docs:{}, sheetRow:'',
     geminiResearch:'', v1:'', validation:'', parsedFails:[], parsedFlags:[],
-    fixedArticle:'', protectedSentences:[], v2:'',
-    finalMD:'', finalTXT:'', html1TXT:'', finalSchema:'', checklistHTML:'',
+    protectedSentences:[], v2:'', finalTXT:'', html1TXT:'', finalSchema:'', checklistHTML:'',
     imagePrompts:[], imageData:{}, imageUrls:{},
     tokens:{gi:0,go:0,ci:0,co:0,imgs:0}
   };
@@ -945,7 +944,7 @@
       let continueStep=null;
       if(data.finalTXT) continueStep=14;
       else if(data.v2) continueStep=12;
-      else if(data.v1) continueStep=7; // V1 done, images not yet generated
+      else if(data.v1) continueStep=6; // V1 done — must still run integrity gate before images
       const continueBtn=document.getElementById('continueFromBtn');
       if(continueStep && continueBtn){
         continueBtn.textContent=`Continue from Step ${continueStep} →`;
@@ -1178,8 +1177,8 @@
     let failed=0;
     for(let i=0;i<prompts.length;i++){
       setG(`Generating image ${i+1} of ${prompts.length}...`,true);
-      document.getElementById('o6').textContent=`Generating image ${i+1} of ${prompts.length}...`;
-      document.getElementById('sb6').classList.add('open');
+      document.getElementById('o7').textContent=`Generating image ${i+1} of ${prompts.length}...`;
+      document.getElementById('sb7').classList.add('open');
       try{ await genOneImage(prompts[i].prompt,prompts[i].alt,i,gkey); S.tokens.imgs++; updateCost(); }
       catch(err){ showImgErr(i,err.message); failed++; }
       if(i<prompts.length-1) await new Promise(r=>setTimeout(r,1500));
@@ -1530,7 +1529,7 @@
     btn.classList.add('ready');
     btn.disabled=true;
     btn.onclick=null;
-    document.getElementById('assembleHint').textContent=checkpointDone ? 'All ready — assembling...' : 'Waiting for Step 14 review...';
+    document.getElementById('assembleHint').textContent=checkpointDone ? 'All ready — assembling...' : 'Waiting for V2 review to complete (Step 12)...';
     // If checkpoint already done, fire assembly
     tryTriggerAssemble();
   }
@@ -1652,7 +1651,6 @@ ${schemaBlocksHTML}
   }
 
 
-  // ─── HTML QC (Step 16) ────────────────────────────────────
   // ─── STEP 14: CHAT-BASED HTML QC ─────────────────────────
   let qc14History = []; // full message history for this session
   let qc14Resolve = null; // resolves when user hits Finalize
@@ -2496,7 +2494,7 @@ HARD RULES:
 - Every H2 section addresses at least 3-4 of the 5 intent layers
 - Voice: lead with the point, then explain — NEVER setup before verdict`;
 
-      const u5=`PUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${proseInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}\n\n---\nSKELETON TO FILL:\n${S.v1}`;
+      const u5=`IMPORTANT OVERRIDE: You are in PROSE FILL mode. You are NOT writing an article from scratch. You are filling in a skeleton that already exists. Follow the PROSE FILL INSTRUCTIONS below — ignore any "write the full article" instructions from 4.3A or Prompt 2. The skeleton structure is final. Your only job is to replace placeholders with content.\n\nPUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${proseInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}\n\n---\nSKELETON TO FILL:\n${S.v1}`;
       const v1prose=await callClaude(sys,u5,akey,(p)=>{document.getElementById('o5').textContent=p;document.getElementById('sb5').classList.add('open');},{maxTokens:64000});
       if(v1prose.length<3000) throw new Error(`Step 5: Prose output too short (${v1prose.length} chars) — retry.`);
       S.v1=v1prose;
@@ -2826,7 +2824,7 @@ V2 ARTICLE:\n${S.v2}`;
     const dkey=document.getElementById('keyDrive').value.trim();
     if(!akey||!gkey){alert('API keys required.');return;}
     const rb=document.getElementById(`r${n}`); if(rb) rb.style.display='none';
-    if(n>=13){imagesValidated=false;checkpointDone=false;asmResolve=null;}
+    if(n>=7){imagesValidated=false;checkpointDone=false;asmResolve=null;}
     if(n<=9){step8RetryCount=0;}
     // Reset voice/qc resolves if retrying before them
     if(n<=11&&voice11Resolve){voice11Resolve();voice11Resolve=null;}
@@ -2882,7 +2880,7 @@ V2 ARTICLE:\n${S.v2}`;
     S.geminiResearch=''; S.sheetRow=''; S.v1=''; S.v2='';
     S.finalTXT=''; S.finalSchema=''; S.checklistHTML='';
     imagesValidated=false; checkpointDone=false; step8RetryCount=0;
-    voice11Resolve=null; qc14Resolve=null;
+    voice11Resolve=null; qc14Resolve=null; voice11Busy=false; voice11AKey='';
     // Clear session on fresh run — not on stop
     localStorage.removeItem(SESSION_KEY);
 
