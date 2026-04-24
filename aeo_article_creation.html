@@ -804,8 +804,14 @@
     document.getElementById('cClaudeIn').textContent=S.tokens.ci.toLocaleString();
     document.getElementById('cClaudeOut').textContent=S.tokens.co.toLocaleString();
     document.getElementById('cImages').textContent=S.tokens.imgs;
-    const cost=(S.tokens.ci/1e6*3)+(S.tokens.co/1e6*15);
-    document.getElementById('cCost').textContent=`$${cost.toFixed(3)}`;
+    // Gemini 2.5 Pro: $1.25/1M input, $10/1M output (under 200K context)
+    // Gemini image: ~$0.020 per image
+    const geminiCost=(S.tokens.gi/1e6*1.25)+(S.tokens.go/1e6*10.00)+(S.tokens.imgs*0.020);
+    // Claude Sonnet: $3/1M input, $15/1M output
+    const claudeCost=(S.tokens.ci/1e6*3)+(S.tokens.co/1e6*15);
+    const totalCost=geminiCost+claudeCost;
+    S._costBreakdown={gemini:geminiCost,claude:claudeCost,total:totalCost};
+    document.getElementById('cCost').textContent=`$${totalCost.toFixed(3)}`;
   }
 
   // ─── TIMER ────────────────────────────────────────────────
@@ -1258,19 +1264,15 @@
     const rb=document.getElementById(`ir${idx}`); if(rb) rb.disabled=true;
     try{
       await genOneImage(S.imagePrompts[idx].prompt,S.imagePrompts[idx].alt,idx,gkey);
-      // Re-check all image slots and update download button
+      // Re-check all image slots and update download button + step badge
       const failedCount=S.imagePrompts.length-Object.keys(S.imageData).length;
       const dlAllBtn=document.getElementById('dlAllBtn');
-      if(dlAllBtn){
-        if(failedCount===0){
-          dlAllBtn.disabled=false;
-          dlAllBtn.textContent='↓ All Images';
-          dlAllBtn.style.background='var(--blue)';
-          dlAllBtn.title='';
-          setStep(6,'done','Done ✓',`All ${S.imagePrompts.length} images generated successfully.`);
-        } else {
-          dlAllBtn.textContent=`⚠ ${failedCount} Failed`;
-        }
+      if(failedCount===0){
+        if(dlAllBtn){dlAllBtn.disabled=false;dlAllBtn.textContent='↓ All Images';dlAllBtn.style.background='var(--blue)';dlAllBtn.title='';}
+        setStep(7,'done','Done ✓',`All ${S.imagePrompts.length} images generated successfully.`);
+      } else {
+        if(dlAllBtn){dlAllBtn.disabled=true;dlAllBtn.textContent=`⚠ ${failedCount} Failed`;dlAllBtn.style.background='var(--orange)';}
+        setStep(7,'error','⚠ Some Failed',`${S.imagePrompts.length-failedCount}/${S.imagePrompts.length} images generated. ${failedCount} failed — use Regenerate.`);
       }
     }
     catch(err){ showImgErr(idx,err.message); if(rb) rb.disabled=false; }
@@ -1600,6 +1602,42 @@
         <span class="copy-ok" id="c${f.id}">\u2713</span>
       </div>`).join('');
     const schemaJSON=JSON.stringify(schemaBlocks);
+    const cb=S._costBreakdown||{gemini:0,claude:0,total:0};
+    const runTime=getTimerStr();
+    const costReport=`
+<h2>Run Cost Report</h2>
+<p style="font-size:12px;color:#888;margin-bottom:14px;">Estimated costs based on current API pricing. Actual billing may vary.</p>
+<div class="field">
+  <span class="label">Run Time</span>
+  <span class="value" id="rtime">${runTime}</span>
+  <button class="copy-btn" onclick="copyField('rtime','crtime')">Copy</button>
+  <span class="copy-ok" id="crtime">✓</span>
+</div>
+<div class="field">
+  <span class="label">Claude Cost</span>
+  <span class="value" id="rclaude">$${cb.claude.toFixed(4)} &nbsp;<span style="color:#aaa;font-size:11px;">(${S.tokens.ci.toLocaleString()} in / ${S.tokens.co.toLocaleString()} out tokens)</span></span>
+  <button class="copy-btn" onclick="copyField('rclaude','crclaude')">Copy</button>
+  <span class="copy-ok" id="crclaude">✓</span>
+</div>
+<div class="field">
+  <span class="label">Gemini Text Cost</span>
+  <span class="value" id="rgemini">$${((S.tokens.gi/1e6*1.25)+(S.tokens.go/1e6*10.00)).toFixed(4)} &nbsp;<span style="color:#aaa;font-size:11px;">(${S.tokens.gi.toLocaleString()} in / ${S.tokens.go.toLocaleString()} out tokens)</span></span>
+  <button class="copy-btn" onclick="copyField('rgemini','crgemini')">Copy</button>
+  <span class="copy-ok" id="crgemini">✓</span>
+</div>
+<div class="field">
+  <span class="label">Image Cost</span>
+  <span class="value" id="rimages">$${(S.tokens.imgs*0.020).toFixed(4)} &nbsp;<span style="color:#aaa;font-size:11px;">(${S.tokens.imgs} image${S.tokens.imgs!==1?'s':''} × $0.020)</span></span>
+  <button class="copy-btn" onclick="copyField('rimages','crimages')">Copy</button>
+  <span class="copy-ok" id="crimages">✓</span>
+</div>
+<div class="field" style="border:2px solid #063a6c;">
+  <span class="label" style="color:#063a6c;font-weight:700;">Total Est. Cost</span>
+  <span class="value" style="font-weight:700;font-size:16px;" id="rtotal">$${cb.total.toFixed(4)}</span>
+  <button class="copy-btn" onclick="copyField('rtotal','crtotal')">Copy</button>
+  <span class="copy-ok" id="crtotal">✓</span>
+</div>`;
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1633,6 +1671,7 @@
 <div class="article-meta">Client: ${S.client?.name||'\u2014'} &nbsp;\xb7&nbsp; Published: ${today} &nbsp;\xb7&nbsp; ${fullUrl||slug}</div>
 <h2>Blog Post Optimization Checklist</h2>
 ${fieldsHTML}
+${costReport}
 <h2>Schema Markup</h2>
 <p style="font-size:12px;color:#888;margin-bottom:14px;">Copy each block separately into Yoast or your site header.</p>
 <button class="all-schema-btn" onclick="copyAllSchema()">\u2398 Copy All Schema Blocks</button>
@@ -2716,6 +2755,10 @@ HARD RULES:
         const failures=checks.filter(c=>!c.pass);
         appendO12(`--- Attempt ${attempts+1}/${MAX12} ---\n${checks.map(c=>`${c.pass?'✅':'❌'} ${c.label} — ${c.detail}`).join('\n')}`);
         if(failures.length===0){ setStep(12,'done','Done ✓'); saveSession(12); break; }
+        // Images and DA word count are warnings only — voice rewrite legitimately moves image prompts
+        // to an IMAGE PROMPTS section. Assembly handles them correctly regardless.
+        const hardFailures=failures.filter(c=>c.key!=='images'&&c.key!=='directAnswer');
+        if(hardFailures.length===0){ setStep(12,'done','Done ✓ (warnings)'); saveSession(12); break; }
         attempts++;
         if(attempts>=MAX12){
           document.getElementById('gateResults12').innerHTML=failures.map(f=>`<div style="padding:2px 0;">❌ ${f.label} — ${f.detail}</div>`).join('');
