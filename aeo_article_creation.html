@@ -2677,6 +2677,7 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
 
       // 2. No prose between DA and first H2 (only ToC and Last Updated allowed)
       if(firstH2pos>0){
+        const daZone=skel.slice(0,firstH2pos);
         const gapZone=daZone.replace(/^#.+$/gm,'').replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'').replace(/last updated.*/gim,'').replace(/\[.*?\]/g,'').replace(/\*\*.*?\*\*/g,'').trim();
         const gapWords=gapZone.split(/\s+/).filter(w=>w.length>3).length;
         checks4.push({label:'No stray prose between DA and first H2',pass:gapWords<15,detail:gapWords<15?'Clean':`~${gapWords} words of unexpected prose found — will be flagged at Step 6`});
