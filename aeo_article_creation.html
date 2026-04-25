@@ -32,7 +32,9 @@
   .cp-row:last-child { margin-bottom:0; }
   .cp-row.keys { grid-template-columns:1fr 1fr 1fr; }
   .cp-row.article { grid-template-columns:220px 1fr auto; align-items:end; }
-  .cp-row.stats { grid-template-columns:repeat(8,auto); justify-content:start; gap:24px; align-items:center; padding:10px 0 4px; border-top:1px solid var(--border); }
+  .cp-row.stats { display:flex; justify-content:space-between; align-items:center; padding:10px 0 4px; border-top:1px solid var(--border); gap:0; }
+  .stats-left { display:flex; align-items:center; gap:24px; }
+  .stats-right { display:flex; align-items:center; gap:24px; }
   .cp-divider { border:none; border-top:1px solid var(--border); margin:14px 0; }
 
   /* FIELD GROUPS */
@@ -142,7 +144,7 @@
   .panel-badge { font-size:10px; color:var(--faint); }
 
   /* IMAGES PANEL */
-  .img-grid { padding:10px 14px; height:900px; overflow-y:auto; }
+  .img-grid { padding:10px 14px; height:750px; overflow-y:auto; }
   .img-card { background:#f9f9f9; border:1px solid var(--border); border-radius:10px; margin-bottom:10px; overflow:hidden; }
   .img-card:last-child { margin-bottom:0; }
   .img-card-head { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--border); gap:8px; flex-wrap:wrap; }
@@ -245,7 +247,7 @@
   .stat-label { font-family:'Bebas Neue',sans-serif; font-size:12px; text-transform:uppercase; letter-spacing:1.5px; color:var(--blue); opacity:0.55; }
   .stat-value { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--blue); letter-spacing:1px; line-height:1; }
 </style>
-<script src="https://unpkg.com/docx@9.0.3/build/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@9.0.3/build/index.js"></script>
 </head>
 <body>
 
@@ -312,52 +314,58 @@
   <div class="gstatus" id="gstatus"></div>
   <!-- ROW 3: STATS -->
   <div class="cp-row stats">
-    <div class="stat-item">
-      <div class="stat-label">Gemini Tokens</div>
-      <div class="stat-value" id="cGemini">0</div>
+    <!-- LEFT: API cost stats -->
+    <div class="stats-left">
+      <div class="stat-item">
+        <div class="stat-label">Gemini Tokens</div>
+        <div class="stat-value" id="cGemini">0</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-label">Claude In</div>
+        <div class="stat-value" id="cClaudeIn">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Claude Out</div>
+        <div class="stat-value" id="cClaudeOut">0</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-label">Images</div>
+        <div class="stat-value" id="cImages">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Est. Cost</div>
+        <div class="stat-value orange" id="cCost">$0.000</div>
+      </div>
     </div>
-    <div class="stat-divider"></div>
-    <div class="stat-item">
-      <div class="stat-label">Claude In</div>
-      <div class="stat-value" id="cClaudeIn">0</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-label">Claude Out</div>
-      <div class="stat-value" id="cClaudeOut">0</div>
-    </div>
-    <div class="stat-divider"></div>
-    <div class="stat-item">
-      <div class="stat-label">Images</div>
-      <div class="stat-value" id="cImages">0</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-label">Est. Cost</div>
-      <div class="stat-value orange" id="cCost">$0.000</div>
-    </div>
-    <div class="stat-divider"></div>
-    <div class="stat-item">
-      <div class="stat-label">Run Time</div>
-      <div class="stat-value timer-display" id="timerDisplay">0:00</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-label">V1 Words</div>
-      <div class="stat-value" id="v1WordCount">—</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-label">V2 Words</div>
-      <div class="stat-value" id="v2WordCount">—</div>
-    </div>
-    <div class="stat-divider"></div>
-    <div class="stat-item">
-      <div class="stat-label">Emergency</div>
-      <button onclick="emergencySave()" style="background:var(--orange);color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:10px;font-family:'Lexend',sans-serif;cursor:pointer;font-weight:600;" title="Save current session state immediately">💾 Save Now</button>
-    </div>
-    <div class="stat-divider" id="restoreDivider" style="display:none;"></div>
-    <div class="stat-item" id="restoreBanner" style="display:none;align-items:center;gap:8px;flex-direction:row;">
-      <span id="restoreMsg" style="font-size:11px;color:var(--accent);white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis;"></span>
-      <button class="btn-restore" onclick="restoreSession()" style="white-space:nowrap;">Restore</button>
-      <button id="continueFromBtn" class="btn-restore" onclick="continueFromRestore()" style="display:none;white-space:nowrap;background:var(--green);">Continue →</button>
-      <button class="btn-dismiss" onclick="dismissRestore()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px;">✕</button>
+    <!-- RIGHT: Run stats + controls -->
+    <div class="stats-right">
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-label">Run Time</div>
+        <div class="stat-value timer-display" id="timerDisplay">0:00</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">V1 Words</div>
+        <div class="stat-value" id="v1WordCount">—</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">V2 Words</div>
+        <div class="stat-value" id="v2WordCount">—</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-label">Emergency</div>
+        <button onclick="emergencySave()" style="background:var(--orange);color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:10px;font-family:'Lexend',sans-serif;cursor:pointer;font-weight:600;" title="Save current session state immediately">💾 Save Now</button>
+      </div>
+      <div class="stat-divider" id="restoreDivider" style="display:none;"></div>
+      <div class="stat-item" id="restoreBanner" style="display:none;align-items:center;gap:8px;flex-direction:row;">
+        <span id="restoreMsg" style="font-size:11px;color:var(--accent);white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis;"></span>
+        <button class="btn-restore" onclick="restoreSession()" style="white-space:nowrap;">Restore</button>
+        <button id="continueFromBtn" class="btn-restore" onclick="continueFromRestore()" style="display:none;white-space:nowrap;background:var(--green);">Continue →</button>
+        <button class="btn-dismiss" onclick="dismissRestore()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px;">✕</button>
+      </div>
     </div>
   </div>
 
@@ -711,7 +719,7 @@
 
   // ─── INIT ─────────────────────────────────────────────────
   window.addEventListener('load',()=>{
-    loadClients(); loadKeys(); loadSessionExpiry();
+    loadClients(); loadKeys();
     // Publish date defaults to blank — must be set before Step 13
     document.getElementById('publishDate').value = '';
     checkSessionRestore();
