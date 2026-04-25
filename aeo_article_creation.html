@@ -915,28 +915,13 @@
     console.log('Emergency save fired. lastCompletedStep:', step, 'V1 length:', S.v1?.length, 'V2 length:', S.v2?.length);
   }
 
-  function saveSessionExpiry() {
-    const days=document.getElementById('sessionExpiry').value;
-    localStorage.setItem('aeo_session_expiry',days);
-  }
-
-  function loadSessionExpiry() {
-    const saved=localStorage.getItem('aeo_session_expiry')||'7';
-    const el=document.getElementById('sessionExpiry');
-    if(el) el.value=saved;
-    return parseInt(saved);
-  }
-
-  function getSessionExpiryMs() {
-    return loadSessionExpiry() * 86400000;
-  }
 
   function checkSessionRestore() {
     try {
       const raw=localStorage.getItem(SESSION_KEY);
       if(!raw) return;
       const data=JSON.parse(raw);
-      const expiryMs=getSessionExpiryMs();
+      const expiryMs=7*86400000; // 7 days
       if((!data.v1&&!data.v2) || Date.now()-data.savedAt > expiryMs) return;
       const age=Math.round((Date.now()-data.savedAt)/60000);
       const ageStr=age<60?`${age}m ago`:`${Math.round(age/60)}h ago`;
@@ -975,7 +960,7 @@
       if(data.v2){ S.v2=data.v2; showV2(data.v2); updateWordCount(data.v2); }
       if(data.finalTXT){ S.finalTXT=data.finalTXT; showHTML1(data.finalTXT); showHTMLFinal(data.finalTXT); }
       if(data.finalSchema) S.finalSchema=data.finalSchema;
-      if(data.finalSchema){ S.checklistHTML=buildChecklistHTML(data.finalSchema); showSchema(data.finalSchema, data.publishDate||'', ''); }
+      if(data.finalSchema){ showSchema(data.finalSchema, data.publishDate||'', ''); }
       else if(data.checklistHTML){ S.checklistHTML=data.checklistHTML; }
       if(S.finalTXT||S.checklistHTML){ document.getElementById('outputsSec').classList.add('open'); }
       updateCost();
@@ -1573,8 +1558,6 @@
     S.tokens.ci+=inTok; S.tokens.co+=outTok; updateCost(); return full;
   }
 
-  // ─── CHECKPOINT FUNCTIONS (ATOMIC PIPELINE) ───────────────
-
   // ─── CHECKPOINT FUNCTIONS ─────────────────────────────────
 
   // Step 9 — Fix verification (only when auto-retries exhausted)
@@ -1640,9 +1623,6 @@
 
     const BLUE = '063a6c';
     const ORANGE = 'dd6b00';
-    const LIGHT = 'f0f4f8';
-    const border = { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' };
-    const borders = { top: border, bottom: border, left: border, right: border };
 
     function labelPara(text) {
       return new Paragraph({
@@ -1833,157 +1813,10 @@
     setG('✓ Step 13 unlocked manually.');
   }
 
-  function triggerAssemble() { tryTriggerAssemble(); }
   function waitAssemble() { return new Promise(res=>{asmResolve=res; tryTriggerAssemble();}); }
 
 
 
-  // ─── BUILD CHECKLIST HTML ────────────────────────────────
-  function buildChecklistHTML(schema) {
-    const featUrl=S.imageUrls[getFeatured()]||'';
-    const today=document.getElementById('publishDate').value||'[PUBLISH DATE NOT SET]';
-    const title=extractField(S.v2,'Meta Title')||extractField(S.v2,'H1')||S.topic;
-    const slug=extractField(S.v2,'Permalink URL')||'';
-    const fullUrl=extractField(S.v2,'Full Blog Post URL')||'';
-    const meta=extractField(S.v2,'Meta Description')||'';
-    const keywords=extractField(S.v2,'Keywords')||'';
-    const category=extractField(S.v2,'Category')||'';
-    const schemaBlocks=[];
-    const schemaRe=/<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi;
-    let sm;
-    while((sm=schemaRe.exec(schema))!==null){ schemaBlocks.push(sm[0].trim()); }
-    if(schemaBlocks.length===0 && schema.trim()) schemaBlocks.push(schema.trim());
-    const schemaLabels=['FAQPage Schema','BlogPosting Schema','BreadcrumbList Schema','HowTo Schema'];
-    const schemaBlocksHTML=schemaBlocks.map((block,i)=>`
-      <div class="schema-section">
-        <div class="schema-header">
-          <span class="schema-label">${schemaLabels[i]||'Schema Block '+(i+1)}</span>
-          <button class="copy-btn schema-copy" onclick="copySchema(${i})">Copy Block</button>
-          <span class="copy-ok" id="sok${i}">\u2713 Copied</span>
-        </div>
-        <div class="schema-block"><pre id="sb${i}">${block.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre></div>
-      </div>`).join('');
-    const fields=[
-      {label:'Title / H1', value:title, id:'f0'},
-      {label:'Permalink URL', value:slug, id:'f1'},
-      {label:'Full Blog Post URL', value:fullUrl, id:'f2'},
-      {label:'Meta Description', value:meta, id:'f3'},
-      {label:'Keywords', value:keywords, id:'f4'},
-      {label:'Category', value:category, id:'f5'},
-      {label:'Featured Image URL', value:featUrl, id:'f6'},
-      {label:'Publish Date', value:today, id:'f7'},
-    ];
-    const fieldsHTML=fields.map(f=>`
-      <div class="field">
-        <span class="label">${f.label}</span>
-        <span class="value" id="${f.id}">${f.value||'\u2014'}</span>
-        <button class="copy-btn" id="cpbtn-${f.id}" onclick="copyField('${f.id}','c${f.id}')">Copy</button>
-        <span class="copy-ok" id="c${f.id}">\u2713</span>
-      </div>`).join('');
-    const schemaJSON=JSON.stringify(schemaBlocks);
-    const cb=S._costBreakdown||{gemini:0,claude:0,total:0};
-    const runTime=getTimerStr();
-    const costReport=`
-<h2>Run Cost Report</h2>
-<p style="font-size:12px;color:#888;margin-bottom:14px;">Estimated costs based on current API pricing. Actual billing may vary.</p>
-<div class="field">
-  <span class="label">Run Time</span>
-  <span class="value" id="rtime">${runTime}</span>
-</div>
-<div class="field">
-  <span class="label">Claude Cost</span>
-  <span class="value" id="rclaude">$${cb.claude.toFixed(4)} &nbsp;<span style="color:#aaa;font-size:11px;">(${S.tokens.ci.toLocaleString()} in / ${S.tokens.co.toLocaleString()} out tokens)</span></span>
-</div>
-<div class="field">
-  <span class="label">Gemini Text Cost</span>
-  <span class="value" id="rgemini">$${((S.tokens.gi/1e6*1.25)+(S.tokens.go/1e6*10.00)).toFixed(4)} &nbsp;<span style="color:#aaa;font-size:11px;">(${S.tokens.gi.toLocaleString()} in / ${S.tokens.go.toLocaleString()} out tokens)</span></span>
-</div>
-<div class="field">
-  <span class="label">Image Cost</span>
-  <span class="value" id="rimages">$${(S.tokens.imgs*0.020).toFixed(4)} &nbsp;<span style="color:#aaa;font-size:11px;">(${S.tokens.imgs} image${S.tokens.imgs!==1?'s':''} × $0.020)</span></span>
-</div>
-<div class="field" style="border:2px solid #063a6c;">
-  <span class="label" style="color:#063a6c;font-weight:700;">Total Est. Cost</span>
-  <span class="value" style="font-weight:700;font-size:16px;" id="rtotal">$${cb.total.toFixed(4)}</span>
-</div>`;
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Checklist + Schema \u2014 ${S.topic.substring(0,50)}</title>
-<style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 900px; margin: 40px auto; padding: 0 24px 60px; color: #063a6c; line-height: 1.6; }
-  .article-title { font-family: 'Georgia', serif; font-size: 28px; font-weight: 700; color: #063a6c; line-height: 1.2; margin-bottom: 6px; padding-bottom: 16px; border-bottom: 3px solid #2494e0; }
-  .article-meta { font-size: 13px; color: #888; margin-bottom: 28px; }
-  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: #2494e0; margin: 32px 0 12px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px; }
-  .field { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; padding: 10px 14px; background: #f9f9f9; border-radius: 8px; border: 1px solid #e0e0e0; }
-  .label { font-weight: 600; min-width: 170px; flex-shrink: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #888; padding-top: 2px; }
-  .value { font-size: 13px; flex: 1; word-break: break-all; color: #063a6c; }
-  .copy-btn { flex-shrink: 0; background: #063a6c; color: #fff; border: none; border-radius: 5px; padding: 4px 10px; font-size: 11px; font-family: inherit; cursor: pointer; white-space: nowrap; transition: background 0.2s; }
-  .copy-btn:hover { background: #2494e0; }
-  .copy-btn.schema-copy { background: #dd6b00; font-size: 12px; padding: 5px 14px; }
-  .copy-btn.schema-copy:hover { background: #c05a00; }
-  .copy-ok { font-size: 11px; color: #4caf50; font-weight: 600; opacity: 0; transition: opacity 0.3s; white-space: nowrap; }
-  .copy-ok.show { opacity: 1; }
-  .schema-section { margin-bottom: 20px; }
-  .schema-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-  .schema-label { font-size: 13px; font-weight: 600; color: #063a6c; flex: 1; }
-  .schema-block { background: #f2f2f2; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; overflow-x: auto; }
-  pre { margin: 0; font-size: 11px; white-space: pre-wrap; word-break: break-word; color: #333; line-height: 1.6; }
-  .all-schema-btn { display: inline-block; margin-bottom: 16px; background: #063a6c; color: #fff; border: none; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-family: inherit; cursor: pointer; }
-  .all-schema-btn:hover { background: #2494e0; }
-</style>
-</head>
-<body>
-<div class="article-title">${title||S.topic}</div>
-<div class="article-meta">Client: ${S.client?.name||'\u2014'} &nbsp;\xb7&nbsp; Published: ${today} &nbsp;\xb7&nbsp; ${fullUrl||slug}</div>
-<h2>AI Authority Article Optimization Checklist</h2>
-${fieldsHTML}
-${costReport}
-<h2>Schema Markup</h2>
-<p style="font-size:12px;color:#888;margin-bottom:14px;">Copy each block separately into Yoast or your site header.</p>
-<button class="all-schema-btn" onclick="copyAllSchema()">\u2398 Copy All Schema Blocks</button>
-<span class="copy-ok" id="sokAll" style="margin-left:10px;font-size:13px;">\u2713 All Copied</span>
-${schemaBlocksHTML}
-<`+'script>'+`
-  var rawBlocks = `+schemaJSON+`;
-
-  function fallbackCopy(text) {
-    // Method 1: textarea select + execCommand
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    ta.setAttribute('readonly', '');
-    ta.style.cssText = 'position:fixed;top:0;left:0;width:2em;height:2em;padding:0;border:none;outline:none;box-shadow:none;background:transparent;';
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    ta.setSelectionRange(0, 999999); // iOS support
-    var ok = false;
-    try { ok = document.execCommand('copy'); } catch(e) { ok = false; }
-    document.body.removeChild(ta);
-    return ok;
-  }
-
-  function clipCopy(text, ok, btnId) {
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(function(){ flash(ok, btnId); }).catch(function(){ fallbackCopy(text); flash(ok, btnId); });
-    } else {
-      fallbackCopy(text); flash(ok, btnId);
-    }
-  }
-
-  function copyField(id, ok) { clipCopy(document.getElementById(id).innerText || '', ok, id); }
-  function copySchema(i) { clipCopy(rawBlocks[i], 'sok'+i, null); }
-  function copyAllSchema() { clipCopy(rawBlocks.join('\\n\\n'), 'sokAll', null); }
-  function flash(okId, btnId) {
-    var el=document.getElementById(okId); if(el){ el.classList.add('show'); setTimeout(function(){ el.classList.remove('show'); }, 2000); }
-    if(btnId){ var btn=document.getElementById('cpbtn-'+btnId); if(btn){ var orig=btn.textContent; btn.textContent='COPIED'; btn.style.background='#4caf50'; setTimeout(function(){ btn.textContent=orig; btn.style.background=''; }, 2000); } }
-  }
-`+'</'+'script>'+`
-</body>
-</html>`;
-  }
 
   function extractField(text, fieldName) {
     const patterns = [
@@ -2074,7 +1907,6 @@ ${schemaBlocksHTML}
       const { result, applied, failed, log } = applyDiffs(S.finalTXT, auditResult);
       S.finalTXT = result;
       showHTMLFinal(S.finalTXT);
-      S.checklistHTML = buildChecklistHTML(S.finalSchema);
       // Update the system bubble with result summary
       const bubbles = thread.querySelectorAll('.qc-bubble.system');
       const last = bubbles[bubbles.length - 1];
@@ -2147,7 +1979,6 @@ ${schemaBlocksHTML}
         const { result: fixed, applied, failed, log } = applyDiffs(S.finalTXT, result);
         S.finalTXT = fixed;
         showHTMLFinal(S.finalTXT);
-        S.checklistHTML = buildChecklistHTML(S.finalSchema);
         const summary = result.replace(/DIFF_START[\s\S]*?DIFF_END/g, '').trim();
         bubble.textContent = (summary ? summary + '\n\n' : '') + `✅ Applied: ${applied} fix(es)${failed > 0 ? `, Failed: ${failed}` : ''}.`;
       } else {
@@ -2171,9 +2002,6 @@ ${schemaBlocksHTML}
     if (qc14Resolve) { qc14Resolve(); qc14Resolve = null; }
   }
 
-  async function rerunQC() {
-    // Legacy stub — no longer used but kept to avoid reference errors
-  }
 
   // ─── STEP 11: VOICE AUDIT CHAT ────────────────────────────
   let voice11Resolve = null;
@@ -3268,7 +3096,6 @@ V2 ARTICLE:\n${S.v2}`;
     // ── STEP 15: Complete ──────────────────────────────────────
     if(step<=15){
       stopTimer();
-      S.checklistHTML=buildChecklistHTML(S.finalSchema);
       saveSession(15);
       document.getElementById('outputsSec').classList.add('open');
       setStep(15,'done','Done ✓','✓ Article complete — use download buttons above.');
@@ -3410,7 +3237,7 @@ V2 ARTICLE:\n${S.v2}`;
     running=false; document.getElementById('runBtn').disabled=false;
     document.getElementById('runBtn').style.display='flex';
     document.getElementById('stopBtn').style.display='none';
-    if(!timerInterval) {} else { stopTimer(); }
+    if(timerInterval) stopTimer();
   }
 
 </script>
