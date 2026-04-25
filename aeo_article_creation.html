@@ -614,6 +614,7 @@
         <button class="btn-assemble" id="assembleBtn" onclick="validateImages()" disabled>Validate Images</button>
         <button class="btn-assemble" id="dlAllBtn" onclick="downloadAllImages()" disabled style="background:var(--blue);margin-left:6px;">↓ All Images</button>
         <div class="assemble-hint" id="assembleHint">Enter all WP URLs above to unlock</div>
+        <button class="btn-assemble" id="unlockStep13Btn" onclick="unlockStep13()" style="display:none;background:#4caf50;margin-left:6px;font-size:11px;">🔓 Unlock Step 13</button>
       </div>
     </div>
 
@@ -894,6 +895,8 @@
         html1TXT:S.html1TXT||'',
         imageUrls:S.imageUrls||{},
         tokens:S.tokens,
+        imagesValidated:imagesValidated,
+        checkpointDone:checkpointDone,
         savedAt:Date.now()
       };
       localStorage.setItem(SESSION_KEY,JSON.stringify(data));
@@ -961,6 +964,8 @@
       if(data.protectedSentences) S.protectedSentences=data.protectedSentences;
       if(data.html1TXT) S.html1TXT=data.html1TXT;
       if(data.imageUrls) S.imageUrls=data.imageUrls;
+      if(data.imagesValidated) imagesValidated=true;
+      if(data.checkpointDone) checkpointDone=true;
       if(data.geminiResearch) S.geminiResearch=data.geminiResearch;
       if(data.sheetRow) S.sheetRow=data.sheetRow;
       const topicInput=document.getElementById('topicInput');
@@ -1661,6 +1666,18 @@
     }
   }
 
+  function unlockStep13() {
+    imagesValidated = true;
+    checkpointDone = true;
+    const btn = document.getElementById('assembleBtn');
+    if(btn){ btn.textContent='Images Ready ✓'; btn.classList.add('ready'); btn.disabled=true; btn.onclick=null; }
+    document.getElementById('assembleHint').textContent='Unlocked — assembling now...';
+    document.getElementById('unlockStep13Btn').style.display='none';
+    saveSession(S._lastCompletedStep||12);
+    tryTriggerAssemble();
+    setG('✓ Step 13 unlocked manually.');
+  }
+
   function triggerAssemble() { tryTriggerAssemble(); }
   function waitAssemble() { return new Promise(res=>{asmResolve=res; tryTriggerAssemble();}); }
 
@@ -1705,7 +1722,7 @@
       <div class="field">
         <span class="label">${f.label}</span>
         <span class="value" id="${f.id}">${f.value||'\u2014'}</span>
-        <button class="copy-btn" onclick="copyField('${f.id}','c${f.id}')">Copy</button>
+        <button class="copy-btn" id="cpbtn-${f.id}" onclick="copyField('${f.id}','c${f.id}')">Copy</button>
         <span class="copy-ok" id="c${f.id}">\u2713</span>
       </div>`).join('');
     const schemaJSON=JSON.stringify(schemaBlocks);
@@ -1717,32 +1734,22 @@
 <div class="field">
   <span class="label">Run Time</span>
   <span class="value" id="rtime">${runTime}</span>
-  <button class="copy-btn" onclick="copyField('rtime','crtime')">Copy</button>
-  <span class="copy-ok" id="crtime">✓</span>
 </div>
 <div class="field">
   <span class="label">Claude Cost</span>
   <span class="value" id="rclaude">$${cb.claude.toFixed(4)} &nbsp;<span style="color:#aaa;font-size:11px;">(${S.tokens.ci.toLocaleString()} in / ${S.tokens.co.toLocaleString()} out tokens)</span></span>
-  <button class="copy-btn" onclick="copyField('rclaude','crclaude')">Copy</button>
-  <span class="copy-ok" id="crclaude">✓</span>
 </div>
 <div class="field">
   <span class="label">Gemini Text Cost</span>
   <span class="value" id="rgemini">$${((S.tokens.gi/1e6*1.25)+(S.tokens.go/1e6*10.00)).toFixed(4)} &nbsp;<span style="color:#aaa;font-size:11px;">(${S.tokens.gi.toLocaleString()} in / ${S.tokens.go.toLocaleString()} out tokens)</span></span>
-  <button class="copy-btn" onclick="copyField('rgemini','crgemini')">Copy</button>
-  <span class="copy-ok" id="crgemini">✓</span>
 </div>
 <div class="field">
   <span class="label">Image Cost</span>
   <span class="value" id="rimages">$${(S.tokens.imgs*0.020).toFixed(4)} &nbsp;<span style="color:#aaa;font-size:11px;">(${S.tokens.imgs} image${S.tokens.imgs!==1?'s':''} × $0.020)</span></span>
-  <button class="copy-btn" onclick="copyField('rimages','crimages')">Copy</button>
-  <span class="copy-ok" id="crimages">✓</span>
 </div>
 <div class="field" style="border:2px solid #063a6c;">
   <span class="label" style="color:#063a6c;font-weight:700;">Total Est. Cost</span>
   <span class="value" style="font-weight:700;font-size:16px;" id="rtotal">$${cb.total.toFixed(4)}</span>
-  <button class="copy-btn" onclick="copyField('rtotal','crtotal')">Copy</button>
-  <span class="copy-ok" id="crtotal">✓</span>
 </div>`;
 
     return `<!DOCTYPE html>
@@ -1803,18 +1810,21 @@ ${schemaBlocksHTML}
     return ok;
   }
 
-  function clipCopy(text, ok) {
+  function clipCopy(text, ok, btnId) {
     if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(function(){ flash(ok); }).catch(function(){ fallbackCopy(text); flash(ok); });
+      navigator.clipboard.writeText(text).then(function(){ flash(ok, btnId); }).catch(function(){ fallbackCopy(text); flash(ok, btnId); });
     } else {
-      fallbackCopy(text); flash(ok);
+      fallbackCopy(text); flash(ok, btnId);
     }
   }
 
-  function copyField(id, ok) { clipCopy(document.getElementById(id).innerText || '', ok); }
-  function copySchema(i) { clipCopy(rawBlocks[i], 'sok'+i); }
-  function copyAllSchema() { clipCopy(rawBlocks.join('\\n\\n'), 'sokAll'); }
-  function flash(id) { var el=document.getElementById(id); if(!el) return; el.classList.add('show'); setTimeout(function(){ el.classList.remove('show'); }, 2000); }
+  function copyField(id, ok) { clipCopy(document.getElementById(id).innerText || '', ok, id); }
+  function copySchema(i) { clipCopy(rawBlocks[i], 'sok'+i, null); }
+  function copyAllSchema() { clipCopy(rawBlocks.join('\\n\\n'), 'sokAll', null); }
+  function flash(okId, btnId) {
+    var el=document.getElementById(okId); if(el){ el.classList.add('show'); setTimeout(function(){ el.classList.remove('show'); }, 2000); }
+    if(btnId){ var btn=document.getElementById('cpbtn-'+btnId); if(btn){ var orig=btn.textContent; btn.textContent='COPIED'; btn.style.background='#4caf50'; setTimeout(function(){ btn.textContent=orig; btn.style.background=''; }, 2000); } }
+  }
 `+'</'+'script>'+`
 </body>
 </html>`;
@@ -3037,7 +3047,9 @@ HARD RULES:
       }
       checkpointDone=true; checkUrls();
       if(!imagesValidated) setG('⚠ Upload images to WordPress, paste URLs, then Validate Images.');
-      else setG('✓ Images validated — assembling now...');
+      else { setG('✓ Images validated — assembling now...'); }
+      // Show unlock button as failsafe if pipeline is stuck after Step 12
+      setTimeout(()=>{ if(imagesValidated && checkpointDone && !asmResolve){ const ub=document.getElementById('unlockStep13Btn'); if(ub) ub.style.display='inline-block'; } }, 3000);
       await waitAssemble();
       step=13;
     }
@@ -3130,7 +3142,7 @@ V2 ARTICLE:\n${S.v2}`;
     const dkey=document.getElementById('keyDrive').value.trim();
     if(!akey||!gkey){alert('API keys required.');return;}
     const rb=document.getElementById(`r${n}`); if(rb) rb.style.display='none';
-    if(n>=7){imagesValidated=false;checkpointDone=false;asmResolve=null;}
+    if(n<=7){imagesValidated=false;checkpointDone=false;asmResolve=null;}
     if(n<=9){step8RetryCount=0;}
     // Reset voice/qc resolves if retrying before them
     if(n<=11&&voice11Resolve){voice11Resolve();voice11Resolve=null;}
