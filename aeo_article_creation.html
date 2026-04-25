@@ -715,8 +715,10 @@
     checkSessionRestore();
   });
 
+  let _isRestoring = false; // Bug H flag — prevents onClientChange from clearing restored session
+
   function onClientChange() {
-    if(!running){
+    if(!running && !_isRestoring){
       S.docs={}; S.sheetRow=''; S.geminiResearch=''; S.v1=''; S.v2='';
       S.finalTXT=''; S.finalSchema=''; S.checklistHTML=''; S.html1TXT='';
       S.parsedFails=[]; S.parsedFlags=[]; S.protectedSentences=[];
@@ -943,6 +945,7 @@
   }
 
   function dismissRestore() {
+    _isRestoring = false;
     document.getElementById('restoreBanner').style.display='none';
     document.getElementById('restoreDivider').style.display='none';
   }
@@ -951,6 +954,7 @@
     try {
       const data=JSON.parse(localStorage.getItem(SESSION_KEY));
       if(!data) return;
+      _isRestoring = true; // Bug H — prevent onClientChange from clearing session
       S.topic=data.topic||''; S.tokens=data.tokens||S.tokens;
       S._lastCompletedStep=data.lastCompletedStep||0;
       if(data.parsedFails) S.parsedFails=data.parsedFails;
@@ -969,20 +973,21 @@
       else if(data.checklistHTML){ S.checklistHTML=data.checklistHTML; }
       if(S.finalTXT||S.checklistHTML){ document.getElementById('outputsSec').classList.add('open'); }
       updateCost();
-      // Determine continue step from saved lastCompletedStep
-      let continueStep=null;
+      // Bug I fix — continue step is always lastCompletedStep + 1, capped correctly
       const last=data.lastCompletedStep||0;
-      if(last>=14) continueStep=null; // already complete
+      let continueStep=null;
+      if(last>=14) continueStep=null;
       else if(last>=13) continueStep=14;
       else if(last>=12) continueStep=13;
       else if(last>=11) continueStep=12;
       else if(last>=10) continueStep=11;
       else if(last>=9) continueStep=10;
-      else if(last>=7) continueStep=8;   // after images, go to Gemini validation
-      else if(last>=6) continueStep=7;   // after V1 gate, go to images
-      else if(last>=5) continueStep=6;   // after prose, go to V1 gate
-      else if(last>=3) continueStep=5;   // after skeleton, go to prose fill
-      else if(last>=2) continueStep=3;   // after Gemini research, go to skeleton
+      else if(last>=7) continueStep=8;
+      else if(last>=6) continueStep=7;
+      else if(last>=5) continueStep=6;
+      else if(last>=4) continueStep=5;
+      else if(last>=3) continueStep=4; // Bug I fix — was incorrectly mapping to 5
+      else if(last>=2) continueStep=3;
       const continueBtn=document.getElementById('continueFromBtn');
       if(continueStep && continueBtn){
         continueBtn.textContent=`Continue from Step ${continueStep} →`;
@@ -1007,6 +1012,7 @@
     const clients=JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');
     const globals=JSON.parse(localStorage.getItem(GLOBALS_KEY)||'{}');
     S.client=clients[parseInt(cidx)];
+    _isRestoring = false; // Bug H — restore complete, normal client changes can clear session again
     dismissRestore();
     // Mark completed steps as done visually
     for(let i=1;i<step;i++) setStep(i,'done','Done ✓');
