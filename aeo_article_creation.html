@@ -245,6 +245,7 @@
   .stat-label { font-family:'Bebas Neue',sans-serif; font-size:12px; text-transform:uppercase; letter-spacing:1.5px; color:var(--blue); opacity:0.55; }
   .stat-value { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--blue); letter-spacing:1px; line-height:1; }
 </style>
+<script src="https://unpkg.com/docx@9.0.3/build/index.js"></script>
 </head>
 <body>
 
@@ -371,7 +372,7 @@
   <div class="outputs-section" id="outputsSec">
     <div class="otitle">✓ Article Complete</div>
     <div class="obts">
-      <button class="btn-out" onclick="dlChecklist()">↓ Checklist + Schema</button>
+      <button class="btn-out" onclick="dlChecklist()">↓ Checklist (.docx)</button>
       <button class="btn-out orange" onclick="dlHTML()">↓ Final HTML</button>
     </div>
     <div class="upload-status" id="uploadStatus"></div>
@@ -1604,14 +1605,168 @@
     URL.revokeObjectURL(a.href);
   }
 
-  function dlChecklist() {
-    if(!S.checklistHTML){alert('Checklist not ready yet — complete the pipeline first.');return;}
-    const slug=extractField(S.v2,'Permalink URL')||S.topic.replace(/[^a-z0-9]+/gi,'-').toLowerCase();
-    const fname=`${slug}-checklist.html`;
-    const blob=new Blob([S.checklistHTML],{type:'text/html'});
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download=fname;
+  async function dlChecklist() {
+    if(!S.finalSchema && !S.checklistHTML){alert('Checklist not ready yet — complete the pipeline first.');return;}
+    try {
+      await buildChecklistDocx();
+    } catch(e) {
+      console.error('Docx generation failed:', e);
+      alert('Docx generation failed: ' + e.message);
+    }
+  }
+
+  async function buildChecklistDocx() {
+    const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle, WidthType, ShadingType, Table, TableRow, TableCell, VerticalAlign } = docx;
+
+    const featUrl = S.imageUrls[getFeatured()] || '(not set)';
+    const publishDate = document.getElementById('publishDate').value || '(not set)';
+    const title = extractField(S.v2,'Meta Title') || extractField(S.v2,'H1') || S.topic;
+    const slug = extractField(S.v2,'Permalink URL') || '';
+    const fullUrl = extractField(S.v2,'Full Blog Post URL') || '';
+    const meta = extractField(S.v2,'Meta Description') || '';
+    const keywords = extractField(S.v2,'Keywords') || '';
+    const category = extractField(S.v2,'Category') || '';
+    const cb = S._costBreakdown || {gemini:0, claude:0, total:0};
+    const runTime = getTimerStr();
+
+    // Schema blocks
+    const schemaBlocks = [];
+    const schemaRe = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi;
+    let sm;
+    const schemaStr = S.finalSchema || '';
+    while((sm = schemaRe.exec(schemaStr)) !== null) { schemaBlocks.push(sm[0].trim()); }
+    if(schemaBlocks.length === 0 && schemaStr.trim()) schemaBlocks.push(schemaStr.trim());
+    const schemaLabels = ['FAQPage Schema','BlogPosting Schema','BreadcrumbList Schema','HowTo Schema'];
+
+    const BLUE = '063a6c';
+    const ORANGE = 'dd6b00';
+    const LIGHT = 'f0f4f8';
+    const border = { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' };
+    const borders = { top: border, bottom: border, left: border, right: border };
+
+    function labelPara(text) {
+      return new Paragraph({
+        spacing: { before: 200, after: 60 },
+        children: [new TextRun({ text, bold: true, color: BLUE, size: 22, font: 'Arial' })]
+      });
+    }
+
+    function valuePara(text) {
+      return new Paragraph({
+        spacing: { before: 0, after: 160 },
+        children: [new TextRun({ text: text || '—', size: 22, font: 'Arial', color: '333333' })]
+      });
+    }
+
+    function divider() {
+      return new Paragraph({
+        spacing: { before: 120, after: 120 },
+        border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: '2494e0', space: 1 } },
+        children: []
+      });
+    }
+
+    function sectionHeading(text) {
+      return new Paragraph({
+        spacing: { before: 320, after: 120 },
+        children: [new TextRun({ text: text.toUpperCase(), bold: true, color: '2494e0', size: 20, font: 'Arial' })]
+      });
+    }
+
+    function monoBlock(text) {
+      // Split into lines, each line is a paragraph with monospace font
+      return text.split('\n').map(line => new Paragraph({
+        spacing: { before: 0, after: 0 },
+        children: [new TextRun({ text: line || ' ', font: 'Courier New', size: 16, color: '333333' })]
+      }));
+    }
+
+    const fields = [
+      { label: 'Title / H1', value: title },
+      { label: 'Permalink URL', value: slug },
+      { label: 'Full Blog Post URL', value: fullUrl },
+      { label: 'Meta Description', value: meta },
+      { label: 'Keywords', value: keywords },
+      { label: 'Category', value: category },
+      { label: 'Featured Image URL', value: featUrl },
+      { label: 'Publish Date', value: publishDate },
+    ];
+
+    const children = [];
+
+    // Title
+    children.push(new Paragraph({
+      spacing: { before: 0, after: 120 },
+      children: [new TextRun({ text: title || S.topic, bold: true, size: 36, font: 'Arial', color: BLUE })]
+    }));
+    children.push(new Paragraph({
+      spacing: { before: 0, after: 320 },
+      children: [new TextRun({ text: `Client: ${S.client?.name || '—'}  ·  Published: ${publishDate}`, size: 18, font: 'Arial', color: '888888' })]
+    }));
+
+    // Metadata section
+    children.push(sectionHeading('AI Authority Article Optimization Checklist'));
+    children.push(divider());
+
+    fields.forEach(f => {
+      children.push(labelPara(f.label));
+      children.push(valuePara(f.value));
+    });
+
+    // Cost section
+    children.push(sectionHeading('Run Cost Report'));
+    children.push(divider());
+    children.push(labelPara('Run Time'));
+    children.push(valuePara(runTime));
+    children.push(labelPara('Claude Cost'));
+    children.push(valuePara('$' + cb.claude.toFixed(4) + ' (' + (S.tokens.ci||0).toLocaleString() + ' in / ' + (S.tokens.co||0).toLocaleString() + ' out tokens)'));
+    children.push(labelPara('Gemini Text Cost'));
+    const geminiCost = ((S.tokens.gi||0)/1e6*1.25) + ((S.tokens.go||0)/1e6*10.00);
+    children.push(valuePara('$' + geminiCost.toFixed(4) + ' (' + (S.tokens.gi||0).toLocaleString() + ' in / ' + (S.tokens.go||0).toLocaleString() + ' out tokens)'));
+    children.push(labelPara('Image Cost'));
+    children.push(valuePara('$' + ((S.tokens.imgs||0)*0.020).toFixed(4) + ' (' + (S.tokens.imgs||0) + ' images × $0.020)'));
+    children.push(labelPara('Total Estimated Cost'));
+    children.push(new Paragraph({
+      spacing: { before: 0, after: 160 },
+      children: [new TextRun({ text: '$' + (cb.total||0).toFixed(4), bold: true, size: 26, font: 'Arial', color: BLUE })]
+    }));
+
+    // Schema section
+    children.push(sectionHeading('Schema Markup'));
+    children.push(divider());
+    children.push(new Paragraph({
+      spacing: { before: 0, after: 160 },
+      children: [new TextRun({ text: 'Copy each block into Yoast or your site header.', size: 18, font: 'Arial', color: '888888' })]
+    }));
+
+    schemaBlocks.forEach((block, i) => {
+      children.push(new Paragraph({
+        spacing: { before: 240, after: 80 },
+        children: [new TextRun({ text: schemaLabels[i] || ('Schema Block ' + (i+1)), bold: true, size: 22, font: 'Arial', color: ORANGE })]
+      }));
+      monoBlock(block).forEach(p => children.push(p));
+      children.push(new Paragraph({ spacing: { before: 80, after: 0 }, children: [] }));
+    });
+
+    const doc = new Document({
+      sections: [{
+        properties: {
+          page: {
+            size: { width: 12240, height: 15840 },
+            margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
+          }
+        },
+        children
+      }]
+    });
+
+    const buffer = await Packer.toBuffer(doc);
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    const slug2 = extractField(S.v2,'Permalink URL') || S.topic.replace(/[^a-z0-9]+/gi,'-').toLowerCase();
+    const fname = slug2.replace(/^\//, '') + '-checklist.docx';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -3067,15 +3222,15 @@ HARD RULES:
 BLOCK 1 — SCHEMA (=== SCHEMA START === / === SCHEMA END ===)
 Complete schema: FAQPage, BlogPosting, BreadcrumbList — each in own script tag.
 - Featured image URL: ${S.imageUrls[getFeatured()]||''}
-- Publish date: ${publishDate}
-- CRITICAL DATE RULE: Use EXACTLY "${publishDate}" for ALL date fields. NOT today (${today}). NOT any other date.
+- Publish date: ${pd}
+- CRITICAL DATE RULE: Use EXACTLY "${pd}" for ALL date fields. NOT today (${today}). NOT any other date.
 - Entity data from 4.3B.
 
 BLOCK 2 — HTML (=== HTML START === / === HTML END ===)
 Complete article HTML. Pure HTML, paste-ready for Beaver Builder. No title tag, no wrapper.
 Images: ${imgLines.join(' | ')}
 Featured: Image ${featNum}
-- CRITICAL DATE RULE: Use EXACTLY "${publishDate}" everywhere a date appears (Last Updated, schema, etc.)
+- CRITICAL DATE RULE: Use EXACTLY "${pd}" everywhere a date appears (Last Updated, schema, etc.)
 - CTA must be a plain text link — NOT a button, NOT a styled div, NO background color on CTA section
 - Convert all markdown tables to branded HTML tables per 4.3B spec (itv-table-1, itv-table-2, etc.)
 - No link in the Direct Answer section (content before the first H2 heading)
@@ -3091,14 +3246,14 @@ V2 ARTICLE:\n${S.v2}`;
       S.finalTXT = S.finalTXT.replace(/^[^<]*/, '').replace(/>[^<]*$/, '>').trim();
       S.html1TXT=S.finalTXT;
       // Post-assembly date fix
-      if(publishDate){
+      if(pd){
         const dp=/\b(20\d\d-\d{2}-\d{2})\b/g; let fc=0;
-        S.finalTXT=S.finalTXT.replace(dp,(m)=>{ if(m!==publishDate){fc++;return publishDate;} return m; });
-        S.finalSchema=S.finalSchema.replace(dp,(m)=>m!==publishDate?publishDate:m);
-        if(fc>0) document.getElementById('o13').textContent+=`\n\n✅ Date fix: replaced ${fc} wrong date(s) with ${publishDate}.`;
+        S.finalTXT=S.finalTXT.replace(dp,(m)=>{ if(m!==pd){fc++;return pd;} return m; });
+        S.finalSchema=S.finalSchema.replace(dp,(m)=>m!==pd?pd:m);
+        if(fc>0) document.getElementById('o13').textContent+=`\n\n✅ Date fix: replaced ${fc} wrong date(s) with ${pd}.`;
       }
-      S.checklistHTML=buildChecklistHTML(S.finalSchema);
-      showHTMLFinal(S.finalTXT); showSchema(S.finalSchema,publishDate,S.imageUrls[getFeatured()]||'');
+      // checklist now built as docx on demand
+      showHTMLFinal(S.finalTXT); showSchema(S.finalSchema,pd,S.imageUrls[getFeatured()]||'');
       // Save to history immediately — outputs never lost even if Step 14 dies
       setStep(13,'done','Done ✓'); saveSession(13);
       step=14;
@@ -3198,6 +3353,7 @@ V2 ARTICLE:\n${S.v2}`;
     S.geminiResearch=''; S.sheetRow=''; S.v1=''; S.v2='';
     S.finalTXT=''; S.finalSchema=''; S.checklistHTML='';
     imagesValidated=false; checkpointDone=false; step8RetryCount=0;
+    resetTimer(); startTimer();
     voice11Resolve=null; qc14Resolve=null; voice11Busy=false; voice11AKey='';
     // Clear session on fresh run — not on stop
     localStorage.removeItem(SESSION_KEY);
