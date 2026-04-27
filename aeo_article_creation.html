@@ -267,6 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.0</p>
   </div>
 </div>
 
@@ -379,7 +380,7 @@
   <div class="outputs-section" id="outputsSec">
     <div class="otitle">✓ Article Complete</div>
     <div class="obts">
-      <button class="btn-out" onclick="dlChecklist()">↓ Checklist (.docx)</button>
+      <button class="btn-out" onclick="dlChecklist()">↓ Checklist (.html)</button>
       <button class="btn-out orange" onclick="dlHTML()">↓ Final HTML</button>
     </div>
     <div class="upload-status" id="uploadStatus"></div>
@@ -533,6 +534,10 @@
             <span style="font-size:10px;color:var(--faint);">Ctrl+Enter to send</span>
             <button class="btn-proceed" id="voiceApproveBtn" onclick="approveVoice()" style="margin-left:auto;background:var(--green);">✓ Voice Approved</button>
           </div>
+        </div>
+        <div id="voice11FailRow" style="display:none;gap:8px;margin-top:8px;">
+          <button class="btn-retry" onclick="retryVoiceFixes()">↻ Retry Fixes</button>
+          <button class="btn-proceed" onclick="approveVoice()" style="margin-top:0;">Continue Anyway →</button>
         </div>
         <div id="r11" style="display:none;"><button class="btn-retry" onclick="retryFrom(10)">↻ Retry from Step 10</button></div>
       </div>
@@ -1592,180 +1597,137 @@
     URL.revokeObjectURL(a.href);
   }
 
-  async function loadDocxLib() {
-    if(window.docx) return; // already loaded
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/docx@9.0.3/build/index.js';
-      s.onload = resolve;
-      s.onerror = () => reject(new Error('Failed to load docx library'));
-      document.head.appendChild(s);
-    });
-  }
-
-  async function dlChecklist() {
+  function dlChecklist() {
     if(!S.finalSchema && !S.checklistHTML){alert('Checklist not ready yet — complete the pipeline first.');return;}
-    try {
-      await loadDocxLib();
-      await buildChecklistDocx();
-    } catch(e) {
-      console.error('Docx generation failed:', e);
-      alert('Docx generation failed: ' + e.message);
-    }
-  }
-
-  async function buildChecklistDocx() {
-    const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle, WidthType, ShadingType, Table, TableRow, TableCell, VerticalAlign } = docx;
-
     const featUrl = S.imageUrls[getFeatured()] || '(not set)';
-    const publishDate = document.getElementById('publishDate').value || '(not set)';
+    const pd = document.getElementById('publishDate').value || '(not set)';
     const title = extractField(S.v2,'Meta Title') || extractField(S.v2,'H1') || S.topic;
     const slug = extractField(S.v2,'Permalink URL') || '';
     const fullUrl = extractField(S.v2,'Full Blog Post URL') || '';
     const meta = extractField(S.v2,'Meta Description') || '';
     const keywords = extractField(S.v2,'Keywords') || '';
     const category = extractField(S.v2,'Category') || '';
-    const cb = S._costBreakdown || {gemini:0, claude:0, total:0};
+    const cb = S._costBreakdown || {gemini:0,claude:0,total:0};
+    const geminiCost = ((S.tokens.gi||0)/1e6*1.25)+((S.tokens.go||0)/1e6*10.00);
     const runTime = getTimerStr();
 
-    // Schema blocks
+    // Parse schema blocks
     const schemaBlocks = [];
-    const schemaRe = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi;
-    let sm;
-    const schemaStr = S.finalSchema || '';
-    while((sm = schemaRe.exec(schemaStr)) !== null) { schemaBlocks.push(sm[0].trim()); }
-    if(schemaBlocks.length === 0 && schemaStr.trim()) schemaBlocks.push(schemaStr.trim());
     const schemaLabels = ['FAQPage Schema','BlogPosting Schema','BreadcrumbList Schema','HowTo Schema'];
-
-    const BLUE = '063a6c';
-    const ORANGE = 'dd6b00';
-
-    function labelPara(text) {
-      return new Paragraph({
-        spacing: { before: 200, after: 60 },
-        children: [new TextRun({ text, bold: true, color: BLUE, size: 22, font: 'Arial' })]
-      });
-    }
-
-    function valuePara(text) {
-      return new Paragraph({
-        spacing: { before: 0, after: 160 },
-        children: [new TextRun({ text: text || '—', size: 22, font: 'Arial', color: '333333' })]
-      });
-    }
-
-    function divider() {
-      return new Paragraph({
-        spacing: { before: 120, after: 120 },
-        border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: '2494e0', space: 1 } },
-        children: []
-      });
-    }
-
-    function sectionHeading(text) {
-      return new Paragraph({
-        spacing: { before: 320, after: 120 },
-        children: [new TextRun({ text: text.toUpperCase(), bold: true, color: '2494e0', size: 20, font: 'Arial' })]
-      });
-    }
-
-    function monoBlock(text) {
-      // Split into lines, each line is a paragraph with monospace font
-      return text.split('\n').map(line => new Paragraph({
-        spacing: { before: 0, after: 0 },
-        children: [new TextRun({ text: line || ' ', font: 'Courier New', size: 16, color: '333333' })]
-      }));
-    }
+    const schemaRe = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi;
+    let sm; const schemaStr = S.finalSchema || '';
+    while((sm = schemaRe.exec(schemaStr)) !== null) schemaBlocks.push(sm[0].trim());
+    if(schemaBlocks.length === 0 && schemaStr.trim()) schemaBlocks.push(schemaStr.trim());
 
     const fields = [
-      { label: 'Title / H1', value: title },
-      { label: 'Permalink URL', value: slug },
-      { label: 'Full Blog Post URL', value: fullUrl },
-      { label: 'Meta Description', value: meta },
-      { label: 'Keywords', value: keywords },
-      { label: 'Category', value: category },
-      { label: 'Featured Image URL', value: featUrl },
-      { label: 'Publish Date', value: publishDate },
+      {label:'Title / H1', value:title},
+      {label:'Permalink URL', value:slug},
+      {label:'Full Blog Post URL', value:fullUrl},
+      {label:'Meta Description', value:meta},
+      {label:'Keywords', value:keywords},
+      {label:'Category', value:category},
+      {label:'Featured Image URL', value:featUrl},
+      {label:'Publish Date', value:pd},
     ];
 
-    const children = [];
+    const fieldRows = fields.map(f => `
+      <div class="cl-field">
+        <div class="cl-label">${f.label}</div>
+        <div class="cl-val-wrap">
+          <div class="cl-value" onclick="this.nextElementSibling.select();" title="Click textarea below to select all">${f.value||'—'}</div>
+          <textarea class="cl-ta" onclick="this.select();" readonly>${f.value||''}</textarea>
+          <button class="cl-btn" onclick="clCopy(this)">Copy</button>
+        </div>
+      </div>`).join('');
 
-    // Title
-    children.push(new Paragraph({
-      spacing: { before: 0, after: 120 },
-      children: [new TextRun({ text: title || S.topic, bold: true, size: 36, font: 'Arial', color: BLUE })]
-    }));
-    children.push(new Paragraph({
-      spacing: { before: 0, after: 320 },
-      children: [new TextRun({ text: `Client: ${S.client?.name || '—'}  ·  Published: ${publishDate}`, size: 18, font: 'Arial', color: '888888' })]
-    }));
+    const schemaRows = schemaBlocks.map((block, i) => `
+      <div class="cl-field">
+        <div class="cl-label" style="color:#dd6b00;">${schemaLabels[i]||'Schema Block '+(i+1)}</div>
+        <div class="cl-val-wrap">
+          <textarea class="cl-ta cl-ta-schema" onclick="this.select();" readonly>${block}</textarea>
+          <button class="cl-btn" onclick="clCopy(this)">Copy</button>
+        </div>
+      </div>`).join('');
 
-    // Metadata section
-    children.push(sectionHeading('AI Authority Article Optimization Checklist'));
-    children.push(divider());
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>${title} — Checklist</title>
+<style>
+  body{font-family:Arial,sans-serif;font-size:14px;color:#063a6c;max-width:860px;margin:40px auto;padding:0 24px;background:#fff;}
+  h1{font-size:20px;margin-bottom:4px;color:#063a6c;}
+  .sub{font-size:12px;color:#888;margin-bottom:28px;}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:2px;color:#2494e0;border-bottom:2px solid #2494e0;padding-bottom:4px;margin:28px 0 14px;}
+  .cl-field{margin-bottom:16px;}
+  .cl-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#063a6c;margin-bottom:4px;}
+  .cl-val-wrap{display:flex;align-items:flex-start;gap:8px;}
+  .cl-value{display:none;}
+  .cl-ta{flex:1;font-family:Arial,sans-serif;font-size:13px;color:#063a6c;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;padding:8px 10px;resize:none;cursor:pointer;min-height:36px;line-height:1.5;}
+  .cl-ta-schema{font-family:monospace;font-size:11px;min-height:120px;}
+  .cl-ta:focus{outline:2px solid #2494e0;background:#fff;}
+  .cl-btn{background:#063a6c;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0;align-self:flex-start;}
+  .cl-btn:hover{background:#2494e0;}
+  .cl-btn.copied{background:#4caf50;}
+  .cost-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .cost-item{background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;padding:10px 14px;}
+  .cost-item .cv{font-size:18px;font-weight:700;color:#063a6c;margin-top:4px;}
+  .cost-item.total{border-color:#063a6c;background:#f0f4f8;}
+  .cost-item.total .cv{font-size:22px;color:#dd6b00;}
+</style>
+</head>
+<body>
+<h1>${title}</h1>
+<div class="sub">Client: ${S.client?.name||'—'} &nbsp;·&nbsp; Published: ${pd} &nbsp;·&nbsp; Generated: ${new Date().toLocaleDateString()}</div>
 
-    fields.forEach(f => {
-      children.push(labelPara(f.label));
-      children.push(valuePara(f.value));
-    });
+<h2>Article Optimization Checklist</h2>
+${fieldRows}
 
-    // Cost section
-    children.push(sectionHeading('Run Cost Report'));
-    children.push(divider());
-    children.push(labelPara('Run Time'));
-    children.push(valuePara(runTime));
-    children.push(labelPara('Claude Cost'));
-    children.push(valuePara('$' + cb.claude.toFixed(4) + ' (' + (S.tokens.ci||0).toLocaleString() + ' in / ' + (S.tokens.co||0).toLocaleString() + ' out tokens)'));
-    children.push(labelPara('Gemini Text Cost'));
-    const geminiCost = ((S.tokens.gi||0)/1e6*1.25) + ((S.tokens.go||0)/1e6*10.00);
-    children.push(valuePara('$' + geminiCost.toFixed(4) + ' (' + (S.tokens.gi||0).toLocaleString() + ' in / ' + (S.tokens.go||0).toLocaleString() + ' out tokens)'));
-    children.push(labelPara('Image Cost'));
-    children.push(valuePara('$' + ((S.tokens.imgs||0)*0.020).toFixed(4) + ' (' + (S.tokens.imgs||0) + ' images × $0.020)'));
-    children.push(labelPara('Total Estimated Cost'));
-    children.push(new Paragraph({
-      spacing: { before: 0, after: 160 },
-      children: [new TextRun({ text: '$' + (cb.total||0).toFixed(4), bold: true, size: 26, font: 'Arial', color: BLUE })]
-    }));
+<h2>Run Cost Report</h2>
+<div class="cost-grid">
+  <div class="cost-item"><div class="cl-label">Run Time</div><div class="cv">${runTime}</div></div>
+  <div class="cost-item"><div class="cl-label">Claude Cost</div><div class="cv">$${(cb.claude||0).toFixed(4)}</div></div>
+  <div class="cost-item"><div class="cl-label">Gemini Text Cost</div><div class="cv">$${geminiCost.toFixed(4)}</div></div>
+  <div class="cost-item"><div class="cl-label">Image Cost</div><div class="cv">$${((S.tokens.imgs||0)*0.020).toFixed(4)}</div></div>
+  <div class="cost-item total" style="grid-column:span 2"><div class="cl-label">Total Estimated Cost</div><div class="cv">$${(cb.total||0).toFixed(4)}</div></div>
+</div>
 
-    // Schema section
-    children.push(sectionHeading('Schema Markup'));
-    children.push(divider());
-    children.push(new Paragraph({
-      spacing: { before: 0, after: 160 },
-      children: [new TextRun({ text: 'Copy each block into Yoast or your site header.', size: 18, font: 'Arial', color: '888888' })]
-    }));
+<h2>Schema Markup</h2>
+<p style="font-size:12px;color:#888;margin-bottom:14px;">Click any textarea to select all, then copy — or use the Copy button.</p>
+${schemaRows}
 
-    schemaBlocks.forEach((block, i) => {
-      children.push(new Paragraph({
-        spacing: { before: 240, after: 80 },
-        children: [new TextRun({ text: schemaLabels[i] || ('Schema Block ' + (i+1)), bold: true, size: 22, font: 'Arial', color: ORANGE })]
-      }));
-      monoBlock(block).forEach(p => children.push(p));
-      children.push(new Paragraph({ spacing: { before: 80, after: 0 }, children: [] }));
-    });
+<script>
+function clCopy(btn) {
+  const ta = btn.previousElementSibling;
+  ta.select();
+  try {
+    document.execCommand('copy');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  } catch(e) {
+    btn.textContent = 'Select & Ctrl+C';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2500);
+  }
+}
+// Auto-size textareas
+document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
+  ta.style.height = 'auto';
+  ta.style.height = Math.max(36, ta.scrollHeight) + 'px';
+});
+</script>
+</body>
+</html>`;
 
-    const doc = new Document({
-      sections: [{
-        properties: {
-          page: {
-            size: { width: 12240, height: 15840 },
-            margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
-          }
-        },
-        children
-      }]
-    });
-
-    const buffer = await Packer.toBuffer(doc);
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-    const slug2 = extractField(S.v2,'Permalink URL') || S.topic.replace(/[^a-z0-9]+/gi,'-').toLowerCase();
-    const fname = slug2.replace(/^\//, '') + '-checklist.docx';
+    const fname = (slug.replace(/^\/,'') || S.topic.replace(/[^a-z0-9]+/gi,'-').toLowerCase()) + '-checklist.html';
+    const blob = new Blob([html], {type:'text/html'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = fname;
     a.click();
     URL.revokeObjectURL(a.href);
   }
+
 
   function downloadAllImages() {
     const total=S.imagePrompts.length;
@@ -2138,14 +2100,16 @@ ${S.v2}`;
           const {result:fixed, applied, failed} = applyDiffs(S.v2, autoResult);
           S.v2 = fixed; showV2(S.v2); updateWordCount(S.v2); saveSession(10);
           if(failed > 0) {
-            // Some fixes failed — show UI for human decision
-            autoApplyBubble.textContent = `Applied: ${applied}. Failed: ${failed} — review below or continue.`;
-            const qa = document.getElementById('voiceQuickActions');
-            if(qa) { qa.style.display='flex'; }
-            document.getElementById('voiceChatInput').style.display = 'block';
+            // Some fixes failed — show clean 2-button UI only
+            autoApplyBubble.textContent = `Applied: ${applied}. Failed: ${failed} — retry or continue.`;
+            // Hide everything, show only 2 buttons
+            document.getElementById('voiceQuickActions').style.display = 'none';
+            document.getElementById('voiceChatInput').style.display = 'none';
+            // Build simple 2-button row
+            const failRow = document.getElementById('voice11FailRow');
+            if(failRow) failRow.style.display = 'flex';
             setStep(11, 'checkpoint', 'Your Turn');
             setG('Some fixes failed — retry or continue.');
-            document.getElementById('voiceMsg').focus();
             return new Promise(res => { voice11Resolve = res; });
           } else {
             autoApplyBubble.textContent = `✅ All ${applied} fix(es) applied automatically.`;
@@ -2296,6 +2260,51 @@ PROTECTED — never touch these:
     setStep(11, 'done', 'Done ✓');
     setG('✓ Voice approved.');
     if (voice11Resolve) { voice11Resolve(); voice11Resolve = null; }
+  }
+
+  async function retryVoiceFixes() {
+    document.getElementById('voice11FailRow').style.display = 'none';
+    const auditReport = window._lastVoiceAudit || '';
+    if(!auditReport) { approveVoice(); return; }
+    const thread = document.getElementById('voiceChatThread');
+    const bubble = voiceAppendBubble('system', '⏳ Retrying fixes...');
+    const fixSys = `You are making EXACTLY 3 surgical voice fixes to an AEO article.
+CRITICAL RULES: Output ONLY DIFF_START/DIFF_END blocks. Nothing else.
+DIFF_START
+FIND:
+[exact text from article — copy verbatim, 10-20 words max]
+REPLACE:
+[replacement text only]
+DIFF_END
+PROTECTED: Direct Answer, tables, image prompts, links, headings, schema.`;
+    try {
+      window._v2Snapshot = S.v2;
+      const result = await callClaude(fixSys, `Apply the 3 fixes from this audit report.
+
+AUDIT REPORT:
+${auditReport}
+
+ARTICLE:
+${S.v2}`, voice11AKey, null, {maxTokens:4000});
+      if(result.includes('DIFF_START')) {
+        const {result:fixed, applied, failed} = applyDiffs(S.v2, result);
+        S.v2 = fixed; showV2(S.v2); updateWordCount(S.v2); saveSession(10);
+        bubble.textContent = `Applied: ${applied}. Failed: ${failed}.`;
+        if(failed > 0) {
+          document.getElementById('voice11FailRow').style.display = 'flex';
+          return;
+        }
+      } else {
+        bubble.textContent = '⚠ No DIFF blocks — V2 unchanged.';
+      }
+    } catch(e) {
+      bubble.textContent = `⚠ Error: ${e.message}`;
+    }
+    // Auto-approve after retry
+    saveSession(11);
+    setStep(11, 'done', 'Done ✓ (auto)');
+    setG('✓ Step 11 complete.');
+    if(voice11Resolve) { voice11Resolve(); voice11Resolve = null; }
   }
 
   function buildSys() {
