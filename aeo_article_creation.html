@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.1</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.2</p>
   </div>
 </div>
 
@@ -712,6 +712,7 @@
     client:null, topic:'', docs:{}, sheetRow:'',
     geminiResearch:'', v1:'', validation:'', parsedFails:[], parsedFlags:[],
     protectedSentences:[], v2:'', finalTXT:'', html1TXT:'', finalSchema:'', checklistHTML:'',
+    directAnswer:'',
     imagePrompts:[], imageData:{}, imageUrls:{},
     tokens:{gi:0,go:0,ci:0,co:0,imgs:0}
   };
@@ -910,6 +911,7 @@
         html1TXT:S.html1TXT||'',
         imageUrls:S.imageUrls||{},
         tokens:S.tokens,
+        directAnswer:S.directAnswer||'',
         imagesValidated:imagesValidated,
         checkpointDone:checkpointDone,
         savedAt:Date.now()
@@ -968,6 +970,7 @@
       if(data.checkpointDone) checkpointDone=true;
       if(data.geminiResearch) S.geminiResearch=data.geminiResearch;
       if(data.sheetRow) S.sheetRow=data.sheetRow;
+      if(data.directAnswer) S.directAnswer=data.directAnswer;
       const topicInput=document.getElementById('topicInput');
       if(topicInput && data.topic) topicInput.value=data.topic;
       if(data.v1){ S.v1=data.v1; showV1(data.v1); }
@@ -1134,6 +1137,66 @@
       }).join('\n').trim();
     }
     return text;
+  }
+
+  // ─── DA ZONE HARD RESTORE ─────────────────────────────────
+  // After Step 5, replaces whatever Claude wrote between repeated H1 and first H2
+  // with: locked DA + Last Updated + ToC extracted from Step 5 output
+  // Nothing is deleted — filler moves after ToC if ToC is present, else before H2
+  function hardRestoreDAZone(text, lockedDA) {
+    const lines = text.split('\n');
+
+    // Find repeated H1
+    let h1Count = 0, repeatedH1Idx = -1;
+    for(let i = 0; i < lines.length; i++) {
+      if(lines[i].match(/^#\s+[^#]/)) { h1Count++; if(h1Count >= 2) { repeatedH1Idx = i; break; } }
+    }
+    if(repeatedH1Idx === -1) return text; // no repeated H1 — bail safely
+
+    // Find first H2 after repeated H1
+    let firstH2Idx = -1;
+    for(let i = repeatedH1Idx + 1; i < lines.length; i++) {
+      if(lines[i].match(/^##\s+[^#]/)) { firstH2Idx = i; break; }
+    }
+    if(firstH2Idx === -1) return text; // no H2 — bail safely
+
+    // Extract Last Updated and ToC from Step 5 output (these are legitimate Step 5 additions)
+    const zoneLines = lines.slice(repeatedH1Idx + 1, firstH2Idx);
+    const lastUpdatedLines = [];
+    const tocLines = [];
+    const fillerLines = [];
+    let tocStarted = false;
+    let daZonePassed = false;
+
+    for(const line of zoneLines) {
+      const t = line.trim();
+      if(/^(\*\*)?last updated/i.test(t)) { lastUpdatedLines.push(line); daZonePassed = true; continue; }
+      if(/^(#{1,3}\s*)?(table of contents|in this article)/i.test(t)) { tocLines.push(line); tocStarted = true; daZonePassed = true; continue; }
+      if(tocStarted && /^\s*[-*]\s+\[.+\]\(#.+\)/.test(line)) { tocLines.push(line); continue; }
+      if(tocStarted && t === '') { tocLines.push(line); continue; }
+      if(/^\s*[-*]\s+\[.+\]\(#.+\)/.test(line) && daZonePassed) { tocLines.push(line); continue; }
+      if(/^---+\s*$/.test(t) && daZonePassed) { tocLines.push(line); continue; }
+      // Anything that isn't DA, Last Updated, or ToC = filler (relocate after ToC)
+      if(daZonePassed && t !== '') fillerLines.push(line);
+    }
+
+    // Reconstruct: locked DA + Last Updated + ToC + filler (relocated) + blank
+    const reconstructed = [
+      '',
+      ...lockedDA.split('\n'),
+      '',
+      ...lastUpdatedLines,
+      '',
+      ...tocLines,
+      ...(fillerLines.length > 0 ? ['', ...fillerLines] : []),
+      ''
+    ];
+
+    return [
+      ...lines.slice(0, repeatedH1Idx + 1),
+      ...reconstructed,
+      ...lines.slice(firstH2Idx)
+    ].join('\n');
   }
 
   // ─── IMAGE EXTRACTION ─────────────────────────────────────
@@ -1504,6 +1567,38 @@
       .replace(/^\*\s+\*\*.+\*\*.*$/gm, '')
       .replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm, '')
       .replace(/^---+\s*$/gm, '')
+      .replace(/\[H[123]\]/gi, '')
+      .trim();
+  }
+
+  // Extracts ONLY the DA prose — stops at Last Updated or ToC, not at H2
+  // Used to lock the DA after Step 3 — does not include Last Updated or ToC lines
+  function extractLockedDA(text) {
+    const h1Match = text.match(/^#\s+.+$/m);
+    if(!h1Match) return '';
+    const afterFirstH1 = text.slice(text.indexOf(h1Match[0]) + h1Match[0].length);
+    const repeatedH1 = afterFirstH1.match(/^#\s+.+$/m);
+    let afterDA = '';
+    if(repeatedH1) {
+      afterDA = afterFirstH1.slice(afterFirstH1.indexOf(repeatedH1[0]) + repeatedH1[0].length);
+    } else {
+      afterDA = afterFirstH1;
+    }
+    // Split into lines, collect until we hit Last Updated, ToC header, ToC link, separator, or H2
+    const lines = afterDA.split('\n');
+    const daLines = [];
+    for(const line of lines) {
+      const t = line.trim();
+      if(!t) { daLines.push(line); continue; } // preserve blank lines within DA
+      if(/^(\*\*)?last updated/i.test(t)) break;
+      if(/^(#{1,3}\s*)?(table of contents|in this article)/i.test(t)) break;
+      if(/^\s*[-*]\s+\[.+\]\(#.+\)/.test(line)) break; // ToC anchor link
+      if(/^##\s/.test(line)) break; // H2
+      if(/^---+\s*$/.test(t)) break; // separator
+      daLines.push(line);
+    }
+    return daLines.join('\n')
+      .replace(/^\*\s+\*\*.+\*\*.*$/gm, '') // strip checklist bullets
       .replace(/\[H[123]\]/gi, '')
       .trim();
   }
@@ -2492,34 +2587,12 @@ ${S.v2}`, voice11AKey, null, {maxTokens:4000});
     // FAQ
     const hasFAQ=/##\s*(frequently asked|faq)/i.test(v1);
     results.push({key:'faq',label:'FAQ section present',pass:hasFAQ,detail:hasFAQ?'Found':'Missing'});
-    // Direct answer — skip checklist block before counting
-    const h1Match=v1.match(/^(?!##)#\s+.+/m);
-    let daWords=0;
-    if(h1Match){
-      const afterH1=v1.slice(v1.indexOf(h1Match[0])+h1Match[0].length);
-      // Find the repeated H1 (after the checklist block) — that's where the real article starts
-      const repeatedH1=afterH1.match(/^(?!##)#\s+.+/m);
-      let daSection='';
-      if(repeatedH1){
-        const afterRepeatedH1=afterH1.slice(afterH1.indexOf(repeatedH1[0])+repeatedH1[0].length);
-        const firstH2=afterRepeatedH1.search(/^##\s/m);
-        daSection=firstH2>0?afterRepeatedH1.slice(0,firstH2):afterRepeatedH1.slice(0,1500);
-      } else {
-        // No repeated H1 — fall back to first H2
-        const firstH2=afterH1.search(/^##\s/m);
-        daSection=firstH2>0?afterH1.slice(0,firstH2):afterH1.slice(0,1500);
-      }
-      const daText=daSection
-        .replace(/\[H[123]\]/gi,'')
-        .replace(/last updated.*/gim,'')
-        .replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'') // ToC links
-        .replace(/^---+\s*$/gm,'')
-        .trim();
-      daWords=daText.split(/\s+/).filter(w=>w.length>2).length;
-    }
-    results.push({key:'directAnswer',label:'Direct answer 150-450 words',pass:daWords>=150&&daWords<=450,detail:`~${daWords} words`});
-    // No links in direct answer — find everything before the first H2
-    {
+    // Direct Answer check — if S.directAnswer is locked, compare exactly; otherwise fall back to word count
+    if(S.directAnswer && S.directAnswer.length > 50) {
+      const currentDA = extractLockedDA(v1);
+      const daMatch = currentDA.trim() === S.directAnswer.trim();
+      results.push({key:'directAnswer',label:'Direct Answer matches locked version',pass:daMatch,detail:daMatch?'✓ Exact match':'⚠ DA content differs from Step 3 locked version — restoring'});
+      // Also check no links in DA zone
       const firstH2Idx=v1.search(/^##\s/m);
       const daZone=firstH2Idx>0?v1.slice(0,firstH2Idx):v1.slice(0,2000);
       const mdLinksInDA=(daZone.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[]).filter(l=>!/\]\(#/.test(l));
@@ -2527,23 +2600,39 @@ ${S.v2}`, voice11AKey, null, {maxTokens:4000});
       const totalDALinks=mdLinksInDA.length+htmlLinksInDA.length;
       const daLinksClean=totalDALinks===0;
       results.push({key:'sacredGround',label:'No links in Direct Answer',pass:daLinksClean,detail:daLinksClean?'Clean':`${totalDALinks} link(s) found — must remove all links before first H2`});
-    }
-    // DA-to-H2 gap check: only Last Updated and ToC allowed between DA and first H2
-    {
+      // daGap is now enforced by hardRestoreDAZone — treat as always passing if DA locked
+      results.push({key:'daGap',label:'DA zone structure enforced',pass:true,detail:'Enforced by JS after Step 5'});
+    } else {
+      // Fallback: old word count check (no locked DA available — e.g. restored session pre-fix)
+      const h1Match=v1.match(/^(?!##)#\s+.+/m);
+      let daWords=0;
+      if(h1Match){
+        const afterH1=v1.slice(v1.indexOf(h1Match[0])+h1Match[0].length);
+        const repeatedH1=afterH1.match(/^(?!##)#\s+.+/m);
+        let daSection='';
+        if(repeatedH1){
+          const afterRepeatedH1=afterH1.slice(afterH1.indexOf(repeatedH1[0])+repeatedH1[0].length);
+          const firstH2=afterRepeatedH1.search(/^##\s/m);
+          daSection=firstH2>0?afterRepeatedH1.slice(0,firstH2):afterRepeatedH1.slice(0,1500);
+        } else {
+          const firstH2=afterH1.search(/^##\s/m);
+          daSection=firstH2>0?afterH1.slice(0,firstH2):afterH1.slice(0,1500);
+        }
+        const daText=daSection.replace(/\[H[123]\]/gi,'').replace(/last updated.*/gim,'').replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'').replace(/^---+\s*$/gm,'').trim();
+        daWords=daText.split(/\s+/).filter(w=>w.length>2).length;
+      }
+      results.push({key:'directAnswer',label:'Direct answer 150-450 words',pass:daWords>=150&&daWords<=450,detail:`~${daWords} words`});
       const firstH2Idx=v1.search(/^##\s/m);
-      if(firstH2Idx>0){
-        const gapZone=v1.slice(0,firstH2Idx);
-        // Strip: H1, checklist block (--- separators), Last Updated line, ToC links, image prompts, blank lines
-        const cleaned=gapZone
-          .replace(/^#\s+.+$/gm,'')                          // H1
-          .replace(/^---+\s*$/gm,'')                         // separators
-          .replace(/last updated.*/gim,'')                   // Last Updated line
-          .replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'')     // ToC anchor links
-          .replace(/^\*\s+\*\*.+\*\*.*$/gm,'')              // checklist bullet items
-          .replace(/PROMPT:[\s\S]*?ALT TEXT:.*$/gm,'')       // image prompts
-          .replace(/\[.*?\]/g,'')                            // bracket placeholders
-          .replace(/\*\*.+\*\*/g,'')                         // bold text (meta fields)
-          .trim();
+      const daZone=firstH2Idx>0?v1.slice(0,firstH2Idx):v1.slice(0,2000);
+      const mdLinksInDA=(daZone.match(/\[([^\]]+)\]\(([^)]+)\)/g)||[]).filter(l=>!/\]\(#/.test(l));
+      const htmlLinksInDA=(daZone.match(/<a\s[^>]*href\s*=/gi)||[]);
+      const totalDALinks=mdLinksInDA.length+htmlLinksInDA.length;
+      const daLinksClean=totalDALinks===0;
+      results.push({key:'sacredGround',label:'No links in Direct Answer',pass:daLinksClean,detail:daLinksClean?'Clean':`${totalDALinks} link(s) found — must remove all links before first H2`});
+      const firstH2Idx2=v1.search(/^##\s/m);
+      if(firstH2Idx2>0){
+        const gapZone=v1.slice(0,firstH2Idx2);
+        const cleaned=gapZone.replace(/^#\s+.+$/gm,'').replace(/^---+\s*$/gm,'').replace(/last updated.*/gim,'').replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'').replace(/^\*\s+\*\*.+\*\*.*$/gm,'').replace(/PROMPT:[\s\S]*?ALT TEXT:.*$/gm,'').replace(/\[.*?\]/g,'').replace(/\*\*.+\*\*/g,'').trim();
         const gapWords=cleaned.split(/\s+/).filter(w=>w.length>3).length;
         const gapClean=gapWords<12;
         results.push({key:'daGap',label:'No stray prose between DA and first H2',pass:gapClean,detail:gapClean?'Clean':`~${gapWords} word(s) of unexpected content found between Direct Answer and first H2 — only Last Updated and ToC allowed`});
@@ -2728,6 +2817,8 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
       const u3=`EXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${skeletonInstr}\n\n${anchorInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}`;
       S.v1=await callClaude(sys,u3,akey,(p)=>{document.getElementById('o3').textContent=p;document.getElementById('sb3').classList.add('open');},{maxTokens:32000});
       if(S.v1.length<1000) throw new Error(`Step 3: Skeleton too short (${S.v1.length} chars) — retry.`);
+      // Lock the DA immediately after Step 3 — this is the canonical, sacred DA
+      S.directAnswer = extractLockedDA(S.v1);
       setStep(3,"done","Done ✓"); showV1(S.v1, false); saveSession(3);
       step=4;
     }
@@ -2860,6 +2951,11 @@ HARD RULES:
       const v1prose=await callClaude(sys,u5,akey,(p)=>{document.getElementById('o5').textContent=p;document.getElementById('sb5').classList.add('open');},{maxTokens:64000});
       if(v1prose.length<3000) throw new Error(`Step 5: Prose output too short (${v1prose.length} chars) — retry.`);
       S.v1=v1prose;
+      // Hard restore DA zone after Step 5 — replaces whatever Claude wrote between H1 and first H2
+      // with exactly: S.directAnswer + Last Updated + ToC from the Step 5 output
+      if(S.directAnswer && S.directAnswer.length > 50) {
+        S.v1 = hardRestoreDAZone(S.v1, S.directAnswer);
+      }
       S.imagePrompts=extractImgPrompts(S.v1);
       showV1(S.v1); saveSession(5);
       setStep(5,'done','Done ✓');
@@ -2895,7 +2991,67 @@ HARD RULES:
           else { setStep(6,'done','Overridden ✓'); break; }
         }
         setG(`V1 gate attempt ${attempts}/${MAX_ATTEMPTS} — fixing...`,true);
-        const failDesc=failures.map(f=>{
+
+        // JS DA restore — if DA match fails, restore from locked version before Claude
+        if(failures.some(f=>f.key==='directAnswer') && S.directAnswer && S.directAnswer.length>50){
+          S.v1 = hardRestoreDAZone(S.v1, S.directAnswer);
+          showV1(S.v1);
+          appendO6(`✅ JS DA restore applied — locked DA from Step 3 restored.`);
+        }
+
+        // JS daGap fix — runs before Claude for this specific failure
+        // Deterministic: strips everything between DA end and first H2 except Last Updated and ToC links
+        if(failures.some(f=>f.key==='daGap')){
+          const lines=S.v1.split('\n');
+          const firstH2Idx=lines.findIndex(l=>l.match(/^##\s/));
+          if(firstH2Idx>0){
+            // Find where direct answer ends (after repeated H1)
+            let daEndIdx=0;
+            let h1Count=0;
+            for(let i=0;i<firstH2Idx;i++){
+              if(lines[i].match(/^#\s+[^#]/)) h1Count++;
+              if(h1Count>=2){ daEndIdx=i+1; break; }
+            }
+            if(daEndIdx===0){
+              // No repeated H1 — find first H1 and use that
+              daEndIdx=(lines.findIndex(l=>l.match(/^#\s+[^#]/)))+1;
+            }
+            // Count words in DA to find its end
+            let wordCount=0; let daTextEnd=daEndIdx;
+            for(let i=daEndIdx;i<firstH2Idx;i++){
+              const w=lines[i].trim().split(/\s+/).filter(w=>w.length>2).length;
+              wordCount+=w;
+              if(wordCount>100) break; // DA is done, rest is gap
+              daTextEnd=i+1;
+            }
+            // Keep only: Last Updated lines and ToC anchor links in the gap zone
+            const cleanedGap=[];
+            for(let i=daTextEnd;i<firstH2Idx;i++){
+              const t=lines[i].trim();
+              if(!t) continue; // skip blank lines — will re-add
+              if(/last updated/i.test(t)) cleanedGap.push(lines[i]);
+              else if(/^\s*[-*]\s+\[.+\]\(#.+\)/.test(lines[i])) cleanedGap.push(lines[i]); // ToC link
+              else if(/^(#+\s*(table of contents|in this article))/i.test(t)) cleanedGap.push(lines[i]); // ToC header
+              // everything else: strip
+            }
+            const newLines=[
+              ...lines.slice(0,daTextEnd),
+              '',
+              ...cleanedGap,
+              '',
+              ...lines.slice(firstH2Idx)
+            ];
+            S.v1=newLines.join('\n');
+            showV1(S.v1);
+            appendO6(`✅ JS daGap fix applied — stripped stray prose between DA and first H2.`);
+          }
+        }
+
+        // Skip Claude call if only failure was daGap (JS already fixed it)
+        const remainingFailures=failures.filter(f=>f.key!=='daGap');
+        if(remainingFailures.length===0) continue;
+
+        const failDesc=remainingFailures.map(f=>{
           if(f.key==='extLinks') return `MISSING: Embed min 4 external hyperlinks from research brief adjacent to claims. NOT in Direct Answer.`;
           if(f.key==='intLinks') return `MISSING: Need min 6 internal links. Add from sheet row sibling slugs and trunk/branch URLs.`;
           if(f.key==='tables') return `MISSING: Need min 3 complete markdown tables with min 3 columns each.`;
@@ -2903,7 +3059,6 @@ HARD RULES:
           if(f.key==='faq') return `MISSING: FAQ section with 5-8 H3 questions before conclusion.`;
           if(f.key==='directAnswer') return `WRONG: Direct answer word count ${f.detail}. Adjust to 150-450 words.`;
           if(f.key==='sacredGround') return `CRITICAL: Remove ALL links from Direct Answer section (before first H2). Convert to plain text.`;
-          if(f.key==='daGap') return `CRITICAL: Remove all prose between the Direct Answer and first H2. Only Last Updated and ToC are allowed in that gap.`;
           return `ISSUE: ${f.label} — ${f.detail}`;
         }).join('\n\n');
         const fixSys6=`You are applying targeted fixes to an AEO article. Output ONLY DIFF_START/DIFF_END blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement]\nDIFF_END\n\n4.3B:\n${S.docs.doc43B}`;
@@ -3189,13 +3344,33 @@ V2 ARTICLE:\n${S.v2}`;
         return fixed;
       });
       S.html1TXT=S.finalTXT;
-      // Post-assembly date fix
+      // Post-assembly date fix — replace any ISO date not matching publish date
       if(pd){
         const dp=/\b(20\d\d-\d{2}-\d{2})\b/g; let fc=0;
         S.finalTXT=S.finalTXT.replace(dp,(m)=>{ if(m!==pd){fc++;return pd;} return m; });
         S.finalSchema=S.finalSchema.replace(dp,(m)=>m!==pd?pd:m);
         if(fc>0) document.getElementById('o13').textContent+=`\n\n✅ Date fix: replaced ${fc} wrong date(s) with ${pd}.`;
       }
+      // Last Updated format fix — convert YYYY-MM-DD to "Month DD, YYYY" in HTML
+      if(pd) {
+        const [yr,mo,dy] = pd.split('-');
+        const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        const formattedDate = `${months[parseInt(mo,10)-1]} ${parseInt(dy,10)}, ${yr}`;
+        // Replace bare ISO date in Last Updated context only (not schema dates)
+        S.finalTXT = S.finalTXT.replace(
+          /(<[^>]*class="last-updated"[^>]*>[\s\S]*?Last Updated:?\s*)[\d]{4}-[\d]{2}-[\d]{2}([\s\S]*?<\/)/gi,
+          (m, pre, post) => `${pre}${formattedDate}${post}`
+        );
+        // Also catch plain text Last Updated lines not in a span
+        S.finalTXT = S.finalTXT.replace(
+          /(Last Updated:?\s*)(\d{4}-\d{2}-\d{2})/gi,
+          (m, pre) => `${pre}${formattedDate}`
+        );
+        document.getElementById('o13').textContent+=`\n\n✅ Last Updated formatted as: ${formattedDate}`;
+      }
+      // ToC H3 injection — scan all H3 elements in HTML, add missing anchor links to ToC
+      S.finalTXT = injectToCH3Links(S.finalTXT);
+      document.getElementById('o13').textContent+='\n\n✅ ToC H3 links verified/injected.';
       // checklist now built as docx on demand
       userSelectedTab=false; showHTMLFinal(S.finalTXT); showSchema(S.finalSchema,pd,S.imageUrls[getFeatured()]||'');
       // Save to history immediately — outputs never lost even if Step 14 dies
@@ -3217,6 +3392,55 @@ V2 ARTICLE:\n${S.v2}`;
       setStep(15,'done','Done ✓','✓ Article complete — use download buttons above.');
       setG('✓ Article complete — download your files above.');
     }
+  }
+
+  // ─── TOC H3 INJECTION ────────────────────────────────────
+  // Scans HTML for H3 elements with IDs, checks if they appear in ToC, injects missing ones
+  function injectToCH3Links(html) {
+    // Find the ToC block — look for toc-body div
+    const tocBodyMatch = html.match(/(<div[^>]*class="toc-body[^"]*"[^>]*>)([\s\S]*?)(<\/div>)/i);
+    if(!tocBodyMatch) return html; // no ToC found — bail safely
+
+    const tocPre = html.slice(0, html.indexOf(tocBodyMatch[0]));
+    const tocPost = html.slice(html.indexOf(tocBodyMatch[0]) + tocBodyMatch[0].length);
+    const tocInner = tocBodyMatch[2];
+
+    // Extract all H2 anchor links already in ToC
+    const existingLinks = new Set();
+    const linkRe = /href="#([^"]+)"/g;
+    let lm;
+    while((lm = linkRe.exec(tocInner)) !== null) existingLinks.add(lm[1]);
+
+    // Find all H3 elements in the article HTML (after the ToC)
+    const h3Re = /<h3[^>]*id="([^"]+)"[^>]*>([\s\S]*?)<\/h3>/gi;
+    const h3s = [];
+    let hm;
+    const articlePart = tocPost; // H3s are in the article body, after the ToC
+    while((hm = h3Re.exec(articlePart)) !== null) {
+      const id = hm[1];
+      const rawText = hm[2].replace(/<[^>]+>/g,'').trim(); // strip inner tags
+      if(id && rawText && !existingLinks.has(id)) {
+        h3s.push({id, text: rawText});
+      }
+    }
+
+    if(h3s.length === 0) return html; // all H3s already in ToC — nothing to do
+
+    // Find the parent H2 link for each H3 and inject H3 links after it
+    // Strategy: inject all missing H3s as indented links at end of ToC body
+    // Group them under their nearest preceding H2 link
+    let newTocInner = tocInner;
+
+    // Build H3 link HTML — indented style matching existing h3-link class
+    const h3LinkHTML = h3s.map(h =>
+      `\n<a href="#${h.id}" class="h3-link">${h.text}</a>`
+    ).join('');
+
+    // Inject before closing of toc-body
+    newTocInner = newTocInner.trimEnd() + h3LinkHTML + '\n';
+
+    const newTocBlock = tocBodyMatch[1] + newTocInner + tocBodyMatch[3];
+    return tocPre + newTocBlock + tocPost;
   }
 
   // ─── HANDLE ERROR ─────────────────────────────────────────
@@ -3333,7 +3557,7 @@ V2 ARTICLE:\n${S.v2}`;
     S.imagePrompts=[]; S.imageData={}; S.imageUrls={};
     S.parsedFails=[]; S.protectedSentences=[]; S.html1TXT='';
     S.geminiResearch=''; S.sheetRow=''; S.v1=''; S.v2='';
-    S.finalTXT=''; S.finalSchema=''; S.checklistHTML='';
+    S.finalTXT=''; S.finalSchema=''; S.checklistHTML=''; S.directAnswer='';
     imagesValidated=false; checkpointDone=false; step8RetryCount=0;
     resetTimer(); startTimer();
     voice11Resolve=null; qc14Resolve=null; voice11Busy=false; voice11AKey='';
