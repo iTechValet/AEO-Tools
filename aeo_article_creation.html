@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.0</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.1</p>
   </div>
 </div>
 
@@ -403,7 +403,7 @@
         <div class="step-info"><div class="step-title">Gemini Research Brief</div><div class="step-desc">Prompt 1 — 8 deliverables: title, sources, intent map, FAQ seeds, links, POV anchors</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b2">Waiting</div><span class="schev closed" id="c2">▼</span></div>
       </div>
-      <div class="step-body" id="sb2"><div class="sout-wrap"><div class="sout" id="o2"></div><button class="btn-copy-step" id="copy-btn-2" onclick="copyStepOutput(2)">Copy</button></div></div>
+      <div class="step-body" id="sb2"><div class="sout-wrap"><div class="sout" id="o2"></div><button class="btn-copy-step" id="copy-btn-2" onclick="copyStepOutput(2)">Copy</button></div><div id="r2" style="display:none;"><button class="btn-retry" onclick="retryStep2()">↻ Retry Step 2</button></div></div>
     </div>
 
     <!-- STEP 3: Skeleton + Direct Answer -->
@@ -2096,11 +2096,12 @@ ${S.v2}`;
         window._v2Snapshot = S.v2;
         const autoResult = await callClaude(fixSysAuto, fixUserAuto, akey, null, {maxTokens:4000});
         if(autoResult.includes('DIFF_START')) {
-          const {result:fixed, applied, failed} = applyDiffs(S.v2, autoResult);
+          const {result:fixed, applied, failed, log} = applyDiffs(S.v2, autoResult);
           S.v2 = fixed; showV2(S.v2); updateWordCount(S.v2); saveSession(10);
           if(failed > 0) {
-            // Some fixes failed — show clean 2-button UI only
-            autoApplyBubble.textContent = `Applied: ${applied}. Failed: ${failed} — retry or continue.`;
+            // Some fixes failed — show which ones failed, then 2-button UI
+            const failedItems = log.filter(l=>l.startsWith('❌')).join('\n');
+            autoApplyBubble.textContent = `Applied: ${applied}. Failed: ${failed} — retry or continue.\n\nFailed fix(es):\n${failedItems}`;
             // Hide everything, show only 2 buttons
             document.getElementById('voiceQuickActions').style.display = 'none';
             document.getElementById('voiceChatInput').style.display = 'none';
@@ -2852,7 +2853,8 @@ HARD RULES:
 - NO prose between Direct Answer and first H2 (only Last Updated and ToC belong there)
 - CTA must be a text link — NOT a button, NOT a styled element
 - Every H2 section addresses at least 3-4 of the 5 intent layers
-- Voice: lead with the point, then explain — NEVER setup before verdict`;
+- Voice: lead with the point, then explain — NEVER setup before verdict
+- EXTERNAL LINK ATTRIBUTION: When embedding an external link, always mention the source name naturally in the surrounding sentence. Example: "According to BrightEdge..." or "Semrush data shows..." — never embed a bare link with no attribution in the text`;
 
       const u5=`IMPORTANT OVERRIDE: You are in PROSE FILL mode. You are NOT writing an article from scratch. You are filling in a skeleton that already exists. Follow the PROSE FILL INSTRUCTIONS below — ignore any "write the full article" instructions from 4.3A or Prompt 2. The skeleton structure is final. Your only job is to replace placeholders with content.\n\nPUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${proseInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}\n\n---\nSKELETON TO FILL:\n${S.v1}`;
       const v1prose=await callClaude(sys,u5,akey,(p)=>{document.getElementById('o5').textContent=p;document.getElementById('sb5').classList.add('open');},{maxTokens:64000});
@@ -2977,6 +2979,37 @@ HARD RULES:
           S.v1=result; showV1(S.v1);
           document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\n${log.join('\n')}\n\nApplied: ${applied}, Failed: ${failed}`;
         } else if(fixResult.length>2000){ S.v1=fixResult; showV1(S.v1); }
+        // JS anchor text correction — fix all internal link anchors by URL match
+        // This handles cases where Claude modifies anchor text (adds "the", wrong casing, etc.)
+        const bpAnchorsForFix=(S.geminiResearch.match(/Semantic Anchor:\s*"([^"]+)"/g)||[]).map(l=>l.replace(/Semantic Anchor:\s*"/,'').replace(/"$/,''));
+        const bpUrlsForFix=(S.geminiResearch.match(/URL:\s*(https?:\/\/itechvalet\.com[^\s|"]+)/gi)||[]).map(l=>l.replace(/URL:\s*/i,'').trim());
+        // Build map of URL slug → correct anchor text from blueprint
+        const anchorMap={};
+        // Extract all [anchor](url) pairs from gemini research brief
+        const bpLinkMatches=S.geminiResearch.match(/Semantic Anchor:\s*"([^"]+)"[\s\S]*?(?:URL|Link):\s*(https?:\/\/itechvalet\.com[^\s\n|"]+)/gi)||[];
+        bpLinkMatches.forEach(block=>{
+          const anchorM=block.match(/Semantic Anchor:\s*"([^"]+)"/i);
+          const urlM=block.match(/(?:URL|Link):\s*(https?:\/\/itechvalet\.com[^\s\n|"]+)/i);
+          if(anchorM&&urlM){
+            const slug=urlM[1].replace(/https?:\/\/itechvalet\.com/,'').replace(/\/$/,'');
+            anchorMap[slug]=anchorM[1];
+          }
+        });
+        if(Object.keys(anchorMap).length>0){
+          let anchorFixed=0;
+          S.v1=S.v1.replace(/\[([^\]]+)\]\((https?:\/\/itechvalet\.com[^)]+)\)/g,(match,anchor,url)=>{
+            const slug=url.replace(/https?:\/\/itechvalet\.com/,'').replace(/\/$/,'');
+            if(anchorMap[slug]&&anchor!==anchorMap[slug]){
+              anchorFixed++;
+              return `[${anchorMap[slug]}](${url})`;
+            }
+            return match;
+          });
+          if(anchorFixed>0){
+            showV1(S.v1);
+            document.getElementById('o9').textContent+=`\n\n✅ JS Anchor Fix: corrected ${anchorFixed} anchor text mismatch(es)`;
+          }
+        }
         // Gemini re-validation
         setG('Gemini re-validating fixes...',true);
         const revalPrompt=`Fixes applied to article. Check ONLY whether each original FAIL item was resolved.\n\nORIGINAL FAILs:\n${S.parsedFails.map(f=>`${f.id}: ${f.desc}`).join('\n')}\n\nFIXED ARTICLE:\n${S.v1}\n\nOutput: [ITEM_ID]: PASS — [confirmation] OR [ITEM_ID]: FAIL — [what's still wrong]`;
@@ -3149,6 +3182,12 @@ V2 ARTICLE:\n${S.v2}`;
       else { const m2=assemblyResult.match(/```(?:html)?\n([\s\S]*?)```/i); if(m2&&m2[1].trim().length>100){ S.finalTXT=m2[1].trim(); } else { throw new Error('Step 13: No HTML block found. Retry.'); } }
       // Strip any stray non-HTML text before first tag or after last closing tag
       S.finalTXT = S.finalTXT.replace(/^[^<]*/, '').replace(/>[^<]*$/, '>').trim();
+      // Duplicate CTA paragraph detection — remove exact duplicate <p> blocks
+      S.finalTXT = S.finalTXT.replace(/(<p>[^<]{20,}<\/p>)\s*(<p>[^<]*<\/p>\s*)*\1/gi, (match, p1) => {
+        const fixed = match.replace(new RegExp(p1.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*$'), '');
+        if(fixed !== match) document.getElementById('o13').textContent += '\n\n✅ Duplicate CTA paragraph removed.';
+        return fixed;
+      });
       S.html1TXT=S.finalTXT;
       // Post-assembly date fix
       if(pd){
@@ -3236,6 +3275,45 @@ V2 ARTICLE:\n${S.v2}`;
     checkSessionRestore();
   }
 
+  // ─── STEP 2 RUNNER (extracted for retry support) ──────────
+  async function retryStep2() {
+    const akey=document.getElementById('keyAnthropic').value.trim();
+    const gkey=document.getElementById('keyGemini').value.trim();
+    const dkey=document.getElementById('keyDrive').value.trim();
+    if(!gkey){alert('Gemini API key required.');return;}
+    document.getElementById('r2').style.display='none';
+    running=true;
+    document.getElementById('runBtn').disabled=true;
+    document.getElementById('runBtn').style.display='none';
+    document.getElementById('stopBtn').style.display='flex';
+    try {
+      await runStep2(S.docs.doc43B,S.docs.doc22,S.docs.doc23,S.docs.doc44,S.topic,gkey);
+      await runFrom(3,buildSys(),akey,gkey,dkey);
+    } catch(err){ handleErr(err); }
+    running=false;
+    document.getElementById('runBtn').disabled=false;
+    document.getElementById('runBtn').style.display='flex';
+    document.getElementById('stopBtn').style.display='none';
+  }
+
+  // ─── STEP 2 RUNNER (extracted for retry support) ──────────
+  async function runStep2(doc43B,doc22,doc23,doc44,topic,gkey) {
+    setStep(2,'active','Researching...'); setG('Gemini building research brief...',true);
+    document.getElementById('r2').style.display='none';
+    const p1=getPrompt(doc44,1);
+    const gp=`You are operating inside the iTech Valet AI Authority Pipeline.\n\nCLIENT IDENTITY CARD (4.3B):\n${doc43B}\n\nBUSINESS IDENTITY LOCK (2.2):\n${doc22}\n\nBUSINESS MESSAGING & TONE PLAYBOOK (2.3):\n${doc23}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nFULL 4.4 RESEARCH RULES:\n${doc44}\n\n---\n\n${p1.replace('[TOPIC]',topic)}\n\nTopic: ${topic}`;
+    try {
+      S.geminiResearch=await callGemini(gp,gkey);
+      setStep(2,'done','Done ✓',S.geminiResearch);
+    } catch(err) {
+      setStep(2,'error','Failed');
+      document.getElementById('o2').textContent=err.message;
+      document.getElementById('sb2').classList.add('open');
+      document.getElementById('r2').style.display='inline-block';
+      throw new Error(`Step 2: ${err.message}`);
+    }
+  }
+
   // ─── MAIN PIPELINE ────────────────────────────────────────
   async function startPipeline() {
     if(running) return;
@@ -3299,16 +3377,12 @@ V2 ARTICLE:\n${S.v2}`;
       setStep(1,'done','Done ✓',`✓ 4.3A (${doc43A.length} chars)\n✓ 4.4 (${doc44.length} chars)\n✓ 2.2 (${doc22.length} chars)\n✓ 2.3 (${doc23.length} chars)\n✓ 4.3B (${doc43B.length} chars)\n✓ Sheet row: Row ${rowRes.index+1}\n\n${S.sheetRow}`);
 
       // STEP 2
-      setStep(2,'active','Researching...'); setG('Gemini building research brief...',true);
-      const p1=getPrompt(doc44,1);
-      const gp=`You are operating inside the iTech Valet AI Authority Pipeline.\n\nCLIENT IDENTITY CARD (4.3B):\n${doc43B}\n\nBUSINESS IDENTITY LOCK (2.2):\n${doc22}\n\nBUSINESS MESSAGING & TONE PLAYBOOK (2.3):\n${doc23}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nFULL 4.4 RESEARCH RULES:\n${doc44}\n\n---\n\n${p1.replace('[TOPIC]',topic)}\n\nTopic: ${topic}`;
-      S.geminiResearch=await callGemini(gp,gkey);
-      setStep(2,'done','Done ✓',S.geminiResearch);
+      await runStep2(doc43B,doc22,doc23,doc44,topic,gkey);
 
       // STEPS 3-15
       await runFrom(3,buildSys(),akey,gkey,dkey);
 
-    }catch(err){handleErr(err); const recoverableSteps=[4,7]; const isRecoverable=recoverableSteps.some(s=>err.message&&err.message.includes(`Step ${s}`)); if(!isRecoverable) stopTimer();}
+    }catch(err){handleErr(err); const recoverableSteps=[2,4,7]; const isRecoverable=recoverableSteps.some(s=>err.message&&err.message.includes(`Step ${s}`)); if(!isRecoverable) stopTimer();}
 
     running=false; document.getElementById('runBtn').disabled=false;
     document.getElementById('runBtn').style.display='flex';
