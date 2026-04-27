@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.3</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.4</p>
   </div>
 </div>
 
@@ -1376,14 +1376,16 @@
       await genOneImage(S.imagePrompts[idx].prompt,S.imagePrompts[idx].alt,idx,gkey);
       S.tokens.imgs++; updateCost();
       // Re-check all image slots and update download button + step badge
-      const failedCount=S.imagePrompts.length-Object.keys(S.imageData).length;
+      // Count total rendered image cards (not S.imagePrompts.length which may differ after dedup)
+      const totalCards = document.querySelectorAll('[id^="icard"]').length || S.imagePrompts.length;
+      const failedCount = totalCards - Object.keys(S.imageData).length;
       const dlAllBtn=document.getElementById('dlAllBtn');
-      if(failedCount===0){
+      if(failedCount<=0){
         if(dlAllBtn){dlAllBtn.disabled=false;dlAllBtn.textContent='↓ All Images';dlAllBtn.style.background='var(--blue)';dlAllBtn.title='';}
-        setStep(7,'done','Done ✓',`All ${S.imagePrompts.length} images generated successfully.`);
+        setStep(7,'done','Done ✓',`All ${totalCards} images generated successfully.`);
       } else {
         if(dlAllBtn){dlAllBtn.disabled=true;dlAllBtn.textContent=`⚠ ${failedCount} Failed`;dlAllBtn.style.background='var(--orange)';}
-        setStep(7,'error','⚠ Some Failed',`${S.imagePrompts.length-failedCount}/${S.imagePrompts.length} images generated. ${failedCount} failed — use Regenerate.`);
+        setStep(7,'error','⚠ Some Failed',`${totalCards-failedCount}/${totalCards} images generated. ${failedCount} failed — use Regenerate.`);
       }
     }
     catch(err){ showImgErr(idx,err.message); if(rb) rb.disabled=false; }
@@ -2610,12 +2612,27 @@ ${S.v2}`, voice11AKey, null, {maxTokens:4000});
     return links;
   }
 
+  function getClientDomain() {
+    // Extract client domain from sheet row Full Blog Post URL or doc43B
+    // Try sheet row first — Full Blog Post URL is the most reliable source
+    const urlMatch = S.sheetRow && S.sheetRow.match(/https?:\/\/([^\/\s,]+)/i);
+    if(urlMatch) return urlMatch[1].toLowerCase().replace(/^www\./,'');
+    // Fall back to doc43B — look for website URL
+    const b43Match = S.docs.doc43B && S.docs.doc43B.match(/https?:\/\/(?:www\.)?([^\/\s"',]+\.[a-z]{2,})/i);
+    if(b43Match) return b43Match[1].toLowerCase().replace(/^www\./,'');
+    // Final fallback
+    return 'itechvalet.com';
+  }
+
   function isInternal(url) {
+    const clientDomain = getClientDomain();
     // Strip tool host domain (github.io etc) and treat as internal
-    const stripped=url.replace(/^https?:\/\/[^/]*github\.io/i,'').replace(/^https?:\/\/itechvalet\.com/i,'');
-    // Internal: relative paths, or itechvalet.com URLs
+    const stripped = url
+      .replace(/^https?:\/\/[^/]*github\.io/i,'')
+      .replace(new RegExp(`^https?:\\/\\/(www\\.)?${clientDomain.replace('.','\\.').replace('.','\\.')}`, 'i'),'');
+    // Internal: relative paths, client domain URLs
     if(url.startsWith('/')) return true;
-    if(url.match(/itechvalet\.com/i)) return true;
+    if(url.toLowerCase().includes(clientDomain)) return true;
     if(stripped.startsWith('/')) return true;
     // Not internal if it's a full external URL
     if(url.match(/^https?:\/\//)) return false;
@@ -3171,14 +3188,15 @@ HARD RULES:
       if(S.imagePrompts.length>0){
         buildImgGrid(S.imagePrompts);
         await genAllImages(S.imagePrompts,gkey);
-        const failedCount=S.imagePrompts.length-Object.keys(S.imageData).length;
+        const totalCards2 = document.querySelectorAll('[id^="icard"]').length || S.imagePrompts.length;
+        const failedCount=totalCards2-Object.keys(S.imageData).length;
         const dlAllBtn=document.getElementById('dlAllBtn');
         if(failedCount>0){
           if(dlAllBtn){dlAllBtn.disabled=true;dlAllBtn.textContent=`⚠ ${failedCount} Failed`;dlAllBtn.style.background='var(--orange)';}
-          setStep(7,'error','⚠ Some Failed',`${S.imagePrompts.length-failedCount}/${S.imagePrompts.length} generated. ${failedCount} failed — use Regenerate.`);
+          setStep(7,'error','⚠ Some Failed',`${totalCards2-failedCount}/${totalCards2} generated. ${failedCount} failed — use Regenerate.`);
         } else {
           if(dlAllBtn) dlAllBtn.disabled=false;
-          setStep(7,'done','Done ✓',`${S.imagePrompts.length} image(s) generated.`);
+          setStep(7,'done','Done ✓',`${totalCards2} image(s) generated.`);
         }
         saveSession(7);
       } else { setStep(7,'error','No Prompts Found'); document.getElementById('r7').style.display='block'; document.getElementById('cont7').style.display='inline-block'; throw new Error('Step 7: No image prompts found in V1 — retry from Step 3.'); }
