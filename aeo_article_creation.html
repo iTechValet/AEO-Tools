@@ -1644,7 +1644,7 @@
       <div class="cl-field">
         <div class="cl-label" style="color:#dd6b00;">${schemaLabels[i]||'Schema Block '+(i+1)}</div>
         <div class="cl-val-wrap">
-          <textarea class="cl-ta cl-ta-schema" onclick="this.select();" readonly>${block}</textarea>
+          <textarea class="cl-ta cl-ta-schema" onclick="this.select();" readonly>${block.replace(/<\/script>/gi,'<\/scr'+'ipt>').replace(/<script/gi,'<scr'+'ipt')}</textarea>
           <button class="cl-btn" onclick="clCopy(this)">Copy</button>
         </div>
       </div>`).join('');
@@ -1696,8 +1696,7 @@ ${fieldRows}
 <p style="font-size:12px;color:#888;margin-bottom:14px;">Click any textarea to select all, then copy — or use the Copy button.</p>
 ${schemaRows}
 
-<script>
-function clCopy(btn) {
+` + '<scr' + 'ipt>\nfunction clCopy(btn) {' + `
   const ta = btn.previousElementSibling;
   ta.select();
   try {
@@ -1715,11 +1714,11 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
   ta.style.height = 'auto';
   ta.style.height = Math.max(36, ta.scrollHeight) + 'px';
 });
-</script>
+<\/script>
 </body>
 </html>`;
 
-    const fname = (slug.replace(/^\/,'') || S.topic.replace(/[^a-z0-9]+/gi,'-').toLowerCase()) + '-checklist.html';
+    const fname = (slug.replace(/^\//, '') || S.topic.replace(/[^a-z0-9]+/gi,'-').toLowerCase()) + '-checklist.html';
     const blob = new Blob([html], {type:'text/html'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
