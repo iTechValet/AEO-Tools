@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.2</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.3</p>
   </div>
 </div>
 
@@ -577,10 +577,22 @@
     <div class="step-card" id="step14">
       <div class="step-header" onclick="toggleStep(14)">
         <div class="step-num">14</div>
-        <div class="step-info"><div class="step-title">HTML Review &amp; Chat Fixes</div><div class="step-desc">Claude audits HTML — then chat to fix anything you see in the preview — hit Finalize when done</div></div>
+        <div class="step-info"><div class="step-title">Structured QC Audit</div><div class="step-desc">Auto-runs checklist against HTML + schema — applies fixes, shows PASS/FAIL card</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b14">Waiting</div><span class="schev closed" id="c14">▼</span></div>
       </div>
       <div class="step-body" id="sb14">
+        <div class="sout-wrap"><div class="sout" id="o14" style="white-space:pre-wrap;"></div><button class="btn-copy-step" id="copy-btn-14" onclick="copyStepOutput(14)">Copy</button></div>
+        <div id="r14" style="display:none;margin-top:8px;"><button class="btn-retry" onclick="retryFrom(13)">↻ Retry from Step 13</button></div>
+      </div>
+    </div>
+
+    <div class="step-card" id="step15">
+      <div class="step-header" onclick="toggleStep(15)">
+        <div class="step-num">15</div>
+        <div class="step-info"><div class="step-title">HTML Review &amp; Chat Fixes</div><div class="step-desc">Claude audits HTML — then chat to fix anything you see in the preview — hit Finalize when done</div></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b15">Waiting</div><span class="schev closed" id="c15">▼</span></div>
+      </div>
+      <div class="step-body" id="sb15">
         <!-- CHAT THREAD -->
         <div id="qcChatThread" style="display:none;margin-bottom:10px;max-height:380px;overflow-y:auto;flex-direction:column;gap:8px;padding:4px 0;"></div>
         <!-- CHAT INPUT -->
@@ -592,17 +604,17 @@
             <button class="btn-proceed" id="qcFinalizeBtn" onclick="finalizeQC()" style="margin-left:auto;background:var(--green);">✓ Finalize — Done</button>
           </div>
         </div>
-        <div id="r14" style="display:none;margin-top:8px;"><button class="btn-retry" onclick="retryFrom(13)">↻ Retry from Step 13</button></div>
+        <div id="r15" style="display:none;margin-top:8px;"><button class="btn-retry" onclick="retryFrom(13)">↻ Retry from Step 13</button></div>
       </div>
     </div>
 
-    <div class="step-card" id="step15">
-      <div class="step-header" onclick="toggleStep(15)">
-        <div class="step-num">15</div>
+    <div class="step-card" id="step16">
+      <div class="step-header" onclick="toggleStep(16)">
+        <div class="step-num">16</div>
         <div class="step-info"><div class="step-title">Complete</div><div class="step-desc">Article ready — use download buttons above</div></div>
-        <div class="step-right"><div class="sbadge b-waiting" id="b15">Waiting</div><span class="schev closed" id="c15">▼</span></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b16">Waiting</div><span class="schev closed" id="c16">▼</span></div>
       </div>
-      <div class="step-body" id="sb15"><div class="sout-wrap"><div class="sout" id="o15"></div><button class="btn-copy-step" id="copy-btn-15" onclick="copyStepOutput(15)">Copy</button></div></div>
+      <div class="step-body" id="sb16"><div class="sout-wrap"><div class="sout" id="o16"></div><button class="btn-copy-step" id="copy-btn-16" onclick="copyStepOutput(16)">Copy</button></div></div>
     </div>
 
   </div>
@@ -666,10 +678,13 @@
       </div>
       <div class="ppane" id="pSchema" style="overflow-y:auto;height:900px;">
         <div class="pempty" id="schemaEmpty">Schema appears after Step 13</div>
+        <div style="display:none;padding:8px 12px;border-bottom:1px solid var(--border);" id="schemaCopyAllBar">
+          <button class="btn-retry" onclick="copyAllSchema()" style="font-size:11px;padding:4px 12px;">⎘ Copy All Schema</button>
+        </div>
         <pre id="schemaPre" style="display:none;font-family:monospace;font-size:11px;white-space:pre-wrap;word-break:break-word;padding:12px;color:var(--blue);line-height:1.6;margin:0;height:100%;overflow-y:auto;"></pre>
       </div>
       <div class="ppane" id="pHTMLFinal">
-        <div class="pempty" id="htmlFinalEmpty">HTML Final appears after Step 14 QC</div>
+        <div class="pempty" id="htmlFinalEmpty">HTML Final appears after Step 13</div>
         <iframe id="htmlFinalFrame" style="display:none;border:none;background:#fff;width:100%;height:900px;"></iframe>
       </div>
     </div>
@@ -741,7 +756,7 @@
       S.parsedFails=[]; S.parsedFlags=[]; S.protectedSentences=[];
       S.imagePrompts=[]; S.imageData={}; S.imageUrls={};
       localStorage.removeItem(SESSION_KEY);
-      for(let i=1;i<=15;i++) setStep(i,'waiting','Waiting');
+      for(let i=1;i<=16;i++) setStep(i,'waiting','Waiting');
       setG('Client changed — session cleared. Ready for new run.');
     }
   }
@@ -984,7 +999,8 @@
       // Bug I fix — continue step is always lastCompletedStep + 1, capped correctly
       const last=data.lastCompletedStep||0;
       let continueStep=null;
-      if(last>=14) continueStep=null;
+      if(last>=15) continueStep=null;
+      else if(last>=14) continueStep=15;
       else if(last>=13) continueStep=14;
       else if(last>=12) continueStep=13;
       else if(last>=11) continueStep=12;
@@ -994,7 +1010,7 @@
       else if(last>=6) continueStep=7;
       else if(last>=5) continueStep=6;
       else if(last>=4) continueStep=5;
-      else if(last>=3) continueStep=4; // Bug I fix — was incorrectly mapping to 5
+      else if(last>=3) continueStep=4;
       else if(last>=2) continueStep=3;
       const continueBtn=document.getElementById('continueFromBtn');
       if(continueStep && continueBtn){
@@ -1030,7 +1046,7 @@
     document.getElementById('stopBtn').style.display='flex';
     resetTimer(); startTimer();
     // Need docs loaded first for steps that require them
-    const needDocs=step<=14;
+    const needDocs=step<=15;
     (async()=>{
       try{
         if(needDocs){
@@ -1472,9 +1488,22 @@
     }).catch(()=>{ alert('Copy failed — try selecting the text manually.'); });
   }
 
+  function copyAllSchema() {
+    const text = S.finalSchema || '';
+    if(!text){ alert('Schema not ready yet.'); return; }
+    navigator.clipboard.writeText(text).then(()=>{
+      const btn = event.target;
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied All!';
+      btn.style.background = 'var(--green)';
+      setTimeout(()=>{ btn.textContent = orig; btn.style.background = ''; }, 2000);
+    }).catch(()=>{ alert('Copy failed — try selecting manually.'); });
+  }
+
   function showSchema(schemaText, publishDate, featuredUrl) {
     if(!schemaText) return;
     document.getElementById('schemaEmpty').style.display='none';
+    document.getElementById('schemaCopyAllBar').style.display='block';
     const pre=document.getElementById('schemaPre');
     pre.style.display='block';
     // Highlight publish date and featured image URL
@@ -1697,7 +1726,7 @@
     const featUrl = S.imageUrls[getFeatured()] || '(not set)';
     const pd = document.getElementById('publishDate').value || '(not set)';
     const title = extractField(S.v2,'Meta Title') || extractField(S.v2,'H1') || S.topic;
-    const slug = extractField(S.v2,'Permalink URL') || '';
+    const slug = (extractField(S.v2,'Permalink URL') || '').replace(/^\//, '');
     const fullUrl = extractField(S.v2,'Full Blog Post URL') || '';
     const meta = extractField(S.v2,'Meta Description') || '';
     const keywords = extractField(S.v2,'Keywords') || '';
@@ -1904,7 +1933,68 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
   }
 
 
-  // ─── STEP 14: CHAT-BASED HTML QC ─────────────────────────
+  // ─── STEP 14: STRUCTURED QC AUDIT ────────────────────────
+  async function runStructuredQC(akey, publishDate) {
+    setStep(14,'active','Auditing...'); setG('Running structured QC audit...',true);
+    document.getElementById('sb14').classList.add('open');
+    document.getElementById('c14').classList.remove('closed');
+    const o14 = document.getElementById('o14');
+    o14.textContent = 'Running structured QC checklist...\n';
+
+    const pd = publishDate || document.getElementById('publishDate').value || '';
+    const [yr,mo,dy] = pd ? pd.split('-') : ['','',''];
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const formattedDate = pd ? `${months[parseInt(mo,10)-1]} ${parseInt(dy,10)}, ${yr}` : '';
+
+    // Build structured audit prompt
+    const auditSys = `You are a structured QC auditor for the iTech Valet AEO pipeline. You check HTML articles and schema against a defined checklist.\n\nOutput ONLY a structured report in this exact format for each check:\nCHECK: [check name]\nSTATUS: PASS or FAIL\nDETAIL: [one line — what you found]\n\nThen after all checks, output any DIFF blocks needed to fix FAILs:\nDIFF_START\nFIND:\n[exact HTML to find]\nREPLACE:\n[replacement]\nDIFF_END\n\nIf no fixes needed, output: ALL CHECKS PASSED\n\n4.3B — CLIENT IDENTITY CARD:\n${S.docs.doc43B}`;
+
+    const auditUser = `Run all checks below against the HTML and Schema provided. Be specific in DETAIL field.\n\nPUBLISH DATE: ${pd}\nFORMATTED DATE: ${formattedDate}\n\nCHECKS TO RUN:\n1. No links in Direct Answer (content before first H2)\n2. CTA is text link only — no button element, no background-color on CTA section\n3. All dates match publish date "${pd}" — datePublished, dateModified, Last Updated\n4. foundingDate is NOT "${pd}" — must be the actual company founding date from 4.3B\n5. No markdown tables remaining — all must be converted to HTML\n6. No forbidden terms: "blog post", "SEO packages", "digital marketing", "web design", "keyword rankings", "traffic", "tips and tricks"\n7. Schema present: FAQPage, BlogPosting, BreadcrumbList all exist\n8. Author name is "Gerek Allen" — not any other name\n9. Business name is "iTech Valet" / "621 Enterprises Inc" — correct casing\n10. No duplicate paragraph blocks in CTA or conclusion\n11. Last Updated displays as "${formattedDate}" not ISO format\n12. ToC present with anchor links\n\nHTML:\n${S.finalTXT}\n\nSCHEMA:\n${S.finalSchema}`;
+
+    let auditResult = '';
+    try {
+      auditResult = await callClaude(auditSys, auditUser, akey, (p) => {
+        o14.textContent = p;
+      }, {maxTokens:16000});
+    } catch(e) {
+      setStep(14,'error','Failed');
+      document.getElementById('r14').style.display='block';
+      o14.textContent += `\n\n⚠ Audit error: ${e.message}`;
+      throw new Error(`Step 14: Structured QC failed — ${e.message}`);
+    }
+
+    // Parse CHECK/STATUS lines for summary card
+    const checkLines = auditResult.match(/CHECK:.*\nSTATUS:.*\nDETAIL:.*/g) || [];
+    const passes = checkLines.filter(l=>l.includes('STATUS: PASS')).length;
+    const fails = checkLines.filter(l=>l.includes('STATUS: FAIL')).length;
+
+    // Apply any DIFF fixes
+    let fixesApplied = 0, fixesFailed = 0;
+    if(auditResult.includes('DIFF_START')) {
+      const {result, applied, failed} = applyDiffs(S.finalTXT, auditResult);
+      S.finalTXT = result;
+      fixesApplied = applied; fixesFailed = failed;
+      showHTMLFinal(S.finalTXT);
+      // Also check schema for fixes
+      if(auditResult.includes('foundingDate') && S.finalSchema.includes(`"foundingDate": "${pd}"`)) {
+        o14.textContent += `\n\n⚠ foundingDate still shows publish date — fix manually in Step 15 chat.`;
+      }
+    }
+
+    // Build summary
+    const summary = `\n\n--- QC SUMMARY ---\n✅ Passed: ${passes}  ❌ Failed: ${fails}\n${fixesApplied>0?`Applied ${fixesApplied} fix(es).${fixesFailed>0?` Failed: ${fixesFailed} — review in Step 15.`:''}`:fails===0?'No fixes needed.':''}`;
+    o14.textContent = auditResult + summary;
+
+    if(fails > 0 && fixesFailed > 0) {
+      setStep(14,'done','Done ✓ (review Step 15)');
+    } else {
+      setStep(14,'done','Done ✓');
+    }
+    showHTMLFinal(S.finalTXT);
+    setG('✓ Structured QC complete — review Step 15 for any remaining issues.');
+  }
+
+  // ─── STEP 15: CHAT-BASED HTML QC ─────────────────────────
   let qc14History = []; // full message history for this session
   let qc14Resolve = null; // resolves when user hits Finalize
   let qc14AKey = '';
@@ -1938,9 +2028,9 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     thread.style.display = 'flex';
     thread.innerHTML = '';
     document.getElementById('qcChatInput').style.display = 'block';
-    document.getElementById('sb14').classList.add('open');
-    document.getElementById('c14').classList.remove('closed');
-    setStep(14, 'checkpoint', 'Your Turn');
+    document.getElementById('sb15').classList.add('open');
+    document.getElementById('c15').classList.remove('closed');
+    setStep(15, 'checkpoint', 'Your Turn');
     switchTab('htmlFinal',true);
 
     // Build system prompt
@@ -1967,8 +2057,8 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
       });
     } catch(e) {
       qcAppendBubble('system', `⚠ Audit error: ${e.message}`);
-      setStep(14, 'error', 'Failed');
-      document.getElementById('r14').style.display = 'block';
+      setStep(15, 'error', 'Failed');
+      document.getElementById('r15').style.display = 'block';
       return;
     }
 
@@ -2069,8 +2159,8 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
   }
 
   function finalizeQC() {
-    saveSession(14);
-    setStep(14, 'done', 'Done ✓');
+    saveSession(15);
+    setStep(15, 'done', 'Done ✓');
     setG('✓ HTML finalized.');
     if (qc14Resolve) { qc14Resolve(); qc14Resolve = null; }
   }
@@ -3316,7 +3406,8 @@ BLOCK 1 — SCHEMA (=== SCHEMA START === / === SCHEMA END ===)
 Complete schema: FAQPage, BlogPosting, BreadcrumbList — each in own script tag.
 - Featured image URL: ${S.imageUrls[getFeatured()]||''}
 - Publish date: ${pd}
-- CRITICAL DATE RULE: Use EXACTLY "${pd}" for ALL date fields. NOT today (${today}). NOT any other date.
+- CRITICAL DATE RULE: Use EXACTLY "${pd}" for ALL date fields (datePublished, dateModified, Last Updated). NOT today (${today}). NOT any other date.
+- CRITICAL: foundingDate must come from the entity data in 4.3B — NEVER use the publish date for foundingDate.
 - Entity data from 4.3B.
 
 BLOCK 2 — HTML (=== HTML START === / === HTML END ===)
@@ -3378,18 +3469,25 @@ V2 ARTICLE:\n${S.v2}`;
       step=14;
     }
 
-    // ── STEP 14: HTML Review Chat ──────────────────────────────
+    // ── STEP 14: Structured QC Audit ──────────────────────────
     if(step<=14){
-      await runQC(akey,'',publishDate);
+      await runStructuredQC(akey, publishDate);
+      saveSession(14);
       step=15;
     }
 
-    // ── STEP 15: Complete ──────────────────────────────────────
+    // ── STEP 15: HTML Review Chat ──────────────────────────────
     if(step<=15){
+      await runQC(akey,'',publishDate);
+      step=16;
+    }
+
+    // ── STEP 16: Complete ──────────────────────────────────────
+    if(step<=16){
       stopTimer();
-      saveSession(15);
+      saveSession(16);
       document.getElementById('outputsSec').classList.add('open');
-      setStep(15,'done','Done ✓','✓ Article complete — use download buttons above.');
+      setStep(16,'done','Done ✓','✓ Article complete — use download buttons above.');
       setG('✓ Article complete — download your files above.');
     }
   }
@@ -3446,7 +3544,7 @@ V2 ARTICLE:\n${S.v2}`;
   // ─── HANDLE ERROR ─────────────────────────────────────────
   function handleErr(err) {
     setG(`⚠ Error: ${err.message}`,false,true); console.error(err);
-    for(let i=3;i<=15;i++){
+    for(let i=3;i<=16;i++){
       const card=document.getElementById(`step${i}`);
       if(card&&card.classList.contains('active')){
         setStep(i,'error','Failed');
@@ -3468,7 +3566,7 @@ V2 ARTICLE:\n${S.v2}`;
     if(n<=9){step8RetryCount=0;}
     // Reset voice/qc resolves if retrying before them
     if(n<=11&&voice11Resolve){voice11Resolve();voice11Resolve=null;}
-    if(n<=14&&qc14Resolve){qc14Resolve();qc14Resolve=null;}
+    if(n<=15&&qc14Resolve){qc14Resolve();qc14Resolve=null;}
     running=true; document.getElementById('runBtn').disabled=true;
     document.getElementById('runBtn').style.display='none';
     document.getElementById('stopBtn').style.display='flex';
@@ -3568,7 +3666,7 @@ V2 ARTICLE:\n${S.v2}`;
     document.getElementById('runBtn').style.display='none';
     document.getElementById('stopBtn').style.display='flex';
     document.getElementById('outputsSec').classList.remove('open');
-    for(let i=1;i<=15;i++) setStep(i,'waiting','Waiting');
+    for(let i=1;i<=16;i++) setStep(i,'waiting','Waiting');
     document.getElementById('assembleBtn').disabled=true;
     document.getElementById('assembleHint').textContent='Complete steps 1–12 first';
     document.getElementById('v1WordCount').textContent='—';
