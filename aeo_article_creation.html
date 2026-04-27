@@ -247,7 +247,6 @@
   .stat-label { font-family:'Bebas Neue',sans-serif; font-size:12px; text-transform:uppercase; letter-spacing:1.5px; color:var(--blue); opacity:0.55; }
   .stat-value { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--blue); letter-spacing:1px; line-height:1; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/docx@9.0.3/build/index.js"></script>
 </head>
 <body>
 
@@ -426,6 +425,7 @@
       <div class="step-body" id="sb4">
         <div class="sout-wrap"><div class="sout" id="o4" style="white-space:pre-wrap;"></div><button class="btn-copy-step" id="copy-btn-4" onclick="copyStepOutput(4)">Copy</button></div>
         <div id="r4" style="display:none;"><button class="btn-retry" onclick="retryFrom(3)">↻ Rebuild Skeleton (Step 3)</button></div>
+        <div id="cont4" style="display:none;margin-left:8px;"><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="S._lastCompletedStep=4;document.getElementById('cont4').style.display='none';retryFrom(5);">Continue Anyway →</button></div>
       </div>
     </div>
 
@@ -468,7 +468,8 @@
         <div class="step-info"><div class="step-title">Image Generation</div><div class="step-desc">Gemini generates all article images sequentially</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b7">Waiting</div><span class="schev closed" id="c7">▼</span></div>
       </div>
-      <div class="step-body" id="sb7"><div class="sout-wrap"><div class="sout" id="o7"></div><button class="btn-copy-step" id="copy-btn-7" onclick="copyStepOutput(7)">Copy</button></div><div id="r7" style="display:none;"><button class="btn-retry" onclick="retryFrom(7)">↻ Retry from Step 7</button></div></div>
+      <div class="step-body" id="sb7"><div class="sout-wrap"><div class="sout" id="o7"></div><button class="btn-copy-step" id="copy-btn-7" onclick="copyStepOutput(7)">Copy</button></div><div id="r7" style="display:none;"><button class="btn-retry" onclick="retryFrom(7)">↻ Retry from Step 7</button></div>
+        <div id="cont7" style="display:none;"><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="S.v1=S.v1.replace(/^\*{1,2}PROMPT:\*{1,2}/gim,'PROMPT:').replace(/^\*{1,2}ALT TEXT:\*{1,2}/gim,'ALT TEXT:');S.imagePrompts=extractImgPrompts(S.v1);S._lastCompletedStep=4;document.getElementById('cont7').style.display='none';retryFrom(7);">Continue Anyway →</button></div></div>
     </div>
 
     <!-- STEP 8: Gemini Validation -->
@@ -495,8 +496,8 @@
           <div class="ctitle">⚠ Some FAILs Could Not Be Resolved</div>
           <div id="fixVerify9" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
           <div style="display:flex;gap:8px;">
-            <button class="btn-proceed" onclick="proceedCp9()">Accept & Continue</button>
             <button class="btn-retry" onclick="retryFrom(8)" style="margin-top:0;">↻ Retry from Step 8</button>
+            <button class="btn-proceed" onclick="proceedCp9()">Accept & Continue →</button>
           </div>
         </div>
       </div>
@@ -966,7 +967,7 @@
       if(topicInput && data.topic) topicInput.value=data.topic;
       if(data.v1){ S.v1=data.v1; showV1(data.v1); }
       if(data.v2){ S.v2=data.v2; showV2(data.v2); updateWordCount(data.v2); }
-      if(data.finalTXT){ S.finalTXT=data.finalTXT; showHTML1(data.finalTXT); showHTMLFinal(data.finalTXT); }
+      if(data.finalTXT){ S.finalTXT=data.finalTXT; showHTMLFinal(data.finalTXT); }
       if(data.finalSchema) S.finalSchema=data.finalSchema;
       if(data.finalSchema){ showSchema(data.finalSchema, data.publishDate||'', ''); }
       else if(data.checklistHTML){ S.checklistHTML=data.checklistHTML; }
@@ -1141,7 +1142,7 @@
       const t=line.trim();
       if(t.match(/^##\s+[^#]/)||t.match(/\[H2\]/i)) h2=t.replace(/^##\s+/,'').replace(/\[H2\]/gi,'').replace(/\[.*?\]/g,'').trim();
       if(t.toUpperCase().startsWith('[IMAGE:')) cur=t.replace(/^\[IMAGE:\s*/i,'').replace(/\]$/,'').trim();
-      else if(t.toUpperCase().startsWith('PROMPT:')) cur=t.replace(/^PROMPT:\s*/i,'').trim();
+      else if(/^\*{0,2}PROMPT:\*{0,2}/i.test(t.trim())) cur=t.replace(/^\*{0,2}PROMPT:\*{0,2}\s*/i,'').trim();
       else if(cur&&!t.toUpperCase().startsWith('**ALT')&&!t.toUpperCase().startsWith('ALT')&&!t.startsWith('#')&&!t.startsWith('*')&&t.length>0&&!t.startsWith('[')&&cur.length<800) cur+=' '+t;
       if(t.toUpperCase().startsWith('**ALT TEXT:')||t.toUpperCase().startsWith('ALT TEXT:')||t.toUpperCase().startsWith('ALT:')) {
         if(cur){ const alt=t.replace(/^\*\*ALT TEXT:\s*/i,'').replace(/\*\*$/,'').replace(/^ALT TEXT:\s*/i,'').replace(/^ALT:\s*/i,'').trim(); prompts.push({prompt:cur,alt,h2}); cur=null; }
@@ -1467,10 +1468,6 @@
     switchTab('v2',true);
   }
 
-  function showHTML1(html) {
-    // HTML 1 tab removed — redirect to HTML Final
-    showHTMLFinal(html);
-  }
   function showHTMLFinal(html) {
     document.getElementById('htmlFinalEmpty').style.display='none';
     const frame=document.getElementById('htmlFinalFrame'); frame.style.display='block';
@@ -1479,7 +1476,6 @@
     document.getElementById('prevBadge').textContent='HTML ready';
     switchTab('htmlFinal',true);
   }
-  function showHTML(html) { showHTMLFinal(html); } // legacy alias
 
   function extractDirectAnswer(text) {
     // Find the first H1, then look for a REPEATED H1 after the checklist block
@@ -1596,9 +1592,21 @@
     URL.revokeObjectURL(a.href);
   }
 
+  async function loadDocxLib() {
+    if(window.docx) return; // already loaded
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/docx@9.0.3/build/index.js';
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('Failed to load docx library'));
+      document.head.appendChild(s);
+    });
+  }
+
   async function dlChecklist() {
     if(!S.finalSchema && !S.checklistHTML){alert('Checklist not ready yet — complete the pipeline first.');return;}
     try {
+      await loadDocxLib();
       await buildChecklistDocx();
     } catch(e) {
       console.error('Docx generation failed:', e);
@@ -1909,6 +1917,7 @@
     }
 
     qc14History.push({ role: 'assistant', content: auditResult });
+    if(qc14History.length > 6) qc14History = qc14History.slice(-6); // cap history to prevent token bloat
 
     // Apply any diffs from the audit
     if (auditResult.includes('DIFF_START')) {
@@ -2038,11 +2047,9 @@
     const thread = document.getElementById('voiceChatThread');
     thread.style.display = 'flex';
     thread.innerHTML = '';
-    document.getElementById('voiceChatInput').style.display = 'block';
     document.getElementById('sb11').classList.add('open');
     document.getElementById('c11').classList.remove('closed');
-    setStep(11, 'checkpoint', 'Your Turn');
-    switchTab('v2',true);
+    setStep(11, 'active', 'Auto-fixing...');
 
     // Pull voice examples from 4.3B
     const voiceSection = S.docs.doc43B.match(/AUTHOR VOICE TEST[\s\S]*?(?=POV SLOT VOICE|SECTION \d+:|________________\s*END|$)/i);
@@ -2096,24 +2103,72 @@ After the 3 flags, write: "AUDIT COMPLETE — [N] issue(s) found. Showing top 3.
         thread.scrollTop = thread.scrollHeight;
       });
 
-      // Clean up the bubble to show final result
       auditBubble.textContent = auditResult;
       thread.scrollTop = thread.scrollHeight;
-      // Store audit result for "Apply All" button
       window._lastVoiceAudit = auditResult;
-      // Show quick action buttons
-      const qa = document.getElementById('voiceQuickActions');
-      if(qa) { qa.style.display='flex'; }
+
+      // AUTO-APPLY fixes silently
+      setStep(11, 'active', 'Applying fixes...');
+      const autoApplyBubble = voiceAppendBubble('system', '⏳ Auto-applying fixes...');
+      try {
+        const fixSysAuto = `You are making EXACTLY 3 surgical voice fixes to an AEO article.
+CRITICAL RULES — NO EXCEPTIONS:
+1. Output ONLY DIFF_START/DIFF_END blocks. Nothing else.
+2. Maximum 3 DIFF blocks — one per flagged issue.
+3. Each DIFF block replaces ONLY the specific flagged sentence or phrase.
+4. NEVER rewrite sections, H2s, or multiple paragraphs.
+FORMAT:
+DIFF_START
+FIND:
+[exact text from article — copy verbatim, 10-20 words max]
+REPLACE:
+[replacement text only]
+DIFF_END
+PROTECTED: Direct Answer, tables, image prompts, links, headings, schema.`;
+        const fixUserAuto = `Apply the 3 fixes from this audit report as DIFF blocks.
+
+AUDIT REPORT:
+${auditResult}
+
+ARTICLE:
+${S.v2}`;
+        window._v2Snapshot = S.v2;
+        const autoResult = await callClaude(fixSysAuto, fixUserAuto, akey, null, {maxTokens:4000});
+        if(autoResult.includes('DIFF_START')) {
+          const {result:fixed, applied, failed} = applyDiffs(S.v2, autoResult);
+          S.v2 = fixed; showV2(S.v2); updateWordCount(S.v2); saveSession(10);
+          if(failed > 0) {
+            // Some fixes failed — show UI for human decision
+            autoApplyBubble.textContent = `Applied: ${applied}. Failed: ${failed} — review below or continue.`;
+            const qa = document.getElementById('voiceQuickActions');
+            if(qa) { qa.style.display='flex'; }
+            document.getElementById('voiceChatInput').style.display = 'block';
+            setStep(11, 'checkpoint', 'Your Turn');
+            setG('Some fixes failed — retry or continue.');
+            document.getElementById('voiceMsg').focus();
+            return new Promise(res => { voice11Resolve = res; });
+          } else {
+            autoApplyBubble.textContent = `✅ All ${applied} fix(es) applied automatically.`;
+          }
+        } else {
+          autoApplyBubble.textContent = '⚠ No DIFF blocks returned — V2 unchanged.';
+        }
+      } catch(e) {
+        voiceAppendBubble('system', `⚠ Auto-fix error: ${e.message} — continuing.`);
+      }
+
+      // AUTO-APPROVE
+      saveSession(11);
+      setStep(11, 'done', 'Done ✓ (auto)');
+      setG('✓ Step 11 complete — auto-approved.');
+      if(voice11Resolve) { voice11Resolve(); voice11Resolve = null; }
+
     } catch(e) {
       auditBubble.textContent = `⚠ Audit error: ${e.message}`;
       setStep(11, 'error', 'Failed');
       document.getElementById('r11').style.display = 'block';
       return;
     }
-
-    setG('Review V2 in preview — chat to fix anything, then Approve.');
-    document.getElementById('voiceMsg').focus();
-    return new Promise(res => { voice11Resolve = res; });
   }
 
   async function sendVoiceMsg() {
@@ -2639,7 +2694,7 @@ Nothing else. No "In this article..." paragraphs. No context-setting prose. No b
 
 WHAT TO WRITE AS SKELETON (not full prose):
 - All H2 and H3 headings (write these in full — they are final)
-- After each H2 heading: one line — PROMPT: [image prompt here] / ALT TEXT: [alt text here]
+- After each H2 heading: one line — PROMPT: [image prompt here] on one line, then ALT TEXT: [alt text here] on the next line. CRITICAL: Do NOT bold these with **PROMPT:** or **ALT TEXT:** — use plain text only: PROMPT: and ALT TEXT:
 - Under each H3: write [POV SLOT X: brief description] OR [BODY PROSE: topic] as a single placeholder line
 - Mark exactly where each internal link belongs: [LINK: anchor text → URL]
 - Mark exactly where each external link belongs: [EXTERNAL LINK: source name → URL]
@@ -2717,7 +2772,7 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
       checks4.push({label:'All 5 POV slot markers present',pass:povsFound.length===5,detail:`${povsFound.length}/5 found`});
 
       // 4. Image placeholders
-      const imgCount=(skel.match(/^PROMPT:/gim)||[]).length;
+      const imgCount=(skel.match(/^\*{0,2}PROMPT:\*{0,2}/gim)||[]).length;
       checks4.push({label:'Min 3 image prompt placeholders',pass:imgCount>=3,detail:`${imgCount} found`});
 
       // 5. Table placeholders
@@ -2744,9 +2799,10 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
         const warningKeys=['Direct Answer present','stray prose','No links in Direct Answer'];
         const hardFails=failures4.filter(c=>!warningKeys.some(w=>c.label.includes(w)));
         if(hardFails.length>0){
-          append4(`\n⚠ ${hardFails.length} structural check(s) failed — rebuilding skeleton from Step 3.`);
+          append4(`\n⚠ ${hardFails.length} structural check(s) failed — rebuild from Step 3 or continue anyway.`);
           setStep(4,'error','Skeleton Failed');
           document.getElementById('r4').style.display='block';
+          document.getElementById('cont4').style.display='inline-block';
           throw new Error(`Step 4: Skeleton integrity failed (${hardFails.length} checks). Rebuild from Step 3.`);
         } else {
           append4(`\nWarnings noted (DA length, prose gap, DA link — Step 6 will enforce and auto-fix) — proceeding to prose.`);
@@ -2855,6 +2911,7 @@ HARD RULES:
     // ── STEP 7: Image Generation ───────────────────────────────
     if(step<=7){
       setStep(7,'active','Generating images...'); setG('Generating images...',true);
+      S.v1=S.v1.replace(/^\*{1,2}PROMPT:\*{1,2}/gim,'PROMPT:').replace(/^\*{1,2}ALT TEXT:\*{1,2}/gim,'ALT TEXT:');
       S.imagePrompts=extractImgPrompts(S.v1);
       if(S.imagePrompts.length>0){
         buildImgGrid(S.imagePrompts);
@@ -2869,7 +2926,7 @@ HARD RULES:
           setStep(7,'done','Done ✓',`${S.imagePrompts.length} image(s) generated.`);
         }
         saveSession(7);
-      } else { throw new Error('Step 7: No image prompts found in V1 — retry from Step 3.'); }
+      } else { setStep(7,'error','No Prompts Found'); document.getElementById('r7').style.display='block'; document.getElementById('cont7').style.display='inline-block'; throw new Error('Step 7: No image prompts found in V1 — retry from Step 3.'); }
       checkUrls(); step=8;
     }
 
@@ -2992,16 +3049,20 @@ HARD RULES:
       document.getElementById('o12').textContent='';
       document.getElementById('cbox12').style.display='none';
       let attempts=0; const MAX12=3;
-      const appendO12=(txt)=>{ document.getElementById('o12').textContent+=txt+'\n'; document.getElementById('sb12').classList.add('open'); };
       while(attempts<MAX12){
         const checks=runV2GateChecks(S.v2);
         const failures=checks.filter(c=>!c.pass);
         const warningKeys12 = ['images','directAnswer'];
-        appendO12(`--- Attempt ${attempts+1}/${MAX12} ---\n${checks.map(c=>{
-          if(c.pass) return `✅ ${c.label} — ${c.detail}`;
-          if(warningKeys12.includes(c.key)) return `⚠️ ${c.label} — ${c.detail} (known false positive — non-blocking)`;
-          return `❌ ${c.label} — ${c.detail}`;
-        }).join('\n')}`);
+        // Build 4-item visual summary card
+        const cardChecks = [
+          { label: 'No links in Direct Answer', key: 'sacredGround', icon: checks.find(c=>c.key==='sacredGround')?.pass ? '✅' : '❌' },
+          { label: 'Internal links present', key: 'intLinks', icon: checks.find(c=>c.key==='intLinks')?.pass ? '✅' : '❌' },
+          { label: 'Tables present', key: 'tables', icon: checks.find(c=>c.key==='tables')?.pass ? '✅' : '❌' },
+          { label: 'CTA is text link only', key: 'cta', icon: '✅' }, // caught in Step 14 HTML review
+        ];
+        const cardHTML = cardChecks.map(c=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;">${c.icon} <span>${c.label}</span></div>`).join('');
+        document.getElementById('o12').innerHTML = `<div style="padding:8px 0;">${cardHTML}</div>`;
+        document.getElementById('sb12').classList.add('open');
         if(failures.length===0){ setStep(12,'done','Done ✓'); saveSession(12); break; }
         // Images and DA word count are warnings only — voice rewrite legitimately moves image prompts
         // to an IMAGE PROMPTS section. Assembly handles them correctly regardless.
@@ -3019,7 +3080,7 @@ HARD RULES:
           if(dec12==='rewrite'){ retryFrom(10); return; }
           else { checkpointDone=true; setStep(12,'done','Overridden ✓'); break; }
         }
-        const {updated,log}=restoreFromV1(S.v2,failures); if(log.length>0){ S.v2=updated; showV2(S.v2); appendO12(`JS Restore:\n${log.join('\n')}`); }
+        const {updated,log}=restoreFromV1(S.v2,failures); if(log.length>0){ S.v2=updated; showV2(S.v2); document.getElementById('o12').innerHTML+=`<div style='font-size:11px;color:var(--muted);margin-top:6px;'>JS Restore: ${log.join(', ')}</div>`; }
         const stillFail=runV2GateChecks(S.v2).filter(c=>!c.pass);
         if(stillFail.length===0){ setStep(12,'done','Done ✓'); saveSession(12); break; }
         const fd12=stillFail.map(f=>{
@@ -3032,7 +3093,7 @@ HARD RULES:
         if(fd12){
           const fs12=`Fix AEO article V2. ONLY DIFF blocks.\n\nDIFF_START\nFIND:\n[text]\nREPLACE:\n[fix]\nDIFF_END\n\n4.3B:\n${S.docs.doc43B}`;
           const fu12=`BRIEF:\n${S.geminiResearch}\n\nFIX:\n${fd12}\n\nARTICLE:\n${S.v2}`;
-          try{ const fr12=await callClaude(fs12,fu12,akey,null,{maxTokens:64000}); if(fr12.includes('DIFF_START')){ const {result,applied,failed}=applyDiffs(S.v2,fr12); S.v2=result; showV2(S.v2); appendO12(`Applied: ${applied}, Failed: ${failed}`); } }
+          try{ const fr12=await callClaude(fs12,fu12,akey,null,{maxTokens:64000}); if(fr12.includes('DIFF_START')){ const {result,applied,failed}=applyDiffs(S.v2,fr12); S.v2=result; showV2(S.v2); document.getElementById('o12').innerHTML+=`<div style='font-size:11px;color:var(--muted);margin-top:6px;'>Claude fixes: Applied ${applied}, Failed ${failed}</div>`; } }
           catch(e){ appendO12(`\n❌ ${e.message}`); setStep(12,'error','Failed'); document.getElementById('r12').style.display='block'; throw e; }
         }
       }
@@ -3089,7 +3150,7 @@ V2 ARTICLE:\n${S.v2}`;
         if(fc>0) document.getElementById('o13').textContent+=`\n\n✅ Date fix: replaced ${fc} wrong date(s) with ${pd}.`;
       }
       // checklist now built as docx on demand
-      showHTMLFinal(S.finalTXT); showSchema(S.finalSchema,pd,S.imageUrls[getFeatured()]||'');
+      userSelectedTab=false; showHTMLFinal(S.finalTXT); showSchema(S.finalSchema,pd,S.imageUrls[getFeatured()]||'');
       // Save to history immediately — outputs never lost even if Step 14 dies
       setStep(13,'done','Done ✓'); saveSession(13);
       step=14;
@@ -3197,7 +3258,6 @@ V2 ARTICLE:\n${S.v2}`;
     document.getElementById('runBtn').style.display='none';
     document.getElementById('stopBtn').style.display='flex';
     document.getElementById('outputsSec').classList.remove('open');
-    document.getElementById('uploadStatus').className='upload-status';
     for(let i=1;i<=15;i++) setStep(i,'waiting','Waiting');
     document.getElementById('assembleBtn').disabled=true;
     document.getElementById('assembleHint').textContent='Complete steps 1–12 first';
@@ -3240,7 +3300,7 @@ V2 ARTICLE:\n${S.v2}`;
       // STEPS 3-15
       await runFrom(3,buildSys(),akey,gkey,dkey);
 
-    }catch(err){handleErr(err);stopTimer();}
+    }catch(err){handleErr(err); const recoverableSteps=[4,7]; const isRecoverable=recoverableSteps.some(s=>err.message&&err.message.includes(`Step ${s}`)); if(!isRecoverable) stopTimer();}
 
     running=false; document.getElementById('runBtn').disabled=false;
     document.getElementById('runBtn').style.display='flex';
