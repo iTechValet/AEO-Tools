@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.5</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.6</p>
   </div>
 </div>
 
@@ -1155,6 +1155,40 @@
     return text;
   }
 
+  // Strip DA_END marker before passing to Claude
+  function stripDAMarker(text) {
+    return text.replace(/\n?<!--\s*DA_END\s*-->\n?/g, '\n');
+  }
+
+  // Inject DA_END marker after locked DA in the zone
+  // Called by hardRestoreDAZone — marker goes right after DA content
+  function injectDAMarker(text) {
+    // Already has marker — leave it
+    if(text.includes('<!-- DA_END -->')) return text;
+    // Find the zone between last H1 and first H2, inject after DA
+    const lines = text.split('\n');
+    let firstH2Idx = -1;
+    for(let i=0;i<lines.length;i++){
+      if(/^##\s/.test(lines[i])){ firstH2Idx=i; break; }
+    }
+    if(firstH2Idx===-1) return text;
+    let daStartIdx = -1;
+    for(let i=firstH2Idx-1;i>=0;i--){
+      if(/^#\s+[^#]/.test(lines[i])){ daStartIdx=i+1; break; }
+    }
+    if(daStartIdx===-1) return text;
+    // Find where DA ends (Last Updated or ToC or separator)
+    let daEndIdx = firstH2Idx;
+    for(let i=daStartIdx;i<firstH2Idx;i++){
+      const t=lines[i].trim();
+      if(/^(\*\*)?last updated/i.test(t)||/^(#{1,3}\s*)?(table of contents)/i.test(t)||/^---+\s*$/.test(t)||/^\s*[-*]\s+\[.+\]\(#.+\)/.test(lines[i])){
+        daEndIdx=i; break;
+      }
+    }
+    lines.splice(daEndIdx,0,'<!-- DA_END -->');
+    return lines.join('\n');
+  }
+
   // ─── DA ZONE HARD RESTORE ─────────────────────────────────
   // After Step 5, replaces whatever Claude wrote between repeated H1 and first H2
   // with: locked DA + Last Updated + ToC extracted from Step 5 output
@@ -1196,10 +1230,12 @@
       if(daZonePassed && t !== '') fillerLines.push(line);
     }
 
-    // Reconstruct: locked DA + Last Updated + ToC + filler (relocated) + blank
+    // Reconstruct: locked DA + DA_END marker + Last Updated + ToC + filler (relocated) + blank
     const reconstructed = [
       '',
       ...lockedDA.split('\n'),
+      '',
+      '<!-- DA_END -->',
       '',
       ...lastUpdatedLines,
       '',
@@ -1602,40 +1638,46 @@
       .trim();
   }
 
-  // Extracts ONLY the DA prose — stops at Last Updated or ToC, not at H2
-  // Used to lock the DA after Step 3 — does not include Last Updated or ToC lines
+  // Extracts ONLY the DA prose — stops at <!-- DA_END --> marker
+  // Used to lock the DA after Step 3
   function extractLockedDA(text) {
-    const h1Match = text.match(/^#\s+.+$/m);
-    if(!h1Match) return '';
-    const afterFirstH1 = text.slice(text.indexOf(h1Match[0]) + h1Match[0].length);
-    const repeatedH1 = afterFirstH1.match(/^#\s+.+$/m);
-    // CRITICAL: must start AFTER the repeated H1 (skips the checklist block entirely)
-    // If no repeated H1, fall back to after first H1
-    let afterDA = '';
-    if(repeatedH1) {
-      afterDA = afterFirstH1.slice(afterFirstH1.indexOf(repeatedH1[0]) + repeatedH1[0].length);
-    } else {
-      afterDA = afterFirstH1;
+    const lines = text.split('\n');
+
+    // Find the last H1 before the first H2 — that's the article H1
+    let firstH2Idx = -1;
+    for(let i=0;i<lines.length;i++){
+      if(/^##\s/.test(lines[i])){ firstH2Idx=i; break; }
     }
-    // Now collect lines until we hit Last Updated, ToC, H2, or separator
-    // At this point we are PAST the checklist block, so separators and bullets are DA boundaries
-    const lines = afterDA.split('\n');
+    if(firstH2Idx===-1) return '';
+
+    let daStartIdx = -1;
+    for(let i=firstH2Idx-1;i>=0;i--){
+      if(/^#\s+[^#]/.test(lines[i])){ daStartIdx=i+1; break; }
+    }
+    if(daStartIdx===-1) return '';
+
+    // If DA_END marker exists, use it as the boundary — most reliable
+    const daEndIdx = lines.findIndex((l,i) => i>=daStartIdx && l.trim()==='<!-- DA_END -->');
+    if(daEndIdx>daStartIdx){
+      return lines.slice(daStartIdx, daEndIdx)
+        .join('\n')
+        .replace(/\[H[123]\]/gi,'')
+        .trim();
+    }
+
+    // Fallback: collect until Last Updated, ToC, separator, or H2
     const daLines = [];
-    for(const line of lines) {
-      const t = line.trim();
-      if(!t) { daLines.push(line); continue; } // preserve blank lines within DA
+    for(let i=daStartIdx;i<firstH2Idx;i++){
+      const t = lines[i].trim();
+      if(!t){ daLines.push(lines[i]); continue; }
       if(/^(\*\*)?last updated/i.test(t)) break;
       if(/^(#{1,3}\s*)?(table of contents|in this article)/i.test(t)) break;
-      if(/^\s*[-*]\s+\[.+\]\(#.+\)/.test(line)) break; // ToC anchor link
-      if(/^##\s/.test(line)) break; // H2
-      if(/^---+\s*$/.test(t)) break; // separator (safe here — past checklist)
-      // Skip checklist bullet items (they appear before repeated H1, but just in case)
+      if(/^\s*[-*]\s+\[.+\]\(#.+\)/.test(lines[i])) break;
+      if(/^---+\s*$/.test(t)) break;
       if(/^\*\s+\*\*.+\*\*/.test(t)) continue;
-      daLines.push(line);
+      daLines.push(lines[i]);
     }
-    return daLines.join('\n')
-      .replace(/\[H[123]\]/gi, '')
-      .trim();
+    return daLines.join('\n').replace(/\[H[123]\]/gi,'').trim();
   }
 
   function populateMetaTab(text) {
@@ -2913,7 +2955,12 @@ WHAT TO WRITE IN FULL:
 DIRECT ANSWER HARD RULE: After the Direct Answer, the ONLY things allowed before the first H2 are:
 - The Last Updated line
 - The Table of Contents
-Nothing else. No "In this article..." paragraphs. No context-setting prose. No bridge sentences. The DA ends, Last Updated appears, ToC appears, first H2 appears. That is the complete sequence.
+Nothing else. No "In this article..." paragraphs. No context-setting prose. No bridge sentences. No preview of what the article covers.
+
+CRITICAL: Immediately after your last Direct Answer paragraph, on its own line, write exactly:
+<!-- DA_END -->
+Then write the Last Updated line. Then write the ToC. Then write the first H2.
+This marker is required. Do not skip it.
 
 WHAT TO WRITE AS SKELETON (not full prose):
 - All H2 and H3 headings (write these in full — they are final)
@@ -3072,7 +3119,7 @@ HARD RULES:
 - Voice: lead with the point, then explain — NEVER setup before verdict
 - EXTERNAL LINK ATTRIBUTION: When embedding an external link, always mention the source name naturally in the surrounding sentence. Example: "According to BrightEdge..." or "Semrush data shows..." — never embed a bare link with no attribution in the text`;
 
-      const u5=`IMPORTANT OVERRIDE: You are in PROSE FILL mode. You are NOT writing an article from scratch. You are filling in a skeleton that already exists. Follow the PROSE FILL INSTRUCTIONS below — ignore any "write the full article" instructions from 4.3A or Prompt 2. The skeleton structure is final. Your only job is to replace placeholders with content.\n\nPUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${proseInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}\n\n---\nSKELETON TO FILL:\n${S.v1}`;
+      const u5=`IMPORTANT OVERRIDE: You are in PROSE FILL mode. You are NOT writing an article from scratch. You are filling in a skeleton that already exists. Follow the PROSE FILL INSTRUCTIONS below — ignore any "write the full article" instructions from 4.3A or Prompt 2. The skeleton structure is final. Your only job is to replace placeholders with content.\n\nPUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${proseInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}\n\n---\nSKELETON TO FILL:\n${stripDAMarker(S.v1)}`;
       const v1prose=await callClaude(sys,u5,akey,(p)=>{document.getElementById('o5').textContent=p;document.getElementById('sb5').classList.add('open');},{maxTokens:64000});
       if(v1prose.length<3000) throw new Error(`Step 5: Prose output too short (${v1prose.length} chars) — retry.`);
       S.v1=v1prose;
@@ -3188,7 +3235,7 @@ HARD RULES:
         }).filter(Boolean).join('\n\n');
         if(!failDesc){ appendO6('All remaining failures handled by JS — skipping Claude call.'); continue; }
         const fixSys6=`You are applying targeted fixes to an AEO article. Output ONLY DIFF_START/DIFF_END blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement]\nDIFF_END\n\n4.3B:\n${S.docs.doc43B}`;
-        const fixUser6=`RESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFIX THESE:\n${failDesc}\n\nARTICLE:\n${S.v1}`;
+        const fixUser6=`RESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFIX THESE:\n${failDesc}\n\nARTICLE:\n${stripDAMarker(S.v1)}`;
         try {
           const fixRes=await callClaude(fixSys6,fixUser6,akey,null,{maxTokens:64000});
           if(fixRes.includes('DIFF_START')){ const {result,applied,failed,log}=applyDiffs(S.v1,fixRes); S.v1=result; showV1(S.v1); appendO6(`Applied: ${applied}, Failed: ${failed}\n${log.join('\n')}`); }
@@ -3228,7 +3275,7 @@ HARD RULES:
       const p3=getPrompt(S.docs.doc44,3);
       const bpAnchors=(S.geminiResearch.match(/Semantic Anchor:\s*"([^"]+)"/g)||[]).map(l=>l.replace(/Semantic Anchor:\s*"/,'').replace(/"$/,''));
       const linkListStr=bpAnchors.map(a=>`Anchor text: "${a}"`).join('\n');
-      const vp=`You are operating inside the AEO Authority Pipeline as Quality Assurance Auditor.\n\nCRITICAL OUTPUT RULE: Output ALL FAIL_START/FAIL_END and FLAG_START/FLAG_END blocks FIRST. Summary line LAST.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${S.geminiResearch}\n\nLINK VERIFICATION — these anchor phrases should appear:\n${linkListStr}\n\n---\n\n${p3}\n\nArticle text below:\n${S.v1}`;
+      const vp=`You are operating inside the AEO Authority Pipeline as Quality Assurance Auditor.\n\nCRITICAL OUTPUT RULE: Output ALL FAIL_START/FAIL_END and FLAG_START/FLAG_END blocks FIRST. Summary line LAST.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${S.geminiResearch}\n\nLINK VERIFICATION — these anchor phrases should appear:\n${linkListStr}\n\n---\n\n${p3}\n\nArticle text below:\n${stripDAMarker(S.v1)}`;
       S.validation=await callGemini(vp,gkey);
       S.parsedFails=parseFails(S.validation);
       const flagNote=S.parsedFlags.length>0?`\n\n--- VOICE FLAGS (for Step 10 voice rewrite) ---\n${S.parsedFlags.map(f=>`🚩 ${f.id}: ${f.desc}`).join('\n')}`:'';
@@ -3253,7 +3300,7 @@ HARD RULES:
           return `FIX:\nDesc: ${f.desc}\nFind: ${f.find}\nReplace: ${f.replace}\nScope: ${f.scope}`;
         }).filter(Boolean).join('\n\n---\n\n');
         const fixSys9=`You are applying targeted fixes to an AEO article. Output ONLY DIFF blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement or [DELETE]]\nDIFF_END\n\n4.3B:\n${S.docs.doc43B}`;
-        const fixUser9=`RESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFAILS:\n${failInstructions}\n\nARTICLE:\n${S.v1}`;
+        const fixUser9=`RESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFAILS:\n${failInstructions}\n\nARTICLE:\n${stripDAMarker(S.v1)}`;
         const fixResult=await callClaude(fixSys9,fixUser9,akey,(p)=>{document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\n${p}`;},{maxTokens:64000});
         if(fixResult.includes('DIFF_START')){
           const {result,applied,failed,log}=applyDiffs(S.v1,fixResult);
@@ -3295,7 +3342,7 @@ HARD RULES:
         }
         // Gemini re-validation
         setG('Gemini re-validating fixes...',true);
-        const revalPrompt=`Fixes applied to article. Check ONLY whether each original FAIL item was resolved.\n\nORIGINAL FAILs:\n${S.parsedFails.map(f=>`${f.id}: ${f.desc}`).join('\n')}\n\nFIXED ARTICLE:\n${S.v1}\n\nOutput: [ITEM_ID]: PASS — [confirmation] OR [ITEM_ID]: FAIL — [what's still wrong]`;
+        const revalPrompt=`Fixes applied to article. Check ONLY whether each original FAIL item was resolved.\n\nORIGINAL FAILs:\n${S.parsedFails.map(f=>`${f.id}: ${f.desc}`).join('\n')}\n\nFIXED ARTICLE:\n${stripDAMarker(S.v1)}\n\nOutput: [ITEM_ID]: PASS — [confirmation] OR [ITEM_ID]: FAIL — [what's still wrong]`;
         const revalResult=await callGemini(revalPrompt,gkey);
         document.getElementById('o9').textContent+=`\n\n--- GEMINI RE-VALIDATION ---\n${revalResult}`;
         S.parsedFails=S.parsedFails.filter(f=>{
@@ -3335,9 +3382,13 @@ HARD RULES:
         `THE PATTERN: Lead with the verdict. React, then explain. NEVER explain before landing the point. Short sentences. Heavy contractions. Sound like the author, not a marketing writer.`
       ].filter(Boolean).join('\n\n');
 
-      const voiceUser=`PUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p4}\n${protectedList}${flagContext}\n\n${voiceExamples}\n\nTASK: Voice rewrite ONLY. Structure, links, tables, POV slots already correct.\n\nPROTECTED ZONES — DO NOT TOUCH:\n- Direct Answer (everything before first H2) — sacred ground, final, do not change a word\n- All H2 and H3 headings\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- AI Authority Article Optimization Checklist\n- All internal and external hyperlinks (URLs and anchor text must stay exactly)\n- Any sentence in PROTECTED SENTENCES above\n\nEverything else: rewrite from blank page in the author's voice.\n\nARTICLE:\n${S.v1}`;
+      const voiceUser=`PUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p4}\n${protectedList}${flagContext}\n\n${voiceExamples}\n\nTASK: Voice rewrite ONLY. Structure, links, tables, POV slots already correct.\n\nPROTECTED ZONES — DO NOT TOUCH:\n- Direct Answer (everything before first H2) — sacred ground, final, do not change a word\n- All H2 and H3 headings\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- AI Authority Article Optimization Checklist\n- All internal and external hyperlinks (URLs and anchor text must stay exactly)\n- Any sentence in PROTECTED SENTENCES above\n\nEverything else: rewrite from blank page in the author's voice.\n\nARTICLE:\n${stripDAMarker(S.v1)}`;
       S.v2=await callClaude(sys,voiceUser,akey,(p)=>{document.getElementById('o10').textContent=p;document.getElementById('sb10').classList.add('open');showV2(p);},{maxTokens:64000});
       if(S.v2.length<2000) throw new Error(`Step 10: V2 too short — retry.`);
+      // Restore DA zone with marker after voice rewrite
+      if(S.directAnswer && S.directAnswer.length>50){
+        S.v2 = hardRestoreDAZone(S.v2, S.directAnswer);
+      }
 
       // Binary QC checks
       const forbiddenConclusions=['it depends on your situation','varies by case','there\'s no one-size-fits-all','both options have pros and cons','talk to a professional'];
@@ -3416,7 +3467,7 @@ HARD RULES:
         }).filter(Boolean).join('\n\n');
         if(fd12){
           const fs12=`Fix AEO article V2. ONLY DIFF blocks.\n\nDIFF_START\nFIND:\n[text]\nREPLACE:\n[fix]\nDIFF_END\n\n4.3B:\n${S.docs.doc43B}`;
-          const fu12=`BRIEF:\n${S.geminiResearch}\n\nFIX:\n${fd12}\n\nARTICLE:\n${S.v2}`;
+          const fu12=`BRIEF:\n${S.geminiResearch}\n\nFIX:\n${fd12}\n\nARTICLE:\n${stripDAMarker(S.v2)}`;
           try{ const fr12=await callClaude(fs12,fu12,akey,null,{maxTokens:64000}); if(fr12.includes('DIFF_START')){ const {result,applied,failed}=applyDiffs(S.v2,fr12); S.v2=result; showV2(S.v2); document.getElementById('o12').innerHTML+=`<div style='font-size:11px;color:var(--muted);margin-top:6px;'>Claude fixes: Applied ${applied}, Failed ${failed}</div>`; } }
           catch(e){ appendO12(`\n❌ ${e.message}`); setStep(12,'error','Failed'); document.getElementById('r12').style.display='block'; throw e; }
         }
@@ -3457,7 +3508,7 @@ Featured: Image ${featNum}
 - Convert all markdown tables to branded HTML tables per 4.3B spec (itv-table-1, itv-table-2, etc.)
 - No link in the Direct Answer section (content before the first H2 heading)
 
-V2 ARTICLE:\n${S.v2}`;
+V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
       const assemblyResult=await callClaude(`You are an expert AEO article HTML producer.\n\n4.3B:\n${S.docs.doc43B}`,htmlPrompt,akey,(p)=>{document.getElementById('o13').textContent=p;document.getElementById('sb13').classList.add('open');},{maxTokens:64000});
       const schemaMatch=assemblyResult.match(/=== SCHEMA START ===([\s\S]*?)=== SCHEMA END ===/i);
       S.finalSchema=schemaMatch?schemaMatch[1].trim():'';
