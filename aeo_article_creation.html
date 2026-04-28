@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.4</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.5</p>
   </div>
 </div>
 
@@ -434,7 +434,7 @@
     <div class="step-card" id="step5">
       <div class="step-header" onclick="toggleStep(5)">
         <div class="step-num">5</div>
-        <div class="step-info"><div class="step-title">Claude — Full Prose + Tables</div><div class="step-desc">Fills skeleton with body prose, POV slots, tables, CTA — Direct Answer untouched</div></div>
+        <div class="step-info"><div class="step-title">Claude — Full Prose + Tables → V1</div><div class="step-desc">Fills skeleton with body prose, POV slots, tables, CTA — Direct Answer untouched</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b5">Waiting</div><span class="schev closed" id="c5">▼</span></div>
       </div>
       <div class="step-body" id="sb5"><div class="sout-wrap"><div class="sout" id="o5"></div><button class="btn-copy-step" id="copy-btn-5" onclick="copyStepOutput(5)">Copy</button></div><div id="r5" style="display:none;"><button class="btn-retry" onclick="retryFrom(5)">↻ Retry from Step 5</button></div></div>
@@ -508,7 +508,7 @@
     <div class="step-card" id="step10">
       <div class="step-header" onclick="toggleStep(10)">
         <div class="step-num">10</div>
-        <div class="step-info"><div class="step-title">Claude — Voice Rewrite</div><div class="step-desc">Blank-page prose rewrite in author voice. Protected: Direct Answer, tables, links, image prompts.</div></div>
+        <div class="step-info"><div class="step-title">Claude — Voice Rewrite → V2</div><div class="step-desc">Blank-page prose rewrite in author voice. Protected: Direct Answer, tables, links, image prompts.</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b10">Waiting</div><span class="schev closed" id="c10">▼</span></div>
       </div>
       <div class="step-body" id="sb10"><div class="sout-wrap"><div class="sout" id="o10"></div><button class="btn-copy-step" id="copy-btn-10" onclick="copyStepOutput(10)">Copy</button></div><div id="r10" style="display:none;"><button class="btn-retry" onclick="retryFrom(10)">↻ Retry from Step 10</button></div></div>
@@ -1609,13 +1609,16 @@
     if(!h1Match) return '';
     const afterFirstH1 = text.slice(text.indexOf(h1Match[0]) + h1Match[0].length);
     const repeatedH1 = afterFirstH1.match(/^#\s+.+$/m);
+    // CRITICAL: must start AFTER the repeated H1 (skips the checklist block entirely)
+    // If no repeated H1, fall back to after first H1
     let afterDA = '';
     if(repeatedH1) {
       afterDA = afterFirstH1.slice(afterFirstH1.indexOf(repeatedH1[0]) + repeatedH1[0].length);
     } else {
       afterDA = afterFirstH1;
     }
-    // Split into lines, collect until we hit Last Updated, ToC header, ToC link, separator, or H2
+    // Now collect lines until we hit Last Updated, ToC, H2, or separator
+    // At this point we are PAST the checklist block, so separators and bullets are DA boundaries
     const lines = afterDA.split('\n');
     const daLines = [];
     for(const line of lines) {
@@ -1625,11 +1628,12 @@
       if(/^(#{1,3}\s*)?(table of contents|in this article)/i.test(t)) break;
       if(/^\s*[-*]\s+\[.+\]\(#.+\)/.test(line)) break; // ToC anchor link
       if(/^##\s/.test(line)) break; // H2
-      if(/^---+\s*$/.test(t)) break; // separator
+      if(/^---+\s*$/.test(t)) break; // separator (safe here — past checklist)
+      // Skip checklist bullet items (they appear before repeated H1, but just in case)
+      if(/^\*\s+\*\*.+\*\*/.test(t)) continue;
       daLines.push(line);
     }
     return daLines.join('\n')
-      .replace(/^\*\s+\*\*.+\*\*.*$/gm, '') // strip checklist bullets
       .replace(/\[H[123]\]/gi, '')
       .trim();
   }
@@ -1948,10 +1952,16 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const formattedDate = pd ? `${months[parseInt(mo,10)-1]} ${parseInt(dy,10)}, ${yr}` : '';
 
+    // Extract author name and business name dynamically from 4.3B
+    const authorMatch = S.docs.doc43B && S.docs.doc43B.match(/\*?\s*Author Name:\s*([^\n*]+)/i);
+    const businessMatch = S.docs.doc43B && S.docs.doc43B.match(/\*?\s*Client Name:\s*([^\n*]+)/i);
+    const clientAuthor = authorMatch ? authorMatch[1].trim() : 'Gerek Allen';
+    const clientBusiness = businessMatch ? businessMatch[1].trim() : 'iTech Valet';
+
     // Build structured audit prompt
     const auditSys = `You are a structured QC auditor for the iTech Valet AEO pipeline. You check HTML articles and schema against a defined checklist.\n\nOutput ONLY a structured report in this exact format for each check:\nCHECK: [check name]\nSTATUS: PASS or FAIL\nDETAIL: [one line — what you found]\n\nThen after all checks, output any DIFF blocks needed to fix FAILs:\nDIFF_START\nFIND:\n[exact HTML to find]\nREPLACE:\n[replacement]\nDIFF_END\n\nIf no fixes needed, output: ALL CHECKS PASSED\n\n4.3B — CLIENT IDENTITY CARD:\n${S.docs.doc43B}`;
 
-    const auditUser = `Run all checks below against the HTML and Schema provided. Be specific in DETAIL field.\n\nPUBLISH DATE: ${pd}\nFORMATTED DATE: ${formattedDate}\n\nCHECKS TO RUN:\n1. No links in Direct Answer (content before first H2)\n2. CTA is text link only — no button element, no background-color on CTA section\n3. All dates match publish date "${pd}" — datePublished, dateModified, Last Updated\n4. foundingDate is NOT "${pd}" — must be the actual company founding date from 4.3B\n5. No markdown tables remaining — all must be converted to HTML\n6. No forbidden terms: "blog post", "SEO packages", "digital marketing", "web design", "keyword rankings", "traffic", "tips and tricks"\n7. Schema present: FAQPage, BlogPosting, BreadcrumbList all exist\n8. Author name is "Gerek Allen" — not any other name\n9. Business name is "iTech Valet" / "621 Enterprises Inc" — correct casing\n10. No duplicate paragraph blocks in CTA or conclusion\n11. Last Updated displays as "${formattedDate}" not ISO format\n12. ToC present with anchor links\n\nHTML:\n${S.finalTXT}\n\nSCHEMA:\n${S.finalSchema}`;
+    const auditUser = `Run all checks below against the HTML and Schema provided. Be specific in DETAIL field.\n\nPUBLISH DATE: ${pd}\nFORMATTED DATE: ${formattedDate}\n\nCHECKS TO RUN:\n1. No links in Direct Answer (content before first H2)\n2. CTA is text link only — no button element, no background-color on CTA section\n3. All dates match publish date "${pd}" — datePublished, dateModified, Last Updated\n4. foundingDate is NOT "${pd}" — must be the actual company founding date from 4.3B\n5. No markdown tables remaining — all must be converted to HTML\n6. No forbidden terms per 4.3B terminology lock\n7. Schema present: FAQPage, BlogPosting, BreadcrumbList all exist\n8. Author name is "${clientAuthor}" — not any other name\n9. Business name is "${clientBusiness}" — correct casing per 4.3B\n10. No duplicate paragraph blocks in CTA or conclusion\n11. Last Updated displays as "${formattedDate}" not ISO format\n12. ToC present with anchor links\n\nHTML:\n${S.finalTXT}\n\nSCHEMA:\n${S.finalSchema}`;
 
     let auditResult = '';
     try {
@@ -2037,14 +2047,21 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
 
     // Build system prompt
     const p6 = getPrompt(S.docs.doc44, 6);
-    const pubDateLine = publishDate ? `\n\nPUBLISH DATE: ${publishDate} — every date in the HTML must match this exactly.` : '';
+    // Always read publish date fresh from DOM — same pattern as Step 13
+    const pd15 = document.getElementById('publishDate').value || '';
+    const [yr15,mo15,dy15] = pd15 ? pd15.split('-') : ['','',''];
+    const months15 = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const formattedPD15 = pd15 ? `${months15[parseInt(mo15,10)-1]} ${parseInt(dy15,10)}, ${yr15}` : '';
+    const pubDateLine = pd15
+      ? `\n\nPUBLISH DATE: ${pd15} — Last Updated must display as "${formattedPD15}". This is correct. Do not flag or change it.`
+      : '\n\nPUBLISH DATE: Not set — ignore all date checking.';
     const qcSys = `You are an expert HTML QC specialist for the iTech Valet AEO pipeline. You make surgical fixes to HTML articles.\n\nRULES:\n- Output ONLY DIFF_START/DIFF_END blocks for fixes. Never return the full HTML.\n- Format:\nDIFF_START\nFIND:\n[exact HTML to find]\nREPLACE:\n[replacement, or [DELETE] to remove]\nDIFF_END\n- If nothing needs fixing, output only: QC COMPLETE — NO CHANGES NEEDED\n- Fix ONLY what the operator describes. Do not touch anything else.\n- No CTAs with buttons. No background colors on CTA sections. No links in the Direct Answer section (before the first H2). These are hard violations.\n\n4.3B — CLIENT IDENTITY CARD + HTML SPEC:\n${S.docs.doc43B}${pubDateLine}`;
 
     // Auto-run initial QC audit
     setG('Claude auditing HTML...', true);
     qcAppendBubble('system', '⏳ Running initial HTML audit...');
 
-    const auditPrompt = `${p6}${pubDateLine}\n\nReview this HTML for violations. Check specifically:\n1. Any link (<a href>) in the Direct Answer section (content before the first H2 heading)\n2. Any CTA button element added at the bottom\n3. Any background-color applied to the CTA section\n4. Publish date correctness — must be exactly "${publishDate}"\n5. Any unconverted markdown tables\n6. Any other spec violations per 4.3B\n\nReport what you find clearly, then output DIFF blocks for each fix. If clean, output: QC COMPLETE — NO CHANGES NEEDED\n\nHTML:\n${S.finalTXT}`;
+    const auditPrompt = `${p6}${pubDateLine}\n\nReview this HTML for violations. Check ONLY these specific items:\n1. Any link (<a href>) INSIDE the direct answer div (class "tow-direct-answer" or "itv-direct-answer" or "direct-answer") — NOT anywhere else in the article\n2. Any CTA button element (<button>) added at the bottom\n3. Any background-color applied to the CTA section\n4. Any unconverted markdown tables (pipe-separated text not in <table> tags)\n5. Any other hard violations visible in the HTML\n\nDO NOT flag:\n- The Last Updated date if it shows a formatted date like "April 30, 2026" — that is correct\n- Author name or business name — those are set per client identity card\n- Missing HTML elements that aren't required by 4.3B\n- Invented rules not present in 4.3B\n\nIf the publish date field was empty when the article was assembled, ignore date checking entirely.\n\nReport only real violations with evidence from the HTML. Then output DIFF blocks for each real fix. If clean, output: QC COMPLETE — NO CHANGES NEEDED\n\nHTML:\n${S.finalTXT}`;
 
     const auditMsg = { role: 'user', content: auditPrompt };
     qc14History.push(auditMsg);
@@ -2641,7 +2658,8 @@ ${S.v2}`, voice11AKey, null, {maxTokens:4000});
 
   function isExternal(url) {
     if(!url.match(/^https?:\/\//)) return false;
-    if(url.match(/itechvalet\.com/i)) return false;
+    const clientDomain = getClientDomain();
+    if(url.toLowerCase().includes(clientDomain)) return false;
     if(url.match(/github\.io/i)) return false;
     return true;
   }
@@ -3164,16 +3182,17 @@ HARD RULES:
           if(f.key==='tables') return `MISSING: Need min 3 complete markdown tables with min 3 columns each.`;
           if(f.key==='images') return `MISSING: Add PROMPT:/ALT TEXT: blocks after H2 headings that are missing them.`;
           if(f.key==='faq') return `MISSING: FAQ section with 5-8 H3 questions before conclusion.`;
-          if(f.key==='directAnswer') return `WRONG: Direct answer word count ${f.detail}. Adjust to 150-450 words.`;
+          if(f.key==='directAnswer') return null; // handled by JS DA restore — never send to Claude
           if(f.key==='sacredGround') return `CRITICAL: Remove ALL links from Direct Answer section (before first H2). Convert to plain text.`;
           return `ISSUE: ${f.label} — ${f.detail}`;
-        }).join('\n\n');
+        }).filter(Boolean).join('\n\n');
+        if(!failDesc){ appendO6('All remaining failures handled by JS — skipping Claude call.'); continue; }
         const fixSys6=`You are applying targeted fixes to an AEO article. Output ONLY DIFF_START/DIFF_END blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement]\nDIFF_END\n\n4.3B:\n${S.docs.doc43B}`;
         const fixUser6=`RESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFIX THESE:\n${failDesc}\n\nARTICLE:\n${S.v1}`;
         try {
           const fixRes=await callClaude(fixSys6,fixUser6,akey,null,{maxTokens:64000});
           if(fixRes.includes('DIFF_START')){ const {result,applied,failed,log}=applyDiffs(S.v1,fixRes); S.v1=result; showV1(S.v1); appendO6(`Applied: ${applied}, Failed: ${failed}\n${log.join('\n')}`); }
-          else if(fixRes.length>2000){ S.v1=fixRes; showV1(S.v1); appendO6('Fallback: full article used.'); }
+          else { appendO6('No DIFF blocks returned — article unchanged. Retrying...'); }
         } catch(e){ appendO6(`\n❌ Claude error: ${e.message}`); setStep(6,'error','Failed — Retry'); document.getElementById('r6').style.display='block'; gateError=true; break; }
       }
       if(gateError) throw new Error('Step 6 failed — use Retry button.');
@@ -3241,27 +3260,28 @@ HARD RULES:
           S.protectedSentences=S.parsedFails.filter(f=>f.replace&&f.replace.length>20).map(f=>f.replace);
           S.v1=result; showV1(S.v1);
           document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\n${log.join('\n')}\n\nApplied: ${applied}, Failed: ${failed}`;
-        } else if(fixResult.length>2000){ S.v1=fixResult; showV1(S.v1); }
+        } else {
+          document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\nNo DIFF blocks returned — article unchanged.`;
+        }
         // JS anchor text correction — fix all internal link anchors by URL match
-        // This handles cases where Claude modifies anchor text (adds "the", wrong casing, etc.)
-        const bpAnchorsForFix=(S.geminiResearch.match(/Semantic Anchor:\s*"([^"]+)"/g)||[]).map(l=>l.replace(/Semantic Anchor:\s*"/,'').replace(/"$/,''));
-        const bpUrlsForFix=(S.geminiResearch.match(/URL:\s*(https?:\/\/itechvalet\.com[^\s|"]+)/gi)||[]).map(l=>l.replace(/URL:\s*/i,'').trim());
-        // Build map of URL slug → correct anchor text from blueprint
+        // Uses client domain dynamically — works for any client
+        const clientDomain9 = getClientDomain();
+        const clientUrlPattern = new RegExp(`https?:\\/\\/(www\\.)?${clientDomain9.replace(/\./g,'\\.')}[^\\s\\n|"]+`, 'gi');
+        const anchorPattern = new RegExp(`Semantic Anchor:\\s*"([^"]+)"[\\s\\S]*?(?:URL|Link):\\s*(https?:\\/\\/(?:www\\.)?${clientDomain9.replace(/\./g,'\\.')}[^\\s\\n|"]+)`, 'gi');
         const anchorMap={};
-        // Extract all [anchor](url) pairs from gemini research brief
-        const bpLinkMatches=S.geminiResearch.match(/Semantic Anchor:\s*"([^"]+)"[\s\S]*?(?:URL|Link):\s*(https?:\/\/itechvalet\.com[^\s\n|"]+)/gi)||[];
-        bpLinkMatches.forEach(block=>{
-          const anchorM=block.match(/Semantic Anchor:\s*"([^"]+)"/i);
-          const urlM=block.match(/(?:URL|Link):\s*(https?:\/\/itechvalet\.com[^\s\n|"]+)/i);
-          if(anchorM&&urlM){
-            const slug=urlM[1].replace(/https?:\/\/itechvalet\.com/,'').replace(/\/$/,'');
-            anchorMap[slug]=anchorM[1];
-          }
-        });
+        let anchorBlock;
+        const re9 = new RegExp(`Semantic Anchor:\\s*"([^"]+)"[\\s\\S]*?(?:URL|Link):\\s*(https?:\\/\\/(?:www\\.)?${clientDomain9.replace(/\./g,'\\.')}[^\\s\\n|"]+)`, 'gi');
+        while((anchorBlock=re9.exec(S.geminiResearch))!==null){
+          const anchor=anchorBlock[1];
+          const url=anchorBlock[2];
+          const slug=url.replace(/https?:\/\/(www\.)?[^/]+/,'').replace(/\/$/,'');
+          if(anchor&&slug) anchorMap[slug]=anchor;
+        }
         if(Object.keys(anchorMap).length>0){
+          const linkRe9=new RegExp(`\\[([^\\]]+)\\]\\((https?:\\/\\/(?:www\\.)?${clientDomain9.replace(/\./g,'\\.')}[^)]+)\\)`,'g');
           let anchorFixed=0;
-          S.v1=S.v1.replace(/\[([^\]]+)\]\((https?:\/\/itechvalet\.com[^)]+)\)/g,(match,anchor,url)=>{
-            const slug=url.replace(/https?:\/\/itechvalet\.com/,'').replace(/\/$/,'');
+          S.v1=S.v1.replace(linkRe9,(match,anchor,url)=>{
+            const slug=url.replace(/https?:\/\/(www\.)?[^/]+/,'').replace(/\/$/,'');
             if(anchorMap[slug]&&anchor!==anchorMap[slug]){
               anchorFixed++;
               return `[${anchorMap[slug]}](${url})`;
