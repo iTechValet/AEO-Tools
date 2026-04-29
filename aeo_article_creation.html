@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.6</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.7</p>
   </div>
 </div>
 
@@ -1413,7 +1413,7 @@
       S.tokens.imgs++; updateCost();
       // Re-check all image slots and update download button + step badge
       // Count total rendered image cards (not S.imagePrompts.length which may differ after dedup)
-      const totalCards = document.querySelectorAll('[id^="icard"]').length || S.imagePrompts.length;
+      const totalCards = document.querySelectorAll('.img-card').length || S.imagePrompts.length;
       const failedCount = totalCards - Object.keys(S.imageData).length;
       const dlAllBtn=document.getElementById('dlAllBtn');
       if(failedCount<=0){
@@ -2757,7 +2757,8 @@ ${S.v2}`, voice11AKey, null, {maxTokens:4000});
     // Direct Answer check — if S.directAnswer is locked, compare exactly; otherwise fall back to word count
     if(S.directAnswer && S.directAnswer.length > 50) {
       const currentDA = extractLockedDA(v1);
-      const daMatch = currentDA.trim() === S.directAnswer.trim();
+      const normalizeDA = s => s.replace(/\s+/g,' ').trim();
+      const daMatch = normalizeDA(currentDA) === normalizeDA(S.directAnswer);
       results.push({key:'directAnswer',label:'Direct Answer matches locked version',pass:daMatch,detail:daMatch?'✓ Exact match':'⚠ DA content differs from Step 3 locked version — restoring'});
       // Also check no links in DA zone
       const firstH2Idx=v1.search(/^##\s/m);
@@ -2969,7 +2970,7 @@ WHAT TO WRITE AS SKELETON (not full prose):
 - Mark exactly where each internal link belongs: [LINK: anchor text → URL]
 - Mark exactly where each external link belongs: [EXTERNAL LINK: source name → URL]
 - FAQ section: write all 5-8 questions in full as H3 headings, each followed by [FAQ ANSWER: topic]
-- Conclusion: [CONCLUSION — SLOT 5 CONVICTION]
+- Conclusion: [POV SLOT 5: CONCLUSION — CONVICTION]
 - CTA: [CTA BLOCK — diagnostic intent, text link only, NO button]
 - Schema block: [SCHEMA PLACEHOLDER]
 
@@ -2981,7 +2982,7 @@ CRITICAL RULES:
 - NO links anywhere in the Direct Answer
 - Minimum 3 [TABLE NEEDED: topic, columns] placeholders distributed across H2 sections
 - Every H2 must have a PROMPT:/ALT TEXT: block immediately after it (except FAQ and Conclusion)
-- All 5 POV slots must be marked: [POV SLOT 1: INTRO FRICTION], [POV SLOT 2: FRICTION H3], [POV SLOT 3: ANTI-PERSONA], [POV SLOT 4: COUNTER-INTENT], [POV SLOT 5: CONCLUSION]`;
+- All 5 POV slots must be marked: [POV SLOT 1: INTRO FRICTION], [POV SLOT 2: FRICTION H3], [POV SLOT 3: ANTI-PERSONA], [POV SLOT 4: COUNTER-INTENT], [POV SLOT 5: CONCLUSION — CONVICTION]`;
 
       const anchorInstr=`
 INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phrase from Gemini's blueprint. NEVER use the full article title as anchor text.`;
@@ -3089,6 +3090,13 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
       setStep(5,'active','Writing prose...'); setG('Claude filling skeleton with full prose and tables...',true);
       const p2=getPrompt(S.docs.doc44,2);
       const proseInstr=`
+CRITICAL — NO DUPLICATION:
+The skeleton already contains the AI Authority Article Optimization Checklist block at the very top, followed by a --- separator, followed by the repeated H1 and Direct Answer. This structure is FINAL.
+- Do NOT write another checklist block anywhere
+- Do NOT write another H1 heading anywhere in the article body
+- Do NOT reproduce the checklist metadata (Meta Title, Permalink URL, etc.) anywhere in the body
+- Your work begins at the first [POV SLOT] or [BODY PROSE] placeholder — everything above the first H2 is already final and must not be touched or repeated
+
 CRITICAL — THIS IS THE PROSE PASS:
 You are filling in a skeleton. The skeleton is provided below.
 
@@ -3106,7 +3114,7 @@ YOUR JOB:
 4. Replace every [LINK: anchor → URL] with the actual markdown hyperlink in natural prose
 5. Replace every [EXTERNAL LINK: source → URL] with embedded citation in natural prose
 6. Replace every [FAQ ANSWER: ...] with a 2-4 paragraph answer
-7. Replace [CONCLUSION — SLOT 5 CONVICTION] with the directional conclusion
+7. Replace [POV SLOT 5: CONCLUSION — CONVICTION] with the directional conclusion
 8. Replace [CTA BLOCK] with the diagnostic CTA — text link ONLY, NO button element, NO background color on the CTA section
 9. Replace [SCHEMA PLACEHOLDER] with complete schema markup (FAQPage + BlogPosting + BreadcrumbList)
 
@@ -3122,7 +3130,27 @@ HARD RULES:
       const u5=`IMPORTANT OVERRIDE: You are in PROSE FILL mode. You are NOT writing an article from scratch. You are filling in a skeleton that already exists. Follow the PROSE FILL INSTRUCTIONS below — ignore any "write the full article" instructions from 4.3A or Prompt 2. The skeleton structure is final. Your only job is to replace placeholders with content.\n\nPUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${proseInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}\n\n---\nSKELETON TO FILL:\n${stripDAMarker(S.v1)}`;
       const v1prose=await callClaude(sys,u5,akey,(p)=>{document.getElementById('o5').textContent=p;document.getElementById('sb5').classList.add('open');},{maxTokens:64000});
       if(v1prose.length<3000) throw new Error(`Step 5: Prose output too short (${v1prose.length} chars) — retry.`);
-      S.v1=v1prose;
+      // JS safety net — strip any duplicate checklist blocks Claude may have introduced
+      // Pattern: find the first --- separator after the checklist, then check if the checklist header appears again
+      let cleanedProse = v1prose;
+      const firstSep = cleanedProse.indexOf('\n---\n');
+      if(firstSep > 0) {
+        const afterSep = cleanedProse.slice(firstSep + 5);
+        const dupChecklistIdx = afterSep.search(/AI AUTHORITY ARTICLE OPTIMIZATION CHECKLIST/i);
+        if(dupChecklistIdx > -1) {
+          // Find the second occurrence of the repeated H1 after the duplicate checklist
+          // and keep everything from that point forward, splicing it after the first ---
+          const beforeSep = cleanedProse.slice(0, firstSep + 5);
+          // Find the H1 title from the original — it appears right after the duplicate checklist block
+          const dupSection = afterSep.slice(dupChecklistIdx);
+          const h1InDup = dupSection.match(/^#\s+[^#].+$/m);
+          if(h1InDup) {
+            const h1Idx = dupSection.indexOf(h1InDup[0]);
+            cleanedProse = beforeSep + dupSection.slice(h1Idx);
+          }
+        }
+      }
+      S.v1 = cleanedProse;
       // Hard restore DA zone after Step 5 — replaces whatever Claude wrote between H1 and first H2
       // with exactly: S.directAnswer + Last Updated + ToC from the Step 5 output
       if(S.directAnswer && S.directAnswer.length > 50) {
@@ -3254,7 +3282,7 @@ HARD RULES:
       if(S.imagePrompts.length>0){
         buildImgGrid(S.imagePrompts);
         await genAllImages(S.imagePrompts,gkey);
-        const totalCards2 = document.querySelectorAll('[id^="icard"]').length || S.imagePrompts.length;
+        const totalCards2 = document.querySelectorAll('.img-card').length || S.imagePrompts.length;
         const failedCount=totalCards2-Object.keys(S.imageData).length;
         const dlAllBtn=document.getElementById('dlAllBtn');
         if(failedCount>0){
@@ -3692,6 +3720,7 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
     const gkey=document.getElementById('keyGemini').value.trim();
     const dkey=document.getElementById('keyDrive').value.trim();
     if(!gkey){alert('Gemini API key required.');return;}
+    startTimer(); // Resume timer — was stopped by Step 2 error
     document.getElementById('r2').style.display='none';
     running=true;
     document.getElementById('runBtn').disabled=true;
