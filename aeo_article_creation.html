@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.7</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.9</p>
   </div>
 </div>
 
@@ -1190,48 +1190,47 @@
   }
 
   // ─── DA ZONE HARD RESTORE ─────────────────────────────────
-  // After Step 5, replaces whatever Claude wrote between repeated H1 and first H2
-  // with: locked DA + Last Updated + ToC extracted from Step 5 output
-  // Nothing is deleted — filler moves after ToC if ToC is present, else before H2
+  // After Step 5, replaces whatever Claude wrote between article H1 and first H2
+  // with: locked DA + DA_END marker + Last Updated + ToC extracted from Step 5 output
+  // Strategy: find last H1 before first H2 (reliable) instead of repeated H1 (fragile)
   function hardRestoreDAZone(text, lockedDA) {
     const lines = text.split('\n');
 
-    // Find repeated H1
-    let h1Count = 0, repeatedH1Idx = -1;
-    for(let i = 0; i < lines.length; i++) {
-      if(lines[i].match(/^#\s+[^#]/)) { h1Count++; if(h1Count >= 2) { repeatedH1Idx = i; break; } }
-    }
-    if(repeatedH1Idx === -1) return text; // no repeated H1 — bail safely
-
-    // Find first H2 after repeated H1
+    // Find first H2 — reliable end boundary
     let firstH2Idx = -1;
-    for(let i = repeatedH1Idx + 1; i < lines.length; i++) {
+    for(let i = 0; i < lines.length; i++) {
       if(lines[i].match(/^##\s+[^#]/)) { firstH2Idx = i; break; }
     }
     if(firstH2Idx === -1) return text; // no H2 — bail safely
 
-    // Extract Last Updated and ToC from Step 5 output (these are legitimate Step 5 additions)
-    const zoneLines = lines.slice(repeatedH1Idx + 1, firstH2Idx);
+    // Find article H1 — last H1 before first H2 (works regardless of Step 5 structure)
+    let articleH1Idx = -1;
+    for(let i = firstH2Idx - 1; i >= 0; i--) {
+      if(lines[i].match(/^#\s+[^#]/)) { articleH1Idx = i; break; }
+    }
+    if(articleH1Idx === -1) return text; // no H1 — bail safely
+
+    // Extract Last Updated and ToC from zone between H1 and first H2
+    const zoneLines = lines.slice(articleH1Idx + 1, firstH2Idx);
     const lastUpdatedLines = [];
     const tocLines = [];
-    const fillerLines = [];
     let tocStarted = false;
-    let daZonePassed = false;
 
     for(const line of zoneLines) {
       const t = line.trim();
-      if(/^(\*\*)?last updated/i.test(t)) { lastUpdatedLines.push(line); daZonePassed = true; continue; }
-      if(/^(#{1,3}\s*)?(table of contents|in this article)/i.test(t)) { tocLines.push(line); tocStarted = true; daZonePassed = true; continue; }
+      if(t === '<!-- DA_END -->') continue; // skip marker — we re-inject it
+      if(/^(\*\*)?last updated/i.test(t)) { lastUpdatedLines.push(line); continue; }
+      if(/^(#{1,3}\s*)?(table of contents|in this article)/i.test(t)) { tocLines.push(line); tocStarted = true; continue; }
       if(tocStarted && /^\s*[-*]\s+\[.+\]\(#.+\)/.test(line)) { tocLines.push(line); continue; }
       if(tocStarted && t === '') { tocLines.push(line); continue; }
-      if(/^\s*[-*]\s+\[.+\]\(#.+\)/.test(line) && daZonePassed) { tocLines.push(line); continue; }
-      if(/^---+\s*$/.test(t) && daZonePassed) { tocLines.push(line); continue; }
-      // Anything that isn't DA, Last Updated, or ToC = filler (relocate after ToC)
-      if(daZonePassed && t !== '') fillerLines.push(line);
+      if(/^\s*[-*]\s+\[.+\]\(#.+\)/.test(line) && lastUpdatedLines.length > 0) { tocLines.push(line); continue; }
+      if(/^---+\s*$/.test(t) && (lastUpdatedLines.length > 0 || tocStarted)) { tocLines.push(line); continue; }
+      // DA prose and other content — skip, replaced by lockedDA below
     }
 
-    // Reconstruct: locked DA + DA_END marker + Last Updated + ToC + filler (relocated) + blank
+    // Reconstruct: article H1 + locked DA + DA_END + Last Updated + ToC
     const reconstructed = [
+      lines[articleH1Idx],
       '',
       ...lockedDA.split('\n'),
       '',
@@ -1240,16 +1239,16 @@
       ...lastUpdatedLines,
       '',
       ...tocLines,
-      ...(fillerLines.length > 0 ? ['', ...fillerLines] : []),
       ''
     ];
 
     return [
-      ...lines.slice(0, repeatedH1Idx + 1),
+      ...lines.slice(0, articleH1Idx), // checklist block before article H1
       ...reconstructed,
-      ...lines.slice(firstH2Idx)
+      ...lines.slice(firstH2Idx)       // body from first H2 onward
     ].join('\n');
   }
+
 
   // ─── IMAGE EXTRACTION ─────────────────────────────────────
   function extractImgPrompts(v1) {
@@ -2575,6 +2574,8 @@ ${S.v2}`, voice11AKey, null, {maxTokens:4000});
       const context=(block.match(/Context:\s*([\s\S]*?)(?=\nPlacement:|\nFAIL_END)/)||[])[1]?.trim()||'';
       const placement=(block.match(/Placement:\s*(.+)/)||[])[1]?.trim()||'';
       const missing=what||context||'';
+      // Discard empty FAIL blocks — Gemini sometimes produces malformed blocks with no content
+      if(!desc && !find && !what && !context) continue;
       fails.push({id,type,desc,find,replace,scope,missing,what,context,placement});
     }
     // FLAGS parsed separately — stored in S.parsedFlags, never enter fix loop
@@ -2949,7 +2950,19 @@ Your job in this call is to produce the article SKELETON — not full prose.
 
 WHAT TO WRITE IN FULL:
 1. The AI Authority Article Optimization Checklist (complete, with all metadata)
-2. The Direct Answer — MINIMUM 200 words, TARGET 250 words. This is the most important section. Write it as 3-4 solid paragraphs that fully answer the H1 question. Do NOT write one short paragraph and call it done. Sacred ground rules: NO links, NO images, NO prose after it except Last Updated and ToC.
+2. The Direct Answer — MINIMUM 200 words, TARGET 250 words. This is the most important section and the most strictly governed. Write it as 3-4 solid paragraphs that fully answer the H1 question. Do NOT write one short paragraph and call it done. Sacred ground rules: NO links, NO images, NO prose after it except Last Updated and ToC.
+
+DIRECT ANSWER CONTENT RULES — HARD VIOLATIONS (each one is a failure):
+- NO brand names or practice names of any kind. Never write "At [Practice Name]..." or reference the client practice by name.
+- NO location references. No city names. No "in Morton" or "in [city]" constructions.
+- NO opinion statements or POV language. No "Surgery is a last resort." No "Period." No conviction language of any kind.
+- NO author voice or conversational tone. The DA must read like a reference database entry — neutral, authoritative, encyclopedic. No contractions used for personality. No casual phrasing.
+- NO self-referential language. No "this article covers," no "below we explain," no forward-pointing transitions of any kind.
+- NO first-person voice. No "I've seen," no "we believe," no "our approach."
+- NO rhetorical questions, narrative hooks, or casual phrasing.
+- NO hyperlinks, images, or CTAs.
+
+DA QUALITY TEST — run before finalizing: If an AI engine extracted only these paragraphs and presented them as a standalone answer — with no article, no brand, no surrounding context — would it still be a complete, accurate, neutral answer to the H1 question? If no, rewrite until yes.
 3. Last Updated line
 4. Table of Contents (with anchor links to all H2s)
 
@@ -3410,9 +3423,9 @@ HARD RULES:
         `THE PATTERN: Lead with the verdict. React, then explain. NEVER explain before landing the point. Short sentences. Heavy contractions. Sound like the author, not a marketing writer.`
       ].filter(Boolean).join('\n\n');
 
-      const voiceUser=`PUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p4}\n${protectedList}${flagContext}\n\n${voiceExamples}\n\nTASK: Voice rewrite ONLY. Structure, links, tables, POV slots already correct.\n\nPROTECTED ZONES — DO NOT TOUCH:\n- Direct Answer (everything before first H2) — sacred ground, final, do not change a word\n- All H2 and H3 headings\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- AI Authority Article Optimization Checklist\n- All internal and external hyperlinks (URLs and anchor text must stay exactly)\n- Any sentence in PROTECTED SENTENCES above\n\nEverything else: rewrite from blank page in the author's voice.\n\nARTICLE:\n${stripDAMarker(S.v1)}`;
+      const voiceUser=`PUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p4}\n${protectedList}${flagContext}\n\n${voiceExamples}\n\nTASK: Voice rewrite ONLY. Structure, links, tables, POV slots already correct.\n\nCRITICAL OUTPUT REQUIREMENT: Your response must be the COMPLETE FULL ARTICLE TEXT — every section, every paragraph, from the checklist block at the top to the CTA at the bottom. Do NOT summarize what you changed. Do NOT describe the rewrite. Do NOT output a list of changes made. Output the full rewritten article and nothing else. A response that does not contain the complete article will be rejected and retried.\n\nPROTECTED ZONES — DO NOT TOUCH:\n- Direct Answer (everything before first H2) — sacred ground, final, do not change a single word\n- All H2 and H3 headings\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- AI Authority Article Optimization Checklist\n- All internal and external hyperlinks (URLs and anchor text must stay exactly)\n- Any sentence in PROTECTED SENTENCES above\n\nEverything else: rewrite from blank page in the author's voice.\n\nARTICLE:\n${stripDAMarker(S.v1)}`;
       S.v2=await callClaude(sys,voiceUser,akey,(p)=>{document.getElementById('o10').textContent=p;document.getElementById('sb10').classList.add('open');showV2(p);},{maxTokens:64000});
-      if(S.v2.length<2000) throw new Error(`Step 10: V2 too short — retry.`);
+      if(S.v2.length<8000) throw new Error(`Step 10: V2 too short (${S.v2.length} chars) — Claude likely summarized instead of rewriting. Retry.`);
       // Restore DA zone with marker after voice rewrite
       if(S.directAnswer && S.directAnswer.length>50){
         S.v2 = hardRestoreDAZone(S.v2, S.directAnswer);
