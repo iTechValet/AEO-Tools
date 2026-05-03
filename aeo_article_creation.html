@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.9</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.11</p>
   </div>
 </div>
 
@@ -1346,7 +1346,7 @@
       catch(err){ showImgErr(i,err.message); failed++; }
       if(i<prompts.length-1) await new Promise(r=>setTimeout(r,1500));
     }
-    if(failed>0) setStep(6,'done','Done ✓',`${prompts.length-failed}/${prompts.length} images generated. ${failed} failed — use Regenerate button on failed cards.`);
+    if(failed>0) setStep(7,'done','Done ✓',`${prompts.length-failed}/${prompts.length} images generated. ${failed} failed — use Regenerate button on failed cards.`);
   }
 
   async function genOneImage(prompt,alt,idx,gkey) {
@@ -1680,10 +1680,10 @@
   }
 
   function populateMetaTab(text) {
-    const fields = ['Meta Title','H1','Permalink URL','Full Blog Post URL','Meta Description','Keywords','Category'];
-    const lines = fields.map(f => {
-      const val = extractField(text, f) || '—';
-      return `<div style="margin-bottom:12px;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#2494e0;font-weight:600;margin-bottom:3px;">${f}</div><div style="font-size:12px;color:#063a6c;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;padding:8px 10px;word-break:break-all;">${val}</div></div>`;
+    const fields = [['Meta Title','Meta Title'],['H1','H1'],['Permalink URL','Permalink URL'],['Full Article URL','Full Blog Post URL'],['Meta Description','Meta Description'],['Keywords','Keywords'],['Category','Category']];
+    const lines = fields.map(([label,key]) => {
+      const val = extractField(text, key) || '—';
+      return `<div style="margin-bottom:12px;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#2494e0;font-weight:600;margin-bottom:3px;">${label}</div><div style="font-size:12px;color:#063a6c;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;padding:8px 10px;word-break:break-all;">${val}</div></div>`;
     }).join('');
     const metaEl = document.getElementById('metaPre');
     const metaEmpty = document.getElementById('metaEmpty');
@@ -1793,7 +1793,7 @@
     const fields = [
       {label:'Title / H1', value:title},
       {label:'Permalink URL', value:slug},
-      {label:'Full Blog Post URL', value:fullUrl},
+      {label:'Full Article URL', value:fullUrl},
       {label:'Meta Description', value:meta},
       {label:'Keywords', value:keywords},
       {label:'Category', value:category},
@@ -2566,13 +2566,20 @@ ${S.v2}`, voice11AKey, null, {maxTokens:4000});
       let id=(block.match(/ID:\s*(.+)/)||[])[1]?.trim()||'';
       if(!id) id=`FAIL_${String(autoId++).padStart(3,'0')}`;
       const type=(block.match(/Type:\s*(.+)/)||[])[1]?.trim()||'WRONG';
-      const desc=(block.match(/Description:\s*([\s\S]*?)(?=\nFind:|\nReplace:|\nWhat:|\nContext:|\nPlacement:|\nScope:|\nFAIL_END)/)||[])[1]?.trim()||'';
-      const find=(block.match(/Find:\s*([\s\S]*?)(?=\nReplace:|\nScope:|\nWhat:|\nContext:|\nPlacement:|\nFAIL_END)/)||[])[1]?.trim()||'';
+      let desc=(block.match(/Description:\s*([\s\S]*?)(?=\nFind:|\nReplace:|\nWhat:|\nContext:|\nPlacement:|\nScope:|\nFAIL_END)/)||[])[1]?.trim()||'';
+      let find=(block.match(/Find:\s*([\s\S]*?)(?=\nReplace:|\nScope:|\nWhat:|\nContext:|\nPlacement:|\nFAIL_END)/)||[])[1]?.trim()||'';
       const replace=(block.match(/Replace:\s*([\s\S]*?)(?=\nScope:|\nFAIL_END)/)||[])[1]?.trim()||'';
       const scope=(block.match(/Scope:\s*(.+)/)||[])[1]?.trim()||'FIRST_INSTANCE';
-      const what=(block.match(/What:\s*([\s\S]*?)(?=\nContext:|\nPlacement:|\nFAIL_END)/)||[])[1]?.trim()||'';
-      const context=(block.match(/Context:\s*([\s\S]*?)(?=\nPlacement:|\nFAIL_END)/)||[])[1]?.trim()||'';
+      let what=(block.match(/What:\s*([\s\S]*?)(?=\nContext:|\nPlacement:|\nFAIL_END)/)||[])[1]?.trim()||'';
+      let context=(block.match(/Context:\s*([\s\S]*?)(?=\nPlacement:|\nFAIL_END)/)||[])[1]?.trim()||'';
       const placement=(block.match(/Placement:\s*(.+)/)||[])[1]?.trim()||'';
+      // Fallback: Gemini sometimes uses bullet markdown format instead of field format
+      if(!desc && !find && !what && !context) {
+        const bulletDesc=(block.match(/\*\s*\*\*(?:Error|Description|Rule):\*\*\s*([\s\S]*?)(?=\n\*\s*\*\*|\nFAIL_END)/i)||[])[1]?.trim()||'';
+        const bulletFind=(block.match(/\*\s*\*\*(?:Find|Location|Section):\*\*\s*([\s\S]*?)(?=\n\*\s*\*\*|\nFAIL_END)/i)||[])[1]?.trim()||'';
+        const bulletAction=(block.match(/\*\s*\*\*(?:Action|Fix):\*\*\s*([\s\S]*?)(?=\n\*\s*\*\*|\nFAIL_END)/i)||[])[1]?.trim()||'';
+        if(bulletDesc) { desc=bulletDesc; find=bulletFind; context=bulletAction; }
+      }
       const missing=what||context||'';
       // Discard empty FAIL blocks — Gemini sometimes produces malformed blocks with no content
       if(!desc && !find && !what && !context) continue;
@@ -3136,6 +3143,7 @@ HARD RULES:
 - NO links in the Direct Answer (before first H2)
 - NO prose between Direct Answer and first H2 (only Last Updated and ToC belong there)
 - CTA must be a text link — NOT a button, NOT a styled element
+- CTA anchor text must use the EXACT wording from the "CTA VARIATION" section of 4.3B — do not paraphrase or alter pronoun ("My" not "your", etc.)
 - Every H2 section addresses at least 3-4 of the 5 intent layers
 - Voice: lead with the point, then explain — NEVER setup before verdict
 - EXTERNAL LINK ATTRIBUTION: When embedding an external link, always mention the source name naturally in the surrounding sentence. Example: "According to BrightEdge..." or "Semrush data shows..." — never embed a bare link with no attribution in the text`;
@@ -3149,7 +3157,7 @@ HARD RULES:
       const firstSep = cleanedProse.indexOf('\n---\n');
       if(firstSep > 0) {
         const afterSep = cleanedProse.slice(firstSep + 5);
-        const dupChecklistIdx = afterSep.search(/AI AUTHORITY ARTICLE OPTIMIZATION CHECKLIST/i);
+        const dupChecklistIdx = afterSep.search(/(?:AI AUTHORITY |BLOG POST )?ARTICLE OPTIMIZATION CHECKLIST|OPTIMIZATION CHECKLIST/i);
         if(dupChecklistIdx > -1) {
           // Find the second occurrence of the repeated H1 after the duplicate checklist
           // and keep everything from that point forward, splicing it after the first ---
@@ -3340,7 +3348,7 @@ HARD RULES:
           if(f.type==='MISSING') return `INSERT:\nDesc: ${f.desc}\nWhat: ${f.what||f.missing}\nContext: ${f.context||'see surrounding content'}\nPlacement: ${f.placement||'NEAR_CLAIM'}`;
           return `FIX:\nDesc: ${f.desc}\nFind: ${f.find}\nReplace: ${f.replace}\nScope: ${f.scope}`;
         }).filter(Boolean).join('\n\n---\n\n');
-        const fixSys9=`You are applying targeted fixes to an AEO article. Output ONLY DIFF blocks.\n\nDIFF_START\nFIND:\n[exact text]\nREPLACE:\n[replacement or [DELETE]]\nDIFF_END\n\n4.3B:\n${S.docs.doc43B}`;
+        const fixSys9=`You are applying targeted fixes to an AEO article. Output ONLY DIFF blocks.\n\nDIFF_START\nFIND:\n[exact text from article]\nREPLACE:\n[replacement or [DELETE]]\nDIFF_END\n\nRULES:\n- If a FAIL includes exact Find text, use it verbatim.\n- If a FAIL has no Find text, locate the relevant passage in the article yourself and use it as the FIND. Do not skip the fix.\n- Output one DIFF block per fix. No explanations, no commentary.\n- Never return an empty response — if there are FAILs, there must be DIFF blocks.\n\n4.3B:\n${S.docs.doc43B}`;
         const fixUser9=`RESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFAILS:\n${failInstructions}\n\nARTICLE:\n${stripDAMarker(S.v1)}`;
         const fixResult=await callClaude(fixSys9,fixUser9,akey,(p)=>{document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\n${p}`;},{maxTokens:64000});
         if(fixResult.includes('DIFF_START')){
@@ -3569,7 +3577,7 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
       if(pd){
         const dp=/\b(20\d\d-\d{2}-\d{2})\b/g; let fc=0;
         S.finalTXT=S.finalTXT.replace(dp,(m)=>{ if(m!==pd){fc++;return pd;} return m; });
-        S.finalSchema=S.finalSchema.replace(dp,(m)=>m!==pd?pd:m);
+        S.finalSchema=S.finalSchema.replace(/("(?:datePublished|dateModified)":\s*")\d{4}-\d{2}-\d{2}(")/g,(m,pre,post)=>pre+pd+post);
         if(fc>0) document.getElementById('o13').textContent+=`\n\n✅ Date fix: replaced ${fc} wrong date(s) with ${pd}.`;
       }
       // Last Updated format fix — convert YYYY-MM-DD to "Month DD, YYYY" in HTML
@@ -3624,50 +3632,62 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
 
   // ─── TOC H3 INJECTION ────────────────────────────────────
   // Scans HTML for H3 elements with IDs, checks if they appear in ToC, injects missing ones
+  // Nests each H3 under its nearest preceding H2 in the ToC
   function injectToCH3Links(html) {
     // Find the ToC block — look for toc-body div
     const tocBodyMatch = html.match(/(<div[^>]*class="toc-body[^"]*"[^>]*>)([\s\S]*?)(<\/div>)/i);
     if(!tocBodyMatch) return html; // no ToC found — bail safely
 
-    const tocPre = html.slice(0, html.indexOf(tocBodyMatch[0]));
-    const tocPost = html.slice(html.indexOf(tocBodyMatch[0]) + tocBodyMatch[0].length);
-    const tocInner = tocBodyMatch[2];
+    const tocBlockStart = html.indexOf(tocBodyMatch[0]);
+    const tocPre = html.slice(0, tocBlockStart);
+    const tocPost = html.slice(tocBlockStart + tocBodyMatch[0].length);
+    let tocInner = tocBodyMatch[2];
 
-    // Extract all H2 anchor links already in ToC
+    // Extract all anchor hrefs already in ToC
     const existingLinks = new Set();
     const linkRe = /href="#([^"]+)"/g;
     let lm;
     while((lm = linkRe.exec(tocInner)) !== null) existingLinks.add(lm[1]);
 
-    // Find all H3 elements in the article HTML (after the ToC)
-    const h3Re = /<h3[^>]*id="([^"]+)"[^>]*>([\s\S]*?)<\/h3>/gi;
-    const h3s = [];
-    let hm;
-    const articlePart = tocPost; // H3s are in the article body, after the ToC
-    while((hm = h3Re.exec(articlePart)) !== null) {
-      const id = hm[1];
-      const rawText = hm[2].replace(/<[^>]+>/g,'').trim(); // strip inner tags
-      if(id && rawText && !existingLinks.has(id)) {
-        h3s.push({id, text: rawText});
+    // Build ordered list of H2 and H3 elements from article body (after ToC)
+    const elemRe = /<(h[23])[^>]*id="([^"]+)"[^>]*>([\s\S]*?)<\/h[23]>/gi;
+    const articleElements = [];
+    let em;
+    while((em = elemRe.exec(tocPost)) !== null) {
+      const tag = em[1].toLowerCase();
+      const id = em[2];
+      const rawText = em[3].replace(/<[^>]+>/g,'').trim();
+      if(id && rawText) articleElements.push({tag, id, text: rawText});
+    }
+
+    // Find missing H3s and their nearest preceding H2
+    const missing = []; // {h3, parentH2id}
+    let lastH2id = null;
+    for(const el of articleElements) {
+      if(el.tag === 'h2') { lastH2id = el.id; }
+      else if(el.tag === 'h3' && !existingLinks.has(el.id)) {
+        missing.push({h3: el, parentH2id: lastH2id});
       }
     }
 
-    if(h3s.length === 0) return html; // all H3s already in ToC — nothing to do
+    if(missing.length === 0) return html; // nothing to inject
 
-    // Find the parent H2 link for each H3 and inject H3 links after it
-    // Strategy: inject all missing H3s as indented links at end of ToC body
-    // Group them under their nearest preceding H2 link
-    let newTocInner = tocInner;
+    // Inject each missing H3 immediately after its parent H2 link in the ToC
+    for(const {h3, parentH2id} of missing) {
+      const h3Link = `\n<a href="#${h3.id}" class="h3-link">• ${h3.text}</a>`;
+      if(parentH2id) {
+        // Find the parent H2 anchor in tocInner and inject after it
+        const h2Re = new RegExp(`(<a[^>]*href="#${parentH2id}"[^>]*>[\s\S]*?<\/a>)`, 'i');
+        if(h2Re.test(tocInner)) {
+          tocInner = tocInner.replace(h2Re, (m) => m + h3Link);
+          continue;
+        }
+      }
+      // No parent H2 found — append at end
+      tocInner = tocInner.trimEnd() + h3Link + '\n';
+    }
 
-    // Build H3 link HTML — indented style matching existing h3-link class
-    const h3LinkHTML = h3s.map(h =>
-      `\n<a href="#${h.id}" class="h3-link">${h.text}</a>`
-    ).join('');
-
-    // Inject before closing of toc-body
-    newTocInner = newTocInner.trimEnd() + h3LinkHTML + '\n';
-
-    const newTocBlock = tocBodyMatch[1] + newTocInner + tocBodyMatch[3];
+    const newTocBlock = tocBodyMatch[1] + tocInner + tocBodyMatch[3];
     return tocPre + newTocBlock + tocPost;
   }
 
