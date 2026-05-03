@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.11</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.12</p>
   </div>
 </div>
 
@@ -312,6 +312,21 @@
 
   <!-- STATUS + RESTORE BANNER -->
   <div class="gstatus" id="gstatus"></div>
+  <!-- ERROR LOG MODAL -->
+  <div id="errLogModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center;">
+    <div style="background:#fff;border-radius:10px;padding:24px;width:600px;max-height:70vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-family:'Lexend',sans-serif;font-weight:700;font-size:14px;color:#063a6c;">⚠ Error Log</div>
+        <button onclick="toggleErrLog()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#999;">✕</button>
+      </div>
+      <div id="errLogContent" style="font-family:monospace;font-size:11px;line-height:1.8;color:#333;overflow-y:auto;flex:1;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;padding:12px;white-space:pre-wrap;">No errors logged.</div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="copyErrLog()" style="background:#063a6c;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-family:'Lexend',sans-serif;font-size:11px;font-weight:600;cursor:pointer;">⎘ Copy Log</button>
+        <button onclick="clearErrLog()" style="background:#eee;color:#666;border:none;border-radius:6px;padding:8px 16px;font-family:'Lexend',sans-serif;font-size:11px;cursor:pointer;">Clear</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ROW 3: STATS -->
   <div class="cp-row stats">
     <!-- LEFT: API cost stats -->
@@ -358,6 +373,11 @@
       <div class="stat-item">
         <div class="stat-label">Emergency</div>
         <button onclick="emergencySave()" style="background:var(--orange);color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:10px;font-family:'Lexend',sans-serif;cursor:pointer;font-weight:600;" title="Save current session state immediately">💾 Save Now</button>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-label">Errors</div>
+        <button id="errLogBtn" onclick="toggleErrLog()" style="background:#eee;color:#999;border:none;border-radius:5px;padding:4px 10px;font-size:10px;font-family:'Lexend',sans-serif;cursor:pointer;font-weight:600;" title="View error log">📋 0</button>
       </div>
       <div class="stat-divider" id="restoreDivider" style="display:none;"></div>
       <div class="stat-item" id="restoreBanner" style="display:none;align-items:center;gap:8px;flex-direction:row;">
@@ -437,7 +457,7 @@
         <div class="step-info"><div class="step-title">Claude — Full Prose + Tables → V1</div><div class="step-desc">Fills skeleton with body prose, POV slots, tables, CTA — Direct Answer untouched</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b5">Waiting</div><span class="schev closed" id="c5">▼</span></div>
       </div>
-      <div class="step-body" id="sb5"><div class="sout-wrap"><div class="sout" id="o5"></div><button class="btn-copy-step" id="copy-btn-5" onclick="copyStepOutput(5)">Copy</button></div><div id="r5" style="display:none;"><button class="btn-retry" onclick="retryFrom(5)">↻ Retry from Step 5</button></div></div>
+      <div class="step-body" id="sb5"><div class="sout-wrap"><div class="sout" id="o5"></div><button class="btn-copy-step" id="copy-btn-5" onclick="copyStepOutput(5)">Copy</button></div><div id="r5" style="display:none;"><button class="btn-retry" onclick="retryFrom(5)">↻ Retry from Step 5</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="document.getElementById('r5').style.display='none';retryFrom(6);">Continue Anyway →</button></div></div>
     </div>
 
     <!-- STEP 6: V1 Integrity Gate -->
@@ -511,7 +531,7 @@
         <div class="step-info"><div class="step-title">Claude — Voice Rewrite → V2</div><div class="step-desc">Blank-page prose rewrite in author voice. Protected: Direct Answer, tables, links, image prompts.</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b10">Waiting</div><span class="schev closed" id="c10">▼</span></div>
       </div>
-      <div class="step-body" id="sb10"><div class="sout-wrap"><div class="sout" id="o10"></div><button class="btn-copy-step" id="copy-btn-10" onclick="copyStepOutput(10)">Copy</button></div><div id="r10" style="display:none;"><button class="btn-retry" onclick="retryFrom(10)">↻ Retry from Step 10</button></div></div>
+      <div class="step-body" id="sb10"><div class="sout-wrap"><div class="sout" id="o10"></div><button class="btn-copy-step" id="copy-btn-10" onclick="copyStepOutput(10)">Copy</button></div><div id="r10" style="display:none;"><button class="btn-retry" onclick="retryFrom(10)">↻ Retry from Step 10</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="document.getElementById('r10').style.display='none';retryFrom(11);">Continue Anyway →</button></div></div>
     </div>
 
     <!-- STEP 11: Voice Audit Chat -->
@@ -539,7 +559,7 @@
           <button class="btn-retry" onclick="retryVoiceFixes()">↻ Retry Fixes</button>
           <button class="btn-proceed" onclick="approveVoice()" style="margin-top:0;">Continue Anyway →</button>
         </div>
-        <div id="r11" style="display:none;"><button class="btn-retry" onclick="retryFrom(10)">↻ Retry from Step 10</button></div>
+        <div id="r11" style="display:none;"><button class="btn-retry" onclick="retryFrom(10)">↻ Retry from Step 10</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="document.getElementById('r11').style.display='none';approveVoice();">Continue Anyway →</button></div>
       </div>
     </div>
 
@@ -571,7 +591,7 @@
         <div class="step-info"><div class="step-title">Claude Final Assembly</div><div class="step-desc">Schema + HTML — markdown tables converted to branded HTML — image URLs + publish date injected</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b13">Waiting</div><span class="schev closed" id="c13">▼</span></div>
       </div>
-      <div class="step-body" id="sb13"><div class="sout-wrap"><div class="sout" id="o13"></div><button class="btn-copy-step" id="copy-btn-13" onclick="copyStepOutput(13)">Copy</button></div><div id="r13" style="display:none;"><button class="btn-retry" onclick="retryFrom(13)">↻ Retry from Step 13</button></div></div>
+      <div class="step-body" id="sb13"><div class="sout-wrap"><div class="sout" id="o13"></div><button class="btn-copy-step" id="copy-btn-13" onclick="copyStepOutput(13)">Copy</button></div><div id="r13" style="display:none;"><button class="btn-retry" onclick="retryFrom(13)">↻ Retry from Step 13</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="document.getElementById('r13').style.display='none';retryFrom(14);">Continue Anyway →</button></div></div>
     </div>
 
     <div class="step-card" id="step14">
@@ -582,7 +602,7 @@
       </div>
       <div class="step-body" id="sb14">
         <div class="sout-wrap"><div class="sout" id="o14" style="white-space:pre-wrap;"></div><button class="btn-copy-step" id="copy-btn-14" onclick="copyStepOutput(14)">Copy</button></div>
-        <div id="r14" style="display:none;margin-top:8px;"><button class="btn-retry" onclick="retryFrom(13)">↻ Retry from Step 13</button></div>
+        <div id="r14" style="display:none;margin-top:8px;"><button class="btn-retry" onclick="retryFrom(13)">↻ Retry from Step 13</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="document.getElementById('r14').style.display='none';retryFrom(15);">Continue Anyway →</button></div>
       </div>
     </div>
 
@@ -604,7 +624,7 @@
             <button class="btn-proceed" id="qcFinalizeBtn" onclick="finalizeQC()" style="margin-left:auto;background:var(--green);">✓ Finalize — Done</button>
           </div>
         </div>
-        <div id="r15" style="display:none;margin-top:8px;"><button class="btn-retry" onclick="retryFrom(13)">↻ Retry from Step 13</button></div>
+        <div id="r15" style="display:none;margin-top:8px;"><button class="btn-retry" onclick="retryFrom(13)">↻ Retry from Step 13</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="document.getElementById('r15').style.display='none';retryFrom(15);">Continue Anyway →</button></div>
       </div>
     </div>
 
@@ -3350,59 +3370,65 @@ HARD RULES:
         }).filter(Boolean).join('\n\n---\n\n');
         const fixSys9=`You are applying targeted fixes to an AEO article. Output ONLY DIFF blocks.\n\nDIFF_START\nFIND:\n[exact text from article]\nREPLACE:\n[replacement or [DELETE]]\nDIFF_END\n\nRULES:\n- If a FAIL includes exact Find text, use it verbatim.\n- If a FAIL has no Find text, locate the relevant passage in the article yourself and use it as the FIND. Do not skip the fix.\n- Output one DIFF block per fix. No explanations, no commentary.\n- Never return an empty response — if there are FAILs, there must be DIFF blocks.\n\n4.3B:\n${S.docs.doc43B}`;
         const fixUser9=`RESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFAILS:\n${failInstructions}\n\nARTICLE:\n${stripDAMarker(S.v1)}`;
-        const fixResult=await callClaude(fixSys9,fixUser9,akey,(p)=>{document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\n${p}`;},{maxTokens:64000});
-        if(fixResult.includes('DIFF_START')){
-          const {result,applied,failed,log}=applyDiffs(S.v1,fixResult);
-          S.protectedSentences=S.parsedFails.filter(f=>f.replace&&f.replace.length>20).map(f=>f.replace);
-          S.v1=result; showV1(S.v1);
-          document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\n${log.join('\n')}\n\nApplied: ${applied}, Failed: ${failed}`;
-        } else {
-          document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\nNo DIFF blocks returned — article unchanged.`;
-        }
-        // JS anchor text correction — fix all internal link anchors by URL match
-        // Uses client domain dynamically — works for any client
-        const clientDomain9 = getClientDomain();
-        const clientUrlPattern = new RegExp(`https?:\\/\\/(www\\.)?${clientDomain9.replace(/\./g,'\\.')}[^\\s\\n|"]+`, 'gi');
-        const anchorPattern = new RegExp(`Semantic Anchor:\\s*"([^"]+)"[\\s\\S]*?(?:URL|Link):\\s*(https?:\\/\\/(?:www\\.)?${clientDomain9.replace(/\./g,'\\.')}[^\\s\\n|"]+)`, 'gi');
-        const anchorMap={};
-        let anchorBlock;
-        const re9 = new RegExp(`Semantic Anchor:\\s*"([^"]+)"[\\s\\S]*?(?:URL|Link):\\s*(https?:\\/\\/(?:www\\.)?${clientDomain9.replace(/\./g,'\\.')}[^\\s\\n|"]+)`, 'gi');
-        while((anchorBlock=re9.exec(S.geminiResearch))!==null){
-          const anchor=anchorBlock[1];
-          const url=anchorBlock[2];
-          const slug=url.replace(/https?:\/\/(www\.)?[^/]+/,'').replace(/\/$/,'');
-          if(anchor&&slug) anchorMap[slug]=anchor;
-        }
-        if(Object.keys(anchorMap).length>0){
-          const linkRe9=new RegExp(`\\[([^\\]]+)\\]\\((https?:\\/\\/(?:www\\.)?${clientDomain9.replace(/\./g,'\\.')}[^)]+)\\)`,'g');
-          let anchorFixed=0;
-          S.v1=S.v1.replace(linkRe9,(match,anchor,url)=>{
-            const slug=url.replace(/https?:\/\/(www\.)?[^/]+/,'').replace(/\/$/,'');
-            if(anchorMap[slug]&&anchor!==anchorMap[slug]){
-              anchorFixed++;
-              return `[${anchorMap[slug]}](${url})`;
-            }
-            return match;
-          });
-          if(anchorFixed>0){
-            showV1(S.v1);
-            document.getElementById('o9').textContent+=`\n\n✅ JS Anchor Fix: corrected ${anchorFixed} anchor text mismatch(es)`;
+        try {
+          const fixResult=await callClaude(fixSys9,fixUser9,akey,(p)=>{document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\n${p}`;},{maxTokens:64000});
+          if(fixResult.includes('DIFF_START')){
+            const {result,applied,failed,log}=applyDiffs(S.v1,fixResult);
+            S.protectedSentences=S.parsedFails.filter(f=>f.replace&&f.replace.length>20).map(f=>f.replace);
+            S.v1=result; showV1(S.v1);
+            document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\n${log.join('\n')}\n\nApplied: ${applied}, Failed: ${failed}`;
+          } else {
+            document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\nNo DIFF blocks returned — article unchanged.`;
           }
-        }
-        // Gemini re-validation
-        setG('Gemini re-validating fixes...',true);
-        const revalPrompt=`Fixes applied to article. Check ONLY whether each original FAIL item was resolved.\n\nORIGINAL FAILs:\n${S.parsedFails.map(f=>`${f.id}: ${f.desc}`).join('\n')}\n\nFIXED ARTICLE:\n${stripDAMarker(S.v1)}\n\nOutput: [ITEM_ID]: PASS — [confirmation] OR [ITEM_ID]: FAIL — [what's still wrong]`;
-        const revalResult=await callGemini(revalPrompt,gkey);
-        document.getElementById('o9').textContent+=`\n\n--- GEMINI RE-VALIDATION ---\n${revalResult}`;
-        S.parsedFails=S.parsedFails.filter(f=>{
-          if(!f.id||f.type==='FLAG') return false;
-          return new RegExp('\\b'+f.id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b[^:]*:\\s*FAIL','i').test(revalResult);
-        });
-        step8RetryCount++;
-        if(S.parsedFails.length>0&&step8RetryCount<=2){
-          setG(`FAILs remain — auto-retry ${step8RetryCount}/2...`,true);
-          try{ await runFrom(9,sys,akey,gkey,dkey); } catch(e){ handleErr(e); }
-          return;
+          // JS anchor text correction — fix all internal link anchors by URL match
+          // Uses client domain dynamically — works for any client
+          const clientDomain9 = getClientDomain();
+          const clientUrlPattern = new RegExp(`https?:\\/\\/(www\\.)?${clientDomain9.replace(/\./g,'\\.')}[^\\s\\n|"]+`, 'gi');
+          const anchorPattern = new RegExp(`Semantic Anchor:\\s*"([^"]+)"[\\s\\S]*?(?:URL|Link):\\s*(https?:\\/\\/(?:www\\.)?${clientDomain9.replace(/\./g,'\\.')}[^\\s\\n|"]+)`, 'gi');
+          const anchorMap={};
+          let anchorBlock;
+          const re9 = new RegExp(`Semantic Anchor:\\s*"([^"]+)"[\\s\\S]*?(?:URL|Link):\\s*(https?:\\/\\/(?:www\\.)?${clientDomain9.replace(/\./g,'\\.')}[^\\s\\n|"]+)`, 'gi');
+          while((anchorBlock=re9.exec(S.geminiResearch))!==null){
+            const anchor=anchorBlock[1];
+            const url=anchorBlock[2];
+            const slug=url.replace(/https?:\/\/(www\.)?[^/]+/,'').replace(/\/$/,'');
+            if(anchor&&slug) anchorMap[slug]=anchor;
+          }
+          if(Object.keys(anchorMap).length>0){
+            const linkRe9=new RegExp(`\\[([^\\]]+)\\]\\((https?:\\/\\/(?:www\\.)?${clientDomain9.replace(/\./g,'\\.')}[^)]+)\\)`,'g');
+            let anchorFixed=0;
+            S.v1=S.v1.replace(linkRe9,(match,anchor,url)=>{
+              const slug=url.replace(/https?:\/\/(www\.)?[^/]+/,'').replace(/\/$/,'');
+              if(anchorMap[slug]&&anchor!==anchorMap[slug]){
+                anchorFixed++;
+                return `[${anchorMap[slug]}](${url})`;
+              }
+              return match;
+            });
+            if(anchorFixed>0){
+              showV1(S.v1);
+              document.getElementById('o9').textContent+=`\n\n✅ JS Anchor Fix: corrected ${anchorFixed} anchor text mismatch(es)`;
+            }
+          }
+          // Gemini re-validation
+          setG('Gemini re-validating fixes...',true);
+          const revalPrompt=`Fixes applied to article. Check ONLY whether each original FAIL item was resolved.\n\nORIGINAL FAILs:\n${S.parsedFails.map(f=>`${f.id}: ${f.desc}`).join('\n')}\n\nFIXED ARTICLE:\n${stripDAMarker(S.v1)}\n\nOutput: [ITEM_ID]: PASS — [confirmation] OR [ITEM_ID]: FAIL — [what's still wrong]`;
+          const revalResult=await callGemini(revalPrompt,gkey);
+          document.getElementById('o9').textContent+=`\n\n--- GEMINI RE-VALIDATION ---\n${revalResult}`;
+          S.parsedFails=S.parsedFails.filter(f=>{
+            if(!f.id||f.type==='FLAG') return false;
+            return new RegExp('\\b'+f.id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b[^:]*:\\s*FAIL','i').test(revalResult);
+          });
+          step8RetryCount++;
+          if(S.parsedFails.length>0&&step8RetryCount<=2){
+            setG(`FAILs remain — auto-retry ${step8RetryCount}/2...`,true);
+            try{ await runFrom(9,sys,akey,gkey,dkey); } catch(e){ handleErr(e); }
+            return;
+          }
+        } catch(e) {
+          // Any error in fix/re-validation — fall through to Accept button
+          document.getElementById('o9').textContent+=`\n\n⚠ Fix error: ${e.message} — review FAILs and accept or retry.`;
+          logErr(9, e.message);
         }
         setStep(9,'done','Done ✓');
         if(S.parsedFails.length>0){
@@ -3431,7 +3457,7 @@ HARD RULES:
         `THE PATTERN: Lead with the verdict. React, then explain. NEVER explain before landing the point. Short sentences. Heavy contractions. Sound like the author, not a marketing writer.`
       ].filter(Boolean).join('\n\n');
 
-      const voiceUser=`PUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p4}\n${protectedList}${flagContext}\n\n${voiceExamples}\n\nTASK: Voice rewrite ONLY. Structure, links, tables, POV slots already correct.\n\nCRITICAL OUTPUT REQUIREMENT: Your response must be the COMPLETE FULL ARTICLE TEXT — every section, every paragraph, from the checklist block at the top to the CTA at the bottom. Do NOT summarize what you changed. Do NOT describe the rewrite. Do NOT output a list of changes made. Output the full rewritten article and nothing else. A response that does not contain the complete article will be rejected and retried.\n\nPROTECTED ZONES — DO NOT TOUCH:\n- Direct Answer (everything before first H2) — sacred ground, final, do not change a single word\n- All H2 and H3 headings\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- AI Authority Article Optimization Checklist\n- All internal and external hyperlinks (URLs and anchor text must stay exactly)\n- Any sentence in PROTECTED SENTENCES above\n\nEverything else: rewrite from blank page in the author's voice.\n\nARTICLE:\n${stripDAMarker(S.v1)}`;
+      const voiceUser=`PUBLISH DATE: ${document.getElementById('publishDate').value||publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p4}\n${protectedList}${flagContext}\n\n${voiceExamples}\n\nTASK: Voice rewrite ONLY. Structure, links, tables, POV slots already correct.\n\nCRITICAL OUTPUT REQUIREMENT: Your response must be the COMPLETE FULL ARTICLE TEXT — every section, every paragraph, from the checklist block at the top to the CTA at the bottom. Do NOT summarize what you changed. Do NOT describe the rewrite. Do NOT output a list of changes made. Output the full rewritten article and nothing else. A response that does not contain the complete article will be rejected and retried.\n\nPROTECTED ZONES — DO NOT TOUCH:\n- Direct Answer (everything before first H2) — sacred ground, final, do not change a single word\n- All H2 and H3 headings\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- AI Authority Article Optimization Checklist\n- All internal and external hyperlinks (URLs and anchor text must stay exactly)\n- Any sentence in PROTECTED SENTENCES above\n\nEverything else: rewrite from blank page in the author's voice.\n\nARTICLE:\n${stripDAMarker(S.v1)}`;
       S.v2=await callClaude(sys,voiceUser,akey,(p)=>{document.getElementById('o10').textContent=p;document.getElementById('sb10').classList.add('open');showV2(p);},{maxTokens:64000});
       if(S.v2.length<8000) throw new Error(`Step 10: V2 too short (${S.v2.length} chars) — Claude likely summarized instead of rewriting. Retry.`);
       // Restore DA zone with marker after voice rewrite
@@ -3518,7 +3544,7 @@ HARD RULES:
           const fs12=`Fix AEO article V2. ONLY DIFF blocks.\n\nDIFF_START\nFIND:\n[text]\nREPLACE:\n[fix]\nDIFF_END\n\n4.3B:\n${S.docs.doc43B}`;
           const fu12=`BRIEF:\n${S.geminiResearch}\n\nFIX:\n${fd12}\n\nARTICLE:\n${stripDAMarker(S.v2)}`;
           try{ const fr12=await callClaude(fs12,fu12,akey,null,{maxTokens:64000}); if(fr12.includes('DIFF_START')){ const {result,applied,failed}=applyDiffs(S.v2,fr12); S.v2=result; showV2(S.v2); document.getElementById('o12').innerHTML+=`<div style='font-size:11px;color:var(--muted);margin-top:6px;'>Claude fixes: Applied ${applied}, Failed ${failed}</div>`; } }
-          catch(e){ appendO12(`\n❌ ${e.message}`); setStep(12,'error','Failed'); document.getElementById('r12').style.display='block'; throw e; }
+          catch(e){ document.getElementById('o12').innerHTML+=`<div style='font-size:11px;color:var(--orange);margin-top:6px;'>⚠ Fix error: ${e.message} — continuing to next attempt.</div>`; logErr(12, e.message); }
         }
       }
       checkpointDone=true; checkUrls();
@@ -3692,12 +3718,56 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
   }
 
   // ─── HANDLE ERROR ─────────────────────────────────────────
+  // ─── ERROR LOG ────────────────────────────────────────────
+  const _errLog = [];
+  function logErr(step, msg) {
+    const ts = new Date().toLocaleTimeString();
+    _errLog.push(`[${ts}] Step ${step}: ${msg}`);
+    const btn = document.getElementById('errLogBtn');
+    if(btn) {
+      btn.textContent = `📋 ${_errLog.length}`;
+      btn.style.background = '#fee';
+      btn.style.color = '#c00';
+      btn.style.border = '1px solid #fcc';
+    }
+    const el = document.getElementById('errLogContent');
+    if(el) el.textContent = _errLog.join('\n');
+  }
+  function toggleErrLog() {
+    const m = document.getElementById('errLogModal');
+    m.style.display = m.style.display === 'flex' ? 'none' : 'flex';
+  }
+  function copyErrLog() {
+    const text = _errLog.join('\n') || 'No errors logged.';
+    navigator.clipboard.writeText(text).then(()=>{
+      const btn = event.target;
+      btn.textContent = '✓ Copied';
+      setTimeout(()=>btn.textContent='⎘ Copy Log', 2000);
+    }).catch(()=>{
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+      const btn = event.target;
+      btn.textContent = '✓ Copied';
+      setTimeout(()=>btn.textContent='⎘ Copy Log', 2000);
+    });
+  }
+  function clearErrLog() {
+    _errLog.length = 0;
+    const el = document.getElementById('errLogContent');
+    if(el) el.textContent = 'No errors logged.';
+    const btn = document.getElementById('errLogBtn');
+    if(btn) { btn.textContent = '📋 0'; btn.style.background = '#eee'; btn.style.color = '#999'; btn.style.border = 'none'; }
+  }
+
   function handleErr(err) {
     setG(`⚠ Error: ${err.message}`,false,true); console.error(err);
     for(let i=3;i<=16;i++){
       const card=document.getElementById(`step${i}`);
       if(card&&card.classList.contains('active')){
         setStep(i,'error','Failed');
+        logErr(i, err.message);
         const rb=document.getElementById(`r${i}`); if(rb) rb.style.display='block';
         break;
       }
@@ -3808,7 +3878,7 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
     S.geminiResearch=''; S.sheetRow=''; S.v1=''; S.v2='';
     S.finalTXT=''; S.finalSchema=''; S.checklistHTML=''; S.directAnswer='';
     imagesValidated=false; checkpointDone=false; step8RetryCount=0;
-    resetTimer(); startTimer();
+    clearErrLog(); resetTimer(); startTimer();
     voice11Resolve=null; qc14Resolve=null; voice11Busy=false; voice11AKey='';
     // Clear session on fresh run — not on stop
     localStorage.removeItem(SESSION_KEY);
@@ -3855,12 +3925,11 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
       // STEPS 3-15
       await runFrom(3,buildSys(),akey,gkey,dkey);
 
-    }catch(err){handleErr(err); const recoverableSteps=[2,4,7]; const isRecoverable=recoverableSteps.some(s=>err.message&&err.message.includes(`Step ${s}`)); if(!isRecoverable) stopTimer();}
+    }catch(err){handleErr(err);}
 
     running=false; document.getElementById('runBtn').disabled=false;
     document.getElementById('runBtn').style.display='flex';
     document.getElementById('stopBtn').style.display='none';
-    if(timerInterval) stopTimer();
   }
 
 </script>
