@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.12</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.13</p>
   </div>
 </div>
 
@@ -3412,7 +3412,8 @@ HARD RULES:
           }
           // Gemini re-validation
           setG('Gemini re-validating fixes...',true);
-          const revalPrompt=`Fixes applied to article. Check ONLY whether each original FAIL item was resolved.\n\nORIGINAL FAILs:\n${S.parsedFails.map(f=>`${f.id}: ${f.desc}`).join('\n')}\n\nFIXED ARTICLE:\n${stripDAMarker(S.v1)}\n\nOutput: [ITEM_ID]: PASS — [confirmation] OR [ITEM_ID]: FAIL — [what's still wrong]`;
+          const failIds=S.parsedFails.map(f=>f.id).join(', ');
+          const revalPrompt=`You are checking ONLY the specific FAIL items listed below. Do NOT add new items. Do NOT check anything else. Do NOT do a full article review. Check ONLY these IDs: ${failIds}\n\nORIGINAL FAILs:\n${S.parsedFails.map(f=>`${f.id}: ${f.desc}`).join('\n')}\n\nFIXED ARTICLE:\n${stripDAMarker(S.v1)}\n\nFor each FAIL ID above, output exactly:\n${failIds.split(', ').map(id=>`${id}: PASS — [one sentence confirmation] OR ${id}: FAIL — [what is still wrong]`).join('\n')}\n\nNo other output. No new items. Only the IDs listed above.`;
           const revalResult=await callGemini(revalPrompt,gkey);
           document.getElementById('o9').textContent+=`\n\n--- GEMINI RE-VALIDATION ---\n${revalResult}`;
           S.parsedFails=S.parsedFails.filter(f=>{
@@ -3623,6 +3624,12 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
         );
         document.getElementById('o13').textContent+=`\n\n✅ Last Updated formatted as: ${formattedDate}`;
       }
+      // Ensure all H3 elements have id attributes (marked library omits them by default)
+      S.finalTXT = S.finalTXT.replace(/<h3(?![^>]*id=)([^>]*)>([\s\S]*?)<\/h3>/gi, (match, attrs, text) => {
+        const clean = text.replace(/<[^>]+>/g,'').trim();
+        const slug = clean.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+        return `<h3${attrs} id="${slug}">${text}</h3>`;
+      });
       // ToC H3 injection — scan all H3 elements in HTML, add missing anchor links to ToC
       S.finalTXT = injectToCH3Links(S.finalTXT);
       document.getElementById('o13').textContent+='\n\n✅ ToC H3 links verified/injected.';
