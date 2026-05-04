@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.13</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.14</p>
   </div>
 </div>
 
@@ -372,7 +372,7 @@
       <div class="stat-divider"></div>
       <div class="stat-item">
         <div class="stat-label">Emergency</div>
-        <button onclick="emergencySave()" style="background:var(--orange);color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:10px;font-family:'Lexend',sans-serif;cursor:pointer;font-weight:600;" title="Save current session state immediately">💾 Save Now</button>
+        <button onclick="emergencySave(this)" style="background:var(--orange);color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:10px;font-family:'Lexend',sans-serif;cursor:pointer;font-weight:600;" title="Save current session state immediately">💾 Save Now</button>
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item">
@@ -955,10 +955,9 @@
     } catch(e){ console.warn('Session save failed:',e); }
   }
 
-  function emergencySave() {
+  function emergencySave(btn) {
     const step = S._lastCompletedStep || 0;
     saveSession(step);
-    const btn = event.target;
     const orig = btn.textContent;
     btn.textContent = '✓ Saved!';
     btn.style.background = 'var(--green)';
@@ -1373,7 +1372,7 @@
     const badge=document.getElementById(`ib${idx}`);
     if(badge){badge.className='sbadge b-running';badge.textContent='Generating...';}
 
-    const TIMEOUT_MS=90000;
+    const TIMEOUT_MS=45000;
     const controller=new AbortController();
     const timeoutId=setTimeout(()=>controller.abort(),TIMEOUT_MS);
 
@@ -1511,19 +1510,6 @@
       document.getElementById(tabId)?.classList.toggle('active', tab===t);
       document.getElementById(paneId)?.classList.toggle('active', tab===t);
     });
-    // Fix known capitalisation mismatches
-    document.getElementById('tabV1')?.classList.toggle('active',tab==='v1');
-    document.getElementById('tabV2')?.classList.toggle('active',tab==='v2');
-    document.getElementById('tabDA')?.classList.toggle('active',tab==='da');
-    document.getElementById('tabMeta')?.classList.toggle('active',tab==='meta');
-    document.getElementById('tabHTMLFinal')?.classList.toggle('active',tab==='htmlFinal');
-    document.getElementById('tabSchema')?.classList.toggle('active',tab==='schema');
-    document.getElementById('pV1')?.classList.toggle('active',tab==='v1');
-    document.getElementById('pV2')?.classList.toggle('active',tab==='v2');
-    document.getElementById('pDA')?.classList.toggle('active',tab==='da');
-    document.getElementById('pMeta')?.classList.toggle('active',tab==='meta');
-    document.getElementById('pHTMLFinal')?.classList.toggle('active',tab==='htmlFinal');
-    document.getElementById('pSchema')?.classList.toggle('active',tab==='schema');
     const copyBtn = document.getElementById('btnCopyPane');
     if(copyBtn) copyBtn.style.display = (tab==='v2'||tab==='htmlFinal'||tab==='schema'||tab==='da') ? 'block' : 'none';
   }
@@ -2700,13 +2686,24 @@ ${S.v2}`, voice11AKey, null, {maxTokens:4000});
   }
 
   function getClientDomain() {
-    // Extract client domain from sheet row Full Blog Post URL or doc43B
-    // Try sheet row first — Full Blog Post URL is the most reliable source
-    const urlMatch = S.sheetRow && S.sheetRow.match(/https?:\/\/([^\/\s,]+)/i);
-    if(urlMatch) return urlMatch[1].toLowerCase().replace(/^www\./,'');
+    // Try V1 metadata first — Full Blog Post URL field is reliable formatted source
+    const v1FieldMatch = S.v1 && extractField(S.v1, 'Full Blog Post URL');
+    if(v1FieldMatch) {
+      const m = v1FieldMatch.match(/https?:\/\/(?:www\.)?([^\/\s"',]+)/i);
+      if(m && !m[1].includes('github.io')) return m[1].toLowerCase().replace(/^www\./,'');
+    }
+    // Try sheet row — but skip any github.io URLs
+    if(S.sheetRow) {
+      const urlRe = /https?:\/\/(?:www\.)?([^\/\s,]+)/gi;
+      let um;
+      while((um = urlRe.exec(S.sheetRow)) !== null) {
+        const dom = um[1].toLowerCase().replace(/^www\./,'');
+        if(!dom.includes('github.io') && !dom.includes('google.com') && !dom.includes('googleapis')) return dom;
+      }
+    }
     // Fall back to doc43B — look for website URL
     const b43Match = S.docs.doc43B && S.docs.doc43B.match(/https?:\/\/(?:www\.)?([^\/\s"',]+\.[a-z]{2,})/i);
-    if(b43Match) return b43Match[1].toLowerCase().replace(/^www\./,'');
+    if(b43Match) { const d=b43Match[1].toLowerCase().replace(/^www\./,''); if(!d.includes('github.io')) return d; }
     // Final fallback
     return 'itechvalet.com';
   }
@@ -2716,7 +2713,7 @@ ${S.v2}`, voice11AKey, null, {maxTokens:4000});
     // Strip tool host domain (github.io etc) and treat as internal
     const stripped = url
       .replace(/^https?:\/\/[^/]*github\.io/i,'')
-      .replace(new RegExp(`^https?:\\/\\/(www\\.)?${clientDomain.replace('.','\\.').replace('.','\\.')}`, 'i'),'');
+      .replace(new RegExp(`^https?:\\/\\/(www\\.)?${clientDomain.replace(/\./g,'\\.')}`, 'i'),'');
     // Internal: relative paths, client domain URLs
     if(url.startsWith('/')) return true;
     if(url.toLowerCase().includes(clientDomain)) return true;
@@ -3102,15 +3099,15 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
       checks4.push({label:`Gemini link anchors present (${bpAnchors.length} required)`,pass:missingAnchors.length===0,detail:missingAnchors.length===0?'All present':`Missing: ${missingAnchors.slice(0,3).join(', ')}${missingAnchors.length>3?'...':''}`});
 
       const failures4=checks4.filter(c=>!c.pass);
-      checks4.forEach(c=>append4(`${c.pass?'✅':'❌'} ${c.label} — ${c.detail}`));
+      const warnKeys4=['Direct Answer present','stray prose','No links in Direct Answer'];
+      checks4.forEach(c=>{ const isWarn=!c.pass&&warnKeys4.some(w=>c.label.includes(w)); append4(`${c.pass?'✅':isWarn?'⚠️':'❌'} ${c.label} — ${c.detail}`); });
 
       if(failures4.length===0){
         setStep(4,'done','Done ✓','All skeleton checks passed — proceeding to prose.');
       } else {
         // Hard stops: missing POV slots, tables, FAQ, or Gemini anchors — Step 6 cannot fix these
         // Warnings: DA length, stray prose, DA link — Step 6 catches and auto-fixes all of these
-        const warningKeys=['Direct Answer present','stray prose','No links in Direct Answer'];
-        const hardFails=failures4.filter(c=>!warningKeys.some(w=>c.label.includes(w)));
+        const hardFails=failures4.filter(c=>!warnKeys4.some(w=>c.label.includes(w)));
         if(hardFails.length>0){
           append4(`\n⚠ ${hardFails.length} structural check(s) failed — rebuild from Step 3 or continue anyway.`);
           setStep(4,'error','Skeleton Failed');
@@ -3666,15 +3663,52 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
   // ─── TOC H3 INJECTION ────────────────────────────────────
   // Scans HTML for H3 elements with IDs, checks if they appear in ToC, injects missing ones
   // Nests each H3 under its nearest preceding H2 in the ToC
+  // Class-agnostic: finds ToC by anchor link pattern, not by class name
   function injectToCH3Links(html) {
-    // Find the ToC block — look for toc-body div
-    const tocBodyMatch = html.match(/(<div[^>]*class="toc-body[^"]*"[^>]*>)([\s\S]*?)(<\/div>)/i);
-    if(!tocBodyMatch) return html; // no ToC found — bail safely
+    // Find the ToC block — class-agnostic approach:
+    // Find all divs, pick the one with the most #anchor links — that's the ToC
+    let tocBlockStart = -1, tocBlockEnd = -1, tocInner = '';
+    
+    // Find all div openings and match them to their closing tags
+    // Scan for a div containing at least 3 #anchor links — that's the ToC
+    let searchPos = 0;
+    const divOpenRe = /<div[^>]*>/gi;
+    let divMatch;
+    while((divMatch = divOpenRe.exec(html)) !== null) {
+      const divStart = divMatch.index;
+      const divOpen = divMatch[0];
+      // Find the matching closing </div> by counting nesting
+      let depth = 1, pos = divStart + divOpen.length;
+      while(pos < html.length && depth > 0) {
+        const nextOpen = html.indexOf('<div', pos);
+        const nextClose = html.indexOf('</div>', pos);
+        if(nextClose === -1) break;
+        if(nextOpen !== -1 && nextOpen < nextClose) { depth++; pos = nextOpen + 4; }
+        else { depth--; pos = nextClose + 6; }
+      }
+      if(depth !== 0) continue;
+      const divEnd = pos;
+      const candidate = html.slice(divStart, divEnd);
+      // Count internal anchor links in this div
+      const anchorCount = (candidate.match(/href="#[^"]{3,}"/g) || []).length;
+      if(anchorCount >= 3) {
+        // This is our ToC — use it
+        tocBlockStart = divStart;
+        tocBlockEnd = divEnd;
+        // Extract inner content (strip outer div tags)
+        const innerStart = divStart + divOpen.length;
+        tocInner = html.slice(innerStart, pos - 6); // pos - 6 removes </div>
+        break;
+      }
+    }
+    
+    if(tocBlockStart === -1) return html; // no ToC found — bail safely
 
-    const tocBlockStart = html.indexOf(tocBodyMatch[0]);
     const tocPre = html.slice(0, tocBlockStart);
-    const tocPost = html.slice(tocBlockStart + tocBodyMatch[0].length);
-    let tocInner = tocBodyMatch[2];
+    const tocPost = html.slice(tocBlockEnd);
+    // Reconstruct outer div open tag
+    const outerDivMatch = html.slice(tocBlockStart).match(/^(<div[^>]*>)/i);
+    const outerDivOpen = outerDivMatch ? outerDivMatch[1] : '<div>';
 
     // Extract all anchor hrefs already in ToC
     const existingLinks = new Set();
@@ -3710,7 +3744,9 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
       const h3Link = `\n<a href="#${h3.id}" class="h3-link">• ${h3.text}</a>`;
       if(parentH2id) {
         // Find the parent H2 anchor in tocInner and inject after it
-        const h2Re = new RegExp(`(<a[^>]*href="#${parentH2id}"[^>]*>[\s\S]*?<\/a>)`, 'i');
+        // Escape special regex chars in parentH2id
+        const safeId = parentH2id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const h2Re = new RegExp(`(<a[^>]*href="#${safeId}"[^>]*>[^<]*<\/a>)`, 'i');
         if(h2Re.test(tocInner)) {
           tocInner = tocInner.replace(h2Re, (m) => m + h3Link);
           continue;
@@ -3720,7 +3756,7 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
       tocInner = tocInner.trimEnd() + h3Link + '\n';
     }
 
-    const newTocBlock = tocBodyMatch[1] + tocInner + tocBodyMatch[3];
+    const newTocBlock = outerDivOpen + tocInner + '</div>';
     return tocPre + newTocBlock + tocPost;
   }
 
@@ -3815,9 +3851,8 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
     if(qc14Resolve){qc14Resolve();qc14Resolve=null;}
     if(asmResolve){asmResolve();asmResolve=null;}
     // DO NOT clear S or localStorage — preserve everything saved so far
-    // User can restore and continue from where they left off
-    imagesValidated=false; checkpointDone=false; asmResolve=null;
-    step8RetryCount=0;
+    // DO NOT reset imagesValidated/checkpointDone — restored from session on resume
+    asmResolve=null; step8RetryCount=0;
     stopTimer();
     setG('⏹ Stopped. Session preserved — reload and use Restore to continue.');
     // Show restore banner immediately so user knows they can continue
@@ -3830,7 +3865,8 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
     const gkey=document.getElementById('keyGemini').value.trim();
     const dkey=document.getElementById('keyDrive').value.trim();
     if(!gkey){alert('Gemini API key required.');return;}
-    startTimer(); // Resume timer — was stopped by Step 2 error
+    // Resume timer only if not already running (Step 2 error doesn't stop the timer)
+    if(!timerInterval) startTimer();
     document.getElementById('r2').style.display='none';
     running=true;
     document.getElementById('runBtn').disabled=true;
