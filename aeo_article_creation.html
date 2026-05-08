@@ -1506,12 +1506,21 @@
     const allTabs = ['v1','v2','da','meta','htmlFinal','schema'];
     allTabs.forEach(t => {
       const tabId = 'tab' + t.charAt(0).toUpperCase() + t.slice(1);
-      const paneId = 'p' + t.charAt(0).toUpperCase() + t.slice(1);
+      // pHTMLFinal has uppercase HTML — handle case mismatch explicitly
+      const paneId = t === 'htmlFinal' ? 'pHTMLFinal' : 'p' + t.charAt(0).toUpperCase() + t.slice(1);
       document.getElementById(tabId)?.classList.toggle('active', tab===t);
       document.getElementById(paneId)?.classList.toggle('active', tab===t);
     });
     const copyBtn = document.getElementById('btnCopyPane');
     if(copyBtn) copyBtn.style.display = (tab==='v2'||tab==='htmlFinal'||tab==='schema'||tab==='da') ? 'block' : 'none';
+    // Re-render iframe if switching to htmlFinal — content may have been written while pane was hidden
+    if(tab === 'htmlFinal' && S.finalTXT) {
+      const frame = document.getElementById('htmlFinalFrame');
+      if(frame && frame.style.display !== 'none') {
+        const fdoc = frame.contentDocument || frame.contentWindow.document;
+        fdoc.open(); fdoc.write(S.finalTXT); fdoc.close();
+      }
+    }
   }
 
   // Reset userSelectedTab on fresh run so system can auto-switch tabs
@@ -3099,14 +3108,14 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
       checks4.push({label:`Gemini link anchors present (${bpAnchors.length} required)`,pass:missingAnchors.length===0,detail:missingAnchors.length===0?'All present':`Missing: ${missingAnchors.slice(0,3).join(', ')}${missingAnchors.length>3?'...':''}`});
 
       const failures4=checks4.filter(c=>!c.pass);
-      const warnKeys4=['Direct Answer present','stray prose','No links in Direct Answer'];
+      const warnKeys4=['Direct Answer present','stray prose','No links in Direct Answer','POV slot markers'];
       checks4.forEach(c=>{ const isWarn=!c.pass&&warnKeys4.some(w=>c.label.includes(w)); append4(`${c.pass?'✅':isWarn?'⚠️':'❌'} ${c.label} — ${c.detail}`); });
 
       if(failures4.length===0){
         setStep(4,'done','Done ✓','All skeleton checks passed — proceeding to prose.');
       } else {
-        // Hard stops: missing POV slots, tables, FAQ, or Gemini anchors — Step 6 cannot fix these
-        // Warnings: DA length, stray prose, DA link — Step 6 catches and auto-fixes all of these
+        // Hard stops: missing tables, FAQ, or Gemini anchors — Step 6 cannot fix these
+        // Warnings: DA length, stray prose, DA link, POV slots — Step 5 handles missing POV slots
         const hardFails=failures4.filter(c=>!warnKeys4.some(w=>c.label.includes(w)));
         if(hardFails.length>0){
           append4(`\n⚠ ${hardFails.length} structural check(s) failed — rebuild from Step 3 or continue anyway.`);
@@ -3619,6 +3628,11 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
           /(Last Updated:?\s*)(\d{4}-\d{2}-\d{2})/gi,
           (m, pre) => `${pre}${formattedDate}`
         );
+        // Also catch blank Last Updated — Claude sometimes omits the date entirely
+        S.finalTXT = S.finalTXT.replace(
+          /(Last Updated:?\s*)(?!\S)/gi,
+          (m, pre) => `${pre}${formattedDate}`
+        );
         document.getElementById('o13').textContent+=`\n\n✅ Last Updated formatted as: ${formattedDate}`;
       }
       // Ensure all H3 elements have id attributes (marked library omits them by default)
@@ -3668,16 +3682,16 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
     // Find the ToC block — class-agnostic approach:
     // Find all divs, pick the one with the most #anchor links — that's the ToC
     let tocBlockStart = -1, tocBlockEnd = -1, tocInner = '';
-    
+
     // Find all div openings and match them to their closing tags
-    // Scan for a div containing at least 3 #anchor links — that's the ToC
-    let searchPos = 0;
+    // Pick the SMALLEST div containing at least 3 #anchor links — that's the ToC
+    // (not the first — outer wrapper divs also contain many anchors and swallow tocPost)
     const divOpenRe = /<div[^>]*>/gi;
     let divMatch;
+    let bestTocSize = Infinity, bestTocOpen = '';
     while((divMatch = divOpenRe.exec(html)) !== null) {
       const divStart = divMatch.index;
       const divOpen = divMatch[0];
-      // Find the matching closing </div> by counting nesting
       let depth = 1, pos = divStart + divOpen.length;
       while(pos < html.length && depth > 0) {
         const nextOpen = html.indexOf('<div', pos);
@@ -3689,26 +3703,23 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
       if(depth !== 0) continue;
       const divEnd = pos;
       const candidate = html.slice(divStart, divEnd);
-      // Count internal anchor links in this div
       const anchorCount = (candidate.match(/href="#[^"]{3,}"/g) || []).length;
-      if(anchorCount >= 3) {
-        // This is our ToC — use it
+      if(anchorCount >= 3 && candidate.length < bestTocSize) {
+        bestTocSize = candidate.length;
         tocBlockStart = divStart;
         tocBlockEnd = divEnd;
-        // Extract inner content (strip outer div tags)
+        bestTocOpen = divOpen;
         const innerStart = divStart + divOpen.length;
-        tocInner = html.slice(innerStart, pos - 6); // pos - 6 removes </div>
-        break;
+        tocInner = html.slice(innerStart, divEnd - 6);
       }
     }
-    
+
     if(tocBlockStart === -1) return html; // no ToC found — bail safely
 
     const tocPre = html.slice(0, tocBlockStart);
     const tocPost = html.slice(tocBlockEnd);
-    // Reconstruct outer div open tag
-    const outerDivMatch = html.slice(tocBlockStart).match(/^(<div[^>]*>)/i);
-    const outerDivOpen = outerDivMatch ? outerDivMatch[1] : '<div>';
+    // Use the captured open tag (bestTocOpen) — already extracted during div scan
+    const outerDivOpen = bestTocOpen || '<div>';
 
     // Extract all anchor hrefs already in ToC
     const existingLinks = new Set();
