@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V2.0</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V2.1</p>
   </div>
 </div>
 
@@ -2331,7 +2331,7 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     const termSection = S.docs.doc43B.match(/TERMINOLOGY LOCK[\s\S]*?(?=SECTION \d+:|________________\s*END|$)/i);
     const termLock = termSection ? termSection[0].trim() : '';
 
-    const auditSys = `You are a voice quality auditor for AEO articles. Your job is to scan the article and flag specific passages that sound like AI output — NOT to rewrite them. Just identify and explain the problem.
+    const auditSys = `You are a voice quality auditor for AEO articles. Your job is to scan the article BODY and flag specific passages that sound like AI output — NOT to rewrite them. Just identify and explain the problem.
 
 You know the author's voice from these wrong/right pairs:
 ${wrongRightPairs}
@@ -2342,6 +2342,8 @@ ${povExamples}
 Terminology lock (flag any violations):
 ${termLock}
 
+JURISDICTION — you are auditing ONLY the article body prose below. You will NOT see the metadata block, checklist, or Direct Answer — those are locked and outside your scope. Do not reference or flag anything you don't see in the text provided.
+
 WHAT TO FLAG (be specific — quote the exact passage):
 1. Setup-before-point: paragraph explains mechanism before landing the verdict (wrong order)
 2. Hedging language: "can often," "may help," "in some cases," "it's worth noting," "it's important to understand"
@@ -2349,8 +2351,7 @@ WHAT TO FLAG (be specific — quote the exact passage):
 4. Corporate phrasing: "leverage," "utilize," "take into account," "it's important to note," "in order to"
 5. Generic openers: H2 section starts with context/background instead of a reaction or direct point
 6. Neutral conclusion: conclusion paragraph doesn't land anywhere — no directional stance
-7. Forbidden terms from terminology lock
-8. First-person POV in the Direct Answer (before the first H2) — that section must be neutral
+7. Forbidden terms from terminology lock — only flag if the forbidden term appears in the body prose below
 
 CRITICAL INSTRUCTION: Find ALL issues above, then rank them by impact.
 Report ONLY the TOP 3 most impactful issues. Ignore the rest.
@@ -2364,11 +2365,18 @@ FIX: [one sentence on what to do instead]
 Be direct. Don't pad. If a section sounds genuinely human and on-brand, don't flag it.
 After the 3 flags, write: "AUDIT COMPLETE — [N] issue(s) found. Showing top 3."`;
 
-    const auditBubble = voiceAppendBubble('system', '⏳ Scanning V2 for AI tells and voice violations...');
+    // ── Extract article body only — from first H2 onward ──────────────────────
+    // The checklist block, Direct Answer, and placeholder zone are all locked.
+    // Claude must never see them — they are not auditable prose.
+    // applyDiffs() still operates on S.v2 in full — the body text exists there verbatim.
+    const firstH2Match = S.v2.match(/^##\s/m);
+    const v2Body = firstH2Match ? S.v2.slice(S.v2.indexOf(firstH2Match[0])) : S.v2;
+
+    const auditBubble = voiceAppendBubble('system', '⏳ Scanning article body for AI tells and voice violations...');
     setG('Claude auditing V2 voice...', true);
 
     try {
-      const auditResult = await callClaude(auditSys, `Audit this article for voice violations:\n\n${S.v2}`, akey, (p) => {
+      const auditResult = await callClaude(auditSys, `Audit this article body for voice violations:\n\n${v2Body}`, akey, (p) => {
         auditBubble.textContent = p;
         thread.scrollTop = thread.scrollHeight;
       });
@@ -2381,7 +2389,7 @@ After the 3 flags, write: "AUDIT COMPLETE — [N] issue(s) found. Showing top 3.
       setStep(11, 'active', 'Applying fixes...');
       const autoApplyBubble = voiceAppendBubble('system', '⏳ Auto-applying fixes...');
       try {
-        const fixSysAuto = `You are making EXACTLY 3 surgical voice fixes to an AEO article.
+        const fixSysAuto = `You are making EXACTLY 3 surgical voice fixes to an AEO article body.
 CRITICAL RULES — NO EXCEPTIONS:
 1. Output ONLY DIFF_START/DIFF_END blocks. Nothing else.
 2. Maximum 3 DIFF blocks — one per flagged issue.
@@ -2394,14 +2402,14 @@ FIND:
 REPLACE:
 [replacement text only]
 DIFF_END
-PROTECTED: Direct Answer, tables, image prompts, links, headings, schema.`;
+PROTECTED: Direct Answer, metadata, checklist block, tables, image prompts, links, headings, schema.`;
         const fixUserAuto = `Apply the 3 fixes from this audit report as DIFF blocks.
 
 AUDIT REPORT:
 ${auditResult}
 
-ARTICLE:
-${S.v2}`;
+ARTICLE BODY:
+${v2Body}`;
         window._v2Snapshot = S.v2;
         const autoResult = await callClaude(fixSysAuto, fixUserAuto, akey, null, {maxTokens:4000});
         if(autoResult.includes('DIFF_START')) {
@@ -2511,7 +2519,7 @@ Do NOT rewrite anything the operator didn't mention. Do NOT touch: Direct Answer
     const thread = document.getElementById('voiceChatThread');
     const claudeBubble = voiceAppendBubble('system', '⏳ Applying fixes as DIFF blocks...');
 
-    const fixSys = `You are making EXACTLY 3 surgical voice fixes to an AEO article.
+    const fixSys = `You are making EXACTLY 3 surgical voice fixes to an AEO article body.
 
 CRITICAL RULES — NO EXCEPTIONS:
 1. Output ONLY DIFF_START/DIFF_END blocks. Nothing else. No prose. No explanation. No preamble.
@@ -2529,14 +2537,17 @@ REPLACE:
 DIFF_END
 
 PROTECTED — never touch these:
-- Direct Answer (before first H2)
 - All tables
 - All image prompts
 - All links (internal and external)
 - All headings (H1/H2/H3)
 - Schema markup`;
 
-    const userMsg = `Apply the 3 fixes from this audit report as DIFF blocks. Use the FIX suggestions from the report as your REPLACE text.\n\nAUDIT REPORT:\n${auditReport}\n\nARTICLE (find exact text here):\n${S.v2}`;
+    // Extract body only — same jurisdiction rule as the audit call
+    const firstH2MatchFix = S.v2.match(/^##\s/m);
+    const v2BodyFix = firstH2MatchFix ? S.v2.slice(S.v2.indexOf(firstH2MatchFix[0])) : S.v2;
+
+    const userMsg = `Apply the 3 fixes from this audit report as DIFF blocks. Use the FIX suggestions from the report as your REPLACE text.\n\nAUDIT REPORT:\n${auditReport}\n\nARTICLE BODY (find exact text here):\n${v2BodyFix}`;
 
     try {
       const result = await callClaude(fixSys, userMsg, voice11AKey, (p) => {
@@ -2577,7 +2588,7 @@ PROTECTED — never touch these:
     if(!auditReport) { approveVoice(); return; }
     const thread = document.getElementById('voiceChatThread');
     const bubble = voiceAppendBubble('system', '⏳ Retrying fixes...');
-    const fixSys = `You are making EXACTLY 3 surgical voice fixes to an AEO article.
+    const fixSys = `You are making EXACTLY 3 surgical voice fixes to an AEO article body.
 CRITICAL RULES: Output ONLY DIFF_START/DIFF_END blocks. Nothing else.
 DIFF_START
 FIND:
@@ -2585,16 +2596,19 @@ FIND:
 REPLACE:
 [replacement text only]
 DIFF_END
-PROTECTED: Direct Answer, tables, image prompts, links, headings, schema.`;
+PROTECTED: Tables, image prompts, links, headings, schema.`;
     try {
       window._v2Snapshot = S.v2;
+      // Extract body only — same jurisdiction rule as audit
+      const firstH2MatchRetry = S.v2.match(/^##\s/m);
+      const v2BodyRetry = firstH2MatchRetry ? S.v2.slice(S.v2.indexOf(firstH2MatchRetry[0])) : S.v2;
       const result = await callClaude(fixSys, `Apply the 3 fixes from this audit report.
 
 AUDIT REPORT:
 ${auditReport}
 
-ARTICLE:
-${S.v2}`, voice11AKey, null, {maxTokens:4000});
+ARTICLE BODY:
+${v2BodyRetry}`, voice11AKey, null, {maxTokens:4000});
       if(result.includes('DIFF_START')) {
         const {result:fixed, applied, failed} = applyDiffs(S.v2, result);
         S.v2 = fixed; showV2(S.v2); updateWordCount(S.v2); saveSession(10);
@@ -3732,6 +3746,26 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
         }
       }
       document.getElementById('o13').textContent += `\n\n✅ Last Updated injected: ${formattedDate}`;
+
+      // ── PASS 8B: DA GAP STRIP — enforce H1 → DA → Last Updated → ToC → H2
+      // Hard rule: NOTHING is allowed between the last-updated element and the first H2.
+      // Claude sometimes adds transition/filler paragraphs here. They are always deleted.
+      // This is intentional and permanent — the DA already contains that information.
+      {
+        const luEnd = S.finalTXT.indexOf('</p>', S.finalTXT.indexOf('class="last-updated"'));
+        const firstH2Pos = S.finalTXT.search(/<h2[^>]*>/i);
+        if(luEnd !== -1 && firstH2Pos !== -1 && firstH2Pos > luEnd) {
+          const gapContent = S.finalTXT.slice(luEnd + 4, firstH2Pos).trim();
+          // Strip only if there's non-whitespace content that isn't the ToC or an image
+          const hasRealContent = gapContent.replace(/<div[^>]*class="toc"[\s\S]*?<\/div>/gi,'').replace(/<img[^>]*>/gi,'').replace(/\s/g,'').length > 0;
+          if(hasRealContent) {
+            // Keep only ToC divs and images — strip everything else (paragraphs, headings, etc.)
+            const cleaned = gapContent.replace(/<p[^>]*>[\s\S]*?<\/p>/gi,'').replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/gi,'').trim();
+            S.finalTXT = S.finalTXT.slice(0, luEnd + 4) + '\n' + cleaned + '\n' + S.finalTXT.slice(firstH2Pos);
+            document.getElementById('o13').textContent += '\n\n✅ DA gap stripped — filler text between Last Updated and first H2 removed.';
+          }
+        }
+      }
 
       // ── PASS 9: ENSURE ALL H2/H3 HAVE ID ATTRIBUTES (required for ToC anchor links)
       S.finalTXT = S.finalTXT.replace(/<h2(?![^>]*id=)([^>]*)>([\s\S]*?)<\/h2>/gi, (match, attrs, text) => {
