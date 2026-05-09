@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V2.3</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V2.4</p>
   </div>
 </div>
 
@@ -543,6 +543,7 @@
       <div class="step-body" id="sb11">
         <div id="voiceChatThread" style="display:none;margin-bottom:10px;flex-direction:column;gap:8px;padding:4px 0;"></div>
         <div id="r11" style="display:none;"><button class="btn-retry" onclick="retryFrom(10)">↻ Retry from Step 10</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="if(voice11Resolve){voice11Resolve();voice11Resolve=null;}document.getElementById('r11').style.display='none';">Continue Anyway →</button></div>
+        <button class="btn-copy-step" onclick="copyVCI()" style="display:none;" id="vciCopyBtn">Copy</button>
       </div>
     </div>
 
@@ -643,6 +644,7 @@
       <div class="assemble-row">
         <button class="btn-assemble" id="assembleBtn" onclick="validateImages()" disabled>Validate Images</button>
         <button class="btn-assemble" id="dlAllBtn" onclick="downloadAllImages()" disabled style="background:var(--blue);margin-left:6px;">↓ All Images</button>
+        <button class="btn-assemble" id="regenAllBtn" onclick="regenAllFailed()" style="display:none;background:var(--orange);margin-left:6px;">↻ Regen All Failed</button>
         <div class="assemble-hint" id="assembleHint">Enter all WP URLs above to unlock</div>
         <button class="btn-assemble" id="unlockStep13Btn" onclick="unlockStep13()" style="display:none;background:#4caf50;margin-left:6px;font-size:11px;">🔓 Unlock Step 13</button>
       </div>
@@ -951,13 +953,13 @@
   // ─── DRIVE ────────────────────────────────────────────────
   async function fetchFile(id,key) {
     if(!id) throw new Error('Missing file ID — check Client Manager config');
-    const r=await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&key=${key}`);
+    const r=await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`,{headers:{'x-goog-api-key':key}});
     if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(`Drive error (${r.status}): ${e?.error?.message||'check file ID'}`); }
     return r.text();
   }
 
   async function fetchSheet(id,key) {
-    const r=await fetch(`https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=text%2Fcsv&key=${key}`);
+    const r=await fetch(`https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=text%2Fcsv`,{headers:{'x-goog-api-key':key}});
     if(!r.ok) throw new Error(`Sheet fetch failed: ${r.status}`);
     return r.text();
   }
@@ -1226,14 +1228,17 @@
       catch(err){ showImgErr(i,err.message); failed++; }
       if(i<prompts.length-1) await new Promise(r=>setTimeout(r,1500));
     }
-    if(failed>0) setStep(7,'done','Done ✓',`${prompts.length-failed}/${prompts.length} images generated. ${failed} failed — use Regenerate button on failed cards.`);
+    if(failed>0) {
+      setStep(7,'done','Done ✓',`${prompts.length-failed}/${prompts.length} images generated. ${failed} failed — use Regenerate button on failed cards.`);
+      const rb=document.getElementById('regenAllBtn'); if(rb) rb.style.display='inline-block';
+    }
   }
 
   async function genOneImage(prompt,alt,idx,gkey) {
     const badge=document.getElementById(`ib${idx}`);
     if(badge){badge.className='sbadge b-running';badge.textContent='Generating...';}
 
-    const TIMEOUT_MS=45000;
+    const TIMEOUT_MS=30000;
     const controller=new AbortController();
     const timeoutId=setTimeout(()=>controller.abort(),TIMEOUT_MS);
 
@@ -1265,7 +1270,7 @@
       const rb=document.getElementById(`ir${idx}`); if(rb) rb.disabled=false;
     } catch(err) {
       clearTimeout(timeoutId);
-      const msg=err.name==='AbortError'?'Timed out after 45s — click Regenerate to retry':err.message;
+      const msg=err.name==='AbortError'?'Timed out after 30s — click Regenerate to retry':err.message;
       throw new Error(msg);
     }
   }
@@ -1295,15 +1300,69 @@
       const totalCards = document.querySelectorAll('.img-card').length || S.imagePrompts.length;
       const failedCount = totalCards - Object.keys(S.imageData).length;
       const dlAllBtn=document.getElementById('dlAllBtn');
+      const regenAllBtn=document.getElementById('regenAllBtn');
       if(failedCount<=0){
         if(dlAllBtn){dlAllBtn.disabled=false;dlAllBtn.textContent='↓ All Images';dlAllBtn.style.background='var(--blue)';dlAllBtn.title='';}
+        if(regenAllBtn) regenAllBtn.style.display='none';
         setStep(7,'done','Done ✓',`All ${totalCards} images generated successfully.`);
       } else {
         if(dlAllBtn){dlAllBtn.disabled=true;dlAllBtn.textContent=`⚠ ${failedCount} Failed`;dlAllBtn.style.background='var(--orange)';}
+        if(regenAllBtn) regenAllBtn.style.display='inline-block';
         setStep(7,'error','⚠ Some Failed',`${totalCards-failedCount}/${totalCards} images generated. ${failedCount} failed — use Regenerate.`);
       }
     }
     catch(err){ showImgErr(idx,err.message); if(rb) rb.disabled=false; }
+  }
+
+  async function regenAllFailed() {
+    const gkey = document.getElementById('keyGemini').value.trim();
+    if(!gkey) return;
+    const btn = document.getElementById('regenAllBtn');
+    if(btn) { btn.disabled = true; btn.textContent = '↻ Retrying...'; }
+
+    // Find all failed image slots — badge shows 'Failed' or display shows error
+    const failedIdxs = [];
+    for(let i = 0; i < S.imagePrompts.length; i++) {
+      const badge = document.getElementById(`ib${i}`);
+      if(badge && badge.textContent === 'Failed') failedIdxs.push(i);
+      else if(!S.imageData[i]) failedIdxs.push(i);
+    }
+
+    if(failedIdxs.length === 0) {
+      if(btn) { btn.disabled = false; btn.textContent = '↻ Regen All Failed'; }
+      return;
+    }
+
+    setG(`Regenerating ${failedIdxs.length} failed image(s)...`, true);
+    let fixed = 0;
+    for(let i = 0; i < failedIdxs.length; i++) {
+      const idx = failedIdxs[i];
+      setG(`Regenerating failed image ${i+1} of ${failedIdxs.length}...`, true);
+      const rb = document.getElementById(`ir${idx}`); if(rb) rb.disabled = true;
+      try {
+        await genOneImage(S.imagePrompts[idx].prompt, S.imagePrompts[idx].alt, idx, gkey);
+        S.tokens.imgs++; updateCost(); fixed++;
+      } catch(err) {
+        showImgErr(idx, err.message);
+        if(rb) rb.disabled = false;
+      }
+      if(i < failedIdxs.length - 1) await new Promise(r => setTimeout(r, 1500));
+    }
+
+    // Update overall status
+    const totalCards = document.querySelectorAll('.img-card').length || S.imagePrompts.length;
+    const stillFailed = totalCards - Object.keys(S.imageData).length;
+    const dlAllBtn = document.getElementById('dlAllBtn');
+    if(stillFailed <= 0) {
+      if(dlAllBtn) { dlAllBtn.disabled = false; dlAllBtn.textContent = '↓ All Images'; dlAllBtn.style.background = 'var(--blue)'; }
+      setStep(7, 'done', 'Done ✓', `All ${totalCards} images generated successfully.`);
+      if(btn) btn.style.display = 'none';
+    } else {
+      if(dlAllBtn) { dlAllBtn.disabled = true; dlAllBtn.textContent = `⚠ ${stillFailed} Failed`; dlAllBtn.style.background = 'var(--orange)'; }
+      setStep(7, 'error', '⚠ Some Failed', `${totalCards - stillFailed}/${totalCards} images generated. ${stillFailed} still failed.`);
+      if(btn) { btn.disabled = false; btn.textContent = '↻ Regen All Failed'; }
+    }
+    setG(stillFailed <= 0 ? '✓ All images ready.' : `⚠ ${stillFailed} image(s) still failed — retry again.`);
   }
 
   async function toWebP(b64,mime) {
@@ -1345,7 +1404,9 @@
     }
     if(filled===total){
       btn.disabled=false;
-      document.getElementById('assembleHint').textContent='All URLs entered — click Validate Images!';
+      document.getElementById('assembleHint').textContent='All URLs entered — auto-validating...';
+      // Auto-trigger validation — removes need for manual click
+      setTimeout(()=>{ if(!imagesValidated) validateImages(); }, 300);
     } else {
       btn.disabled=true;
       document.getElementById('assembleHint').textContent=`${filled}/${total} image URLs entered`;
@@ -1445,16 +1506,14 @@
     document.getElementById('prevBadge').textContent='V1 ready';
     const wc=countWords(text);
     document.getElementById('v1WordCount').textContent='~'+wc.toLocaleString();
-    // Populate DA tab
-    const da=extractDirectAnswer(text);
+    // Populate DA tab — use locked S.directAnswer if available, fall back to extraction
+    const da = (S.directAnswer && S.directAnswer.length > 50) ? S.directAnswer : extractDirectAnswer(text);
     if(da){
       document.getElementById('daEmpty').style.display='none';
       const daPre=document.getElementById('daPre');
       daPre.style.display='block';
       daPre.innerHTML=typeof marked!=='undefined'?marked.parse(da):da.replace(/&/g,'&amp;').replace(/</g,'&lt;');
     }
-    // Populate Metadata tab
-    populateMetaTab(text);
     if(autoSwitch) switchTab('v1',true);
   }
 
@@ -1465,8 +1524,8 @@
     div.innerHTML=typeof marked!=='undefined'?marked.parse(text):text.replace(/&/g,'&amp;').replace(/</g,'&lt;');
     document.getElementById('prevBadge').textContent='V2 ready';
     updateWordCount(text);
-    // Update DA tab with V2 version
-    const da=extractDirectAnswer(text);
+    // Update DA tab — use locked S.directAnswer if available, fall back to extraction
+    const da = (S.directAnswer && S.directAnswer.length > 50) ? S.directAnswer : extractDirectAnswer(text);
     if(da){
       document.getElementById('daEmpty').style.display='none';
       const daPre=document.getElementById('daPre');
@@ -1945,18 +2004,28 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
       jsResults.push(`${foundingDateOk?'✅':'❌'} JS: foundingDate — ${foundingDateOk?`${fdMatch?fdMatch[1]:'not present — check schema'}`:`WRONG: shows ${pd} (publish date) — must be actual founding date from 4.3B`}`);
     }
 
-    o14.textContent = jsResults.join('\n') + '\n\nRunning Claude checks...\n';
-
-    // Extract author name and business name dynamically from 4.3B
+    // Extract author and business from 4.3B for JS string checks
     const authorMatch = S.docs.doc43B && S.docs.doc43B.match(/\*?\s*Author(?:\s*Name)?:\s*([^\n*,]+?)(?:\s*,|\s*DC|\s*\n)/i);
     const businessMatch = S.docs.doc43B && S.docs.doc43B.match(/\*?\s*(?:Client Name|Business Name):\s*([^\n*]+)/i);
     const clientAuthor = authorMatch ? authorMatch[1].trim() : 'Gerek Allen';
     const clientBusiness = businessMatch ? businessMatch[1].trim() : 'iTech Valet';
 
+    // JS Check G: Author name present in HTML and schema
+    const authorInHTML = S.finalTXT.includes(clientAuthor);
+    const authorInSchema = S.finalSchema.includes(clientAuthor);
+    jsResults.push(`${(authorInHTML&&authorInSchema)?'✅':'❌'} JS: Author name "${clientAuthor}" — ${authorInHTML?'✅ HTML':'❌ missing HTML'} · ${authorInSchema?'✅ Schema':'❌ missing Schema'}`);
+
+    // JS Check H: Business name present in HTML and schema
+    const bizInHTML = S.finalTXT.includes(clientBusiness);
+    const bizInSchema = S.finalSchema.includes(clientBusiness);
+    jsResults.push(`${(bizInHTML&&bizInSchema)?'✅':'❌'} JS: Business name "${clientBusiness}" — ${bizInHTML?'✅ HTML':'❌ missing HTML'} · ${bizInSchema?'✅ Schema':'❌ missing Schema'}`);
+
+    o14.textContent = jsResults.join('\n') + '\n\nRunning Claude checks...\n';
+
     // ── CLAUDE CHECKS — things only Claude can evaluate ───────────────────────
     const auditSys = `You are a structured QC auditor for the iTech Valet AEO pipeline. You check HTML articles and schema against a defined checklist.\n\nOutput ONLY a structured report in this exact format for each check:\nCHECK: [check name]\nSTATUS: PASS or FAIL\nDETAIL: [one line — what you found]\n\nThen after all checks, output any DIFF blocks needed to fix FAILs:\nDIFF_START\nFIND:\n[exact HTML to find]\nREPLACE:\n[replacement]\nDIFF_END\n\nIf no fixes needed, output: ALL CHECKS PASSED\n\n4.3B — CLIENT IDENTITY CARD:\n${S.docs.doc43B}`;
 
-    const auditUser = `Run all checks below against the HTML and Schema provided. Be specific in DETAIL field.\n\nPUBLISH DATE: ${pd}\n\nCHECKS TO RUN:\n1. No links in the div with class="direct-answer" — links inside that div are a hard violation\n2. CTA is a text link only — no <button> element, no background-color style on the div with class="article-cta"\n3. No markdown tables remaining — all must be converted to HTML <table> tags\n4. No forbidden terms per the Terminology Lock section of 4.3B\n5. Schema present and complete: FAQPage, BlogPosting, BreadcrumbList — all three exist as separate <script type="application/ld+json"> blocks\n6. Author name throughout HTML and schema is "${clientAuthor}" — not any other name or variation\n7. Business name throughout HTML and schema is "${clientBusiness}" — correct casing, no variations\n8. No duplicate paragraph blocks anywhere — especially in CTA section and conclusion\n\nDO NOT check or flag:\n- Last Updated element or date — JS-injected, always correct\n- Table of Contents — JS-built, always correct\n- Schema datePublished or dateModified — JS-verified before this call\n- foundingDate — JS-verified before this call\n- Any HTML structure, classes, or wrapper divs — JS-enforced\n\nHTML:\n${S.finalTXT}\n\nSCHEMA:\n${S.finalSchema}`;
+    const auditUser = `Run all checks below against the HTML and Schema provided. Be specific in DETAIL field.\n\nPUBLISH DATE: ${pd}\n\nCHECKS TO RUN:\n1. No links in the div with class="direct-answer" — links inside that div are a hard violation\n2. CTA is a text link only — no <button> element, no background-color style on the div with class="article-cta"\n3. No markdown tables remaining — all must be converted to HTML <table> tags\n4. No forbidden terms per the Terminology Lock section of 4.3B\n5. Schema present and complete: FAQPage, BlogPosting, BreadcrumbList — all three exist as separate <script type="application/ld+json"> blocks\n6. No duplicate paragraph blocks anywhere — especially in CTA section and conclusion\n\nDO NOT check or flag:\n- Last Updated element or date — JS-injected, always correct\n- Table of Contents — JS-built, always correct\n- Schema datePublished or dateModified — JS-verified before this call\n- foundingDate — JS-verified before this call\n- Author name or business name — JS-verified before this call\n- Any HTML structure, classes, or wrapper divs — JS-enforced\n\nHTML:\n${S.finalTXT}\n\nSCHEMA:\n${S.finalSchema}`;
 
     let auditResult = '';
     try {
@@ -2214,25 +2283,27 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     const firstH2Match = S.v2.match(/^##\s/m);
     const v2Body = firstH2Match ? S.v2.slice(S.v2.indexOf(firstH2Match[0])) : S.v2;
 
-    // Get Prompt 5 (VCI) from 4.4
-    const vciPrompt = getPrompt(S.docs.doc44, 5);
+    // Calculate word count in JS — never let AI count words (probabilistic, inaccurate)
+    const v2WordCount = countWords(v2Body);
 
-    // Extract only the 4.3B sections Gemini needs for VCI — reduces prompt size significantly
     const termSection = S.docs.doc43B.match(/TERMINOLOGY LOCK[\s\S]*?(?=SECTION \d+:|________________\s*END|$)/i);
-    const voiceSection = S.docs.doc43B.match(/AUTHOR VOICE TEST[\s\S]*?(?=POV SLOT VOICE|SECTION \d+:|________________\s*END|$)/i);
-    const povSection = S.docs.doc43B.match(/POV SLOT VOICE EXAMPLES[\s\S]*?(?=CTA VARIATION|SECTION \d+:|________________\s*END|$)/i);
-    const doc43B_vci = [
-      termSection ? termSection[0].trim() : '',
-      voiceSection ? voiceSection[0].trim() : '',
-      povSection ? povSection[0].trim() : ''
-    ].filter(Boolean).join('\n\n---\n\n');
+    const forbiddenTerms = termSection ? termSection[0].trim() : '';
 
-    const fullPrompt = `${vciPrompt}
+    const fullPrompt = `You are a forensic linguistic auditor. Count violations in the article body below and return raw counts as JSON.
 
-CLIENT IDENTITY CARD — RELEVANT SECTIONS (4.3B):
-${doc43B_vci}
+SCOPE: Audit only the article body provided. Exclude FAQ question text, image prompts, and schema.
 
-ARTICLE BODY TO AUDIT (first H2 to end of Conclusion only):
+VIOLATION DEFINITIONS — count each instance as 1 violation:
+1. expanded_contractions: "do not" instead of "don't", "it is" instead of "it's", "cannot" instead of "can't", "you are" instead of "you're", "does not" instead of "doesn't", "will not" instead of "won't", "is not" instead of "isn't", "has not" instead of "hasn't"
+2. long_sentences: any sentence over 15 words — count each over-limit sentence as 1 violation
+3. hedging: any instance of "may", "might", "could", "generally", "usually", "perhaps", "it's worth noting", "it's important to", "in some cases", "often", "typically", "it can be argued", "seems to", "appears to", "tends to"
+4. passive_voice: any "is/was [verb]-ed" construction — "was adjusted", "is recommended", "are considered", "was built", "is designed"
+5. forbidden_words: any of these words in the author's prose (not in quotes): "Landscape", "Navigate", "Unlock", "Robust", "Comprehensive", "Vital", "Leverage", "Utilize", "Furthermore", "Moreover", "In conclusion", "In summary"
+
+OUTPUT: Return ONLY valid JSON with raw violation counts. No preamble. No explanation. No markdown fences. Do NOT calculate scores — just count violations.
+{"expanded_contractions":integer,"long_sentences":integer,"hedging":integer,"passive_voice":integer,"forbidden_words":integer}
+
+ARTICLE BODY:
 ${v2Body}`;
 
     const bubble = voiceAppendBubble('system', '⏳ Gemini counting violations...');
@@ -2250,8 +2321,11 @@ ${v2Body}`;
           throw new Error('Gemini returned empty response after retries');
         }
         const clean = raw.replace(/```json|```/gi, '').trim();
-        vciData = JSON.parse(clean);
-        break; // Success
+        const jsonStart = clean.indexOf('{');
+        const jsonEnd = clean.lastIndexOf('}');
+        if(jsonStart === -1 || jsonEnd === -1) throw new Error('No JSON object found');
+        vciData = JSON.parse(clean.slice(jsonStart, jsonEnd + 1));
+        break;
       } catch(e) {
         if(attempt >= MAX_VCI_RETRIES) {
           bubble.textContent = `⚠ VCI parse error — Gemini did not return valid JSON after ${MAX_VCI_RETRIES} attempts.\n\nRaw output:\n${raw}\n\nPipeline continuing.`;
@@ -2265,47 +2339,82 @@ ${v2Body}`;
       }
     }
 
-      // Build display
-      const score = vciData.vci_score ?? '—';
-      const verdict = vciData.verdict ?? '—';
-      const wordCount = vciData.word_count ?? '—';
-      const rate = vciData.violation_rate_per_500 ?? '—';
-      const v = vciData.top_violations || {};
+    // JS calculates the score — never trust AI math
+    // Gemini returns raw counts only. JS does all arithmetic.
+    const v = vciData;
+    const totalViolations = (v.expanded_contractions||0) + (v.long_sentences||0) + (v.hedging||0) + (v.passive_voice||0) + (v.forbidden_words||0);
+    const rate = v2WordCount > 0 ? totalViolations / (v2WordCount / 500) : 0;
+    const vciScore = Math.round(100 - rate);
+    const verdict = vciScore >= 90 ? 'PASS' : vciScore >= 75 ? 'FIX' : 'REWRITE';
 
-      const verdictColor = verdict === 'PASS' ? '#22c55e' : verdict === 'FIX' ? '#f59e0b' : '#ef4444';
-      const scoreColor = score >= 90 ? '#22c55e' : score >= 75 ? '#f59e0b' : '#ef4444';
+    // Store full VCI object for checklist and stats bar
+    const vciResult = {
+      vci_score: vciScore,
+      violation_rate_per_500: Math.round(rate * 100) / 100,
+      word_count: v2WordCount,
+      verdict,
+      top_violations: {
+        expanded_contractions: v.expanded_contractions || 0,
+        long_sentences: v.long_sentences || 0,
+        hedging: v.hedging || 0,
+        passive_voice: v.passive_voice || 0,
+        forbidden_words: v.forbidden_words || 0
+      }
+    };
 
-      bubble.innerHTML = `<div style="font-family:monospace;font-size:13px;line-height:1.8;">
-<span style="font-size:18px;font-weight:700;color:${scoreColor};">VCI Score: ${score}</span>
-<span style="margin-left:12px;font-size:14px;font-weight:600;color:${verdictColor};">${verdict}</span>
-<div style="color:var(--muted);font-size:11px;margin-top:2px;">Rate: ${typeof rate === 'number' ? rate.toFixed(2) : rate} violations/500 words · ${wordCount} words audited</div>
-<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px;">
-  <div>Expanded contractions: ${v.expanded_contractions ?? '—'}</div>
-  <div>Long sentences (>15w): ${v.long_sentences ?? '—'}</div>
-  <div>Hedging language: ${v.hedging ?? '—'}</div>
-  <div>Passive voice: ${v.passive_voice ?? '—'}</div>
-  <div>Forbidden words: ${v.forbidden_words ?? '—'}</div>
-</div>
-<div style="margin-top:8px;color:var(--muted);font-size:11px;">Pipeline continues regardless of verdict. Score logged for pattern analysis.</div>
-</div>`;
+    const scoreColor = vciScore >= 90 ? '#22c55e' : vciScore >= 75 ? '#f59e0b' : '#ef4444';
 
-      // Update stats bar VCI display
-      window._lastVCI = vciData;
-      updateVCIDisplay(score, verdict);
+    const resultText = [
+      `VCI Score: ${vciScore} — ${verdict}`,
+      `Rate: ${vciResult.violation_rate_per_500} violations/500 words · ${v2WordCount} words audited`,
+      ``,
+      `Expanded contractions: ${vciResult.top_violations.expanded_contractions}`,
+      `Long sentences (>15w): ${vciResult.top_violations.long_sentences}`,
+      `Hedging language: ${vciResult.top_violations.hedging}`,
+      `Passive voice: ${vciResult.top_violations.passive_voice}`,
+      `Forbidden words: ${vciResult.top_violations.forbidden_words}`,
+      ``,
+      `Pipeline continues regardless of verdict.`
+    ].join('\n');
 
-      // Auto-approve and continue
-      saveSession(11);
-      setStep(11, 'done', `Done ✓ (VCI: ${score})`);
-      setG(`✓ Step 11 complete — VCI Score: ${score} (${verdict})`);
-      if(voice11Resolve) { voice11Resolve(); voice11Resolve = null; }
+    bubble.textContent = resultText;
+    bubble.style.color = scoreColor;
+    bubble.style.whiteSpace = 'pre-wrap';
+
+    // Show copy button
+    const copyBtn = document.getElementById('vciCopyBtn');
+    if(copyBtn) copyBtn.style.display = 'block';
+
+    // Update stats bar and store result
+    window._lastVCI = vciResult;
+    updateVCIDisplay(vciScore, verdict);
+
+    // Auto-approve and continue
+    saveSession(11);
+    setStep(11, 'done', `Done ✓ (VCI: ${vciScore})`);
+    setG(`✓ Step 11 complete — VCI Score: ${vciScore} (${verdict})`);
+    if(voice11Resolve) { voice11Resolve(); voice11Resolve = null; }
   }
 
   function updateVCIDisplay(score, verdict) {
     const el = document.getElementById('vciDisplay');
     if(!el) return;
-    const color = score >= 90 ? '#22c55e' : score >= 75 ? '#f59e0b' : '#ef4444';
+    const color = typeof score === 'number' ? (score >= 90 ? '#22c55e' : score >= 75 ? '#f59e0b' : '#ef4444') : '#888';
     el.textContent = `VCI: ${score} (${verdict})`;
     el.style.color = color;
+  }
+
+  function copyVCI() {
+    const thread = document.getElementById('voiceChatThread');
+    const bubble = thread ? thread.querySelector('.qc-bubble') : null;
+    const text = bubble ? bubble.textContent : (window._lastVCI ? JSON.stringify(window._lastVCI, null, 2) : 'No VCI data');
+    navigator.clipboard.writeText(text).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+    });
+    const btn = document.getElementById('vciCopyBtn');
+    if(btn) { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 2000); }
   }
 
   // ─── GATE 12 DECISION — global function so buttons survive context interruption ───
@@ -2785,6 +2894,13 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
       if(S.v1.length<1000) throw new Error(`Step 3: Skeleton too short (${S.v1.length} chars) — retry.`);
       // Lock the DA immediately after Step 3 — this is the canonical, sacred DA
       S.directAnswer = extractLockedDA(S.v1);
+      // Populate DA tab immediately — S.directAnswer is now locked and correct
+      if(S.directAnswer && S.directAnswer.length > 50){
+        document.getElementById('daEmpty').style.display='none';
+        const daPre=document.getElementById('daPre');
+        daPre.style.display='block';
+        daPre.innerHTML=typeof marked!=='undefined'?marked.parse(S.directAnswer):S.directAnswer.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      }
       setStep(3,"done","Done ✓"); showV1(S.v1, false); saveSession(3);
       step=4;
     }
@@ -3096,9 +3212,8 @@ HARD RULES:
       const p3=getPrompt(S.docs.doc44,3);
       const bpAnchors=(S.geminiResearch.match(/Semantic Anchor:\s*"([^"]+)"/g)||[]).map(l=>l.replace(/Semantic Anchor:\s*"/,'').replace(/"$/,''));
       const linkListStr=bpAnchors.map(a=>`Anchor text: "${a}"`).join('\n');
-      const failBlockFormat = `\n\nMANDATORY FAIL BLOCK FORMAT — YOU MUST USE THIS EXACT STRUCTURE FOR EVERY FAIL. NO EXCEPTIONS.\nClaude's fix engine reads this programmatically. Any deviation breaks the fix pipeline.\n\nFAIL_START\nID: FAIL_001\nType: WRONG / MISSING / DELETE\nSeverity: CRITICAL / STANDARD / MINOR\nPriority: 1 / 2 / 3\nSection: [Exact H2 or H3 heading this appears under, or TOP if before first H2]\nDescription: [One sentence — what is wrong and why]\nFind: [VERBATIM quoted text from the article — minimum 10 words of surrounding context. This field is NON-NEGOTIABLE. If you cannot find exact text to quote, issue a FLAG instead of a FAIL.]\nReplace: [Leave blank if Type=DELETE. For WRONG, leave blank — Claude determines replacement. For MISSING, describe what to insert and where.]\nScope: FIRST_INSTANCE / ALL_INSTANCES\nFAIL_END\n\nCRITICAL RULES:\n- Find field must contain verbatim quoted text from the article. No paraphrasing. No descriptions. Exact words.\n- If you cannot locate exact text to quote, do NOT issue a FAIL — issue a FLAG instead.\n- A FAIL with no Find text is worse than no FAIL — it wastes Claude's fix attempts.\n- One FAIL block per issue. Output in priority order (Priority 1 first).`;
 
-      const vp=`You are operating inside the AEO Authority Pipeline as Quality Assurance Auditor.\n\nCRITICAL OUTPUT RULE: Output ALL FAIL_START/FAIL_END and FLAG_START/FLAG_END blocks FIRST. Summary line LAST.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${S.geminiResearch}\n\nLINK VERIFICATION — these anchor phrases should appear:\n${linkListStr}\n\n---\n\n${p3}${failBlockFormat}\n\nArticle text below:\n${stripDAMarker(S.v1)}`;
+      const vp=`MANDATORY FAIL BLOCK FORMAT — YOU MUST USE THIS EXACT STRUCTURE FOR EVERY FAIL. NO EXCEPTIONS.\nClaude's fix engine reads this programmatically. Any deviation breaks the fix pipeline.\n\nFAIL_START\nID: FAIL_001\nType: WRONG / MISSING / DELETE\nSeverity: CRITICAL / STANDARD / MINOR\nPriority: 1 / 2 / 3\nSection: [Exact H2 or H3 heading this appears under, or TOP if before first H2]\nDescription: [One sentence — what is wrong and why]\nFind: [VERBATIM quoted text from the article — minimum 10 words of surrounding context. This field is NON-NEGOTIABLE. If you cannot find exact text to quote, issue a FLAG instead of a FAIL.]\nReplace: [Leave blank if Type=DELETE. For WRONG, leave blank — Claude determines replacement. For MISSING, describe what to insert and where.]\nScope: FIRST_INSTANCE / ALL_INSTANCES\nFAIL_END\n\nCRITICAL RULES:\n- Find field must contain verbatim quoted text from the article. No paraphrasing. No descriptions. Exact words.\n- If you cannot locate exact text to quote, do NOT issue a FAIL — issue a FLAG instead.\n- A FAIL with no Find text is worse than no FAIL — it wastes Claude's fix attempts.\n- One FAIL block per issue. Output in priority order (Priority 1 first).\n\n---\n\nYou are operating inside the AEO Authority Pipeline as Quality Assurance Auditor.\n\nCRITICAL OUTPUT RULE: Output ALL FAIL_START/FAIL_END and FLAG_START/FLAG_END blocks FIRST. Summary line LAST.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${S.geminiResearch}\n\nLINK VERIFICATION — these anchor phrases should appear:\n${linkListStr}\n\n---\n\n${p3}\n\nArticle text below:\n${stripDAMarker(S.v1)}`;
       S.validation=await callGemini(vp,gkey);
       S.parsedFails=parseFails(S.validation);
       const flagNote=S.parsedFlags.length>0?`\n\n--- VOICE FLAGS (for Step 10 voice rewrite) ---\n${S.parsedFlags.map(f=>`🚩 ${f.id}: ${f.desc}`).join('\n')}`:'';
@@ -3353,6 +3468,7 @@ HARD RULES:
     if(step<=13){
       const pd=document.getElementById('publishDate').value;
       if(!pd){ setStep(13,'error','⚠ Set Publish Date','Publish date required.'); document.getElementById('publishDate').focus(); throw new Error('Step 13: Publish date required.'); }
+      if(!S.docs.doc43B || S.docs.doc43B.trim().length < 100) { setStep(13,'error','⚠ Missing 4.3B','Client Identity Card (4.3B) is missing or empty. Return to Step 1 and reload documents.'); throw new Error('Step 13: 4.3B Client Identity Card missing — cannot assemble article without client data.'); }
       setStep(13,'active','Assembling...'); setG('Claude producing Final HTML...',true);
       const imgLines=[]; for(let i=0;i<S.imagePrompts.length;i++){const u=S.imageUrls[i]||'';if(u)imgLines.push(`Image ${i+1} URL — ${u}`);}
       const featNum=getFeatured()+1;
@@ -3487,20 +3603,22 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
 
       // ── PASS 8B: DA GAP STRIP — enforce H1 → DA → Last Updated → ToC → H2
       // Hard rule: NOTHING is allowed between the last-updated element and the first H2.
-      // Claude sometimes adds transition/filler paragraphs here. They are always deleted.
-      // This is intentional and permanent — the DA already contains that information.
+      // Surgical approach: only removes <p> and <h1-6> tags — never touches ToC divs or images.
       {
         const luEnd = S.finalTXT.indexOf('</p>', S.finalTXT.indexOf('class="last-updated"'));
         const firstH2Pos = S.finalTXT.search(/<h2[^>]*>/i);
         if(luEnd !== -1 && firstH2Pos !== -1 && firstH2Pos > luEnd) {
-          const gapContent = S.finalTXT.slice(luEnd + 4, firstH2Pos).trim();
-          // Strip only if there's non-whitespace content that isn't the ToC or an image
-          const hasRealContent = gapContent.replace(/<div[^>]*class="toc"[\s\S]*?<\/div>/gi,'').replace(/<img[^>]*>/gi,'').replace(/\s/g,'').length > 0;
-          if(hasRealContent) {
-            // Keep only ToC divs and images — strip everything else (paragraphs, headings, etc.)
-            const cleaned = gapContent.replace(/<p[^>]*>[\s\S]*?<\/p>/gi,'').replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/gi,'').trim();
-            S.finalTXT = S.finalTXT.slice(0, luEnd + 4) + '\n' + cleaned + '\n' + S.finalTXT.slice(firstH2Pos);
-            document.getElementById('o13').textContent += '\n\n✅ DA gap stripped — filler text between Last Updated and first H2 removed.';
+          const before = S.finalTXT.slice(0, luEnd + 4);
+          const gap = S.finalTXT.slice(luEnd + 4, firstH2Pos);
+          const after = S.finalTXT.slice(firstH2Pos);
+          // Strip only <p> tags and stray <h1-6> tags — preserve ToC divs and images
+          const cleaned = gap
+            .replace(/<p[^>]*>[\s\S]*?<\/p>/gi, '')
+            .replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/gi, '')
+            .trim();
+          if(cleaned !== gap.trim()) {
+            S.finalTXT = before + '\n' + cleaned + '\n' + after;
+            document.getElementById('o13').textContent += '\n\n✅ DA gap stripped — filler paragraphs removed.';
           }
         }
       }
