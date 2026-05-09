@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V1.15</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V2.0</p>
   </div>
 </div>
 
@@ -588,7 +588,7 @@
     <div class="step-card" id="step13">
       <div class="step-header" onclick="toggleStep(13)">
         <div class="step-num">13</div>
-        <div class="step-info"><div class="step-title">Claude Final Assembly</div><div class="step-desc">Schema + HTML — markdown tables converted to branded HTML — image URLs + publish date injected</div></div>
+        <div class="step-info"><div class="step-title">Claude Final Assembly</div><div class="step-desc">Schema + HTML — JS enforces structure, classes, wrapper, Last Updated, and ToC post-assembly</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b13">Waiting</div><span class="schev closed" id="c13">▼</span></div>
       </div>
       <div class="step-body" id="sb13"><div class="sout-wrap"><div class="sout" id="o13"></div><button class="btn-copy-step" id="copy-btn-13" onclick="copyStepOutput(13)">Copy</button></div><div id="r13" style="display:none;"><button class="btn-retry" onclick="retryFrom(13)">↻ Retry from Step 13</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="document.getElementById('r13').style.display='none';retryFrom(14);">Continue Anyway →</button></div></div>
@@ -1196,7 +1196,7 @@
       if(/^#\s+[^#]/.test(lines[i])){ daStartIdx=i+1; break; }
     }
     if(daStartIdx===-1) return text;
-    // Find where DA ends (Last Updated or ToC or separator)
+    // Find where DA ends (LAST_UPDATED_PLACEHOLDER, TOC_PLACEHOLDER, or separator)
     let daEndIdx = firstH2Idx;
     for(let i=daStartIdx;i<firstH2Idx;i++){
       const t=lines[i].trim();
@@ -1210,7 +1210,7 @@
 
   // ─── DA ZONE HARD RESTORE ─────────────────────────────────
   // After Step 5, replaces whatever Claude wrote between article H1 and first H2
-  // with: locked DA + DA_END marker + Last Updated + ToC extracted from Step 5 output
+  // with: locked DA + DA_END marker + LAST_UPDATED_PLACEHOLDER + TOC_PLACEHOLDER
   // Strategy: find last H1 before first H2 (reliable) instead of repeated H1 (fragile)
   function hardRestoreDAZone(text, lockedDA) {
     const lines = text.split('\n');
@@ -1229,25 +1229,20 @@
     }
     if(articleH1Idx === -1) return text; // no H1 — bail safely
 
-    // Extract Last Updated and ToC from zone between H1 and first H2
+    // Extract placeholders from zone between H1 and first H2
+    // V2.0: Claude writes LAST_UPDATED_PLACEHOLDER and TOC_PLACEHOLDER — preserve them
+    // Fallback: if Claude wrote actual Last Updated / ToC content, still capture it
     const zoneLines = lines.slice(articleH1Idx + 1, firstH2Idx);
-    const lastUpdatedLines = [];
-    const tocLines = [];
-    let tocStarted = false;
+    let hasLUPlaceholder = false;
+    let hasToCPlaceholder = false;
 
     for(const line of zoneLines) {
       const t = line.trim();
-      if(t === '<!-- DA_END -->') continue; // skip marker — we re-inject it
-      if(/^(\*\*)?last updated/i.test(t)) { lastUpdatedLines.push(line); continue; }
-      if(/^(#{1,3}\s*)?(table of contents|in this article)/i.test(t)) { tocLines.push(line); tocStarted = true; continue; }
-      if(tocStarted && /^\s*[-*]\s+\[.+\]\(#.+\)/.test(line)) { tocLines.push(line); continue; }
-      if(tocStarted && t === '') { tocLines.push(line); continue; }
-      if(/^\s*[-*]\s+\[.+\]\(#.+\)/.test(line) && lastUpdatedLines.length > 0) { tocLines.push(line); continue; }
-      if(/^---+\s*$/.test(t) && (lastUpdatedLines.length > 0 || tocStarted)) { tocLines.push(line); continue; }
-      // DA prose and other content — skip, replaced by lockedDA below
+      if(t === 'LAST_UPDATED_PLACEHOLDER') hasLUPlaceholder = true;
+      if(t === 'TOC_PLACEHOLDER') hasToCPlaceholder = true;
     }
 
-    // Reconstruct: article H1 + locked DA + DA_END + Last Updated + ToC
+    // Always reconstruct with canonical placeholders — JS will inject the real content at Step 13
     const reconstructed = [
       lines[articleH1Idx],
       '',
@@ -1255,9 +1250,9 @@
       '',
       '<!-- DA_END -->',
       '',
-      ...lastUpdatedLines,
+      'LAST_UPDATED_PLACEHOLDER',
       '',
-      ...tocLines,
+      'TOC_PLACEHOLDER',
       ''
     ];
 
@@ -1404,7 +1399,7 @@
       const rb=document.getElementById(`ir${idx}`); if(rb) rb.disabled=false;
     } catch(err) {
       clearTimeout(timeoutId);
-      const msg=err.name==='AbortError'?'Timed out after 90s — click Regenerate to retry':err.message;
+      const msg=err.name==='AbortError'?'Timed out after 45s — click Regenerate to retry':err.message;
       throw new Error(msg);
     }
   }
@@ -1643,11 +1638,14 @@
       const h2Match = afterFirstH1.match(/^##\s+/m);
       daSection = h2Match ? afterFirstH1.slice(0, afterFirstH1.indexOf(h2Match[0])) : afterFirstH1.slice(0, 1500);
     }
-    // Strip checklist artifacts
+    // Strip checklist artifacts and placeholder strings
     return daSection
       .replace(/^\*\s+\*\*.+\*\*.*$/gm, '')
       .replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm, '')
       .replace(/^---+\s*$/gm, '')
+      .replace(/^LAST_UPDATED_PLACEHOLDER$/gm, '')
+      .replace(/^TOC_PLACEHOLDER$/gm, '')
+      .replace(/^<!--.*-->$/gm, '')
       .replace(/\[H[123]\]/gi, '')
       .trim();
   }
@@ -1679,11 +1677,13 @@
         .trim();
     }
 
-    // Fallback: collect until Last Updated, ToC, separator, or H2
+    // Fallback: collect until placeholder, Last Updated, ToC, separator, or H2
     const daLines = [];
     for(let i=daStartIdx;i<firstH2Idx;i++){
       const t = lines[i].trim();
       if(!t){ daLines.push(lines[i]); continue; }
+      if(t === 'LAST_UPDATED_PLACEHOLDER') break;
+      if(t === 'TOC_PLACEHOLDER') break;
       if(/^(\*\*)?last updated/i.test(t)) break;
       if(/^(#{1,3}\s*)?(table of contents|in this article)/i.test(t)) break;
       if(/^\s*[-*]\s+\[.+\]\(#.+\)/.test(lines[i])) break;
@@ -1995,34 +1995,87 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
   }
 
 
+  // ─── SHARED UTILITY — FORMAT PUBLISH DATE ────────────────
+  // Single source of truth for converting YYYY-MM-DD → "Month D, YYYY"
+  // Used by Steps 13, 14, 15 — never duplicated inline.
+  function formatPublishDate(pd) {
+    if(!pd) return '';
+    const [yr,mo,dy] = pd.split('-');
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    return `${months[parseInt(mo,10)-1]} ${parseInt(dy,10)}, ${yr}`;
+  }
+
   // ─── STEP 14: STRUCTURED QC AUDIT ────────────────────────
   async function runStructuredQC(akey, publishDate) {
     setStep(14,'active','Auditing...'); setG('Running structured QC audit...',true);
     document.getElementById('sb14').classList.add('open');
     document.getElementById('c14').classList.remove('closed');
     const o14 = document.getElementById('o14');
-    o14.textContent = 'Running structured QC checklist...\n';
+    o14.textContent = 'Running JS pre-checks...\n';
 
     const pd = publishDate || document.getElementById('publishDate').value || '';
-    const [yr,mo,dy] = pd ? pd.split('-') : ['','',''];
-    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    const formattedDate = pd ? `${months[parseInt(mo,10)-1]} ${parseInt(dy,10)}, ${yr}` : '';
+    const formattedDate = formatPublishDate(pd);
+
+    // ── JS PRE-CHECKS — run before Claude call, no tokens burned ──────────────
+    // These are deterministic checks JS can verify directly from the HTML/schema.
+    const jsResults = [];
+
+    // JS Check A: Schema dates (datePublished, dateModified) match publish date
+    if(pd && S.finalSchema) {
+      const dateRe = /"(?:datePublished|dateModified)":\s*"(\d{4}-\d{2}-\d{2})"/g;
+      let dm; const wrongDates = [];
+      while((dm = dateRe.exec(S.finalSchema)) !== null) {
+        if(dm[1] !== pd) wrongDates.push(dm[1]);
+      }
+      const schemaDateOk = wrongDates.length === 0;
+      jsResults.push(`${schemaDateOk?'✅':'❌'} JS: Schema dates — ${schemaDateOk?`datePublished and dateModified both = ${pd}`:`Wrong date(s) found: ${[...new Set(wrongDates)].join(', ')} — expected ${pd}`}`);
+      if(!schemaDateOk) {
+        // Auto-fix: JS already did this in Pass 7, but if somehow still wrong, fix now
+        S.finalSchema = S.finalSchema.replace(/("(?:datePublished|dateModified)":\s*")\d{4}-\d{2}-\d{2}(")/g, (m,pre,post) => pre+pd+post);
+        jsResults.push('  → Auto-fixed by JS.');
+      }
+    }
+
+    // JS Check B: direct-answer class present in HTML
+    const hasDAClass = /class="direct-answer"/.test(S.finalTXT);
+    jsResults.push(`${hasDAClass?'✅':'❌'} JS: direct-answer class — ${hasDAClass?'Found':'MISSING — DA div class enforcement may have failed'}`);
+
+    // JS Check C: article-cta class present in HTML
+    const hasCTAClass = /class="article-cta"/.test(S.finalTXT);
+    jsResults.push(`${hasCTAClass?'✅':'❌'} JS: article-cta class — ${hasCTAClass?'Found':'MISSING — CTA wrapper class enforcement may have failed'}`);
+
+    // JS Check D: Last Updated element present
+    const hasLU = /class="last-updated"/.test(S.finalTXT);
+    jsResults.push(`${hasLU?'✅':'❌'} JS: Last Updated element — ${hasLU?'Present':'MISSING — JS injection may have failed (no direct-answer div found)'}`);
+
+    // JS Check E: ToC div.toc present
+    const hasToC = /class="toc"/.test(S.finalTXT);
+    jsResults.push(`${hasToC?'✅':'❌'} JS: ToC div.toc — ${hasToC?'Present':'MISSING — JS rebuild may have failed (no H2s with IDs found)'}`);
+
+    // JS Check F: foundingDate is not the publish date
+    if(pd && S.finalSchema) {
+      const fdMatch = S.finalSchema.match(/"foundingDate":\s*"([^"]+)"/);
+      const foundingDateOk = !fdMatch || fdMatch[1] !== pd;
+      jsResults.push(`${foundingDateOk?'✅':'❌'} JS: foundingDate — ${foundingDateOk?`${fdMatch?fdMatch[1]:'not present — check schema'}`:`WRONG: shows ${pd} (publish date) — must be actual founding date from 4.3B`}`);
+    }
+
+    o14.textContent = jsResults.join('\n') + '\n\nRunning Claude checks...\n';
 
     // Extract author name and business name dynamically from 4.3B
-    const authorMatch = S.docs.doc43B && S.docs.doc43B.match(/\*?\s*Author Name:\s*([^\n*]+)/i);
-    const businessMatch = S.docs.doc43B && S.docs.doc43B.match(/\*?\s*Client Name:\s*([^\n*]+)/i);
+    const authorMatch = S.docs.doc43B && S.docs.doc43B.match(/\*?\s*Author(?:\s*Name)?:\s*([^\n*,]+?)(?:\s*,|\s*DC|\s*\n)/i);
+    const businessMatch = S.docs.doc43B && S.docs.doc43B.match(/\*?\s*(?:Client Name|Business Name):\s*([^\n*]+)/i);
     const clientAuthor = authorMatch ? authorMatch[1].trim() : 'Gerek Allen';
     const clientBusiness = businessMatch ? businessMatch[1].trim() : 'iTech Valet';
 
-    // Build structured audit prompt
+    // ── CLAUDE CHECKS — things only Claude can evaluate ───────────────────────
     const auditSys = `You are a structured QC auditor for the iTech Valet AEO pipeline. You check HTML articles and schema against a defined checklist.\n\nOutput ONLY a structured report in this exact format for each check:\nCHECK: [check name]\nSTATUS: PASS or FAIL\nDETAIL: [one line — what you found]\n\nThen after all checks, output any DIFF blocks needed to fix FAILs:\nDIFF_START\nFIND:\n[exact HTML to find]\nREPLACE:\n[replacement]\nDIFF_END\n\nIf no fixes needed, output: ALL CHECKS PASSED\n\n4.3B — CLIENT IDENTITY CARD:\n${S.docs.doc43B}`;
 
-    const auditUser = `Run all checks below against the HTML and Schema provided. Be specific in DETAIL field.\n\nPUBLISH DATE: ${pd}\nFORMATTED DATE: ${formattedDate}\n\nCHECKS TO RUN:\n1. No links in Direct Answer (content before first H2)\n2. CTA is text link only — no button element, no background-color on CTA section\n3. All dates match publish date "${pd}" — datePublished, dateModified, Last Updated\n4. foundingDate is NOT "${pd}" — must be the actual company founding date from 4.3B\n5. No markdown tables remaining — all must be converted to HTML\n6. No forbidden terms per 4.3B terminology lock\n7. Schema present: FAQPage, BlogPosting, BreadcrumbList all exist\n8. Author name is "${clientAuthor}" — not any other name\n9. Business name is "${clientBusiness}" — correct casing per 4.3B\n10. No duplicate paragraph blocks in CTA or conclusion\n11. Last Updated displays as "${formattedDate}" not ISO format\n12. ToC present with anchor links\n\nHTML:\n${S.finalTXT}\n\nSCHEMA:\n${S.finalSchema}`;
+    const auditUser = `Run all checks below against the HTML and Schema provided. Be specific in DETAIL field.\n\nPUBLISH DATE: ${pd}\n\nCHECKS TO RUN:\n1. No links in the div with class="direct-answer" — links inside that div are a hard violation\n2. CTA is a text link only — no <button> element, no background-color style on the div with class="article-cta"\n3. No markdown tables remaining — all must be converted to HTML <table> tags\n4. No forbidden terms per the Terminology Lock section of 4.3B\n5. Schema present and complete: FAQPage, BlogPosting, BreadcrumbList — all three exist as separate <script type="application/ld+json"> blocks\n6. Author name throughout HTML and schema is "${clientAuthor}" — not any other name or variation\n7. Business name throughout HTML and schema is "${clientBusiness}" — correct casing, no variations\n8. No duplicate paragraph blocks anywhere — especially in CTA section and conclusion\n\nDO NOT check or flag:\n- Last Updated element or date — JS-injected, always correct\n- Table of Contents — JS-built, always correct\n- Schema datePublished or dateModified — JS-verified before this call\n- foundingDate — JS-verified before this call\n- Any HTML structure, classes, or wrapper divs — JS-enforced\n\nHTML:\n${S.finalTXT}\n\nSCHEMA:\n${S.finalSchema}`;
 
     let auditResult = '';
     try {
       auditResult = await callClaude(auditSys, auditUser, akey, (p) => {
-        o14.textContent = p;
+        o14.textContent = jsResults.join('\n') + '\n\n' + p;
       }, {maxTokens:16000});
     } catch(e) {
       setStep(14,'error','Failed');
@@ -2033,27 +2086,25 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
 
     // Parse CHECK/STATUS lines for summary card
     const checkLines = auditResult.match(/CHECK:.*\nSTATUS:.*\nDETAIL:.*/g) || [];
-    const passes = checkLines.filter(l=>l.includes('STATUS: PASS')).length;
-    const fails = checkLines.filter(l=>l.includes('STATUS: FAIL')).length;
+    const claudePasses = checkLines.filter(l=>l.includes('STATUS: PASS')).length;
+    const claudeFails = checkLines.filter(l=>l.includes('STATUS: FAIL')).length;
+    const jsFailCount = jsResults.filter(l=>l.startsWith('❌')).length;
+    const totalFails = claudeFails + jsFailCount;
 
-    // Apply any DIFF fixes
+    // Apply any DIFF fixes from Claude
     let fixesApplied = 0, fixesFailed = 0;
     if(auditResult.includes('DIFF_START')) {
       const {result, applied, failed} = applyDiffs(S.finalTXT, auditResult);
       S.finalTXT = result;
       fixesApplied = applied; fixesFailed = failed;
       showHTMLFinal(S.finalTXT);
-      // Also check schema for fixes
-      if(auditResult.includes('foundingDate') && S.finalSchema.includes(`"foundingDate": "${pd}"`)) {
-        o14.textContent += `\n\n⚠ foundingDate still shows publish date — fix manually in Step 15 chat.`;
-      }
     }
 
     // Build summary
-    const summary = `\n\n--- QC SUMMARY ---\n✅ Passed: ${passes}  ❌ Failed: ${fails}\n${fixesApplied>0?`Applied ${fixesApplied} fix(es).${fixesFailed>0?` Failed: ${fixesFailed} — review in Step 15.`:''}`:fails===0?'No fixes needed.':''}`;
-    o14.textContent = auditResult + summary;
+    const summary = `\n\n--- QC SUMMARY ---\n✅ Claude passed: ${claudePasses}  ❌ Claude failed: ${claudeFails}\n${jsFailCount > 0 ? `⚠ JS pre-check failures: ${jsFailCount} — review above\n` : ''}${fixesApplied>0?`Applied ${fixesApplied} fix(es).${fixesFailed>0?` Failed: ${fixesFailed} — review in Step 15.`:''}`:totalFails===0?'No fixes needed.':''}`;
+    o14.textContent = jsResults.join('\n') + '\n\n' + auditResult + summary;
 
-    if(fails > 0 && fixesFailed > 0) {
+    if(totalFails > 0 && fixesFailed > 0) {
       setStep(14,'done','Done ✓ (review Step 15)');
     } else {
       setStep(14,'done','Done ✓');
@@ -2105,11 +2156,9 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     const p6 = getPrompt(S.docs.doc44, 6);
     // Always read publish date fresh from DOM — same pattern as Step 13
     const pd15 = document.getElementById('publishDate').value || '';
-    const [yr15,mo15,dy15] = pd15 ? pd15.split('-') : ['','',''];
-    const months15 = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    const formattedPD15 = pd15 ? `${months15[parseInt(mo15,10)-1]} ${parseInt(dy15,10)}, ${yr15}` : '';
+    const formattedPD15 = formatPublishDate(pd15);
     const pubDateLine = pd15
-      ? `\n\nPUBLISH DATE: ${pd15} — Last Updated must display as "${formattedPD15}". This is correct. Do not flag or change it.`
+      ? `\n\nPUBLISH DATE: ${pd15} — Last Updated is JS-injected and shows "${formattedPD15}". Do not flag or change it.`
       : '\n\nPUBLISH DATE: Not set — ignore all date checking.';
     const qcSys = `You are an expert HTML QC specialist for the iTech Valet AEO pipeline. You make surgical fixes to HTML articles.\n\nRULES:\n- Output ONLY DIFF_START/DIFF_END blocks for fixes. Never return the full HTML.\n- Format:\nDIFF_START\nFIND:\n[exact HTML to find]\nREPLACE:\n[replacement, or [DELETE] to remove]\nDIFF_END\n- If nothing needs fixing, output only: QC COMPLETE — NO CHANGES NEEDED\n- Fix ONLY what the operator describes. Do not touch anything else.\n- No CTAs with buttons. No background colors on CTA sections. No links in the Direct Answer section (before the first H2). These are hard violations.\n\n4.3B — CLIENT IDENTITY CARD + HTML SPEC:\n${S.docs.doc43B}${pubDateLine}`;
 
@@ -2117,7 +2166,7 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     setG('Claude auditing HTML...', true);
     qcAppendBubble('system', '⏳ Running initial HTML audit...');
 
-    const auditPrompt = `${p6}${pubDateLine}\n\nReview this HTML for violations. Check ONLY these specific items:\n1. Any link (<a href>) INSIDE the direct answer div (class "tow-direct-answer" or "itv-direct-answer" or "direct-answer") — NOT anywhere else in the article\n2. Any CTA button element (<button>) added at the bottom\n3. Any background-color applied to the CTA section\n4. Any unconverted markdown tables (pipe-separated text not in <table> tags)\n5. Any other hard violations visible in the HTML\n\nDO NOT flag:\n- The Last Updated date if it shows a formatted date like "April 30, 2026" — that is correct\n- Author name or business name — those are set per client identity card\n- Missing HTML elements that aren't required by 4.3B\n- Invented rules not present in 4.3B\n\nIf the publish date field was empty when the article was assembled, ignore date checking entirely.\n\nReport only real violations with evidence from the HTML. Then output DIFF blocks for each real fix. If clean, output: QC COMPLETE — NO CHANGES NEEDED\n\nHTML:\n${S.finalTXT}`;
+    const auditPrompt = `${p6}${pubDateLine}\n\nReview this HTML for violations. Check ONLY these 4 items — nothing else:\n1. Any link (<a href>) INSIDE the div with class="direct-answer" — links inside that div are a hard violation\n2. Any CTA button element (<button>) anywhere in the article\n3. Any background-color style on the div with class="article-cta"\n4. Any unconverted markdown tables (pipe-separated text not inside <table> tags)\n\nDO NOT flag anything else. Specifically DO NOT flag:\n- Last Updated element or date — JS-injected and verified\n- Table of Contents — JS-built and verified\n- Schema, dates, author name, business name — all verified at Step 14\n- Any HTML classes, structure, or wrapper divs — JS-enforced\n- Anything not in the 4 items above — if you flag it, it will be ignored\n\nReport only real violations from the 4 items above with evidence. Then output DIFF blocks for each real fix. If clean, output: QC COMPLETE — NO CHANGES NEEDED\n\nHTML:\n${S.finalTXT}`;
 
     const auditMsg = { role: 'user', content: auditPrompt };
     qc14History.push(auditMsg);
@@ -2820,7 +2869,7 @@ ${S.v2}`, voice11AKey, null, {maxTokens:4000});
           const firstH2=afterH1.search(/^##\s/m);
           daSection=firstH2>0?afterH1.slice(0,firstH2):afterH1.slice(0,1500);
         }
-        const daText=daSection.replace(/\[H[123]\]/gi,'').replace(/last updated.*/gim,'').replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'').replace(/^---+\s*$/gm,'').trim();
+        const daText=daSection.replace(/\[H[123]\]/gi,'').replace(/last updated.*/gim,'').replace(/^LAST_UPDATED_PLACEHOLDER$/gm,'').replace(/^TOC_PLACEHOLDER$/gm,'').replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'').replace(/^---+\s*$/gm,'').trim();
         daWords=daText.split(/\s+/).filter(w=>w.length>2).length;
       }
       results.push({key:'directAnswer',label:'Direct answer 150-450 words',pass:daWords>=150&&daWords<=450,detail:`~${daWords} words`});
@@ -2834,10 +2883,10 @@ ${S.v2}`, voice11AKey, null, {maxTokens:4000});
       const firstH2Idx2=v1.search(/^##\s/m);
       if(firstH2Idx2>0){
         const gapZone=v1.slice(0,firstH2Idx2);
-        const cleaned=gapZone.replace(/^#\s+.+$/gm,'').replace(/^---+\s*$/gm,'').replace(/last updated.*/gim,'').replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'').replace(/^\*\s+\*\*.+\*\*.*$/gm,'').replace(/PROMPT:[\s\S]*?ALT TEXT:.*$/gm,'').replace(/\[.*?\]/g,'').replace(/\*\*.+\*\*/g,'').trim();
+        const cleaned=gapZone.replace(/^#\s+.+$/gm,'').replace(/^---+\s*$/gm,'').replace(/last updated.*/gim,'').replace(/LAST_UPDATED_PLACEHOLDER/g,'').replace(/TOC_PLACEHOLDER/g,'').replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'').replace(/^\*\s+\*\*.+\*\*.*$/gm,'').replace(/PROMPT:[\s\S]*?ALT TEXT:.*$/gm,'').replace(/\[.*?\]/g,'').replace(/\*\*.+\*\*/g,'').trim();
         const gapWords=cleaned.split(/\s+/).filter(w=>w.length>3).length;
         const gapClean=gapWords<12;
-        results.push({key:'daGap',label:'No stray prose between DA and first H2',pass:gapClean,detail:gapClean?'Clean':`~${gapWords} word(s) of unexpected content found between Direct Answer and first H2 — only Last Updated and ToC allowed`});
+        results.push({key:'daGap',label:'No stray prose between DA and first H2',pass:gapClean,detail:gapClean?'Clean':`~${gapWords} word(s) of unexpected content found between Direct Answer and first H2 — only placeholders allowed`});
       }
     }
     return results;
@@ -2983,7 +3032,7 @@ Your job in this call is to produce the article SKELETON — not full prose.
 
 WHAT TO WRITE IN FULL:
 1. The AI Authority Article Optimization Checklist (complete, with all metadata)
-2. The Direct Answer — MINIMUM 200 words, TARGET 250 words. This is the most important section and the most strictly governed. Write it as 3-4 solid paragraphs that fully answer the H1 question. Do NOT write one short paragraph and call it done. Sacred ground rules: NO links, NO images, NO prose after it except Last Updated and ToC.
+2. The Direct Answer — MINIMUM 200 words, TARGET 250 words. This is the most important section and the most strictly governed. Write it as 3-4 solid paragraphs that fully answer the H1 question. Do NOT write one short paragraph and call it done. Sacred ground rules: NO links, NO images, NO prose after it except the two JS-injected placeholders below.
 
 DIRECT ANSWER CONTENT RULES — HARD VIOLATIONS (each one is a failure):
 - NO brand names or practice names of any kind. Never write "At [Practice Name]..." or reference the client practice by name.
@@ -2996,17 +3045,17 @@ DIRECT ANSWER CONTENT RULES — HARD VIOLATIONS (each one is a failure):
 - NO hyperlinks, images, or CTAs.
 
 DA QUALITY TEST — run before finalizing: If an AI engine extracted only these paragraphs and presented them as a standalone answer — with no article, no brand, no surrounding context — would it still be a complete, accurate, neutral answer to the H1 question? If no, rewrite until yes.
-3. Last Updated line
-4. Table of Contents (with anchor links to all H2s)
+3. Write the exact placeholder text: LAST_UPDATED_PLACEHOLDER (JS replaces this with the correct date — do not write a date)
+4. Write the exact placeholder text: TOC_PLACEHOLDER (JS builds the full Table of Contents — do not write a ToC)
 
 DIRECT ANSWER HARD RULE: After the Direct Answer, the ONLY things allowed before the first H2 are:
-- The Last Updated line
-- The Table of Contents
+- LAST_UPDATED_PLACEHOLDER (exactly this text, on its own line — JS injects the date)
+- TOC_PLACEHOLDER (exactly this text, on its own line — JS builds the full ToC)
 Nothing else. No "In this article..." paragraphs. No context-setting prose. No bridge sentences. No preview of what the article covers.
 
 CRITICAL: Immediately after your last Direct Answer paragraph, on its own line, write exactly:
 <!-- DA_END -->
-Then write the Last Updated line. Then write the ToC. Then write the first H2.
+Then write LAST_UPDATED_PLACEHOLDER on its own line. Then write TOC_PLACEHOLDER on its own line. Then write the first H2.
 This marker is required. Do not skip it.
 
 WHAT TO WRITE AS SKELETON (not full prose):
@@ -3017,14 +3066,14 @@ WHAT TO WRITE AS SKELETON (not full prose):
 - Mark exactly where each external link belongs: [EXTERNAL LINK: source name → URL]
 - FAQ section: write all 5-8 questions in full as H3 headings, each followed by [FAQ ANSWER: topic]
 - Conclusion: [POV SLOT 5: CONCLUSION — CONVICTION]
-- CTA: [CTA BLOCK — diagnostic intent, text link only, NO button]
+- CTA: [CTA BLOCK — diagnostic intent, text link only, NO button, wrap in div class="article-cta"]
 - Schema block: [SCHEMA PLACEHOLDER]
 
 STRUCTURE ORDER (mandatory, no exceptions):
-H1 → Direct Answer → Last Updated → Table of Contents → First H2 → ...
+H1 → Direct Answer → <!-- DA_END --> → LAST_UPDATED_PLACEHOLDER → TOC_PLACEHOLDER → First H2 → ...
 
 CRITICAL RULES:
-- NO body prose between the Direct Answer and the first H2 except Last Updated and ToC
+- NO body prose between the Direct Answer and the first H2 except the two placeholders above
 - NO links anywhere in the Direct Answer
 - Minimum 3 [TABLE NEEDED: topic, columns] placeholders distributed across H2 sections
 - Every H2 must have a PROMPT:/ALT TEXT: block immediately after it (except FAQ and Conclusion)
@@ -3069,7 +3118,7 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
           const fh2=afterFirstH1.search(/^##\s/m);
           daSection4=fh2>0?afterFirstH1.slice(0,fh2):afterFirstH1.slice(0,1500);
         }
-        const daText4=daSection4.replace(/\[H[123]\]/gi,'').replace(/last updated.*/gim,'').replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'').replace(/^---+\s*$/gm,'').trim();
+        const daText4=daSection4.replace(/\[H[123]\]/gi,'').replace(/last updated.*/gim,'').replace(/^LAST_UPDATED_PLACEHOLDER$/gm,'').replace(/^TOC_PLACEHOLDER$/gm,'').replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'').replace(/^---+\s*$/gm,'').trim();
         daWords=daText4.split(/\s+/).filter(w=>w.length>2).length;
         daLinksFound=(daSection4.match(/\[([^\]]+)\]\(([^)#][^)]*)\)/g)||[]).length;
       }
@@ -3077,13 +3126,19 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
       checks4.push({label:'Direct Answer present (150-400 words)',pass:daWords>=150&&daWords<=400,detail:`~${daWords} words`});
       checks4.push({label:'No links in Direct Answer',pass:daLinksFound===0,detail:daLinksFound===0?'Clean':`${daLinksFound} link(s) found`});
 
-      // 2. No prose between DA and first H2 (only ToC and Last Updated allowed)
+      // 2. No prose between DA and first H2 (only LAST_UPDATED_PLACEHOLDER and TOC_PLACEHOLDER allowed)
       if(firstH2pos>0){
         const daZone=skel.slice(0,firstH2pos);
-        const gapZone=daZone.replace(/^#.+$/gm,'').replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'').replace(/last updated.*/gim,'').replace(/\[.*?\]/g,'').replace(/\*\*.*?\*\*/g,'').trim();
+        const gapZone=daZone.replace(/^#.+$/gm,'').replace(/^LAST_UPDATED_PLACEHOLDER$/gm,'').replace(/^TOC_PLACEHOLDER$/gm,'').replace(/^<!--.*-->$/gm,'').replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm,'').replace(/last updated.*/gim,'').replace(/\[.*?\]/g,'').replace(/\*\*.*?\*\*/g,'').trim();
         const gapWords=gapZone.split(/\s+/).filter(w=>w.length>3).length;
         checks4.push({label:'No stray prose between DA and first H2',pass:gapWords<15,detail:gapWords<15?'Clean':`~${gapWords} words of unexpected prose found — will be flagged at Step 6`});
       }
+
+      // 2b. Placeholder presence — LAST_UPDATED_PLACEHOLDER and TOC_PLACEHOLDER required
+      const hasLUP = /^LAST_UPDATED_PLACEHOLDER$/m.test(skel);
+      const hasTocP = /^TOC_PLACEHOLDER$/m.test(skel);
+      checks4.push({label:'LAST_UPDATED_PLACEHOLDER present',pass:hasLUP,detail:hasLUP?'Found':'Missing — JS cannot inject Last Updated'});
+      checks4.push({label:'TOC_PLACEHOLDER present',pass:hasTocP,detail:hasTocP?'Found':'Missing — JS cannot build ToC'});
 
       // 3. POV slot markers present
       const povSlots=[1,2,3,4,5];
@@ -3108,7 +3163,7 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
       checks4.push({label:`Gemini link anchors present (${bpAnchors.length} required)`,pass:missingAnchors.length===0,detail:missingAnchors.length===0?'All present':`Missing: ${missingAnchors.slice(0,3).join(', ')}${missingAnchors.length>3?'...':''}`});
 
       const failures4=checks4.filter(c=>!c.pass);
-      const warnKeys4=['Direct Answer present','stray prose','No links in Direct Answer','POV slot markers'];
+      const warnKeys4=['Direct Answer present','stray prose','No links in Direct Answer','POV slot markers','LAST_UPDATED_PLACEHOLDER','TOC_PLACEHOLDER'];
       checks4.forEach(c=>{ const isWarn=!c.pass&&warnKeys4.some(w=>c.label.includes(w)); append4(`${c.pass?'✅':isWarn?'⚠️':'❌'} ${c.label} — ${c.detail}`); });
 
       if(failures4.length===0){
@@ -3151,7 +3206,7 @@ PROTECTED ZONES — DO NOT TOUCH:
 - All H2 and H3 headings — they are final
 - All PROMPT:/ALT TEXT: image blocks — they are final
 - The AI Authority Article Optimization Checklist — it is final
-- The ToC and Last Updated line — final
+- LAST_UPDATED_PLACEHOLDER and TOC_PLACEHOLDER — leave these exactly as written, JS replaces them post-assembly
 
 YOUR JOB:
 1. Replace every [POV SLOT X: ...] placeholder with the actual POV content per 4.3A rules
@@ -3161,14 +3216,14 @@ YOUR JOB:
 5. Replace every [EXTERNAL LINK: source → URL] with embedded citation in natural prose
 6. Replace every [FAQ ANSWER: ...] with a 2-4 paragraph answer
 7. Replace [POV SLOT 5: CONCLUSION — CONVICTION] with the directional conclusion
-8. Replace [CTA BLOCK] with the diagnostic CTA — text link ONLY, NO button element, NO background color on the CTA section
-9. Replace [SCHEMA PLACEHOLDER] with complete schema markup (FAQPage + BlogPosting + BreadcrumbList)
+8. Replace [CTA BLOCK] with the diagnostic CTA — text link ONLY, NO button element, NO background color on the CTA section. Wrap in <div class="article-cta">.
+9. Leave [SCHEMA PLACEHOLDER] exactly as written — schema is generated at Step 13, not here
 
 HARD RULES:
 - Minimum 3 complete markdown tables
 - NO links in the Direct Answer (before first H2)
-- NO prose between Direct Answer and first H2 (only Last Updated and ToC belong there)
-- CTA must be a text link — NOT a button, NOT a styled element
+- NO prose between Direct Answer and first H2 (only LAST_UPDATED_PLACEHOLDER and TOC_PLACEHOLDER belong there)
+- CTA must be a text link — NOT a button, NOT a styled element. Wrap in <div class="article-cta">.
 - CTA anchor text must use the EXACT wording from the "CTA VARIATION" section of 4.3B — do not paraphrase or alter pronoun ("My" not "your", etc.)
 - Every H2 section addresses at least 3-4 of the 5 intent layers
 - Voice: lead with the point, then explain — NEVER setup before verdict
@@ -3199,7 +3254,7 @@ HARD RULES:
       }
       S.v1 = cleanedProse;
       // Hard restore DA zone after Step 5 — replaces whatever Claude wrote between H1 and first H2
-      // with exactly: S.directAnswer + Last Updated + ToC from the Step 5 output
+      // with exactly: S.directAnswer + DA_END + LAST_UPDATED_PLACEHOLDER + TOC_PLACEHOLDER
       if(S.directAnswer && S.directAnswer.length > 50) {
         S.v1 = hardRestoreDAZone(S.v1, S.directAnswer);
       }
@@ -3247,7 +3302,7 @@ HARD RULES:
         }
 
         // JS daGap fix — runs before Claude for this specific failure
-        // Deterministic: strips everything between DA end and first H2 except Last Updated and ToC links
+        // Deterministic: strips everything between DA end and first H2 except the JS-owned placeholders
         if(failures.some(f=>f.key==='daGap')){
           const lines=S.v1.split('\n');
           const firstH2Idx=lines.findIndex(l=>l.match(/^##\s/));
@@ -3271,26 +3326,19 @@ HARD RULES:
               if(wordCount>100) break; // DA is done, rest is gap
               daTextEnd=i+1;
             }
-            // Keep only: Last Updated lines and ToC anchor links in the gap zone
-            const cleanedGap=[];
-            for(let i=daTextEnd;i<firstH2Idx;i++){
-              const t=lines[i].trim();
-              if(!t) continue; // skip blank lines — will re-add
-              if(/last updated/i.test(t)) cleanedGap.push(lines[i]);
-              else if(/^\s*[-*]\s+\[.+\]\(#.+\)/.test(lines[i])) cleanedGap.push(lines[i]); // ToC link
-              else if(/^(#+\s*(table of contents|in this article))/i.test(t)) cleanedGap.push(lines[i]); // ToC header
-              // everything else: strip
-            }
+            // Rebuild gap zone: inject canonical placeholders (strip everything else)
             const newLines=[
               ...lines.slice(0,daTextEnd),
               '',
-              ...cleanedGap,
+              'LAST_UPDATED_PLACEHOLDER',
+              '',
+              'TOC_PLACEHOLDER',
               '',
               ...lines.slice(firstH2Idx)
             ];
             S.v1=newLines.join('\n');
             showV1(S.v1);
-            appendO6(`✅ JS daGap fix applied — stripped stray prose between DA and first H2.`);
+            appendO6(`✅ JS daGap fix applied — gap zone reset to canonical placeholders.`);
           }
         }
 
@@ -3574,21 +3622,27 @@ HARD RULES:
       const htmlPrompt=`You are producing the Final HTML for an AEO article. Output TWO labeled blocks only:
 
 BLOCK 1 — SCHEMA (=== SCHEMA START === / === SCHEMA END ===)
-Complete schema: FAQPage, BlogPosting, BreadcrumbList — each in own script tag.
+Three separate schema blocks — each in its own <script type="application/ld+json"> tag, in this exact order:
+1. BlogPosting — include author, datePublished, dateModified, image (featured image URL below), headline, url, publisher
+2. FAQPage — one Question/Answer pair per FAQ item from the article
+3. BreadcrumbList — from the Live Architecture URLs in 4.3B
 - Featured image URL: ${S.imageUrls[getFeatured()]||''}
 - Publish date: ${pd}
-- CRITICAL DATE RULE: Use EXACTLY "${pd}" for ALL date fields (datePublished, dateModified, Last Updated). NOT today (${today}). NOT any other date.
+- CRITICAL DATE RULE: Use EXACTLY "${pd}" for datePublished and dateModified. NOT today (${today}). NOT any other date.
 - CRITICAL: foundingDate must come from the entity data in 4.3B — NEVER use the publish date for foundingDate.
-- Entity data from 4.3B.
+- All other entity data from 4.3B Section 12.
 
 BLOCK 2 — HTML (=== HTML START === / === HTML END ===)
 Complete article HTML. Pure HTML, paste-ready for Beaver Builder. No title tag, no wrapper.
 Images: ${imgLines.join(' | ')}
 Featured: Image ${featNum}
-- CRITICAL DATE RULE: Use EXACTLY "${pd}" everywhere a date appears (Last Updated, schema, etc.)
-- CTA must be a plain text link — NOT a button, NOT a styled div, NO background color on CTA section
-- Convert all markdown tables to branded HTML tables per 4.3B spec (itv-table-1, itv-table-2, etc.)
-- No link in the Direct Answer section (content before the first H2 heading)
+- CTA must be a plain text link — NOT a button, NOT a styled div, NO background color on CTA section. Wrap CTA in <div class="article-cta"> — no other class, no inline styles.
+- Convert all markdown tables to plain <table> tags with <thead> and <tbody>. Do NOT add any class attribute to table tags — JS assigns classes post-assembly.
+- Do NOT write a Last Updated line anywhere — JS injects it post-assembly.
+- Do NOT write a Table of Contents — JS builds it post-assembly from heading IDs.
+- Open the article body immediately after </style> with <div class="article-wrap"> and close with </div> as the very last element.
+- The Direct Answer div MUST use exactly class="direct-answer" — no other class name, no client prefix.
+- No link in the Direct Answer section (the div with class="direct-answer")
 
 V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
       const assemblyResult=await callClaude(`You are an expert AEO article HTML producer.\n\n4.3B:\n${S.docs.doc43B}`,htmlPrompt,akey,(p)=>{document.getElementById('o13').textContent=p;document.getElementById('sb13').classList.add('open');},{maxTokens:64000});
@@ -3597,53 +3651,123 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
       const htmlMatch=assemblyResult.match(/=== HTML START ===([\s\S]*?)=== HTML END ===/i);
       if(htmlMatch&&htmlMatch[1].trim().length>100){ S.finalTXT=htmlMatch[1].trim(); }
       else { const m2=assemblyResult.match(/```(?:html)?\n([\s\S]*?)```/i); if(m2&&m2[1].trim().length>100){ S.finalTXT=m2[1].trim(); } else { throw new Error('Step 13: No HTML block found. Retry.'); } }
-      // Strip any stray non-HTML text before first tag or after last closing tag
+      // ── PASS 1: Strip stray non-HTML text before first tag or after last closing tag
       S.finalTXT = S.finalTXT.replace(/^[^<]*/, '').replace(/>[^<]*$/, '>').trim();
-      // Duplicate CTA paragraph detection — remove exact duplicate <p> blocks
+
+      // ── PASS 2: IMG CLASS STRIP — Claude sometimes adds class="article-wrap img" which breaks layout
+      S.finalTXT = S.finalTXT.replace(/<img([^>]*?)\s+class="[^"]*"([^>]*?)>/gi, '<img$1$2>');
+
+      // ── PASS 3: GITHUB.IO LINK FIX — research brief data can contaminate with github.io URLs
+      S.finalTXT = S.finalTXT.replace(/https?:\/\/itechvalet\.github\.io[^"')\s]*/gi, 'https://itechvalet.com');
+
+      // ── PASS 4: STYLESHEET INJECTION — JS builds canonical <style> from 4.3B Section 11
+      // Claude never writes CSS. This eliminates all font/color/spacing variation between runs.
+      const canonicalStyle = buildStylesheetFrom43B(S.docs.doc43B);
+      S.finalTXT = S.finalTXT.replace(/<style>[\s\S]*?<\/style>/i, canonicalStyle);
+      document.getElementById('o13').textContent += '\n\n✅ Canonical stylesheet injected from 4.3B.';
+
+      // ── PASS 5: ARTICLE WRAPPER INTEGRITY
+      // Ensures <div class="article-wrap"> opens immediately after </style>
+      // and </div> is the absolute last element. Claude sometimes omits or misplaces it.
+      {
+        // Remove any existing article-wrap open/close so we can re-wrap cleanly
+        S.finalTXT = S.finalTXT.replace(/<div\s+class="article-wrap"\s*>/gi, '');
+        // Remove only the LAST </div> if it immediately closes article-wrap (trailing close)
+        // Strategy: strip trailing whitespace, then remove the final </div>
+        S.finalTXT = S.finalTXT.trimEnd();
+        if(S.finalTXT.endsWith('</div>')) {
+          // Check if there's a matching open — if article-wrap was already stripped,
+          // the final </div> may now be orphaned. Count divs to decide.
+          const opens = (S.finalTXT.match(/<div[^>]*>/gi) || []).length;
+          const closes = (S.finalTXT.match(/<\/div>/gi) || []).length;
+          if(closes > opens) {
+            S.finalTXT = S.finalTXT.slice(0, S.finalTXT.lastIndexOf('</div>')).trimEnd();
+          }
+        }
+        // Wrap: inject open tag immediately after </style>, close tag at very end
+        S.finalTXT = S.finalTXT.replace(/(<\/style>)/i, '$1\n<div class="article-wrap">');
+        S.finalTXT = S.finalTXT.trimEnd() + '\n</div>';
+        document.getElementById('o13').textContent += '\n\n✅ Article wrapper integrity confirmed.';
+      }
+
+      // ── PASS 5B: DIRECT ANSWER CLASS ENFORCEMENT
+      // Claude must output class="direct-answer" but sometimes uses client-prefix variants.
+      // JS normalizes any variant to the canonical class so Last Updated injection and
+      // Step 15 auditing always find it reliably.
+      S.finalTXT = S.finalTXT.replace(/<div\s+class="[^"]*direct[^"]*answer[^"]*"/gi, '<div class="direct-answer"');
+      S.finalTXT = S.finalTXT.replace(/<div\s+class="[^"]*answer[^"]*direct[^"]*"/gi, '<div class="direct-answer"');
+
+      // ── PASS 6: DUPLICATE CTA PARAGRAPH DETECTION
       S.finalTXT = S.finalTXT.replace(/(<p>[^<]{20,}<\/p>)\s*(<p>[^<]*<\/p>\s*)*\1/gi, (match, p1) => {
         const fixed = match.replace(new RegExp(p1.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*$'), '');
         if(fixed !== match) document.getElementById('o13').textContent += '\n\n✅ Duplicate CTA paragraph removed.';
         return fixed;
       });
-      S.html1TXT=S.finalTXT;
-      // Post-assembly date fix — replace any ISO date not matching publish date
-      if(pd){
-        const dp=/\b(20\d\d-\d{2}-\d{2})\b/g; let fc=0;
-        S.finalTXT=S.finalTXT.replace(dp,(m)=>{ if(m!==pd){fc++;return pd;} return m; });
-        S.finalSchema=S.finalSchema.replace(/("(?:datePublished|dateModified)":\s*")\d{4}-\d{2}-\d{2}(")/g,(m,pre,post)=>pre+pd+post);
-        if(fc>0) document.getElementById('o13').textContent+=`\n\n✅ Date fix: replaced ${fc} wrong date(s) with ${pd}.`;
+
+      S.html1TXT = S.finalTXT;
+
+      // ── PASS 7: SCHEMA DATE FIX — only datePublished and dateModified, never foundingDate
+      S.finalSchema = S.finalSchema.replace(/("(?:datePublished|dateModified)":\s*")\d{4}-\d{2}-\d{2}(")/g, (m,pre,post) => pre+pd+post);
+
+      // ── PASS 8: LAST UPDATED — JS INJECTION (JS owns this entirely; Claude does not write it)
+      const formattedDate = formatPublishDate(pd);
+      // Remove any Last Updated element Claude may have written (any form)
+      S.finalTXT = S.finalTXT.replace(/<p[^>]*class="last-updated"[^>]*>[\s\S]*?<\/p>/gi, '');
+      S.finalTXT = S.finalTXT.replace(/<[a-z][^>]*>[\s\S]*?Last Updated[\s\S]*?<\/[a-z]+>/gi, (m) => {
+        // Only remove if it's a standalone Last Updated element (short — not an entire section)
+        return m.length < 300 ? '' : m;
+      });
+      // Also remove any plain-text Last Updated lines not in a tag (markdown remnants)
+      S.finalTXT = S.finalTXT.replace(/^.*last updated.*$/gim, '');
+      // Inject canonical Last Updated immediately after the direct-answer div closing tag
+      const luHTML = `<p class="last-updated">Last Updated: ${formattedDate}</p>`;
+      if(/<\/div>/.test(S.finalTXT)) {
+        // Find the direct-answer closing div — inject after the first </div> that closes the DA
+        const daCloseRe = /(<div[^>]*class="(?:[a-z-]*direct-answer[a-z-]*)"[^>]*>[\s\S]*?<\/div>)/i;
+        if(daCloseRe.test(S.finalTXT)) {
+          S.finalTXT = S.finalTXT.replace(daCloseRe, (m) => m + '\n' + luHTML);
+        } else {
+          // Fallback: inject before the first H2
+          S.finalTXT = S.finalTXT.replace(/(<h2[^>]*>)/i, luHTML + '\n$1');
+        }
       }
-      // Last Updated format fix — convert YYYY-MM-DD to "Month DD, YYYY" in HTML
-      if(pd) {
-        const [yr,mo,dy] = pd.split('-');
-        const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-        const formattedDate = `${months[parseInt(mo,10)-1]} ${parseInt(dy,10)}, ${yr}`;
-        // Replace bare ISO date in Last Updated context only (not schema dates)
-        S.finalTXT = S.finalTXT.replace(
-          /(<[^>]*class="last-updated"[^>]*>[\s\S]*?Last Updated:?\s*)[\d]{4}-[\d]{2}-[\d]{2}([\s\S]*?<\/)/gi,
-          (m, pre, post) => `${pre}${formattedDate}${post}`
-        );
-        // Also catch plain text Last Updated lines not in a span
-        S.finalTXT = S.finalTXT.replace(
-          /(Last Updated:?\s*)(\d{4}-\d{2}-\d{2})/gi,
-          (m, pre) => `${pre}${formattedDate}`
-        );
-        // Also catch blank Last Updated — Claude sometimes omits the date entirely
-        S.finalTXT = S.finalTXT.replace(
-          /(Last Updated:?\s*)(?!\S)/gi,
-          (m, pre) => `${pre}${formattedDate}`
-        );
-        document.getElementById('o13').textContent+=`\n\n✅ Last Updated formatted as: ${formattedDate}`;
-      }
-      // Ensure all H3 elements have id attributes (marked library omits them by default)
+      document.getElementById('o13').textContent += `\n\n✅ Last Updated injected: ${formattedDate}`;
+
+      // ── PASS 9: ENSURE ALL H2/H3 HAVE ID ATTRIBUTES (required for ToC anchor links)
+      S.finalTXT = S.finalTXT.replace(/<h2(?![^>]*id=)([^>]*)>([\s\S]*?)<\/h2>/gi, (match, attrs, text) => {
+        const clean = text.replace(/<[^>]+>/g,'').trim();
+        const slug = clean.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+        return `<h2${attrs} id="${slug}">${text}</h2>`;
+      });
       S.finalTXT = S.finalTXT.replace(/<h3(?![^>]*id=)([^>]*)>([\s\S]*?)<\/h3>/gi, (match, attrs, text) => {
         const clean = text.replace(/<[^>]+>/g,'').trim();
         const slug = clean.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
         return `<h3${attrs} id="${slug}">${text}</h3>`;
       });
-      // ToC H3 injection — scan all H3 elements in HTML, add missing anchor links to ToC
-      S.finalTXT = injectToCH3Links(S.finalTXT);
-      document.getElementById('o13').textContent+='\n\n✅ ToC H3 links verified/injected.';
+
+      // ── PASS 10: TOC FULL REBUILD — JS strips Claude's ToC and builds from scratch
+      // Uses heading IDs extracted from article body. Canonical structure every time.
+      S.finalTXT = rebuildToC(S.finalTXT, S.docs.doc43B);
+      document.getElementById('o13').textContent += '\n\n✅ ToC rebuilt from heading IDs.';
+
+      // ── PASS 11: TABLE CLASS ENFORCEMENT
+      // JS assigns class="article-table" to every <table> tag sequentially.
+      // Claude does not control table classes — eliminates itv-table-1/2/3 inconsistency.
+      let tableIdx = 0;
+      S.finalTXT = S.finalTXT.replace(/<table([^>]*)>/gi, (match, attrs) => {
+        tableIdx++;
+        // Strip any existing class attribute Claude may have added
+        const cleanAttrs = attrs.replace(/\s*class="[^"]*"/gi, '').trim();
+        return `<table class="article-table"${cleanAttrs ? ' '+cleanAttrs : ''}>`;
+      });
+      if(tableIdx > 0) document.getElementById('o13').textContent += `\n\n✅ Table classes enforced: ${tableIdx} table(s) assigned class="article-table".`;
+
+      // ── PASS 12: CTA WRAPPER CLASS ENFORCEMENT
+      // Claude is told to use class="article-cta" but may vary. JS normalizes any
+      // CTA-looking wrapper div to the canonical class for reliable Step 14/15 auditing.
+      // Detection: any div near the bottom of the article containing a text link (no button).
+      // Strategy: if Claude used a different class for the CTA div, normalize it.
+      S.finalTXT = S.finalTXT.replace(/<div\s+class="[^"]*(?:cta|call.to.action|cta-wrap|article-cta)[^"]*"/gi, '<div class="article-cta"');
       // checklist now built as docx on demand
       userSelectedTab=false; showHTMLFinal(S.finalTXT); showSchema(S.finalSchema,pd,S.imageUrls[getFeatured()]||'');
       // Save to history immediately — outputs never lost even if Step 14 dies
@@ -3674,23 +3798,216 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
     }
   }
 
-  // ─── TOC H3 INJECTION ────────────────────────────────────
-  // Scans HTML for H3 elements with IDs, checks if they appear in ToC, injects missing ones
-  // Nests each H3 under its nearest preceding H2 in the ToC
-  // Class-agnostic: finds ToC by anchor link pattern, not by class name
-  function injectToCH3Links(html) {
-    // Find the ToC block — class-agnostic approach:
-    // Find all divs, pick the one with the most #anchor links — that's the ToC
-    let tocBlockStart = -1, tocBlockEnd = -1, tocInner = '';
+  // ─── STYLESHEET BUILDER — parses Section 11 from 4.3B and builds canonical <style> block ───
+  function buildStylesheetFrom43B(doc43B) {
+    const s = doc43B;
+    const get = (pattern, fallback='') => { const m = s.match(pattern); return m ? m[1].trim() : fallback; };
 
-    // Find all div openings and match them to their closing tags
-    // Pick the SMALLEST div containing at least 3 #anchor links — that's the ToC
-    // (not the first — outer wrapper divs also contain many anchors and swallow tocPost)
+    // Google Fonts
+    const fontsUrl = get(/Google Fonts Import:[^\r\n]*(https:\/\/fonts\.googleapis\.com\/[^\s\r\n]+)/i, '');
+
+    // Colors
+    const h1Color   = get(/H1:\s*(#[0-9a-fA-F]{3,6})/i, '#063a6c');
+    const h2Color   = get(/H2:\s*(#[0-9a-fA-F]{3,6})/i, '#2494e0');
+    const h3Color   = get(/H3:\s*(#[0-9a-fA-F]{3,6})/i, '#dd6b00');
+    const bodyColor = get(/Body text:\s*(#[0-9a-fA-F]{3,6})/i, '#063a6c');
+    const linkColor = get(/All links:\s*(#[0-9a-fA-F]{3,6})/i, '#2494e0');
+    const daBackground = get(/Direct Answer box background:\s*(#[0-9a-fA-F]{3,6})/i, '#063a6c');
+    const daText    = get(/Direct Answer box.*?text:\s*(#[0-9a-fA-F]{3,6})/i, '#ffffff');
+    const luColor   = get(/Last Updated text:\s*(#[0-9a-fA-F]{3,6})/i, '#dd6b00');
+    const tocBg     = get(/(?:ToC|Table of Contents).*?[Hh]eader background:\s*(#[0-9a-fA-F]{3,6})/i, '#063a6c');
+    const tableBorder = get(/(?:Table.*?[Bb]order|[Bb]order):\s*(#[0-9a-fA-F]{3,6})/im, '#063a6c');
+
+    // Fonts — extract from "Headings (H1, H2, H3): FontName" or "H1: FontName" patterns
+    const hFontMatch = s.match(/(?:Headings?\s*\([^)]*\)|H1,?\s*H2)\s*:\s*([A-Za-z][A-Za-z\s]+?)(?:\s*\||\s*weight|\s*[\r\n])/i);
+    const hFont = hFontMatch ? hFontMatch[1].trim() : 'Bebas Neue';
+    const bFontMatch = s.match(/Body[^\r\n]*:\s*([A-Za-z][A-Za-z\s]+?)(?:\s*\||\s*weight|\s*[\r\n])/i);
+    const bFont = bFontMatch ? bFontMatch[1].trim() : 'Lexend';
+    const hTransform = /transform:\s*uppercase/i.test(s) ? 'uppercase' : /transform:\s*capitalize/i.test(s) ? 'capitalize' : 'uppercase';
+    const hWeight = get(/H[123].*?weight:\s*(\d+)/i, '400');
+    const bWeight = get(/Body.*?weight:\s*(\d+)/i, '300');
+
+    // Font sizes
+    const h1Size = get(/H1:\s*(\d+(?:px|rem|em))\s*\//, '70px');
+    const h1TabSize = get(/H1:.*?\/\s*(\d+(?:px|rem|em))\s*\//, '60px');
+    const h1MobSize = get(/H1:.*?\/.*?\/\s*(\d+(?:px|rem|em))/, '46px');
+    const h2Size = get(/H2:\s*(\d+(?:px|rem|em))\s*\//, '50px');
+    const h2TabSize = get(/H2:.*?\/\s*(\d+(?:px|rem|em))\s*\//, '40px');
+    const h3Size = get(/H3:\s*(\d+(?:px|rem|em))\s*\//, '36px');
+    const h3TabSize = get(/H3:.*?\/\s*(\d+(?:px|rem|em))\s*\//, '30px');
+    const bodySize = get(/Body:\s*(\d+(?:px|rem|em))\s*\//, '22px');
+    const bodyMobSize = get(/Body:.*?\/.*?\/\s*(\d+(?:px|rem|em))/, '20px');
+
+    // Direct Answer padding + border-radius — use fixed defaults (locked in 4.3B spec)
+    const daPadDesk = get(/Padding[^\r\n]*desktop[^\r\n]*:\s*([0-9][0-9px\s]+?)(?:\s*\(|\s*\/|[\r\n])/i, '36px 44px');
+    const daPadMob  = get(/Padding[^\r\n]*mobile[^\r\n]*:\s*([0-9][0-9px\s]+?)(?:\s*\(|\s*\/|[\r\n])/i, '28px 24px');
+    const daRadius  = get(/border-radius:\s*([0-9]+(?:px|rem))/i, '6px');
+
+    const fontImport = fontsUrl ? `@import url('${fontsUrl}');` : `@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300&display=swap');`;
+
+    return `<style>
+${fontImport}
+h1, h2, h3 {
+  font-family: '${hFont}', sans-serif;
+  font-weight: ${hWeight};
+  text-transform: ${hTransform};
+  line-height: 1;
+}
+h1 {
+  font-size: ${h1Size};
+  color: ${h1Color};
+  text-align: center;
+  padding-top: 40px;
+  margin-bottom: 40px;
+}
+h2 {
+  font-size: ${h2Size};
+  color: ${h2Color};
+  margin-top: 80px;
+  margin-bottom: 20px;
+}
+h3 {
+  font-size: ${h3Size};
+  color: ${h3Color};
+  margin-top: 40px;
+  margin-bottom: 20px;
+}
+body, p, li, td, th, .article-wrap {
+  font-family: '${bFont}', sans-serif;
+  font-weight: ${bWeight};
+  color: ${bodyColor};
+  font-size: ${bodySize};
+  line-height: 1.5;
+}
+p {
+  margin-bottom: 20px;
+}
+a {
+  color: ${linkColor};
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+.article-wrap img {
+  width: 100%;
+  height: auto;
+  border-radius: 15px;
+  box-shadow: 3px 2px 5px #3d3d3d;
+  margin-bottom: 20px;
+}
+.direct-answer {
+  background: ${daBackground};
+  color: ${daText};
+  padding: ${daPadDesk};
+  border-radius: ${daRadius};
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+.direct-answer p, .direct-answer li {
+  color: ${daText};
+}
+.last-updated {
+  color: ${luColor};
+  font-style: italic;
+  text-align: center;
+  margin-bottom: 100px !important;
+}
+.toc {
+  background: #f5f8fb;
+  padding: 0;
+  border-radius: 6px;
+  margin-bottom: 80px;
+  overflow: hidden;
+}
+.toc-header {
+  background: ${tocBg};
+  color: white;
+  padding: 16px 36px;
+  font-family: '${hFont}', sans-serif;
+  font-size: 28px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0;
+}
+.toc-toggle { font-size: 24px; font-weight: bold; }
+.toc-body { padding: 28px 36px; display: block; }
+.toc-body.collapsed { display: none; }
+.toc ul { list-style: none; padding: 0; margin: 0; }
+.toc ul li { margin-bottom: 12px; }
+.toc ul ul { margin-top: 8px; margin-left: 20px; }
+.toc ul ul li { font-size: 20px; margin-bottom: 4px; }
+.toc a { color: ${linkColor}; text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+.h3-link { font-size: 20px; }
+table, .article-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  font-family: '${bFont}', sans-serif !important;
+  font-size: ${bodySize};
+  background: #ffffff;
+  border: 1px solid ${tableBorder};
+  overflow-x: auto;
+  display: block;
+  -webkit-overflow-scrolling: touch;
+}
+table thead { color: ${bodyColor}; font-weight: 700; }
+table th, table td {
+  padding: 12px 16px;
+  border: 1px solid ${tableBorder};
+  text-align: left;
+}
+table td { background: #ffffff; }
+.article-wrap { padding-bottom: 100px; }
+.article-cta { margin-top: 60px; padding: 0; background: none; }
+@media (max-width: 992px) {
+  h1 { font-size: ${h1TabSize}; }
+  h2 { font-size: ${h2TabSize}; }
+  h3 { font-size: ${h3TabSize}; }
+  body, p, li, td, th { font-size: ${bodySize}; }
+}
+@media (max-width: 768px) {
+  h1 { font-size: ${h1MobSize}; }
+  h2 { font-size: ${h2TabSize}; }
+  h3 { font-size: ${h3TabSize}; }
+  body, p, li, td, th { font-size: ${bodyMobSize}; }
+  .direct-answer { padding: ${daPadMob}; }
+  .toc-body { padding: 20px 24px; }
+  table { font-size: ${bodyMobSize}; }
+  table th, table td { padding: 10px 12px; }
+}
+</style>`;
+  }
+
+  // ─── TOC FULL REBUILD (V2.0) ─────────────────────────────
+  // Strips whatever Claude generated for the ToC and builds a canonical one from scratch.
+  // Reads all H2/H3 IDs from the article body. Produces a consistent ul/li structure
+  // with H3s nested under their parent H2s. Uses canonical CSS classes from the stylesheet.
+  // Claude never generates a ToC again — this function owns it entirely.
+  //
+  // ToC collapsible toggle: JS inline onclick — no external dependency required.
+  // Structure: .toc > .toc-header (clickable) + .toc-body > ul > li (H2) > ul > li (H3)
+  function rebuildToC(html, doc43B) {
+    // ── Step A: Find and remove Claude's ToC block ──────────────
+    // Strategy: find the smallest div containing ≥3 internal #anchor links
+    // that appears BEFORE the first H2 in the article body.
+    // This is the ToC regardless of what class name Claude used.
+    let tocBlockStart = -1, tocBlockEnd = -1;
+    let firstH2Pos = -1;
+    const h2PosMatch = html.match(/<h2[^>]*>/i);
+    if(h2PosMatch) firstH2Pos = html.indexOf(h2PosMatch[0]);
+
     const divOpenRe = /<div[^>]*>/gi;
     let divMatch;
-    let bestTocSize = Infinity, bestTocOpen = '';
+    let bestTocSize = Infinity;
     while((divMatch = divOpenRe.exec(html)) !== null) {
       const divStart = divMatch.index;
+      // Only consider divs that start before the first H2
+      if(firstH2Pos > 0 && divStart > firstH2Pos) continue;
       const divOpen = divMatch[0];
       let depth = 1, pos = divStart + divOpen.length;
       while(pos < html.length && depth > 0) {
@@ -3708,67 +4025,85 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
         bestTocSize = candidate.length;
         tocBlockStart = divStart;
         tocBlockEnd = divEnd;
-        bestTocOpen = divOpen;
-        const innerStart = divStart + divOpen.length;
-        tocInner = html.slice(innerStart, divEnd - 6);
       }
     }
 
-    if(tocBlockStart === -1) return html; // no ToC found — bail safely
-
-    const tocPre = html.slice(0, tocBlockStart);
-    const tocPost = html.slice(tocBlockEnd);
-    // Use the captured open tag (bestTocOpen) — already extracted during div scan
-    const outerDivOpen = bestTocOpen || '<div>';
-
-    // Extract all anchor hrefs already in ToC
-    const existingLinks = new Set();
-    const linkRe = /href="#([^"]+)"/g;
-    let lm;
-    while((lm = linkRe.exec(tocInner)) !== null) existingLinks.add(lm[1]);
-
-    // Build ordered list of H2 and H3 elements from article body (after ToC)
-    const elemRe = /<(h[23])[^>]*id="([^"]+)"[^>]*>([\s\S]*?)<\/h[23]>/gi;
-    const articleElements = [];
-    let em;
-    while((em = elemRe.exec(tocPost)) !== null) {
-      const tag = em[1].toLowerCase();
-      const id = em[2];
-      const rawText = em[3].replace(/<[^>]+>/g,'').trim();
-      if(id && rawText) articleElements.push({tag, id, text: rawText});
+    // Split HTML around the old ToC (or just find insertion point if no ToC found)
+    let htmlBefore, htmlAfter;
+    if(tocBlockStart !== -1) {
+      htmlBefore = html.slice(0, tocBlockStart);
+      htmlAfter = html.slice(tocBlockEnd);
+    } else {
+      // No ToC found — insert before first H2
+      if(firstH2Pos === -1) return html; // nothing to work with
+      htmlBefore = html.slice(0, firstH2Pos);
+      htmlAfter = html.slice(firstH2Pos);
     }
 
-    // Find missing H3s and their nearest preceding H2
-    const missing = []; // {h3, parentH2id}
-    let lastH2id = null;
-    for(const el of articleElements) {
-      if(el.tag === 'h2') { lastH2id = el.id; }
-      else if(el.tag === 'h3' && !existingLinks.has(el.id)) {
-        missing.push({h3: el, parentH2id: lastH2id});
-      }
+    // ── Step B: Extract all H2/H3 headings from article body (htmlAfter) ──
+    const headingRe = /<(h[23])[^>]*id="([^"]+)"[^>]*>([\s\S]*?)<\/h[23]>/gi;
+    const headings = [];
+    let hm;
+    while((hm = headingRe.exec(htmlAfter)) !== null) {
+      const tag = hm[1].toLowerCase();
+      const id = hm[2];
+      const text = hm[3].replace(/<[^>]+>/g,'').trim();
+      if(id && text) headings.push({tag, id, text});
     }
 
-    if(missing.length === 0) return html; // nothing to inject
+    if(headings.length === 0) return html; // no headings — bail safely
 
-    // Inject each missing H3 immediately after its parent H2 link in the ToC
-    for(const {h3, parentH2id} of missing) {
-      const h3Link = `\n<a href="#${h3.id}" class="h3-link">• ${h3.text}</a>`;
-      if(parentH2id) {
-        // Find the parent H2 anchor in tocInner and inject after it
-        // Escape special regex chars in parentH2id
-        const safeId = parentH2id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const h2Re = new RegExp(`(<a[^>]*href="#${safeId}"[^>]*>[^<]*<\/a>)`, 'i');
-        if(h2Re.test(tocInner)) {
-          tocInner = tocInner.replace(h2Re, (m) => m + h3Link);
-          continue;
+    // ── Step C: Get ToC header background color from 4.3B ──────
+    const s = doc43B || '';
+    const tocBgMatch = s.match(/(?:ToC|Table of Contents).*?[Hh]eader background:\s*(#[0-9a-fA-F]{3,6})/i);
+    const tocBg = tocBgMatch ? tocBgMatch[1] : '#063a6c';
+    const linkColorMatch = s.match(/All links:\s*(#[0-9a-fA-F]{3,6})/i);
+    const tocLinkColor = linkColorMatch ? linkColorMatch[1] : '#2494e0';
+
+    // ── Step D: Build canonical ToC HTML ────────────────────────
+    // Structure: collapsible, open by default, H3s nested under parent H2s
+    // Inline toggle script uses class .toc-body — canonical and matches stylesheet
+    let listItems = '';
+    for(let i = 0; i < headings.length; i++) {
+      const h = headings[i];
+      if(h.tag === 'h2') {
+        // Collect all H3s that follow this H2 before the next H2
+        const h3Children = [];
+        for(let j = i + 1; j < headings.length; j++) {
+          if(headings[j].tag === 'h2') break;
+          if(headings[j].tag === 'h3') h3Children.push(headings[j]);
+        }
+        if(h3Children.length > 0) {
+          const nestedItems = h3Children.map(h3 =>
+            `          <li><a href="#${h3.id}" class="h3-link">• ${h3.text}</a></li>`
+          ).join('\n');
+          listItems += `
+      <li>
+        <a href="#${h.id}">• ${h.text}</a>
+        <ul>
+${nestedItems}
+        </ul>
+      </li>`;
+        } else {
+          listItems += `
+      <li><a href="#${h.id}">• ${h.text}</a></li>`;
         }
       }
-      // No parent H2 found — append at end
-      tocInner = tocInner.trimEnd() + h3Link + '\n';
+      // H3s handled inside their parent H2 block above — skip standalone
     }
 
-    const newTocBlock = outerDivOpen + tocInner + '</div>';
-    return tocPre + newTocBlock + tocPost;
+    const tocHTML = `<div class="toc">
+  <div class="toc-header" onclick="var b=this.nextElementSibling;var t=this.querySelector('.toc-toggle');b.classList.toggle('collapsed');t.textContent=b.classList.contains('collapsed')?'+':'−';">
+    Table of Contents <span class="toc-toggle">−</span>
+  </div>
+  <div class="toc-body">
+    <ul>
+${listItems}
+    </ul>
+  </div>
+</div>`;
+
+    return htmlBefore + tocHTML + '\n' + htmlAfter;
   }
 
   // ─── HANDLE ERROR ─────────────────────────────────────────
