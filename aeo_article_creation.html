@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V2.2</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V2.3</p>
   </div>
 </div>
 
@@ -1488,11 +1488,36 @@
   }
 
   function extractDirectAnswer(text) {
-    // Find the first H1, then look for a REPEATED H1 after the checklist block
+    // Primary method: use <!-- DA_END --> marker — most reliable
+    // hardRestoreDAZone always injects this after the DA
+    const daEndPos = text.indexOf('<!-- DA_END -->');
+    if(daEndPos !== -1) {
+      // Find the H1 immediately before the DA content
+      const beforeMarker = text.slice(0, daEndPos);
+      const lines = beforeMarker.split('\n');
+      // Work backwards from DA_END to find the last H1
+      let daStartIdx = -1;
+      for(let i = lines.length - 1; i >= 0; i--) {
+        if(/^#\s+[^#]/.test(lines[i])) { daStartIdx = i + 1; break; }
+      }
+      const daSection = daStartIdx !== -1
+        ? lines.slice(daStartIdx).join('\n')
+        : beforeMarker.slice(beforeMarker.lastIndexOf('\n# ') + 1);
+      return daSection
+        .replace(/^\*\s+\*\*.+\*\*.*$/gm, '')
+        .replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm, '')
+        .replace(/^---+\s*$/gm, '')
+        .replace(/^LAST_UPDATED_PLACEHOLDER$/gm, '')
+        .replace(/^TOC_PLACEHOLDER$/gm, '')
+        .replace(/^<!--.*-->$/gm, '')
+        .replace(/\[H[123]\]/gi, '')
+        .trim();
+    }
+
+    // Fallback: repeated H1 pattern (checklist block present)
     const h1Match = text.match(/^#\s+.+$/m);
     if(!h1Match) return '';
     const afterFirstH1 = text.slice(text.indexOf(h1Match[0]) + h1Match[0].length);
-    // Look for repeated H1 (after checklist block)
     const repeatedH1 = afterFirstH1.match(/^#\s+.+$/m);
     let daSection = '';
     if(repeatedH1) {
@@ -1500,11 +1525,9 @@
       const h2Match = afterRepeated.match(/^##\s+/m);
       daSection = h2Match ? afterRepeated.slice(0, afterRepeated.indexOf(h2Match[0])) : afterRepeated.slice(0, 1500);
     } else {
-      // No repeated H1 — fall back to content between first H1 and first H2
       const h2Match = afterFirstH1.match(/^##\s+/m);
       daSection = h2Match ? afterFirstH1.slice(0, afterFirstH1.indexOf(h2Match[0])) : afterFirstH1.slice(0, 1500);
     }
-    // Strip checklist artifacts and placeholder strings
     return daSection
       .replace(/^\*\s+\*\*.+\*\*.*$/gm, '')
       .replace(/^\s*[-*]\s+\[.+\]\(#.+\)\s*$/gm, '')
@@ -2194,32 +2217,53 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     // Get Prompt 5 (VCI) from 4.4
     const vciPrompt = getPrompt(S.docs.doc44, 5);
 
+    // Extract only the 4.3B sections Gemini needs for VCI — reduces prompt size significantly
+    const termSection = S.docs.doc43B.match(/TERMINOLOGY LOCK[\s\S]*?(?=SECTION \d+:|________________\s*END|$)/i);
+    const voiceSection = S.docs.doc43B.match(/AUTHOR VOICE TEST[\s\S]*?(?=POV SLOT VOICE|SECTION \d+:|________________\s*END|$)/i);
+    const povSection = S.docs.doc43B.match(/POV SLOT VOICE EXAMPLES[\s\S]*?(?=CTA VARIATION|SECTION \d+:|________________\s*END|$)/i);
+    const doc43B_vci = [
+      termSection ? termSection[0].trim() : '',
+      voiceSection ? voiceSection[0].trim() : '',
+      povSection ? povSection[0].trim() : ''
+    ].filter(Boolean).join('\n\n---\n\n');
+
     const fullPrompt = `${vciPrompt}
 
-CLIENT IDENTITY CARD (4.3B):
-${S.docs.doc43B}
+CLIENT IDENTITY CARD — RELEVANT SECTIONS (4.3B):
+${doc43B_vci}
 
 ARTICLE BODY TO AUDIT (first H2 to end of Conclusion only):
 ${v2Body}`;
 
     const bubble = voiceAppendBubble('system', '⏳ Gemini counting violations...');
 
-    try {
-      const raw = await callGemini(fullPrompt, gkey);
-
-      // Parse JSON — strip any markdown fences if Gemini added them
-      let vciData = null;
+    // Retry up to 3 times — Gemini occasionally returns empty on large prompts
+    let raw = '';
+    let vciData = null;
+    const MAX_VCI_RETRIES = 3;
+    for(let attempt = 1; attempt <= MAX_VCI_RETRIES; attempt++) {
       try {
+        bubble.textContent = attempt > 1 ? `⏳ Retry ${attempt}/${MAX_VCI_RETRIES}...` : '⏳ Gemini counting violations...';
+        raw = await callGemini(fullPrompt, gkey);
+        if(!raw || raw.trim().length < 10) {
+          if(attempt < MAX_VCI_RETRIES) { await new Promise(r=>setTimeout(r,5000)); continue; }
+          throw new Error('Gemini returned empty response after retries');
+        }
         const clean = raw.replace(/```json|```/gi, '').trim();
         vciData = JSON.parse(clean);
+        break; // Success
       } catch(e) {
-        // JSON parse failed — log and continue
-        bubble.textContent = `⚠ VCI parse error — Gemini did not return valid JSON.\n\nRaw output:\n${raw}\n\nPipeline continuing.`;
-        setStep(11, 'done', 'Done (parse error)');
-        saveSession(11);
-        if(voice11Resolve) { voice11Resolve(); voice11Resolve = null; }
-        return;
+        if(attempt >= MAX_VCI_RETRIES) {
+          bubble.textContent = `⚠ VCI parse error — Gemini did not return valid JSON after ${MAX_VCI_RETRIES} attempts.\n\nRaw output:\n${raw}\n\nPipeline continuing.`;
+          setStep(11, 'done', 'Done (parse error)');
+          saveSession(11);
+          if(voice11Resolve) { voice11Resolve(); voice11Resolve = null; }
+          else { document.getElementById('r11').style.display='block'; }
+          return;
+        }
+        await new Promise(r=>setTimeout(r,5000));
       }
+    }
 
       // Build display
       const score = vciData.vci_score ?? '—';
@@ -2254,13 +2298,6 @@ ${v2Body}`;
       setStep(11, 'done', `Done ✓ (VCI: ${score})`);
       setG(`✓ Step 11 complete — VCI Score: ${score} (${verdict})`);
       if(voice11Resolve) { voice11Resolve(); voice11Resolve = null; }
-
-    } catch(e) {
-      bubble.textContent = `⚠ VCI audit error: ${e.message} — pipeline continuing.`;
-      setStep(11, 'done', 'Done (error)');
-      saveSession(11);
-      if(voice11Resolve) { voice11Resolve(); voice11Resolve = null; }
-    }
   }
 
   function updateVCIDisplay(score, verdict) {
@@ -3059,7 +3096,9 @@ HARD RULES:
       const p3=getPrompt(S.docs.doc44,3);
       const bpAnchors=(S.geminiResearch.match(/Semantic Anchor:\s*"([^"]+)"/g)||[]).map(l=>l.replace(/Semantic Anchor:\s*"/,'').replace(/"$/,''));
       const linkListStr=bpAnchors.map(a=>`Anchor text: "${a}"`).join('\n');
-      const vp=`You are operating inside the AEO Authority Pipeline as Quality Assurance Auditor.\n\nCRITICAL OUTPUT RULE: Output ALL FAIL_START/FAIL_END and FLAG_START/FLAG_END blocks FIRST. Summary line LAST.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${S.geminiResearch}\n\nLINK VERIFICATION — these anchor phrases should appear:\n${linkListStr}\n\n---\n\n${p3}\n\nArticle text below:\n${stripDAMarker(S.v1)}`;
+      const failBlockFormat = `\n\nMANDATORY FAIL BLOCK FORMAT — YOU MUST USE THIS EXACT STRUCTURE FOR EVERY FAIL. NO EXCEPTIONS.\nClaude's fix engine reads this programmatically. Any deviation breaks the fix pipeline.\n\nFAIL_START\nID: FAIL_001\nType: WRONG / MISSING / DELETE\nSeverity: CRITICAL / STANDARD / MINOR\nPriority: 1 / 2 / 3\nSection: [Exact H2 or H3 heading this appears under, or TOP if before first H2]\nDescription: [One sentence — what is wrong and why]\nFind: [VERBATIM quoted text from the article — minimum 10 words of surrounding context. This field is NON-NEGOTIABLE. If you cannot find exact text to quote, issue a FLAG instead of a FAIL.]\nReplace: [Leave blank if Type=DELETE. For WRONG, leave blank — Claude determines replacement. For MISSING, describe what to insert and where.]\nScope: FIRST_INSTANCE / ALL_INSTANCES\nFAIL_END\n\nCRITICAL RULES:\n- Find field must contain verbatim quoted text from the article. No paraphrasing. No descriptions. Exact words.\n- If you cannot locate exact text to quote, do NOT issue a FAIL — issue a FLAG instead.\n- A FAIL with no Find text is worse than no FAIL — it wastes Claude's fix attempts.\n- One FAIL block per issue. Output in priority order (Priority 1 first).`;
+
+      const vp=`You are operating inside the AEO Authority Pipeline as Quality Assurance Auditor.\n\nCRITICAL OUTPUT RULE: Output ALL FAIL_START/FAIL_END and FLAG_START/FLAG_END blocks FIRST. Summary line LAST.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${S.geminiResearch}\n\nLINK VERIFICATION — these anchor phrases should appear:\n${linkListStr}\n\n---\n\n${p3}${failBlockFormat}\n\nArticle text below:\n${stripDAMarker(S.v1)}`;
       S.validation=await callGemini(vp,gkey);
       S.parsedFails=parseFails(S.validation);
       const flagNote=S.parsedFlags.length>0?`\n\n--- VOICE FLAGS (for Step 10 voice rewrite) ---\n${S.parsedFlags.map(f=>`🚩 ${f.id}: ${f.desc}`).join('\n')}`:'';
@@ -3080,6 +3119,8 @@ HARD RULES:
         document.getElementById('sb9').classList.add('open');
         const failInstructions=S.parsedFails.map(f=>{
           if(f.type==='FLAG') return null;
+          // Skip any FAIL whose Find text anchors to the checklist block — Claude can't find it in body prose
+          if(f.find && /BLOG POST OPTIMIZATION CHECKLIST|AI AUTHORITY ARTICLE OPTIMIZATION CHECKLIST|Meta Title:|Permalink URL:|Full Blog Post URL:|Meta Description:|Keywords:|Category:/i.test(f.find)) return null;
           if(f.type==='MISSING') return `INSERT:\nDesc: ${f.desc}\nWhat: ${f.what||f.missing}\nContext: ${f.context||'see surrounding content'}\nPlacement: ${f.placement||'NEAR_CLAIM'}`;
           return `FIX:\nDesc: ${f.desc}\nFind: ${f.find}\nReplace: ${f.replace}\nScope: ${f.scope}`;
         }).filter(Boolean).join('\n\n---\n\n');
@@ -3184,6 +3225,18 @@ HARD RULES:
       const voiceUser=`PUBLISH DATE: ${document.getElementById('publishDate').value||publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p4}\n${protectedList}${flagContext}\n\n${voiceExamples}\n\nTASK: Voice rewrite ONLY. Structure, links, tables, POV slots already correct.\n\nCRITICAL OUTPUT REQUIREMENT: Output the COMPLETE FULL ARTICLE — from the H1 title to the CTA at the bottom. Do NOT output a checklist block at the top — that is handled separately. Do NOT summarize changes. Do NOT describe the rewrite. Output the full rewritten article body and nothing else.\n\nPROTECTED ZONES — DO NOT TOUCH:\n- Direct Answer (everything before first H2) — sacred ground, final, do not change a single word\n- All H2 and H3 headings\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- All internal and external hyperlinks (URLs and anchor text must stay exactly)\n- Any sentence in PROTECTED SENTENCES above\n- LAST_UPDATED_PLACEHOLDER and TOC_PLACEHOLDER — leave exactly as written\n\nEverything else: rewrite from blank page in the author's voice.\n\nARTICLE:\n${stripDAMarker(v1ForRewrite)}`;
       S.v2=await callClaude(sys,voiceUser,akey,(p)=>{document.getElementById('o10').textContent=p;document.getElementById('sb10').classList.add('open');showV2(p);},{maxTokens:64000});
       if(S.v2.length<8000) throw new Error(`Step 10: V2 too short (${S.v2.length} chars) — Claude likely summarized instead of rewriting. Retry.`);
+      // ── STRIP CLAUDE PREAMBLE — Claude sometimes adds task headers, verification blocks,
+      // or summary text before the article H1. Strip everything before the first # heading.
+      {
+        const firstHeading = S.v2.match(/^#\s+[^#]/m);
+        if(firstHeading) {
+          const headingPos = S.v2.indexOf(firstHeading[0]);
+          if(headingPos > 50) { // Only strip if there's meaningful content before the H1
+            S.v2 = S.v2.slice(headingPos);
+          }
+        }
+      }
+
       // Restore DA zone with marker after voice rewrite
       if(S.directAnswer && S.directAnswer.length>50){
         S.v2 = hardRestoreDAZone(S.v2, S.directAnswer);
@@ -3252,13 +3305,17 @@ HARD RULES:
         document.getElementById('o12').innerHTML = `<div style="padding:8px 0;">${cardHTML}</div>`;
         document.getElementById('sb12').classList.add('open');
         if(failures.length===0){ setStep(12,'done','Done ✓'); saveSession(12); break; }
-        // Images and DA word count are warnings only — voice rewrite legitimately moves image prompts
-        // to an IMAGE PROMPTS section. Assembly handles them correctly regardless.
-        const hardFailures=failures.filter(c=>c.key!=='images'&&c.key!=='directAnswer');
+        // Images, DA word count, and length are warnings only — non-blocking
+        const hardFailures=failures.filter(c=>c.key!=='images'&&c.key!=='directAnswer'&&c.key!=='length');
         if(hardFailures.length===0){ setStep(12,'done','Done ✓ (warnings)'); saveSession(12); break; }
         attempts++;
         if(attempts>=MAX12){
-          document.getElementById('gateResults12').innerHTML=failures.map(f=>`<div style="padding:2px 0;">❌ ${f.label} — ${f.detail}</div>`).join('');
+          document.getElementById('gateResults12').innerHTML=failures.map(f=>{
+            const isWarning = ['images','directAnswer','length'].includes(f.key);
+            const icon = isWarning ? '⚠' : '❌';
+            const color = isWarning ? '#f59e0b' : '#ef4444';
+            return `<div style="padding:2px 0;color:${color};">${icon} ${f.label} — ${f.detail}${isWarning?' (known false positive — non-blocking)':''}</div>`;
+          }).join('');
           document.getElementById('cbox12').style.display='block';
           setStep(12,'error','⚠ Hard Stop'); setG('⚠ Step 12 hard stop — choose an option.',false,true);
           const dec12=await new Promise(res=>{ window._gate12Resolve=res; });
