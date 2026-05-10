@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V3.0.1</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V3.0.2</p>
   </div>
 </div>
 
@@ -1729,6 +1729,38 @@
       '',
       skeleton
     ].join('\n');
+  }
+
+  // V3.0.2 — Step 5 response normalizer.
+  // Step 5 reuses Prompt 2 from 4.4, which V3.0.1 rewrote to demand JSON output.
+  // Claude follows the strongest formatting instruction it sees and may return JSON
+  // even though Step 5 wants raw prose markdown. This function detects JSON-wrapped
+  // responses and reassembles them via assembleV1FromJSON; passes plain markdown
+  // through unchanged. Falls back to raw on any parse failure — never throws.
+  function normalizeStep5Response(raw) {
+    if (!raw || typeof raw !== 'string') return raw;
+    let text = raw.trim();
+    // Strip markdown code fences if Claude wrapped the JSON
+    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
+    // Two-key signature: must look like a Step 5 JSON response specifically
+    const looksLikeJson = text.startsWith('{') &&
+                          /"skeleton"\s*:/.test(text) &&
+                          /"directAnswer"\s*:/.test(text);
+    if (!looksLikeJson) return raw;
+    try {
+      const firstBrace = text.indexOf('{');
+      const lastBrace = text.lastIndexOf('}');
+      if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) return raw;
+      const jsonText = text.slice(firstBrace, lastBrace + 1);
+      const parsed = JSON.parse(jsonText);
+      if (parsed && typeof parsed.skeleton === 'string' && parsed.skeleton.length >= 1000) {
+        console.log('[Step 5] Detected JSON-wrapped response. Reassembling via assembleV1FromJSON.');
+        return assembleV1FromJSON(parsed);
+      }
+    } catch (e) {
+      console.warn('[Step 5] JSON-like response failed to parse, falling back to raw:', e.message);
+    }
+    return raw;
   }
 
   function extractLockedDA(text) {
@@ -4189,7 +4221,10 @@ HARD RULES:
       // (Meta Title:, Permalink URL:, Keywords:, etc.) appear after the first H1 — which
       // would indicate a duplicated checklist block in body prose. Replaces the previous
       // safety net which only caught duplicates after a \n---\n separator.
-      let cleanedProse = v1prose;
+      // V3.0.2 — Normalize Step 5 response. If Claude returned JSON (because Prompt 2
+      // demands JSON for Step 3 and Step 5 reuses that prompt), reassemble via
+      // assembleV1FromJSON. If Claude returned plain prose markdown, pass through unchanged.
+      let cleanedProse = normalizeStep5Response(v1prose);
       const h1Matches = [...cleanedProse.matchAll(/^#\s+[^#].+$/gm)];
       if(h1Matches.length >= 2) {
         // Multiple H1s detected — definitely a duplicate. Keep everything before the
