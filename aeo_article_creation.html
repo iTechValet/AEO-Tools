@@ -2728,9 +2728,38 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     setStep(11, 'active', 'Counting violations...');
     setG('Running Voice Compliance Index audit...', true);
 
-    // Extract body only — first H2 to end of article
-    const firstH2Match = S.v2.match(/^##\s/m);
-    const v2Body = firstH2Match ? S.v2.slice(S.v2.indexOf(firstH2Match[0])) : S.v2;
+    // V2.7: Hardened v2Body extraction — protects VCI from accidentally auditing the
+    // checklist metadata block at the top of the document (which contains long words and
+    // contractions that would tank the score artificially).
+    // Boundary precedence (most reliable first):
+    //   1. <!-- DA_END --> marker (set by Step 13 assembly when present)
+    //   2. TOC_PLACEHOLDER literal (set by Step 3 skeleton)
+    //   3. First H2 (## ) — body always starts here in healthy articles
+    //   4. SAFETY: if all three miss, slice off the first 800 chars (typical checklist size)
+    //      rather than auditing the full document. Better to under-audit than score the
+    //      checklist block.
+    let v2BodyStart = -1;
+    const daEndIdx = S.v2.indexOf('<!-- DA_END -->');
+    if(daEndIdx >= 0){
+      v2BodyStart = daEndIdx + '<!-- DA_END -->'.length;
+    } else {
+      const tocIdx = S.v2.indexOf('TOC_PLACEHOLDER');
+      if(tocIdx >= 0){
+        v2BodyStart = tocIdx + 'TOC_PLACEHOLDER'.length;
+      } else {
+        const firstH2Match = S.v2.match(/^##\s/m);
+        if(firstH2Match){
+          v2BodyStart = S.v2.indexOf(firstH2Match[0]);
+        }
+      }
+    }
+    // Hard floor: never audit text before character 800 (defensive — checklist blocks
+    // run ~600-800 chars; this protects VCI even when boundaries are mangled).
+    if(v2BodyStart < 0){
+      v2BodyStart = Math.min(800, Math.floor(S.v2.length / 4));
+      logErr(11, `v2Body boundary not found — using safety floor at char ${v2BodyStart}. VCI may be slightly off.`);
+    }
+    const v2Body = S.v2.slice(v2BodyStart);
     const v2WordCount = countWords(v2Body);
 
     // V2.5: Extract client-specific forbidden words from 4.3B Terminology Lock
@@ -3014,12 +3043,22 @@ ${v2Body.slice(0, 8000)}`;
     // Fall back to doc43B — look for website URL
     const b43Match = S.docs.doc43B && S.docs.doc43B.match(/https?:\/\/(?:www\.)?([^\/\s"',]+\.[a-z]{2,})/i);
     if(b43Match) { const d=b43Match[1].toLowerCase().replace(/^www\./,''); if(!d.includes('github.io')) return d; }
-    // Final fallback
-    return 'itechvalet.com';
+    // V2.7 — Sentinel return instead of hardcoded itechvalet.com.
+    // Hardcoding caused cross-client contamination: for Brighton Gold or any non-iTV client,
+    // if all upstream extraction missed, Pass 3B would normalize their relative URLs to
+    // itechvalet.com. Sentinel forces visible failure so operator fixes config upstream.
+    // Pass 3B and other consumers must check for this value before using it as a domain.
+    return '__NO_DOMAIN__';
   }
 
   function isInternal(url) {
     const clientDomain = getClientDomain();
+    // V2.7: Sentinel guard — if domain unknown, only relative paths are reliably internal.
+    if(clientDomain === '__NO_DOMAIN__'){
+      if(url.startsWith('/')) return true;
+      if(url.match(/^https?:\/\//)) return false;
+      return true; // relative paths without leading slash
+    }
     // Strip tool host domain (github.io etc) and treat as internal
     const stripped = url
       .replace(/^https?:\/\/[^/]*github\.io/i,'')
@@ -3036,6 +3075,11 @@ ${v2Body.slice(0, 8000)}`;
   function isExternal(url) {
     if(!url.match(/^https?:\/\//)) return false;
     const clientDomain = getClientDomain();
+    // V2.7: Sentinel guard — if domain unknown, treat all http(s) URLs (except github.io) as external.
+    if(clientDomain === '__NO_DOMAIN__'){
+      if(url.match(/github\.io/i)) return false;
+      return true;
+    }
     if(url.toLowerCase().includes(clientDomain)) return false;
     if(url.match(/github\.io/i)) return false;
     return true;
@@ -3779,7 +3823,11 @@ HARD RULES:
           }
           // JS anchor text correction — fix all internal link anchors by URL match
           // Uses client domain dynamically — works for any client
+          // V2.7: Sentinel guard — if domain unknown, skip anchor correction (can't build regex).
           const clientDomain9 = getClientDomain();
+          if(clientDomain9 === '__NO_DOMAIN__'){
+            // Skip anchor correction silently — domain warning already surfaced at Step 13
+          } else {
           const clientUrlPattern = new RegExp(`https?:\\/\\/(www\\.)?${clientDomain9.replace(/\./g,'\\.')}[^\\s\\n|"]+`, 'gi');
           const anchorPattern = new RegExp(`Semantic Anchor:\\s*"([^"]+)"[\\s\\S]*?(?:URL|Link):\\s*(https?:\\/\\/(?:www\\.)?${clientDomain9.replace(/\./g,'\\.')}[^\\s\\n|"]+)`, 'gi');
           const anchorMap={};
@@ -3807,6 +3855,7 @@ HARD RULES:
               document.getElementById('o9').textContent+=`\n\n✅ JS Anchor Fix: corrected ${anchorFixed} anchor text mismatch(es)`;
             }
           }
+          } // V2.7: end sentinel guard for anchor correction
           // Gemini re-validation
           setG('Gemini re-validating fixes...',true);
           const failIds=S.parsedFails.map(f=>f.id).join(', ');
@@ -4089,9 +4138,21 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
       // - Single and double quotes handled
       // - Mailto, tel, javascript:, data:, http(s):, ftp: URLs untouched (don't start with /)
       // - ToC anchors (#section) untouched (don't start with /)
+      // - V2.7 sentinel guard: if getClientDomain() returns __NO_DOMAIN__ (cross-client safety),
+      //   skip Pass 3B entirely and surface a visible warning. Better to leave relative URLs
+      //   alone than normalize them to the wrong domain.
       try {
         const clientDomain = getClientDomain();
-        if(clientDomain && !clientDomain.includes('github.io')){
+        if(clientDomain === '__NO_DOMAIN__'){
+          const relCount = (S.finalTXT.match(/(?:href|src)=["']\/(?!\/)/gi) || []).length;
+          if(relCount > 0){
+            document.getElementById('o13').textContent +=
+              `\n\n⚠ Pass 3B SKIPPED: client domain could not be resolved from V1 metadata, sheet row, or 4.3B. ` +
+              `${relCount} relative URL(s) left unchanged. Fix upstream config (4.2 sheet URL or 4.3B website field) ` +
+              `before publishing — these URLs will resolve to whatever domain hosts the page.`;
+            logErr(13, `Pass 3B skipped — no client domain resolved (${relCount} relative URLs left in HTML)`);
+          }
+        } else if(clientDomain && !clientDomain.includes('github.io')){
           const absoluteBase = `https://${clientDomain}`;
           const before = (S.finalTXT.match(/(?:href|src)=["']\/(?!\/)/gi) || []).length;
           S.finalTXT = S.finalTXT.replace(
