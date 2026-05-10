@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V2.7</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V2.8</p>
   </div>
 </div>
 
@@ -1099,6 +1099,14 @@
   // with: locked DA + DA_END marker + LAST_UPDATED_PLACEHOLDER + TOC_PLACEHOLDER
   // Strategy: find last H1 before first H2 (reliable) instead of repeated H1 (fragile)
   function hardRestoreDAZone(text, lockedDA) {
+    // V2.8 — Minimum-length guard. Without a valid DA anchor, this function previously
+    // could rebuild the zone with an empty/short string, destroying any DA prose Claude
+    // wrote into the body. Bail with a logErr instead — the calling step's syncDirectAnswer()
+    // call should have caught this earlier; if it didn't, this is the last line of defense.
+    if(!lockedDA || lockedDA.length < 50){
+      try { logErr(0, `hardRestoreDAZone aborted: lockedDA empty or too short (${(lockedDA||'').length} chars). Article unchanged.`); } catch(e){}
+      return text;
+    }
     const lines = text.split('\n');
 
     // Find first H2 — reliable end boundary
@@ -1714,6 +1722,51 @@
       daLines.push(lines[i]);
     }
     return daLines.join('\n').replace(/\[H[123]\]/gi,'').trim();
+  }
+
+  // V2.8 — Self-healing DA lock. Called at entry of Steps 4, 5, 6, 10, 12, 13.
+  // If S.directAnswer is empty or too short, attempts re-extraction from S.v1.
+  // If that also fails, throws hard error with stack trace so the operator and the
+  // error log capture the failure point. Pipeline aborts rather than silently
+  // continuing with an empty DA (which previously caused Step 6 to destroy content).
+  // Architectural principle: NO JS correction runs without a valid DA anchor.
+  function syncDirectAnswer(callerStep){
+    const tag = callerStep ? `[Step ${callerStep}]` : '';
+    if(S.directAnswer && S.directAnswer.length >= 50){
+      return; // Healthy state — already locked
+    }
+    // State wiped — attempt re-extraction from current S.v1
+    if(S.v1 && S.v1.length > 1000){
+      try {
+        const recovered = extractLockedDA(S.v1);
+        if(recovered && recovered.length >= 50){
+          S.directAnswer = recovered;
+          logErr(callerStep || 0, `${tag} S.directAnswer self-healed via re-extraction (${recovered.length} chars). Investigate why Step 3 lock was lost.`);
+          return;
+        }
+      } catch(e){
+        // Fall through to hard error
+      }
+    }
+    // Recovery failed — hard error
+    const msg = `${tag} S.directAnswer is empty AND re-extraction from S.v1 failed. Cannot continue safely. Step 3 DA lock was lost and the article cannot be recovered. Rebuild from Step 3.`;
+    logErr(callerStep || 0, msg);
+    throw new Error(msg);
+  }
+
+  // V2.8 — Aggressive placeholder dedupe. Strips any number of consecutive duplicate
+  // LAST_UPDATED_PLACEHOLDER + TOC_PLACEHOLDER pairs down to a single pair. Handles:
+  //   - LAST/TOC LAST/TOC          (double pair — observed in V2.7 production)
+  //   - LAST/TOC LAST/TOC LAST/TOC (triple pair)
+  //   - Various whitespace between
+  // Called at Step 3 (after extractLockedDA) and Step 13 Pass 8B (post-assembly safety net).
+  function dedupePlaceholders(text){
+    if(!text) return text;
+    // Collapse N consecutive placeholder pair sequences to 1
+    return text.replace(
+      /((?:^|\n)LAST_UPDATED_PLACEHOLDER\s*\nTOC_PLACEHOLDER)(\s*\nLAST_UPDATED_PLACEHOLDER\s*\nTOC_PLACEHOLDER)+/g,
+      '$1'
+    );
   }
 
   function populateMetaTab(text) {
@@ -3383,6 +3436,10 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
       if(S.v1.length<1000) throw new Error(`Step 3: Skeleton too short (${S.v1.length} chars) — retry.`);
       // Lock the DA immediately after Step 3 — this is the canonical, sacred DA
       S.directAnswer = extractLockedDA(S.v1);
+      // V2.8: Aggressive placeholder dedupe — Claude sometimes writes the placeholder
+      // pair twice (observed in V2.7 production: LAST/TOC LAST/TOC, observed at top of S.v1).
+      // Strip any consecutive duplicate placeholder sequences down to a single pair.
+      S.v1 = dedupePlaceholders(S.v1);
       // V2.7: Centralized preview sync — populates DA + Metadata from current state.
       // syncPreviewUI is idempotent and safe; it inherits the same render logic as the
       // self-healing fallback in switchTab(). Single source of truth for tab population.
@@ -3393,6 +3450,7 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
 
     // ── STEP 4: Skeleton Integrity Check ──────────────────────
     if(step<=4){
+      syncDirectAnswer(4); // V2.8: heal DA lock if it was wiped between steps
       setStep(4,'active','Checking skeleton...'); setG('Verifying Gemini deliverables made it into skeleton...',true);
       const o4=document.getElementById('o4');
       o4.textContent='';
@@ -3488,6 +3546,7 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
 
     // ── STEP 5: Full Prose + Tables ────────────────────────────
     if(step<=5){
+      syncDirectAnswer(5); // V2.8: heal DA lock if it was wiped between steps
       setStep(5,'active','Writing prose...'); setG('Claude filling skeleton with full prose and tables...',true);
       const p2=getPrompt(S.docs.doc44,2);
       const proseInstr=`
@@ -3595,6 +3654,7 @@ HARD RULES:
 
     // ── STEP 6: V1 Integrity Gate ──────────────────────────────
     if(step<=6){
+      syncDirectAnswer(6); // V2.8: heal DA lock — Step 6 daGap fix REQUIRES this
       setStep(6,'active','Checking V1...'); setG('Running V1 integrity checks...',true);
       document.getElementById('o6').textContent='';
       document.getElementById('r6').style.display='none';
@@ -3631,43 +3691,56 @@ HARD RULES:
         }
 
         // JS daGap fix — runs before Claude for this specific failure
-        // Deterministic: strips everything between DA end and first H2 except the JS-owned placeholders
+        // V2.8: Use S.directAnswer as the explicit boundary anchor. Find where the locked
+        // DA ends in S.v1 by string match — the line AFTER the last DA line is where the
+        // gap zone starts. No more word-count guessing that previously chopped 210 words
+        // out of the actual DA when Claude wrote longer paragraphs.
+        // Architectural Lock #47: NO JS correction runs without a valid protected anchor.
         if(failures.some(f=>f.key==='daGap')){
+          // Hard guard — if syncDirectAnswer didn't recover the lock, abort the fix entirely
+          if(!S.directAnswer || S.directAnswer.length < 50){
+            appendO6(`⚠ JS daGap fix ABORTED — S.directAnswer is empty or too short (${(S.directAnswer||'').length} chars). Cannot anchor DA boundary safely. Hard stop.`);
+            logErr(6, `daGap fix aborted: S.directAnswer empty (length ${(S.directAnswer||'').length})`);
+            // Mark the failure as unresolvable so the loop hard-stops cleanly
+            attempts = MAX_ATTEMPTS;
+            break;
+          }
           const lines=S.v1.split('\n');
           const firstH2Idx=lines.findIndex(l=>l.match(/^##\s/));
           if(firstH2Idx>0){
-            // Find where direct answer ends (after repeated H1)
-            let daEndIdx=0;
-            let h1Count=0;
-            for(let i=0;i<firstH2Idx;i++){
-              if(lines[i].match(/^#\s+[^#]/)) h1Count++;
-              if(h1Count>=2){ daEndIdx=i+1; break; }
+            // Find where the locked DA ends in S.v1 by string match.
+            // The DA's last line is the anchor; everything after it (until first H2) is gap.
+            const daLines = S.directAnswer.split('\n').filter(l=>l.trim().length>0);
+            const lastDALine = daLines[daLines.length - 1].trim();
+            let daTextEnd = -1;
+            // Scan forward from the start, find the last line that matches the end of the DA
+            for(let i=0; i<firstH2Idx; i++){
+              if(lines[i].trim() === lastDALine){
+                daTextEnd = i + 1;
+                // Don't break — keep matching in case DA appears multiple times.
+                // The LAST occurrence before first H2 is the real end.
+              }
             }
-            if(daEndIdx===0){
-              // No repeated H1 — find first H1 and use that
-              daEndIdx=(lines.findIndex(l=>l.match(/^#\s+[^#]/)))+1;
+            if(daTextEnd === -1){
+              // Fallback: DA last line not found verbatim — could be a content drift.
+              // Better to bail than guess. hardRestoreDAZone at Step 13 will handle it.
+              appendO6(`⚠ JS daGap fix could not anchor DA end by string match. Skipping fix — Step 13 will rebuild the zone from S.directAnswer.`);
+              logErr(6, `daGap fix skipped: could not match S.directAnswer last line in S.v1`);
+            } else {
+              // Rebuild gap zone: inject canonical placeholders (strip everything else)
+              const newLines=[
+                ...lines.slice(0,daTextEnd),
+                '',
+                'LAST_UPDATED_PLACEHOLDER',
+                '',
+                'TOC_PLACEHOLDER',
+                '',
+                ...lines.slice(firstH2Idx)
+              ];
+              S.v1=newLines.join('\n');
+              showV1(S.v1);
+              appendO6(`✅ JS daGap fix applied — gap zone reset to canonical placeholders (DA anchored by string match at line ${daTextEnd}).`);
             }
-            // Count words in DA to find its end
-            let wordCount=0; let daTextEnd=daEndIdx;
-            for(let i=daEndIdx;i<firstH2Idx;i++){
-              const w=lines[i].trim().split(/\s+/).filter(w=>w.length>2).length;
-              wordCount+=w;
-              if(wordCount>100) break; // DA is done, rest is gap
-              daTextEnd=i+1;
-            }
-            // Rebuild gap zone: inject canonical placeholders (strip everything else)
-            const newLines=[
-              ...lines.slice(0,daTextEnd),
-              '',
-              'LAST_UPDATED_PLACEHOLDER',
-              '',
-              'TOC_PLACEHOLDER',
-              '',
-              ...lines.slice(firstH2Idx)
-            ];
-            S.v1=newLines.join('\n');
-            showV1(S.v1);
-            appendO6(`✅ JS daGap fix applied — gap zone reset to canonical placeholders.`);
           }
         }
 
@@ -3928,6 +4001,7 @@ HARD RULES:
 
     // ── STEP 10: Voice Rewrite ─────────────────────────────────
     if(step<=10){
+      syncDirectAnswer(10); // V2.8: heal DA lock before voice rewrite touches V2
       setStep(10,'active','Voice rewrite...'); setG('Claude rewriting in author voice...',true);
       const p4=getPrompt(S.docs.doc44,4);
       const flagContext=S.parsedFlags&&S.parsedFlags.length>0
@@ -4015,6 +4089,7 @@ HARD RULES:
 
     // ── STEP 12: V2 Integrity Gate ─────────────────────────────
     if(step<=12){
+      syncDirectAnswer(12); // V2.8: heal DA lock before V2 integrity check
       setStep(12,'active','Checking V2...'); setG('Running V2 integrity checks...',true);
       document.getElementById('o12').textContent='';
       document.getElementById('cbox12').style.display='none';
@@ -4080,6 +4155,11 @@ HARD RULES:
 
     // ── STEP 13: Final Assembly ────────────────────────────────
     if(step<=13){
+      syncDirectAnswer(13); // V2.8: heal DA lock — assembly REQUIRES it for hardRestoreDAZone
+      // V2.8: Dedupe placeholders one more time — any duplication introduced by Steps 5/6/9/10
+      // gets cleaned before Claude's final assembly sees the markdown.
+      S.v2 = dedupePlaceholders(S.v2);
+      S.v1 = dedupePlaceholders(S.v1);
       const pd=document.getElementById('publishDate').value;
       if(!pd){ setStep(13,'error','⚠ Set Publish Date','Publish date required.'); document.getElementById('publishDate').focus(); throw new Error('Step 13: Publish date required.'); }
       if(!S.docs.doc43B || S.docs.doc43B.trim().length < 100) { setStep(13,'error','⚠ Missing 4.3B','Client Identity Card (4.3B) is missing or empty. Return to Step 1 and reload documents.'); throw new Error('Step 13: 4.3B Client Identity Card missing — cannot assemble article without client data.'); }
