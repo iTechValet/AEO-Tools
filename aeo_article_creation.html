@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V2.6</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V2.7</p>
   </div>
 </div>
 
@@ -1256,11 +1256,13 @@
       if(i<prompts.length-1) await new Promise(r=>setTimeout(r,1500));
     }
     // V2.5: Final status set when background queue completes
+    // V2.7: Image button state delegated to updateImageUIState() — single source of truth.
     if(failed>0) {
       setStep(7,'error','⚠ Some Failed',`${prompts.length-failed}/${prompts.length} images generated. ${failed} failed — use Regenerate button on failed cards.`);
     } else {
       setStep(7,'done','Done ✓',`All ${prompts.length} images generated successfully.`);
     }
+    updateImageUIState();
     // V2.5: trigger checkUrls in case URLs were already entered while images were generating
     checkUrls();
   }
@@ -1393,18 +1395,15 @@
     try{
       await genOneImage(S.imagePrompts[idx].prompt,S.imagePrompts[idx].alt,idx,gkey);
       S.tokens.imgs++; updateCost();
-      // Re-check all image slots and update download button + step badge
-      // Count total rendered image cards (not S.imagePrompts.length which may differ after dedup)
+      // V2.7: Image button state delegated to updateImageUIState() — single source of truth.
       const totalCards = document.querySelectorAll('.img-card').length || S.imagePrompts.length;
       const failedCount = totalCards - Object.keys(S.imageData).length;
-      const dlAllBtn=document.getElementById('dlAllBtn');
       if(failedCount<=0){
-        if(dlAllBtn){dlAllBtn.disabled=false;dlAllBtn.textContent='↓ All Images';dlAllBtn.style.background='var(--blue)';dlAllBtn.title='';}
         setStep(7,'done','Done ✓',`All ${totalCards} images generated successfully.`);
       } else {
-        if(dlAllBtn){dlAllBtn.disabled=true;dlAllBtn.textContent=`⚠ ${failedCount} Failed`;dlAllBtn.style.background='var(--orange)';}
         setStep(7,'error','⚠ Some Failed',`${totalCards-failedCount}/${totalCards} images generated. ${failedCount} failed — use Regenerate.`);
       }
+      updateImageUIState();
     }
     catch(err){ showImgErr(idx,err.message); if(rb) rb.disabled=false; }
   }
@@ -1486,6 +1485,12 @@
         const fdoc = frame.contentDocument || frame.contentWindow.document;
         fdoc.open(); fdoc.write(S.finalTXT); fdoc.close();
       }
+    }
+    // V2.7 — Self-healing: every tab click syncs Metadata + DA from current state.
+    // Eliminates the "DA tab empty" / "Metadata tab empty" bug where Step 3's primary
+    // render trigger sometimes misfires. If state has data, the tab will always render it.
+    if(tab === 'da' || tab === 'meta') {
+      try { syncPreviewUI(); } catch(e){ /* never throw from a tab click */ }
     }
   }
 
@@ -2545,6 +2550,126 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     return Math.max(0, Math.round(grade * 10) / 10);
   }
 
+  // V2.7 — Shared helper: extract banned words from 4.3B Terminology Lock.
+  // Same parser used by VCI (Step 11) and the new Step 9 banned-term sweep.
+  // DRY — one source of truth for what counts as "banned" in this client's voice.
+  function extractBannedWords(doc43B){
+    if(!doc43B) return [];
+    const termSection = doc43B.match(/TERMINOLOGY LOCK[\s\S]*?(?=SECTION \d+:|________________\s*END|$)/i);
+    const list = [];
+    if(termSection){
+      const termText = termSection[0];
+      const bannedMatches = termText.match(/(?:❌|BANNED|FORBIDDEN|DO NOT USE)[:\s]+([^\n]+)/gi) || [];
+      for(const m of bannedMatches){
+        const words = m
+          .replace(/(?:❌|BANNED|FORBIDDEN|DO NOT USE)[:\s]+/i,'')
+          .split(/[,;]/)
+          .map(w => w.trim().replace(/[*"']/g,''))
+          .filter(w => w.length > 2 && w.length < 30);
+        list.push(...words);
+      }
+    }
+    // Dedupe — same word may appear in multiple ❌/BANNED lines
+    return [...new Set(list)];
+  }
+
+  // V2.7 — Shared helper: detect every occurrence of every banned word in V1 body.
+  // Returns array of {word, sentence, beforeContext} — one entry per occurrence.
+  // Used by Step 9 banned-term sweep to generate synthetic FAILs.
+  function detectBannedTermOccurrences(v1Text, bannedList){
+    if(!v1Text || !bannedList || bannedList.length === 0) return [];
+    // Strip checklist block at top — only scan body prose
+    const firstH2 = v1Text.search(/^##\s/m);
+    const body = firstH2 > 0 ? v1Text.slice(firstH2) : v1Text;
+    const occurrences = [];
+    for(const word of bannedList){
+      if(!word || word.length < 3) continue;
+      const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(`\\b${escaped}\\b`, 'gi');
+      let m;
+      while((m = re.exec(body)) !== null){
+        // Capture the full sentence containing this match for surgical fix context
+        const start = body.lastIndexOf('.', m.index) + 1;
+        const dotAfter = body.indexOf('.', m.index);
+        const exclAfter = body.indexOf('!', m.index);
+        const qAfter = body.indexOf('?', m.index);
+        const ends = [dotAfter, exclAfter, qAfter].filter(i => i > m.index);
+        const end = ends.length > 0 ? Math.min(...ends) + 1 : m.index + 200;
+        const sentence = body.slice(start, end).trim();
+        if(sentence.length > 10) {
+          occurrences.push({
+            word: word,
+            matchedText: m[0], // preserves original casing
+            sentence: sentence,
+            absoluteIndex: m.index + (firstH2 > 0 ? firstH2 : 0)
+          });
+        }
+      }
+    }
+    return occurrences;
+  }
+
+  // V2.7 — Centralized image UI state. Single source of truth for the ↓ All Images button.
+  // Called from background queue completion AND manual regen completion. Replaces the
+  // scattered enable/disable logic that caused the V2.6 "stays disabled after success" bug.
+  function updateImageUIState(){
+    const dlAllBtn = document.getElementById('dlAllBtn');
+    if(!dlAllBtn) return;
+    const totalCards = document.querySelectorAll('.img-card').length || S.imagePrompts.length;
+    if(totalCards === 0){
+      dlAllBtn.disabled = true;
+      dlAllBtn.textContent = '↓ All Images';
+      dlAllBtn.style.background = 'var(--blue)';
+      return;
+    }
+    const generated = Object.keys(S.imageData).length;
+    const failed = totalCards - generated;
+    if(failed === 0){
+      dlAllBtn.disabled = false;
+      dlAllBtn.textContent = '↓ All Images';
+      dlAllBtn.style.background = 'var(--blue)';
+      dlAllBtn.title = '';
+    } else if(generated === 0){
+      dlAllBtn.disabled = true;
+      dlAllBtn.textContent = '↓ All Images';
+      dlAllBtn.style.background = 'var(--blue)';
+    } else {
+      dlAllBtn.disabled = true;
+      dlAllBtn.textContent = `⚠ ${failed} Failed`;
+      dlAllBtn.style.background = 'var(--orange)';
+      dlAllBtn.title = `${generated} of ${totalCards} generated. Regenerate failed cards individually.`;
+    }
+  }
+
+  // V2.7 — Preview UI sync engine. Reads S and populates Metadata + DA tabs from state.
+  // Idempotent — safe to call any time. Called at Step 3 (primary) AND on every tab click
+  // (self-healing fallback). Touches ONLY Metadata and DA. Working tabs (V1/V2/Schema/HTML)
+  // untouched — they have their own dedicated populate paths that already work.
+  function syncPreviewUI(){
+    // ── DA TAB ──────────────────────────────────────
+    if(S.directAnswer && S.directAnswer.length > 50){
+      const daPre = document.getElementById('daPre');
+      const daEmpty = document.getElementById('daEmpty');
+      if(daPre){
+        try {
+          daPre.innerHTML = (typeof marked !== 'undefined')
+            ? marked.parse(S.directAnswer)
+            : S.directAnswer.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+          daPre.style.display = 'block';
+        } catch(e){ /* render guard — never throw */ }
+      }
+      if(daEmpty) daEmpty.style.display = 'none';
+    }
+
+    // ── METADATA TAB ────────────────────────────────
+    // Delegate to existing populateMetaTab() — single source of truth for metadata rendering.
+    // Source: V2 if voice-rewritten and present, otherwise V1 from Step 5.
+    const source = (S.v2 && S.v2.length > 100) ? S.v2 : (S.v1 || '');
+    if(source && source.length > 100 && typeof populateMetaTab === 'function'){
+      try { populateMetaTab(source); } catch(e){ /* render guard */ }
+    }
+  }
+
   // V2.5: VCI now counts violations deterministically in JS (regex-based).
   // No Gemini call for counting — eliminates parse errors permanently.
   // A separate small Gemini call gets a subjective Conviction Score (0-10).
@@ -2609,18 +2734,8 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     const v2WordCount = countWords(v2Body);
 
     // V2.5: Extract client-specific forbidden words from 4.3B Terminology Lock
-    // Pattern: lines like "❌ wordname" or "BANNED: word1, word2"
-    const termSection = S.docs.doc43B.match(/TERMINOLOGY LOCK[\s\S]*?(?=SECTION \d+:|________________\s*END|$)/i);
-    const forbiddenWordsList = [];
-    if(termSection){
-      const termText = termSection[0];
-      // Extract banned words from typical patterns
-      const bannedMatches = termText.match(/(?:❌|BANNED|FORBIDDEN|DO NOT USE)[:\s]+([^\n]+)/gi) || [];
-      for(const m of bannedMatches){
-        const words = m.replace(/(?:❌|BANNED|FORBIDDEN|DO NOT USE)[:\s]+/i,'').split(/[,;]/).map(w=>w.trim().replace(/[*"']/g,'')).filter(w=>w.length>2 && w.length<30);
-        forbiddenWordsList.push(...words);
-      }
-    }
+    // V2.7: Refactored to use shared extractBannedWords() helper (also used by Step 9 sweep)
+    const forbiddenWordsList = extractBannedWords(S.docs.doc43B);
 
     // ─── JS DETERMINISTIC COUNTING (instant, zero cost, 100% reliable) ───
     const bubble = voiceAppendBubble('system', '⏳ Counting violations...');
@@ -3224,13 +3339,10 @@ INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phras
       if(S.v1.length<1000) throw new Error(`Step 3: Skeleton too short (${S.v1.length} chars) — retry.`);
       // Lock the DA immediately after Step 3 — this is the canonical, sacred DA
       S.directAnswer = extractLockedDA(S.v1);
-      // Populate DA tab immediately — S.directAnswer is now locked and correct
-      if(S.directAnswer && S.directAnswer.length > 50){
-        document.getElementById('daEmpty').style.display='none';
-        const daPre=document.getElementById('daPre');
-        daPre.style.display='block';
-        daPre.innerHTML=typeof marked!=='undefined'?marked.parse(S.directAnswer):S.directAnswer.replace(/&/g,'&amp;').replace(/</g,'&lt;');
-      }
+      // V2.7: Centralized preview sync — populates DA + Metadata from current state.
+      // syncPreviewUI is idempotent and safe; it inherits the same render logic as the
+      // self-healing fallback in switchTab(). Single source of truth for tab population.
+      try { syncPreviewUI(); } catch(e){ /* render guard */ }
       setStep(3,"done","Done ✓"); showV1(S.v1, false); saveSession(3);
       step=4;
     }
@@ -3581,6 +3693,57 @@ HARD RULES:
 
     // ── STEP 9: Apply Gemini Fixes ─────────────────────────────
     if(step<=9){
+      // V2.7: Banned-term JS sweep — runs ONCE at the start of the Step 9 entry chain.
+      // Every banned-term occurrence in V1 body becomes a synthetic FAIL appended to
+      // Gemini's parsed FAILs. Eliminates the "loop forever on the same banned term" bug
+      // where Gemini issued ONE FAIL with ONE Find quote, Claude fixed that one spot,
+      // and 8 other instances of the same banned term sat untouched.
+      // Only runs on the first attempt — subsequent retries inherit the synthetic FAILs.
+      if(step8RetryCount === 0){
+        try {
+          const bannedList = extractBannedWords(S.docs.doc43B);
+          if(bannedList.length > 0 && S.v1){
+            const occurrences = detectBannedTermOccurrences(S.v1, bannedList);
+            if(occurrences.length > 0){
+              // Avoid duplicating FAILs Gemini already issued — match by sentence overlap
+              const existingFinds = (S.parsedFails || [])
+                .map(f => (f.find || '').toLowerCase().trim())
+                .filter(f => f.length > 0);
+              const isAlreadyCovered = (sentence) => {
+                const s = sentence.toLowerCase().trim();
+                return existingFinds.some(ex => ex.includes(s.slice(0, 60)) || s.includes(ex.slice(0, 60)));
+              };
+              const synthetic = [];
+              const seenSentences = new Set();
+              for(const occ of occurrences){
+                const key = occ.sentence.slice(0, 80).toLowerCase();
+                if(seenSentences.has(key)) continue;
+                if(isAlreadyCovered(occ.sentence)) continue;
+                seenSentences.add(key);
+                synthetic.push({
+                  id: `JS_BANNED_${synthetic.length + 1}`,
+                  type: 'WRONG',
+                  severity: 'CRITICAL',
+                  priority: 1,
+                  section: 'BODY',
+                  desc: `Article uses banned term "${occ.matchedText}" — must be rewritten per 4.3B Terminology Lock. The replacement is contextual: rewrite the sentence to remove the banned term while preserving meaning. Do NOT do a 1:1 word swap.`,
+                  find: occ.sentence,
+                  replace: '',
+                  scope: 'FIRST_INSTANCE'
+                });
+              }
+              if(synthetic.length > 0){
+                S.parsedFails = [...(S.parsedFails || []), ...synthetic];
+                document.getElementById('o9').textContent =
+                  `🔍 JS BANNED-TERM SWEEP\nFound ${occurrences.length} banned-term occurrence(s) across ${bannedList.length} banned word(s).\nAdded ${synthetic.length} synthetic FAIL(s) to Gemini's parsed FAILs.\n\n`;
+              }
+            }
+          }
+        } catch(e){
+          logErr(9, `JS banned-term sweep failed: ${e.message}`);
+        }
+      }
+
       const hasFails=S.validation.includes('FAIL_START')||S.parsedFails.length>0;
       if(!hasFails){
         setStep(9,'done','Skipped — No FAILs','Gemini validation passed.');
@@ -3656,6 +3819,16 @@ HARD RULES:
           });
           step8RetryCount++;
           if(S.parsedFails.length>0&&step8RetryCount<=2){
+            // V2.7: Snapshot this attempt's full output into history before retry overwrites it.
+            // Operator can scroll through attempts 1, 2, 3 in the human checkpoint card.
+            try {
+              S.step9Attempts = S.step9Attempts || [];
+              S.step9Attempts.push({
+                attempt: step8RetryCount,
+                remainingFails: S.parsedFails.length,
+                output: document.getElementById('o9').textContent
+              });
+            } catch(e){ /* never block retry on logging */ }
             setG(`FAILs remain — auto-retry ${step8RetryCount}/2...`,true);
             try{ await runFrom(9,sys,akey,gkey,dkey); } catch(e){ handleErr(e); }
             return;
@@ -3667,10 +3840,39 @@ HARD RULES:
         }
         setStep(9,'done','Done ✓');
         if(S.parsedFails.length>0){
-          const verifyLines=S.parsedFails.map(f=>`<div style="padding:2px 0;">❌ ${f.id}: ${f.desc}</div>`).join('');
-          await waitCp9(verifyLines);
+          // V2.7: Snapshot final attempt before checkpoint so full history is visible.
+          try {
+            S.step9Attempts = S.step9Attempts || [];
+            S.step9Attempts.push({
+              attempt: step8RetryCount + 1,
+              remainingFails: S.parsedFails.length,
+              output: document.getElementById('o9').textContent
+            });
+          } catch(e){ /* never block checkpoint on logging */ }
+          // Build verify HTML with attempt history toggle for operator visibility.
+          const verifyLines = S.parsedFails.map(f =>
+            `<div style="padding:2px 0;">❌ ${f.id}: ${f.desc}</div>`
+          ).join('');
+          let historyHTML = '';
+          if(S.step9Attempts && S.step9Attempts.length > 0){
+            const items = S.step9Attempts.map(a => {
+              const escaped = (a.output || '')
+                .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+              return `<details style="margin:6px 0;border:1px solid #e0e0e0;border-radius:6px;padding:8px 10px;background:#f9f9f9;">
+                <summary style="cursor:pointer;font-weight:600;font-size:12px;color:#063a6c;">Attempt ${a.attempt} — ${a.remainingFails} FAIL(s) remained</summary>
+                <pre style="margin:8px 0 0 0;font-size:11px;white-space:pre-wrap;color:#333;max-height:400px;overflow-y:auto;">${escaped}</pre>
+              </details>`;
+            }).join('');
+            historyHTML = `<div style="margin-top:14px;border-top:1px solid #e0e0e0;padding-top:10px;">
+              <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#2494e0;font-weight:600;margin-bottom:6px;">Attempt History (${S.step9Attempts.length})</div>
+              ${items}
+            </div>`;
+          }
+          await waitCp9(verifyLines + historyHTML);
           setStep(9,'done','Done ✓ — Accepted');
         }
+        // V2.7: Clear attempt history when Step 9 closes successfully.
+        S.step9Attempts = [];
         step8RetryCount=0; step=10;
       }
     }
@@ -3876,6 +4078,35 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
 
       // ── PASS 3: GITHUB.IO LINK FIX — research brief data can contaminate with github.io URLs
       S.finalTXT = S.finalTXT.replace(/https?:\/\/itechvalet\.github\.io[^"')\s]*/gi, 'https://itechvalet.com');
+
+      // ── PASS 3B: RELATIVE → ABSOLUTE URL NORMALIZATION (V2.7)
+      // Converts <a href="/slug"> and <img src="/slug"> to absolute URLs using the client's
+      // canonical domain. Without this, sibling article links resolve against the host page
+      // (itechvalet.github.io when previewing on GitHub Pages) instead of itechvalet.com,
+      // which breaks AEO citation hygiene, RSS syndication, and schema.org best practice.
+      // - Negative lookahead (?!\/) skips protocol-relative URLs like //cdn.example.com
+      // - Hashes and query strings preserved (captured in [^"']+)
+      // - Single and double quotes handled
+      // - Mailto, tel, javascript:, data:, http(s):, ftp: URLs untouched (don't start with /)
+      // - ToC anchors (#section) untouched (don't start with /)
+      try {
+        const clientDomain = getClientDomain();
+        if(clientDomain && !clientDomain.includes('github.io')){
+          const absoluteBase = `https://${clientDomain}`;
+          const before = (S.finalTXT.match(/(?:href|src)=["']\/(?!\/)/gi) || []).length;
+          S.finalTXT = S.finalTXT.replace(
+            /(href|src)=(["'])\/(?!\/)([^"']*)\2/gi,
+            (match, attr, quote, path) => `${attr}=${quote}${absoluteBase}/${path}${quote}`
+          );
+          const after = (S.finalTXT.match(/(?:href|src)=["']\/(?!\/)/gi) || []).length;
+          const fixed = before - after;
+          if(fixed > 0){
+            document.getElementById('o13').textContent += `\n\n✅ Pass 3B: ${fixed} relative URL(s) normalized to absolute (${absoluteBase}/...)`;
+          }
+        }
+      } catch(e){
+        logErr(13, `Pass 3B URL normalization failed: ${e.message}`);
+      }
 
       // ── PASS 4: STYLESHEET INJECTION — JS builds canonical <style> from 4.3B Section 11
       // Claude never writes CSS. This eliminates all font/color/spacing variation between runs.
@@ -4526,6 +4757,7 @@ ${listItems}
     S.imagePrompts=[]; S.imageData={}; S.imageUrls={};
     S.parsedFails=[]; S.protectedSentences=[]; S.html1TXT='';
     S.geminiResearch=''; S.sheetRow=''; S.sheetRowCols={}; S.v1=''; S.v2='';
+    S.step9Attempts=[]; // V2.7: clear retry history on fresh run
     S.finalTXT=''; S.finalSchema=''; S.checklistHTML=''; S.directAnswer='';
     imagesValidated=false; checkpointDone=false; step8RetryCount=0;
     const vciEl = document.getElementById('vciDisplay');
