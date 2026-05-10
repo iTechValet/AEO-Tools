@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V2.8</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V3.0</p>
   </div>
 </div>
 
@@ -502,11 +502,11 @@
       <div class="step-body" id="sb8"><div class="sout-wrap"><div class="sout" id="o8"></div><button class="btn-copy-step" id="copy-btn-8" onclick="copyStepOutput(8)">Copy</button></div><div id="r8" style="display:none;"><button class="btn-retry" onclick="retryFrom(8)">↻ Retry from Step 8</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="retryFrom(9);">Continue Anyway →</button></div></div>
     </div>
 
-    <!-- STEP 9: Apply Gemini Fixes -->
+    <!-- STEP 9: Apply Gemini Fixes (V3.0 — structural coordinates) -->
     <div class="step-card" id="step9">
       <div class="step-header" onclick="toggleStep(9)">
         <div class="step-num">9</div>
-        <div class="step-info"><div class="step-title">Claude — Apply Gemini Fixes</div><div class="step-desc">FAILs shown → Claude diffs → Gemini re-validates → 2 auto-retries → human fallback</div></div>
+        <div class="step-info"><div class="step-title">Claude — Apply Gemini Fixes</div><div class="step-desc">Structural coordinates (target / replacement_html) — JS swaps deterministically — 2 auto-retries → human fallback</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b9">Waiting</div><span class="schev closed" id="c9">▼</span></div>
       </div>
       <div class="step-body" id="sb9">
@@ -523,79 +523,110 @@
       </div>
     </div>
 
-    <!-- STEP 10: Voice Rewrite -->
+    <!-- STEP 10: Pre-Lock JS Audit (V3.0 NEW — deterministic verification before frame lock) -->
     <div class="step-card" id="step10">
       <div class="step-header" onclick="toggleStep(10)">
         <div class="step-num">10</div>
-        <div class="step-info"><div class="step-title">Claude — Voice Rewrite → V2</div><div class="step-desc">Blank-page prose rewrite in author voice. Protected: Direct Answer, tables, links, image prompts.</div></div>
+        <div class="step-info"><div class="step-title">Pre-Lock JS Audit</div><div class="step-desc">Deterministic verification before frame lock — schema, links, headings, FAQ parity, banned terms — JS only, zero tokens</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b10">Waiting</div><span class="schev closed" id="c10">▼</span></div>
       </div>
-      <div class="step-body" id="sb10"><div class="sout-wrap"><div class="sout" id="o10"></div><button class="btn-copy-step" id="copy-btn-10" onclick="copyStepOutput(10)">Copy</button></div><div id="r10" style="display:none;"><button class="btn-retry" onclick="retryFrom(10)">↻ Retry from Step 10</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="retryFrom(11);">Continue Anyway →</button></div></div>
+      <div class="step-body" id="sb10">
+        <div class="sout-wrap"><div class="sout" id="o10" style="white-space:pre-wrap;"></div><button class="btn-copy-step" id="copy-btn-10" onclick="copyStepOutput(10)">Copy</button></div>
+        <div id="r10" style="display:none;"><button class="btn-retry" onclick="retryFrom(9)">↻ Retry from Step 9</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="retryFrom(11);">Continue Anyway →</button></div>
+      </div>
     </div>
 
-    <!-- STEP 11: Voice Audit Chat -->
+    <!-- STEP 11: Frame Lock (V3.0 NEW — snapshot capture, structural elements frozen) -->
     <div class="step-card" id="step11">
       <div class="step-header" onclick="toggleStep(11)">
         <div class="step-num">11</div>
-        <div class="step-info"><div class="step-title">Voice Compliance Index (VCI)</div><div class="step-desc">Gemini forensic audit — counts violations, returns normalized score (0–100) — pipeline always continues</div></div>
+        <div class="step-info"><div class="step-title">🔒 Frame Lock</div><div class="step-desc">JS snapshots every structural element — DA, headings, links, tables, FAQ — Steps 12-14 cannot modify locked elements</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b11">Waiting</div><span class="schev closed" id="c11">▼</span></div>
       </div>
       <div class="step-body" id="sb11">
-        <div id="voiceChatThread" style="display:none;margin-bottom:10px;flex-direction:column;gap:8px;padding:4px 0;"></div>
-        <button class="btn-copy-step" onclick="copyVCI()" style="display:none;" id="vciCopyBtn">Copy</button>
+        <div class="sout-wrap"><div class="sout" id="o11" style="white-space:pre-wrap;"></div><button class="btn-copy-step" id="copy-btn-11" onclick="copyStepOutput(11)">Copy</button></div>
+        <div id="r11" style="display:none;"><button class="btn-retry" onclick="retryFrom(10)">↻ Retry from Step 10</button></div>
       </div>
     </div>
 
-    <!-- STEP 12: V2 Integrity Gate -->
+    <!-- STEP 12: Voice Rewrite (frame snapshot enforced) -->
     <div class="step-card" id="step12">
       <div class="step-header" onclick="toggleStep(12)">
         <div class="step-num">12</div>
-        <div class="step-info"><div class="step-title">⚠ V2 Integrity Gate</div><div class="step-desc">JS checks V2 — restores from V1 where possible — Claude diffs — 3 strikes → hard stop</div></div>
+        <div class="step-info"><div class="step-title">Claude — Voice Rewrite → V2</div><div class="step-desc">Blank-page prose rewrite in author voice — JS snapshot enforces structural integrity after</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b12">Waiting</div><span class="schev closed" id="c12">▼</span></div>
       </div>
-      <div class="step-body" id="sb12">
-        <div class="sout-wrap"><div class="sout" id="o12" style="white-space:pre-wrap;"></div><button class="btn-copy-step" id="copy-btn-12" onclick="copyStepOutput(12)">Copy</button></div>
-        <div id="r12" style="display:none;"><button class="btn-retry" onclick="retryFrom(12)">↻ Retry Step 12</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="document.getElementById('r12').style.display='none';gate12Decision('continue');">Continue Anyway →</button></div>
-        <div class="cbox" id="cbox12" style="display:none;">
-          <div class="ctitle">⚠ V2 Integrity Gate — 3 Fix Attempts Failed</div>
-          <div id="gateResults12" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
-          <p style="font-size:11px;color:#888;margin-bottom:7px;">Could not resolve all V2 issues. Rewrite or continue anyway.</p>
+      <div class="step-body" id="sb12"><div class="sout-wrap"><div class="sout" id="o12"></div><button class="btn-copy-step" id="copy-btn-12" onclick="copyStepOutput(12)">Copy</button></div><div id="r12" style="display:none;"><button class="btn-retry" onclick="retryFrom(12)">↻ Retry from Step 12</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="retryFrom(13);">Continue Anyway →</button></div></div>
+    </div>
+
+    <!-- STEP 13: VCI -->
+    <div class="step-card" id="step13">
+      <div class="step-header" onclick="toggleStep(13)">
+        <div class="step-num">13</div>
+        <div class="step-info"><div class="step-title">Voice Compliance Index (VCI)</div><div class="step-desc">JS regex counts violations, returns normalized score (0–100) — pipeline always continues</div></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b13">Waiting</div><span class="schev closed" id="c13">▼</span></div>
+      </div>
+      <div class="step-body" id="sb13">
+        <div class="sout-wrap" style="position:relative;">
+          <div id="voiceChatThread" style="display:none;margin-bottom:10px;flex-direction:column;gap:8px;padding:4px 0;"></div>
+          <button class="btn-copy-step" onclick="copyVCI()" style="display:none;" id="vciCopyBtn">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 14: Snapshot Diff Gate (V3.0 — replaces V2 Integrity Gate) -->
+    <div class="step-card" id="step14">
+      <div class="step-header" onclick="toggleStep(14)">
+        <div class="step-num">14</div>
+        <div class="step-info"><div class="step-title">🔍 Snapshot Diff Gate</div><div class="step-desc">JS verifies V2 against frame snapshot — block elements silently restored from snapshot — links retried if dropped</div></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b14">Waiting</div><span class="schev closed" id="c14">▼</span></div>
+      </div>
+      <div class="step-body" id="sb14">
+        <div class="sout-wrap"><div class="sout" id="o14" style="white-space:pre-wrap;"></div><button class="btn-copy-step" id="copy-btn-14" onclick="copyStepOutput(14)">Copy</button></div>
+        <div id="r14" style="display:none;"><button class="btn-retry" onclick="retryFrom(12)">↻ Rewrite Voice (Step 12)</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="document.getElementById('r14').style.display='none';gate12Decision('continue');">Continue Anyway →</button></div>
+        <div class="cbox" id="cbox14" style="display:none;">
+          <div class="ctitle">⚠ Snapshot Diff — Frame Integrity Compromised</div>
+          <div id="gateResults14" style="margin-bottom:10px;font-size:12px;line-height:1.8;font-family:monospace;"></div>
+          <p style="font-size:11px;color:#888;margin-bottom:7px;">Voice rewrite damaged structural elements that JS could not auto-restore. Rewrite or continue anyway.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn-retry" id="gate12Rewrite" style="margin-top:0;background:var(--orange);" onclick="gate12Decision('rewrite')">↻ Rewrite Voice (Step 10)</button>
-            <button class="btn-proceed" id="gate12Continue" style="margin-top:0;" onclick="gate12Decision('continue')">Continue Anyway →</button>
+            <button class="btn-retry" id="gate14Rewrite" style="margin-top:0;background:var(--orange);" onclick="gate12Decision('rewrite')">↻ Rewrite Voice (Step 12)</button>
+            <button class="btn-proceed" id="gate14Continue" style="margin-top:0;" onclick="gate12Decision('continue')">Continue Anyway →</button>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="step-card" id="step13">
-      <div class="step-header" onclick="toggleStep(13)">
-        <div class="step-num">13</div>
-        <div class="step-info"><div class="step-title">Claude Final Assembly</div><div class="step-desc">Schema + HTML — JS enforces structure, classes, wrapper, Last Updated, and ToC post-assembly</div></div>
-        <div class="step-right"><div class="sbadge b-waiting" id="b13">Waiting</div><span class="schev closed" id="c13">▼</span></div>
-      </div>
-      <div class="step-body" id="sb13"><div class="sout-wrap"><div class="sout" id="o13"></div><button class="btn-copy-step" id="copy-btn-13" onclick="copyStepOutput(13)">Copy</button></div><div id="r13" style="display:none;"><button class="btn-retry" onclick="retryFrom(13)">↻ Retry from Step 13</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="retryFrom(14);">Continue Anyway →</button></div></div>
-    </div>
-
-    <div class="step-card" id="step14">
-      <div class="step-header" onclick="toggleStep(14)">
-        <div class="step-num">14</div>
-        <div class="step-info"><div class="step-title">Structured QC Audit</div><div class="step-desc">Auto-runs checklist against HTML + schema — applies fixes, shows PASS/FAIL card</div></div>
-        <div class="step-right"><div class="sbadge b-waiting" id="b14">Waiting</div><span class="schev closed" id="c14">▼</span></div>
-      </div>
-      <div class="step-body" id="sb14">
-        <div class="sout-wrap"><div class="sout" id="o14" style="white-space:pre-wrap;"></div><button class="btn-copy-step" id="copy-btn-14" onclick="copyStepOutput(14)">Copy</button></div>
-        <div id="r14" style="display:none;margin-top:8px;"><button class="btn-retry" onclick="retryFrom(13)">↻ Retry from Step 13</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="retryFrom(15);">Continue Anyway →</button></div>
-      </div>
-    </div>
-
+    <!-- STEP 15: Final Assembly -->
     <div class="step-card" id="step15">
       <div class="step-header" onclick="toggleStep(15)">
         <div class="step-num">15</div>
-        <div class="step-info"><div class="step-title">HTML Review &amp; Chat Fixes</div><div class="step-desc">Claude audits HTML — then chat to fix anything you see in the preview — hit Finalize when done</div></div>
+        <div class="step-info"><div class="step-title">Claude Final Assembly</div><div class="step-desc">Schema + HTML — JS enforces structure, classes, wrapper, Last Updated, ToC post-assembly</div></div>
         <div class="step-right"><div class="sbadge b-waiting" id="b15">Waiting</div><span class="schev closed" id="c15">▼</span></div>
       </div>
-      <div class="step-body" id="sb15">
+      <div class="step-body" id="sb15"><div class="sout-wrap"><div class="sout" id="o15"></div><button class="btn-copy-step" id="copy-btn-15" onclick="copyStepOutput(15)">Copy</button></div><div id="r15" style="display:none;"><button class="btn-retry" onclick="retryFrom(15)">↻ Retry from Step 15</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="retryFrom(16);">Continue Anyway →</button></div></div>
+    </div>
+
+    <!-- STEP 16: Structured QC Audit -->
+    <div class="step-card" id="step16">
+      <div class="step-header" onclick="toggleStep(16)">
+        <div class="step-num">16</div>
+        <div class="step-info"><div class="step-title">Structured QC Audit</div><div class="step-desc">Auto-runs checklist against HTML + schema — applies fixes, shows PASS/FAIL card</div></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b16">Waiting</div><span class="schev closed" id="c16">▼</span></div>
+      </div>
+      <div class="step-body" id="sb16">
+        <div class="sout-wrap"><div class="sout" id="o16" style="white-space:pre-wrap;"></div><button class="btn-copy-step" id="copy-btn-16" onclick="copyStepOutput(16)">Copy</button></div>
+        <div id="r16" style="display:none;margin-top:8px;"><button class="btn-retry" onclick="retryFrom(15)">↻ Retry from Step 15</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="retryFrom(17);">Continue Anyway →</button></div>
+      </div>
+    </div>
+
+    <!-- STEP 17: HTML Review & Finalize -->
+    <div class="step-card" id="step17">
+      <div class="step-header" onclick="toggleStep(17)">
+        <div class="step-num">17</div>
+        <div class="step-info"><div class="step-title">HTML Review &amp; Finalize</div><div class="step-desc">Claude audits HTML — then chat to fix anything in the preview — hit Finalize when done</div></div>
+        <div class="step-right"><div class="sbadge b-waiting" id="b17">Waiting</div><span class="schev closed" id="c17">▼</span></div>
+      </div>
+      <div class="step-body" id="sb17">
         <!-- CHAT THREAD -->
         <div id="qcChatThread" style="display:none;margin-bottom:10px;max-height:380px;overflow-y:auto;flex-direction:column;gap:8px;padding:4px 0;"></div>
         <!-- CHAT INPUT -->
@@ -607,17 +638,8 @@
             <button class="btn-proceed" id="qcFinalizeBtn" onclick="finalizeQC()" style="margin-left:auto;background:var(--green);">✓ Finalize — Done</button>
           </div>
         </div>
-        <div id="r15" style="display:none;margin-top:8px;"><button class="btn-retry" onclick="retryFrom(13)">↻ Retry from Step 13</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="retryFrom(15);">Continue Anyway →</button></div>
+        <div id="r17" style="display:none;margin-top:8px;"><button class="btn-retry" onclick="retryFrom(15)">↻ Retry from Step 15</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="retryFrom(17);">Continue Anyway →</button></div>
       </div>
-    </div>
-
-    <div class="step-card" id="step16">
-      <div class="step-header" onclick="toggleStep(16)">
-        <div class="step-num">16</div>
-        <div class="step-info"><div class="step-title">Complete</div><div class="step-desc">Article ready — use download buttons above</div></div>
-        <div class="step-right"><div class="sbadge b-waiting" id="b16">Waiting</div><span class="schev closed" id="c16">▼</span></div>
-      </div>
-      <div class="step-body" id="sb16"><div class="sout-wrap"><div class="sout" id="o16"></div><button class="btn-copy-step" id="copy-btn-16" onclick="copyStepOutput(16)">Copy</button></div></div>
     </div>
 
   </div>
@@ -637,14 +659,14 @@
         <div style="padding:16px;text-align:center;color:#ccc;font-size:11px;">Images appear here after Step 5</div>
       </div>
       <div class="pub-row">
-        <label style="color:var(--orange);font-weight:600;">Publish Date <span style="font-size:10px;opacity:0.8;">(required before Step 13)</span></label>
+        <label style="color:var(--orange);font-weight:600;">Publish Date <span style="font-size:10px;opacity:0.8;">(required before Step 15)</span></label>
         <input type="date" id="publishDate" style="border:2px solid var(--orange);border-radius:6px;padding:6px 10px;font-family:'Lexend',sans-serif;font-size:13px;color:var(--blue);outline:none;background:#fff8f4;" />
       </div>
       <div class="assemble-row">
         <button class="btn-assemble" id="assembleBtn" onclick="validateImages()" disabled>Validate Images</button>
         <button class="btn-assemble" id="dlAllBtn" onclick="downloadAllImages()" disabled style="background:var(--blue);margin-left:6px;">↓ All Images</button>
         <div class="assemble-hint" id="assembleHint">Enter all WP URLs above to unlock</div>
-        <button class="btn-assemble" id="unlockStep13Btn" onclick="unlockStep13()" style="display:none;background:#4caf50;margin-left:6px;font-size:11px;">🔓 Unlock Step 13</button>
+        <button class="btn-assemble" id="unlockStep13Btn" onclick="unlockStep13()" style="display:none;background:#4caf50;margin-left:6px;font-size:11px;">🔓 Unlock Step 15</button>
       </div>
     </div>
 
@@ -756,7 +778,7 @@
       S.parsedFails=[]; S.parsedFlags=[]; S.protectedSentences=[];
       S.imagePrompts=[]; S.imageData={}; S.imageUrls={};
       localStorage.removeItem(SESSION_KEY);
-      for(let i=1;i<=16;i++) setStep(i,'waiting','Waiting');
+      for(let i=1;i<=17;i++) setStep(i,'waiting','Waiting');
       setG('Client changed — session cleared. Ready for new run.');
     }
   }
@@ -797,11 +819,11 @@
     const parts = [];
     const sout = document.getElementById(`o${n}`);
     if(sout && sout.textContent.trim()) parts.push(sout.textContent.trim());
-    // Gate results (step 6 = V1 gate, step 12 = V2 gate)
+    // Gate results (step 6 = V1 gate, step 14 = Snapshot Diff Gate)
     const gr6 = document.getElementById('gateResults6');
     if(gr6 && body.contains(gr6) && gr6.innerText.trim()) parts.push(gr6.innerText.trim());
-    const gr12 = document.getElementById('gateResults12');
-    if(gr12 && body.contains(gr12) && gr12.innerText.trim()) parts.push(gr12.innerText.trim());
+    const gr14 = document.getElementById('gateResults14');
+    if(gr14 && body.contains(gr14) && gr14.innerText.trim()) parts.push(gr14.innerText.trim());
     // Fix verify (step 9)
     const fv = document.getElementById('fixVerify9');
     if(fv && body.contains(fv) && fv.innerText.trim()) parts.push(fv.innerText.trim());
@@ -2061,15 +2083,16 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
   }
 
   function unlockStep13() {
+    // Name kept for backward compatibility with right-panel HTML — actually unlocks Step 15 (Final Assembly) in V3.0
     imagesValidated = true;
     checkpointDone = true;
     const btn = document.getElementById('assembleBtn');
     if(btn){ btn.textContent='Images Ready ✓'; btn.classList.add('ready'); btn.disabled=true; btn.onclick=null; }
     document.getElementById('assembleHint').textContent='Unlocked — assembling now...';
     document.getElementById('unlockStep13Btn').style.display='none';
-    saveSession(S._lastCompletedStep||12);
+    saveSession(S._lastCompletedStep||14);
     tryTriggerAssemble();
-    setG('✓ Step 13 unlocked manually.');
+    setG('✓ Step 15 (Assembly) unlocked manually.');
   }
 
   function waitAssemble() { return new Promise(res=>{asmResolve=res; tryTriggerAssemble();}); }
@@ -2194,10 +2217,10 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
 
   // ─── STEP 14: STRUCTURED QC AUDIT ────────────────────────
   async function runStructuredQC(akey, publishDate) {
-    setStep(14,'active','Auditing...'); setG('Running structured QC audit...',true);
-    document.getElementById('sb14').classList.add('open');
-    document.getElementById('c14').classList.remove('closed');
-    const o14 = document.getElementById('o14');
+    setStep(16,'active','Auditing...'); setG('Running structured QC audit...',true);
+    document.getElementById('sb16').classList.add('open');
+    document.getElementById('c16').classList.remove('closed');
+    const o14 = document.getElementById('o16');
     o14.textContent = 'Running JS pre-checks...\n';
 
     const pd = publishDate || document.getElementById('publishDate').value || '';
@@ -2300,7 +2323,7 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     // Compares FAQPage schema answers against the article's FAQ section answers.
     // Detects factual contradictions (different numbers, different facts) — not stylistic
     // differences (schema is condensed, body is expanded — that's expected).
-    // Tier: JS pre-check warning. Logged for Step 15 review, never blocks pipeline.
+    // Tier: JS pre-check warning. Logged for Step 17 review, never blocks pipeline.
     try {
       const faqResult = checkFAQParity(S.finalTXT, S.finalSchema);
       if(faqResult.skipped){
@@ -2330,10 +2353,10 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
         o14.textContent = jsResults.join('\n') + '\n\n' + p;
       }, {maxTokens:16000});
     } catch(e) {
-      setStep(14,'error','Failed');
-      document.getElementById('r14').style.display='block';
+      setStep(16,'error','Failed');
+      document.getElementById('r16').style.display='block';
       o14.textContent += `\n\n⚠ Audit error: ${e.message}`;
-      throw new Error(`Step 14: Structured QC failed — ${e.message}`);
+      throw new Error(`Step 16: Structured QC failed — ${e.message}`);
     }
 
     // Parse CHECK/STATUS lines for summary card
@@ -2353,16 +2376,16 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     }
 
     // Build summary
-    const summary = `\n\n--- QC SUMMARY ---\n✅ Claude passed: ${claudePasses}  ❌ Claude failed: ${claudeFails}\n${jsFailCount > 0 ? `⚠ JS pre-check failures: ${jsFailCount} — review above\n` : ''}${fixesApplied>0?`Applied ${fixesApplied} fix(es).${fixesFailed>0?` Failed: ${fixesFailed} — review in Step 15.`:''}`:totalFails===0?'No fixes needed.':''}`;
+    const summary = `\n\n--- QC SUMMARY ---\n✅ Claude passed: ${claudePasses}  ❌ Claude failed: ${claudeFails}\n${jsFailCount > 0 ? `⚠ JS pre-check failures: ${jsFailCount} — review above\n` : ''}${fixesApplied>0?`Applied ${fixesApplied} fix(es).${fixesFailed>0?` Failed: ${fixesFailed} — review in Step 17.`:''}`:totalFails===0?'No fixes needed.':''}`;
     o14.textContent = jsResults.join('\n') + '\n\n' + auditResult + summary;
 
     if(totalFails > 0 && fixesFailed > 0) {
-      setStep(14,'done','Done ✓ (review Step 15)');
+      setStep(16,'done','Done ✓ (review Step 17)');
     } else {
-      setStep(14,'done','Done ✓');
+      setStep(16,'done','Done ✓');
     }
     showHTMLFinal(S.finalTXT);
-    setG('✓ Structured QC complete — review Step 15 for any remaining issues.');
+    setG('✓ Structured QC complete — review Step 17 for any remaining issues.');
   }
 
   // ─── STEP 15: CHAT-BASED HTML QC ─────────────────────────
@@ -2399,9 +2422,9 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     thread.style.display = 'flex';
     thread.innerHTML = '';
     document.getElementById('qcChatInput').style.display = 'block';
-    document.getElementById('sb15').classList.add('open');
-    document.getElementById('c15').classList.remove('closed');
-    setStep(15, 'checkpoint', 'Your Turn');
+    document.getElementById('sb17').classList.add('open');
+    document.getElementById('c17').classList.remove('closed');
+    setStep(17, 'checkpoint', 'Your Turn');
     switchTab('htmlFinal',true);
 
     // Build system prompt
@@ -2418,7 +2441,7 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     setG('Claude auditing HTML...', true);
     qcAppendBubble('system', '⏳ Running initial HTML audit...');
 
-    const auditPrompt = `${p6}${pubDateLine}\n\nReview this HTML for violations. Check ONLY these 4 items — nothing else:\n1. Any link (<a href>) INSIDE the div with class="direct-answer" — links inside that div are a hard violation\n2. Any CTA button element (<button>) anywhere in the article\n3. Any background-color style on the div with class="article-cta"\n4. Any unconverted markdown tables (pipe-separated text not inside <table> tags)\n\nDO NOT flag anything else. Specifically DO NOT flag:\n- Last Updated element or date — JS-injected and verified\n- Table of Contents — JS-built and verified\n- Schema, dates, author name, business name — all verified at Step 14\n- Any HTML classes, structure, or wrapper divs — JS-enforced\n- Anything not in the 4 items above — if you flag it, it will be ignored\n\nReport only real violations from the 4 items above with evidence. Then output DIFF blocks for each real fix. If clean, output: QC COMPLETE — NO CHANGES NEEDED\n\nHTML:\n${S.finalTXT}`;
+    const auditPrompt = `${p6}${pubDateLine}\n\nReview this HTML for violations. Check ONLY these 4 items — nothing else:\n1. Any link (<a href>) INSIDE the div with class="direct-answer" — links inside that div are a hard violation\n2. Any CTA button element (<button>) anywhere in the article\n3. Any background-color style on the div with class="article-cta"\n4. Any unconverted markdown tables (pipe-separated text not inside <table> tags)\n\nDO NOT flag anything else. Specifically DO NOT flag:\n- Last Updated element or date — JS-injected and verified\n- Table of Contents — JS-built and verified\n- Schema, dates, author name, business name — all verified at Step 16\n- Any HTML classes, structure, or wrapper divs — JS-enforced\n- Anything not in the 4 items above — if you flag it, it will be ignored\n\nReport only real violations from the 4 items above with evidence. Then output DIFF blocks for each real fix. If clean, output: QC COMPLETE — NO CHANGES NEEDED\n\nHTML:\n${S.finalTXT}`;
 
     const auditMsg = { role: 'user', content: auditPrompt };
     qc14History.push(auditMsg);
@@ -2433,8 +2456,8 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
       });
     } catch(e) {
       qcAppendBubble('system', `⚠ Audit error: ${e.message}`);
-      setStep(15, 'error', 'Failed');
-      document.getElementById('r15').style.display = 'block';
+      setStep(17, 'error', 'Failed');
+      document.getElementById('r17').style.display = 'block';
       return;
     }
 
@@ -2535,9 +2558,9 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
   }
 
   function finalizeQC() {
-    saveSession(15);
-    setStep(15, 'done', 'Done ✓');
-    setG('✓ HTML finalized.');
+    saveSession(17);
+    setStep(17, 'done', 'Done ✓ — Article complete');
+    setG('✓ HTML finalized — article complete.');
     if (qc14Resolve) { qc14Resolve(); qc14Resolve = null; }
   }
 
@@ -2776,9 +2799,9 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     const thread = document.getElementById('voiceChatThread');
     thread.style.display = 'flex';
     thread.innerHTML = '';
-    document.getElementById('sb11').classList.add('open');
-    document.getElementById('c11').classList.remove('closed');
-    setStep(11, 'active', 'Counting violations...');
+    document.getElementById('sb13').classList.add('open');
+    document.getElementById('c13').classList.remove('closed');
+    setStep(13, 'active', 'Counting violations...');
     setG('Running Voice Compliance Index audit...', true);
 
     // V2.7: Hardened v2Body extraction — protects VCI from accidentally auditing the
@@ -2909,7 +2932,7 @@ ${v2Body.slice(0, 8000)}`;
 
     // Auto-approve and continue
     saveSession(11);
-    setStep(11, 'done', `Done ✓ (VCI: ${vciScore})`);
+    setStep(13, 'done', `Done ✓ (VCI: ${vciScore})`);
     setG(`✓ Step 11 complete — VCI: ${vciScore} (${verdict}) · Conviction: ${convictionDisplay} · Readability: grade ${readabilityGrade}`);
     if(voice11Resolve) { voice11Resolve(); voice11Resolve = null; }
   }
@@ -2935,9 +2958,10 @@ ${v2Body.slice(0, 8000)}`;
     if(btn) { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 2000); }
   }
 
-  // ─── GATE 12 DECISION — global function so buttons survive context interruption ───
+  // ─── GATE DECISION (Step 14 Snapshot Diff Gate) — global function so buttons survive context interruption ───
   function gate12Decision(choice) {
-    document.getElementById('cbox12').style.display='none';
+    const cb = document.getElementById('cbox14');
+    if(cb) cb.style.display='none';
     if(window._gate12Resolve) { window._gate12Resolve(choice); }
   }
 
@@ -3366,7 +3390,462 @@ ${v2Body.slice(0, 8000)}`;
     return {updated,log};
   }
 
-  // ─── SHARED RUNNER (14-STEP PIPELINE) ────────────────────
+  // ═══════════════════════════════════════════════════════════
+  // V3.0 LOCKED-FRAME ARCHITECTURE — helper functions
+  // ═══════════════════════════════════════════════════════════
+  // Core principle: After Step 9, every structural element is LOCKED.
+  // Steps 12-14 (Voice Rewrite, VCI, Snapshot Diff) cannot modify locked elements.
+  // JS captures a snapshot at Step 11 (Frame Lock) and enforces it via diff at Step 14.
+  // Block elements (DA, headings, tables, FAQ) are silently restored from snapshot if damaged.
+  // Inline elements (links) — if URL changed, silently healed; if dropped entirely, retry trigger.
+
+  // Capture snapshot of every structural element from V1 markdown.
+  // Snapshot is the canonical reference for Steps 12-14 enforcement.
+  function captureFrameSnapshot(v1Text) {
+    const snap = {
+      timestamp: Date.now(),
+      directAnswer: '',
+      headings: [],          // array of {level, text} objects, in order
+      links: [],             // array of {anchor, url} — internal + external
+      tables: [],            // array of full markdown table strings
+      faqQuestions: [],      // array of FAQ H3 question strings
+      imagePrompts: [],      // array of {prompt, alt} from PROMPT:/ALT TEXT: blocks
+      ctaWording: '',        // CTA anchor text (locked verbatim)
+    };
+
+    // Direct Answer — sourced from S.directAnswer (already locked at Step 3)
+    snap.directAnswer = (S.directAnswer || '').trim();
+
+    // Strip checklist block — snapshot only captures the article body (from first H1)
+    let body = v1Text;
+    const firstH1 = body.match(/^#\s+[^#]/m);
+    if (firstH1) body = body.slice(body.indexOf(firstH1[0]));
+
+    // Headings — preserve order and level
+    const headingRe = /^(#{1,6})\s+(.+?)\s*$/gm;
+    let hm;
+    while ((hm = headingRe.exec(body)) !== null) {
+      snap.headings.push({ level: hm[1].length, text: hm[2].trim() });
+    }
+
+    // Links — markdown [anchor](url) format
+    const linkRe = /\[([^\]]+)\]\(([^)]+)\)/g;
+    let lm;
+    while ((lm = linkRe.exec(body)) !== null) {
+      const anchor = lm[1].trim();
+      const url = lm[2].trim();
+      // Skip image links — those are locked separately as image prompts
+      if (lm.index > 0 && body[lm.index - 1] === '!') continue;
+      snap.links.push({ anchor, url });
+    }
+
+    // Tables — full markdown table blocks (header + separator + data rows)
+    const tableRe = /(\|[^\n]+\|\n\|[\s\-:|]+\|\n(?:\|[^\n]+\|\n?)+)/g;
+    let tm;
+    while ((tm = tableRe.exec(body)) !== null) {
+      snap.tables.push(tm[1].trim());
+    }
+
+    // FAQ questions — H3 headings inside the FAQ section
+    const faqMatch = body.match(/##\s+(?:FAQ|Frequently Asked Questions)[\s\S]*?(?=^##\s+|$)/im);
+    if (faqMatch) {
+      const faqRe = /^###\s+(.+?)$/gm;
+      let qm;
+      while ((qm = faqRe.exec(faqMatch[0])) !== null) {
+        snap.faqQuestions.push(qm[1].trim());
+      }
+    }
+
+    // Image prompts — sourced from S.imagePrompts (already extracted at Step 7)
+    if (Array.isArray(S.imagePrompts)) {
+      snap.imagePrompts = S.imagePrompts.map(p => ({
+        prompt: (p.prompt || '').trim(),
+        alt: (p.alt || '').trim()
+      }));
+    }
+
+    // CTA wording — from 4.3B CTA VARIATION section
+    const ctaMatch = (S.docs.doc43B || '').match(/CTA VARIATION[\s\S]*?["""]([^"""]+)["""]?/i);
+    if (ctaMatch) snap.ctaWording = ctaMatch[1].trim();
+
+    return snap;
+  }
+
+  // Verify V2 against snapshot. Returns {damage, restored, retryNeeded}.
+  // damage: array of element-type damage reports (informational)
+  // restored: array of elements silently healed from snapshot
+  // retryNeeded: array of elements that need a Claude retry (dropped links)
+  function verifyFrameSnapshot(v2Text, snapshot) {
+    const result = {
+      damage: [],
+      restored: [],
+      retryNeeded: [],
+      v2: v2Text,  // possibly mutated by silent heals
+    };
+
+    // Strip checklist block from V2 for comparison (checklist only lives in S.v1)
+    let body = v2Text;
+    const firstH1 = body.match(/^#\s+[^#]/m);
+    let checklistBlock = '';
+    if (firstH1) {
+      checklistBlock = body.slice(0, body.indexOf(firstH1[0]));
+      body = body.slice(body.indexOf(firstH1[0]));
+    }
+
+    // ── HEADINGS — silent restore if changed ──
+    const v2Headings = [];
+    const hRe = /^(#{1,6})\s+(.+?)\s*$/gm;
+    let hm;
+    while ((hm = hRe.exec(body)) !== null) {
+      v2Headings.push({ level: hm[1].length, text: hm[2].trim(), match: hm[0], index: hm.index });
+    }
+    if (v2Headings.length === snapshot.headings.length) {
+      // Same count — check each for text change, restore if different
+      for (let i = 0; i < snapshot.headings.length; i++) {
+        const snap = snapshot.headings[i];
+        const cur = v2Headings[i];
+        if (cur.text !== snap.text || cur.level !== snap.level) {
+          result.damage.push(`Heading ${i+1} changed: "${cur.text}" → restoring to "${snap.text}"`);
+          const replacement = '#'.repeat(snap.level) + ' ' + snap.text;
+          body = body.replace(cur.match, replacement);
+          result.restored.push(`heading ${i+1}`);
+        }
+      }
+    } else {
+      // Count mismatch — Claude added or dropped a heading. This is structural damage.
+      result.damage.push(`Heading count mismatch: snapshot=${snapshot.headings.length}, V2=${v2Headings.length}`);
+      result.retryNeeded.push('headings');
+    }
+
+    // ── LINKS — silent URL heal, retry if dropped ──
+    const v2Links = [];
+    const lRe = /\[([^\]]+)\]\(([^)]+)\)/g;
+    let lm;
+    while ((lm = lRe.exec(body)) !== null) {
+      if (lm.index > 0 && body[lm.index - 1] === '!') continue;
+      v2Links.push({ anchor: lm[1].trim(), url: lm[2].trim(), match: lm[0] });
+    }
+    // For each snapshot link, check if a V2 link with matching anchor exists
+    for (const snapLink of snapshot.links) {
+      const v2Match = v2Links.find(l => l.anchor === snapLink.anchor);
+      if (!v2Match) {
+        // Anchor not found — link was dropped or anchor text changed
+        // Try to find by URL — if URL exists with different anchor, it's anchor drift (heal)
+        const byUrl = v2Links.find(l => l.url === snapLink.url);
+        if (byUrl) {
+          result.damage.push(`Link anchor drift: "${byUrl.anchor}" → restoring to "${snapLink.anchor}"`);
+          body = body.replace(byUrl.match, `[${snapLink.anchor}](${snapLink.url})`);
+          result.restored.push(`link anchor "${snapLink.anchor}"`);
+        } else {
+          // Link entirely missing — retry needed
+          result.damage.push(`Link DROPPED: [${snapLink.anchor}](${snapLink.url})`);
+          result.retryNeeded.push(`link "${snapLink.anchor}"`);
+        }
+      } else if (v2Match.url !== snapLink.url) {
+        // Anchor matches but URL changed — silent heal
+        result.damage.push(`Link URL changed for "${snapLink.anchor}" → restoring`);
+        body = body.replace(v2Match.match, `[${snapLink.anchor}](${snapLink.url})`);
+        result.restored.push(`link URL for "${snapLink.anchor}"`);
+      }
+    }
+
+    // ── TABLES — silent restore if any table missing or changed ──
+    const v2Tables = [];
+    const tRe = /(\|[^\n]+\|\n\|[\s\-:|]+\|\n(?:\|[^\n]+\|\n?)+)/g;
+    let tm;
+    while ((tm = tRe.exec(body)) !== null) v2Tables.push({ text: tm[1].trim(), match: tm[1] });
+    if (v2Tables.length < snapshot.tables.length) {
+      result.damage.push(`Tables dropped: snapshot=${snapshot.tables.length}, V2=${v2Tables.length}`);
+      result.retryNeeded.push('tables');
+    }
+
+    // ── FAQ QUESTIONS — silent restore if changed ──
+    const v2FaqMatch = body.match(/##\s+(?:FAQ|Frequently Asked Questions)[\s\S]*?(?=^##\s+|$)/im);
+    if (v2FaqMatch) {
+      const v2Qs = [];
+      const qRe = /^###\s+(.+?)$/gm;
+      let qm;
+      while ((qm = qRe.exec(v2FaqMatch[0])) !== null) v2Qs.push({ text: qm[1].trim(), match: qm[0] });
+      if (v2Qs.length === snapshot.faqQuestions.length) {
+        for (let i = 0; i < snapshot.faqQuestions.length; i++) {
+          if (v2Qs[i].text !== snapshot.faqQuestions[i]) {
+            result.damage.push(`FAQ Q${i+1} changed → restoring`);
+            body = body.replace(v2Qs[i].match, '### ' + snapshot.faqQuestions[i]);
+            result.restored.push(`FAQ Q${i+1}`);
+          }
+        }
+      }
+    }
+
+    // ── DIRECT ANSWER — silent restore via hardRestoreDAZone (existing helper) ──
+    if (snapshot.directAnswer && snapshot.directAnswer.length > 50) {
+      // hardRestoreDAZone already does the heavy lifting
+      // We just check: does the V2 DA zone match the snapshot DA?
+      const daMatch = body.toLowerCase().includes(snapshot.directAnswer.toLowerCase().slice(0, 100));
+      if (!daMatch) {
+        result.damage.push('Direct Answer drift detected → hardRestoreDAZone will fix at assembly');
+        result.restored.push('Direct Answer');
+        // Actual restore happens in hardRestoreDAZone at Step 15 — flagged here for visibility
+      }
+    }
+
+    // Reassemble V2 with potentially-healed body
+    result.v2 = checklistBlock + body;
+    return result;
+  }
+
+  // Pre-Lock JS Audit — deterministic verification before frame lock.
+  // Runs at Step 10. JS only, zero tokens. Hard fails on critical issues.
+  function runPreLockAudit(v1Text, snapshot) {
+    const issues = [];
+    const warnings = [];
+
+    // Strip checklist block — audit only the article body
+    let body = v1Text;
+    const firstH1 = body.match(/^#\s+[^#]/m);
+    if (firstH1) body = body.slice(body.indexOf(firstH1[0]));
+
+    // 1. Direct Answer present
+    if (!snapshot.directAnswer || snapshot.directAnswer.length < 100) {
+      issues.push('❌ Direct Answer is missing or too short (<100 chars)');
+    }
+
+    // 2. Heading count sanity
+    if (snapshot.headings.length < 5) {
+      issues.push(`❌ Too few headings (${snapshot.headings.length}) — article structure incomplete`);
+    }
+
+    // 3. H1 present (article title)
+    const hasH1 = snapshot.headings.some(h => h.level === 1);
+    if (!hasH1) issues.push('❌ No H1 found in article body');
+
+    // 4. Internal links — at least 6 expected
+    let clientDomain = '';
+    try { clientDomain = getClientDomain(); } catch (e) {}
+    if (clientDomain && clientDomain !== '__NO_DOMAIN__') {
+      const internal = snapshot.links.filter(l => l.url.includes(clientDomain));
+      if (internal.length < 6) warnings.push(`⚠ Internal links: ${internal.length} (target: 6+)`);
+    }
+
+    // 5. External links — at least 4 expected
+    if (clientDomain && clientDomain !== '__NO_DOMAIN__') {
+      const external = snapshot.links.filter(l => !l.url.includes(clientDomain) && /^https?:/.test(l.url));
+      if (external.length < 4) warnings.push(`⚠ External links: ${external.length} (target: 4+)`);
+    } else {
+      const httpLinks = snapshot.links.filter(l => /^https?:/.test(l.url));
+      if (httpLinks.length < 4) warnings.push(`⚠ HTTP links: ${httpLinks.length} (target: 4+)`);
+    }
+
+    // 6. Tables — at least 3 expected
+    if (snapshot.tables.length < 3) warnings.push(`⚠ Tables: ${snapshot.tables.length} (target: 3+)`);
+
+    // 7. FAQ questions — at least 5 expected
+    if (snapshot.faqQuestions.length < 5) warnings.push(`⚠ FAQ questions: ${snapshot.faqQuestions.length} (target: 5+)`);
+
+    // 8. Sacred Ground — no links in DA
+    if (snapshot.directAnswer) {
+      const daLinks = (snapshot.directAnswer.match(/\[([^\]]+)\]\(([^)]+)\)/g) || []).length;
+      if (daLinks > 0) issues.push(`❌ Direct Answer contains ${daLinks} link(s) — sacred ground violation`);
+    }
+
+    // 9. Banned terms in body
+    try {
+      const bannedList = extractBannedWords(S.docs.doc43B);
+      if (bannedList && bannedList.length > 0) {
+        const occ = detectBannedTermOccurrences(v1Text, bannedList);
+        if (occ.length > 0) {
+          issues.push(`❌ ${occ.length} banned-term occurrence(s) remain after Step 9 — Step 9 retry recommended`);
+        }
+      }
+    } catch (e) { /* skip if helpers unavailable */ }
+
+    // 10. CTA wording match — body should contain locked CTA wording at least once
+    if (snapshot.ctaWording && snapshot.ctaWording.length > 5) {
+      if (!body.includes(snapshot.ctaWording)) {
+        warnings.push(`⚠ CTA wording from 4.3B not found verbatim in body — verify Step 5 used canonical wording`);
+      }
+    }
+
+    // 11. Image prompts present
+    if (snapshot.imagePrompts.length === 0) {
+      warnings.push('⚠ No image prompts captured — Step 7 may not have run');
+    }
+
+    return { issues, warnings, passed: issues.length === 0 };
+  }
+
+  // Parse Gemini structural-coordinate FAILs.
+  // V3.0 format: each FAIL block has Target (e.g. "H2-3-P2") and Issue.
+  // Falls back to legacy FAIL_START format with Find/Replace if no Target field.
+  // Returns array of {id, target, issue, type, severity, find, replace, scope, section, desc}.
+  function parseStructuralFails(validationText) {
+    // First try V3.0 format — Gemini outputs JSON-like structural coordinates
+    // Format: FAIL_START / ID / Target: H2-N-PM / Issue: ... / FAIL_END
+    const cleaned = validationText.replace(/```[\w]*\n?/g, '').replace(/```/g, '');
+    const v3Fails = [];
+    const blocks = cleaned.match(/FAIL_START[\s\S]*?FAIL_END/gi) || [];
+    let autoId = 1;
+    for (const block of blocks) {
+      let id = (block.match(/ID:\s*(.+)/i) || [])[1]?.trim() || '';
+      if (!id) id = `FAIL_${String(autoId++).padStart(3, '0')}`;
+      const target = (block.match(/Target:\s*(.+)/i) || [])[1]?.trim() || '';
+      const issue = (block.match(/Issue:\s*([\s\S]*?)(?=\n[A-Z][a-z]+:|\nFAIL_END)/i) || [])[1]?.trim() || '';
+      const type = (block.match(/Type:\s*(.+)/i) || [])[1]?.trim() || 'WRONG';
+      const severity = (block.match(/Severity:\s*(.+)/i) || [])[1]?.trim() || 'STANDARD';
+      const find = (block.match(/Find:\s*([\s\S]*?)(?=\nReplace:|\nScope:|\nFAIL_END)/i) || [])[1]?.trim() || '';
+      const replace = (block.match(/Replace:\s*([\s\S]*?)(?=\nScope:|\nFAIL_END)/i) || [])[1]?.trim() || '';
+      const scope = (block.match(/Scope:\s*(.+)/i) || [])[1]?.trim() || 'FIRST_INSTANCE';
+      const section = (block.match(/Section:\s*(.+)/i) || [])[1]?.trim() || '';
+      const desc = (block.match(/Description:\s*([\s\S]*?)(?=\nFind:|\nTarget:|\nIssue:|\nReplace:|\nFAIL_END)/i) || [])[1]?.trim() || issue;
+      // Skip empty FAIL blocks
+      if (!target && !find && !desc) continue;
+      v3Fails.push({ id, target, issue: issue || desc, type, severity, find, replace, scope, section, desc });
+    }
+    // FLAGS — same as legacy parseFails
+    const flags = [];
+    const flagBlocks = cleaned.match(/FLAG_START[\s\S]*?FLAG_END/gi) || [];
+    for (const block of flagBlocks) {
+      let id = (block.match(/ID:\s*(.+)/i) || [])[1]?.trim() || `FLAG_${String(autoId++).padStart(3, '0')}`;
+      const desc = (block.match(/Description:\s*([\s\S]*?)(?=\nFind:|\nFix:|\nFLAG_END)/i) || [])[1]?.trim() || '';
+      const flagFind = (block.match(/Find:\s*([\s\S]*?)(?=\nFix:|\nFLAG_END)/i) || [])[1]?.trim() || '';
+      const flagFix = (block.match(/Fix:\s*([\s\S]*?)(?=\nFLAG_END)/i) || [])[1]?.trim() || '';
+      flags.push({ id, desc, find: flagFind, fix: flagFix });
+    }
+    S.parsedFlags = flags;
+    return v3Fails;
+  }
+
+  // Parse Claude's structural patches (V3.0 format).
+  // Format: PATCH_START / Target: H2-N-PM / Replacement: ... / PATCH_END
+  // Returns array of {target, replacement}.
+  // Falls back to legacy DIFF_START format if no PATCH blocks found.
+  function parseStructuralPatches(claudeOutput) {
+    const patches = [];
+    const blocks = claudeOutput.match(/PATCH_START[\s\S]*?PATCH_END/gi) || [];
+    for (const block of blocks) {
+      const target = (block.match(/Target:\s*(.+)/i) || [])[1]?.trim() || '';
+      const replacement = (block.match(/Replacement:\s*([\s\S]*?)(?=\nPATCH_END)/i) || [])[1]?.trim() || '';
+      if (target && replacement) patches.push({ target, replacement });
+    }
+    return patches;
+  }
+
+  // Apply structural patches to V1 markdown.
+  // Target format: "H2-N-PM" = N-th H2 section, M-th paragraph below it
+  //                 "H2-N" = N-th H2 heading itself
+  //                 "DA-PN" = N-th paragraph of Direct Answer (DA is sacred — should never receive patches)
+  // Returns {result, applied, failed, log}
+  function applyStructuralPatches(v1Text, patches) {
+    const log = [];
+    let applied = 0;
+    let failed = 0;
+    let result = v1Text;
+
+    for (const patch of patches) {
+      const { target, replacement } = patch;
+      // Parse target coordinates
+      // Example targets: "H2-3-P2", "H2-1", "H3-2-P1"
+      const m = target.match(/^(H[1-6])-(\d+)(?:-P(\d+))?$/i);
+      if (!m) {
+        log.push(`❌ ${target}: invalid coordinate format (expected "H2-N-PM" or "H2-N")`);
+        failed++;
+        continue;
+      }
+      const headingTag = m[1].toUpperCase();
+      const headingIdx = parseInt(m[2], 10);  // 1-indexed
+      const paraIdx = m[3] ? parseInt(m[3], 10) : null;  // 1-indexed
+      const headingLevel = parseInt(headingTag[1], 10);
+
+      // Find all headings of this level in result (in document order)
+      const headingPattern = new RegExp(`^#{${headingLevel}}\\s+.+$`, 'gm');
+      const headingMatches = [];
+      let hm;
+      while ((hm = headingPattern.exec(result)) !== null) {
+        headingMatches.push({ text: hm[0], index: hm.index });
+      }
+      if (headingIdx < 1 || headingIdx > headingMatches.length) {
+        log.push(`❌ ${target}: heading index ${headingIdx} out of range (only ${headingMatches.length} ${headingTag} headings exist)`);
+        failed++;
+        continue;
+      }
+      const targetHeading = headingMatches[headingIdx - 1];
+
+      if (paraIdx === null) {
+        // Replace the heading itself
+        result = result.slice(0, targetHeading.index) + replacement + result.slice(targetHeading.index + targetHeading.text.length);
+        log.push(`✅ ${target}: replaced ${headingTag} heading`);
+        applied++;
+        continue;
+      }
+
+      // Find paragraphs under this heading (until next heading of same-or-higher level)
+      const sectionStart = targetHeading.index + targetHeading.text.length;
+      // Find next heading of level <= headingLevel
+      const nextHeadingRe = new RegExp(`^#{1,${headingLevel}}\\s+`, 'gm');
+      nextHeadingRe.lastIndex = sectionStart;
+      const nextH = nextHeadingRe.exec(result);
+      const sectionEnd = nextH ? nextH.index : result.length;
+      const sectionText = result.slice(sectionStart, sectionEnd);
+
+      // Split section into paragraphs by blank lines
+      // A paragraph = continuous non-blank lines (excluding sub-headings, tables, image blocks)
+      const lines = sectionText.split('\n');
+      const paragraphs = []; // array of {text, startInSection, endInSection}
+      let curStart = 0;
+      let curLines = [];
+      let curStartLine = 0;
+      let charPos = 0;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const isBlank = line.trim() === '';
+        if (isBlank) {
+          if (curLines.length > 0) {
+            const text = curLines.join('\n');
+            paragraphs.push({ text, start: curStart, end: curStart + text.length });
+            curLines = [];
+          }
+          charPos += line.length + 1;
+          curStart = charPos;
+        } else {
+          if (curLines.length === 0) curStart = charPos;
+          curLines.push(line);
+          charPos += line.length + 1;
+        }
+      }
+      if (curLines.length > 0) {
+        const text = curLines.join('\n');
+        paragraphs.push({ text, start: curStart, end: curStart + text.length });
+      }
+
+      // Filter out non-prose paragraphs (sub-headings, tables, image blocks, list items?)
+      const proseParagraphs = paragraphs.filter(p => {
+        const t = p.text.trim();
+        if (/^#{1,6}\s+/.test(t)) return false;        // sub-heading
+        if (/^\|.*\|$/m.test(t.split('\n')[0])) return false;  // table
+        if (/^PROMPT:|^ALT TEXT:/im.test(t)) return false;     // image block
+        return true;
+      });
+
+      if (paraIdx < 1 || paraIdx > proseParagraphs.length) {
+        log.push(`❌ ${target}: paragraph index ${paraIdx} out of range (only ${proseParagraphs.length} prose paragraph(s) under ${headingTag} #${headingIdx})`);
+        failed++;
+        continue;
+      }
+      const targetPara = proseParagraphs[paraIdx - 1];
+      // Replace paragraph in result string
+      const absStart = sectionStart + targetPara.start;
+      const absEnd = sectionStart + targetPara.end;
+      result = result.slice(0, absStart) + replacement + result.slice(absEnd);
+      log.push(`✅ ${target}: replaced paragraph`);
+      applied++;
+    }
+
+    return { result, applied, failed, log };
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SHARED RUNNER (V3.0 — 17-step locked-frame pipeline)
+  // ═══════════════════════════════════════════════════════════
   async function runFrom(start,sys,akey,gkey,dkey='') {
     let step=start;
     const publishDate=document.getElementById('publishDate').value||'';
@@ -3576,7 +4055,7 @@ YOUR JOB:
 6. Replace every [FAQ ANSWER: ...] with a 2-4 paragraph answer
 7. Replace [POV SLOT 5: CONCLUSION — CONVICTION] with the directional conclusion
 8. Replace [CTA BLOCK] with the diagnostic CTA — text link ONLY, NO button element, NO background color on the CTA section. Wrap in <div class="article-cta">.
-9. Leave [SCHEMA PLACEHOLDER] exactly as written — schema is generated at Step 13, not here
+9. Leave [SCHEMA PLACEHOLDER] exactly as written — schema is generated at Step 15, not here
 
 HARD RULES:
 - Minimum 3 complete markdown tables
@@ -3724,7 +4203,7 @@ HARD RULES:
             if(daTextEnd === -1){
               // Fallback: DA last line not found verbatim — could be a content drift.
               // Better to bail than guess. hardRestoreDAZone at Step 13 will handle it.
-              appendO6(`⚠ JS daGap fix could not anchor DA end by string match. Skipping fix — Step 13 will rebuild the zone from S.directAnswer.`);
+              appendO6(`⚠ JS daGap fix could not anchor DA end by string match. Skipping fix — Step 15 will rebuild the zone from S.directAnswer.`);
               logErr(6, `daGap fix skipped: could not match S.directAnswer last line in S.v1`);
             } else {
               // Rebuild gap zone: inject canonical placeholders (strip everything else)
@@ -3800,9 +4279,11 @@ HARD RULES:
       const bpAnchors=(S.geminiResearch.match(/Semantic Anchor:\s*"([^"]+)"/g)||[]).map(l=>l.replace(/Semantic Anchor:\s*"/,'').replace(/"$/,''));
       const linkListStr=bpAnchors.map(a=>`Anchor text: "${a}"`).join('\n');
 
-      const vp=`MANDATORY FAIL BLOCK FORMAT — YOU MUST USE THIS EXACT STRUCTURE FOR EVERY FAIL. NO EXCEPTIONS.\nClaude's fix engine reads this programmatically. Any deviation breaks the fix pipeline.\n\nFAIL_START\nID: FAIL_001\nType: WRONG / MISSING / DELETE\nSeverity: CRITICAL / STANDARD / MINOR\nPriority: 1 / 2 / 3\nSection: Exact H2 or H3 heading this appears under, or TOP if before first H2\nDescription: One sentence — what is wrong and why\nFind: VERBATIM quoted text from the article — minimum 10 words of surrounding context.\nReplace: Leave blank if Type=DELETE. For WRONG, leave blank — Claude determines replacement. For MISSING, describe what to insert and where.\nScope: FIRST_INSTANCE / ALL_INSTANCES\nFAIL_END\n\nCRITICAL RULES FOR THE Find FIELD:\n- Provide ONLY the raw verbatim text from the article — do NOT wrap in brackets, quotes, tags, or any other delimiters.\n- The text after "Find: " must match the article exactly, character-for-character. Claude searches the article for this exact string.\n- If you wrap the text in [brackets] or "quotes" the search will fail and the fix will not apply.\n\nPOSITIVE EXAMPLE:\nFind: The practices winning patient recommendations right now aren't the ones with the most traffic.\n\nNEGATIVE EXAMPLE (DO NOT DO THIS):\nFind: [The practices winning patient recommendations right now aren't the ones with the most traffic.]\n\nADDITIONAL RULES:\n- Find field must contain verbatim quoted text from the article. No paraphrasing. No descriptions. Exact words.\n- If you cannot locate exact text to quote, do NOT issue a FAIL — issue a FLAG instead.\n- A FAIL with no Find text is worse than no FAIL — it wastes Claude's fix attempts.\n- One FAIL block per issue. Output in priority order (Priority 1 first).\n- FAIL_START and FAIL_END must be UPPERCASE — not FAIL_start or fail_end.\n\n---\n\nYou are operating inside the AEO Authority Pipeline as Quality Assurance Auditor.\n\nCRITICAL OUTPUT RULE: Output ALL FAIL_START/FAIL_END and FLAG_START/FLAG_END blocks FIRST. Summary line LAST.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${S.geminiResearch}\n\nLINK VERIFICATION — these anchor phrases should appear:\n${linkListStr}\n\n---\n\n${p3}\n\nArticle text below:\n${stripDAMarker(S.v1)}`;
+      const vp=`MANDATORY FAIL BLOCK FORMAT — V3.0 STRUCTURAL COORDINATES PREFERRED. NO EXCEPTIONS.\nClaude's fix engine reads this programmatically. Any deviation breaks the fix pipeline.\n\nFAIL_START\nID: FAIL_001\nType: WRONG / MISSING / DELETE\nSeverity: CRITICAL / STANDARD / MINOR\nPriority: 1 / 2 / 3\nSection: Exact H2 or H3 heading this appears under, or TOP if before first H2\nTarget: H2-N-PM (V3.0 PREFERRED — see coordinate format below). LEAVE BLANK ONLY IF the issue is not anchored to a specific paragraph.\nDescription: One sentence — what is wrong and why\nIssue: One sentence — the specific rule violation, free of quoted text. Used by Claude to write the replacement.\nFind: OPTIONAL fallback. Verbatim text from the article (minimum 10 words). Only include if Target cannot be assigned.\nReplace: Leave blank if Type=DELETE. For WRONG, leave blank — Claude determines replacement. For MISSING, describe what to insert and where.\nScope: FIRST_INSTANCE / ALL_INSTANCES\nFAIL_END\n\nV3.0 TARGET COORDINATE FORMAT (use this whenever possible — eliminates exact-text matching):\n- H2-N-PM means "the M-th prose paragraph under the N-th H2 section"\n  Example: H2-3-P2 = the 2nd paragraph under the 3rd H2 in the article\n- H3-N-PM means "the M-th prose paragraph under the N-th H3 section"\n  Example: H3-5-P1 = the 1st paragraph under the 5th H3 (numbered globally across the article)\n- H2-N (no P) means the H2 heading text itself\n  Example: H2-3 = the 3rd H2 heading\n\nCount headings IN ORDER they appear in the article body (skip the checklist block at top, start from the article H1).\nCount paragraphs as PROSE paragraphs only — skip sub-headings, tables, and PROMPT:/ALT TEXT: image blocks.\n\nWHY V3.0 USES TARGETS INSTEAD OF EXACT-TEXT FIND:\nClaude's V2 retry loops failed when Find text drifted by a single space, smart quote, or em-dash. Targets are immune to text drift — they reference position, not content.\n\nLEGACY Find FALLBACK (only use if Target cannot be assigned, e.g., multi-paragraph or full-article issues):\n- Provide ONLY the raw verbatim text from the article — do NOT wrap in brackets, quotes, tags, or any other delimiters.\n- The text after "Find: " must match the article exactly, character-for-character.\n- A FAIL with neither Target nor Find is invalid — it will be skipped.\n\nADDITIONAL RULES:\n- One FAIL block per issue. Output in priority order (Priority 1 first).\n- FAIL_START and FAIL_END must be UPPERCASE.\n\n---\n\nYou are operating inside the AEO Authority Pipeline as Quality Assurance Auditor.\n\nCRITICAL OUTPUT RULE: Output ALL FAIL_START/FAIL_END and FLAG_START/FLAG_END blocks FIRST. Summary line LAST.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${S.geminiResearch}\n\nLINK VERIFICATION — these anchor phrases should appear:\n${linkListStr}\n\n---\n\n${p3}\n\nArticle text below:\n${stripDAMarker(S.v1)}`;
       S.validation=await callGemini(vp,gkey);
-      S.parsedFails=parseFails(S.validation);
+      // V3.0: parseStructuralFails extracts Target coordinates if Gemini supplies them.
+      // Falls back to legacy Find/Replace fields when Target absent.
+      S.parsedFails=parseStructuralFails(S.validation);
       const flagNote=S.parsedFlags.length>0?`\n\n--- VOICE FLAGS (for Step 10 voice rewrite) ---\n${S.parsedFlags.map(f=>`🚩 ${f.id}: ${f.desc}`).join('\n')}`:'';
       setStep(8,'done','Done ✓',S.validation+flagNote);
       step=9;
@@ -3879,27 +4360,44 @@ HARD RULES:
           const looksLikeChecklist = f.find && /BLOG POST OPTIMIZATION CHECKLIST|AI AUTHORITY ARTICLE OPTIMIZATION CHECKLIST|Meta Title:|Permalink URL:|Full Blog Post URL:|Meta Description:|Keywords:|Category:/i.test(f.find);
           const isLegitimateMetadata = looksLikeChecklist && f.section === 'TOP' && f.type !== 'DELETE';
           if(isLegitimateMetadata) return null;
-          if(f.type==='MISSING') return `INSERT:\nDesc: ${f.desc}\nWhat: ${f.what||f.missing}\nContext: ${f.context||'see surrounding content'}\nPlacement: ${f.placement||'NEAR_CLAIM'}`;
-          return `FIX:\nDesc: ${f.desc}\nFind: ${f.find}\nReplace: ${f.replace}\nScope: ${f.scope}`;
+          // V3.0: If Gemini supplied a Target coordinate, prefer that. Falls through to legacy if missing.
+          if(f.target && f.target.trim().length > 0){
+            const issueText = f.issue || f.desc;
+            return `PATCH (V3.0):\nID: ${f.id}\nTarget: ${f.target}\nIssue: ${issueText}\nDesc: ${f.desc}\n\n→ Output a PATCH_START block with Target: ${f.target} and a Replacement that fixes the issue.`;
+          }
+          if(f.type==='MISSING') return `INSERT (legacy):\nID: ${f.id}\nDesc: ${f.desc}\nWhat: ${f.what||f.missing}\nContext: ${f.context||'see surrounding content'}\nPlacement: ${f.placement||'NEAR_CLAIM'}`;
+          return `FIX (legacy):\nID: ${f.id}\nDesc: ${f.desc}\nFind: ${f.find}\nReplace: ${f.replace}\nScope: ${f.scope}`;
         }).filter(Boolean).join('\n\n---\n\n');
-        const fixSys9=`You are applying targeted fixes to an AEO article. Output ONLY DIFF blocks.\n\nDIFF_START\nFIND:\n[exact text from article]\nREPLACE:\n[replacement or [DELETE]]\nDIFF_END\n\nRULES:\n- If a FAIL includes exact Find text, use it verbatim.\n- If a FAIL has no Find text, locate the relevant passage in the article yourself and use it as the FIND. Do not skip the fix.\n- Output one DIFF block per fix. No explanations, no commentary.\n- Never return an empty response — if there are FAILs, there must be DIFF blocks.\n\n4.3B:\n${S.docs.doc43B}`;
+        const fixSys9=`You are applying targeted fixes to an AEO article.\n\nPREFERRED V3.0 OUTPUT FORMAT — STRUCTURAL PATCHES:\nIf the FAIL includes a Target coordinate (like H2-3-P2 meaning "the 2nd paragraph under the 3rd H2"), output a PATCH block:\n\nPATCH_START\nTarget: H2-3-P2\nReplacement: [the new paragraph text in markdown]\nPATCH_END\n\nTarget coordinate format:\n- H2-N-PM = the N-th H2 section, M-th prose paragraph below it\n- H3-N-PM = the N-th H3 section, M-th prose paragraph below it\n- H2-N (no PM) = the H2 heading itself (rare — only for heading rewrites)\n\nFALLBACK FORMAT — TEXT DIFF:\nIf the FAIL has no Target coordinate (legacy FAIL format), output a DIFF block:\n\nDIFF_START\nFIND:\n[exact text from article]\nREPLACE:\n[replacement or [DELETE]]\nDIFF_END\n\nRULES:\n- Use PATCH blocks whenever a Target is given. Use DIFF blocks only when there is no Target.\n- One block per fix. No explanations, no commentary.\n- Never return an empty response — if there are FAILs, there must be PATCH or DIFF blocks.\n- Replacement text must be plain markdown — no HTML tags except <a href> for links.\n\n4.3B:\n${S.docs.doc43B}`;
         const fixUser9=`RESEARCH BRIEF:\n${S.geminiResearch}\n\nSHEET ROW:\n${S.sheetRow}\n\nFAILS:\n${failInstructions}\n\nARTICLE:\n${stripDAMarker(S.v1)}`;
         try {
           const fixResult=await callClaude(fixSys9,fixUser9,akey,(p)=>{document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\n${p}`;},{maxTokens:64000});
-          if(fixResult.includes('DIFF_START')){
+          // V3.0: Try structural-coordinate patches first (PATCH_START blocks)
+          // Falls back to legacy DIFF_START blocks if Claude/4.4 still uses old format
+          let v3Patches = [];
+          let usedV3 = false;
+          try { v3Patches = parseStructuralPatches(fixResult); } catch(e){ v3Patches = []; }
+          if(v3Patches.length > 0){
+            usedV3 = true;
+            const patchRes = applyStructuralPatches(S.v1, v3Patches);
+            S.protectedSentences=S.parsedFails.filter(f=>f.replace&&f.replace.length>20).map(f=>f.replace);
+            S.v1=patchRes.result; showV1(S.v1);
+            document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\n[V3.0 Structural Patches]\n${patchRes.log.join('\n')}\n\nApplied: ${patchRes.applied}, Failed: ${patchRes.failed}`;
+          } else if(fixResult.includes('DIFF_START')){
+            // Legacy path — Claude returned DIFF_START blocks (4.4 not yet updated to V3.0)
             const {result,applied,failed,log}=applyDiffs(S.v1,fixResult);
             S.protectedSentences=S.parsedFails.filter(f=>f.replace&&f.replace.length>20).map(f=>f.replace);
             S.v1=result; showV1(S.v1);
-            document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\n${log.join('\n')}\n\nApplied: ${applied}, Failed: ${failed}`;
+            document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\n[Legacy DIFF mode]\n${log.join('\n')}\n\nApplied: ${applied}, Failed: ${failed}`;
           } else {
-            document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\nNo DIFF blocks returned — article unchanged.`;
+            document.getElementById('o9').textContent=`FAILs:\n${failSummary}\n\n---\n\nNo PATCH or DIFF blocks returned — article unchanged.`;
           }
           // JS anchor text correction — fix all internal link anchors by URL match
           // Uses client domain dynamically — works for any client
           // V2.7: Sentinel guard — if domain unknown, skip anchor correction (can't build regex).
           const clientDomain9 = getClientDomain();
           if(clientDomain9 === '__NO_DOMAIN__'){
-            // Skip anchor correction silently — domain warning already surfaced at Step 13
+            // Skip anchor correction silently — domain warning already surfaced at Step 15
           } else {
           const clientUrlPattern = new RegExp(`https?:\\/\\/(www\\.)?${clientDomain9.replace(/\./g,'\\.')}[^\\s\\n|"]+`, 'gi');
           const anchorPattern = new RegExp(`Semantic Anchor:\\s*"([^"]+)"[\\s\\S]*?(?:URL|Link):\\s*(https?:\\/\\/(?:www\\.)?${clientDomain9.replace(/\./g,'\\.')}[^\\s\\n|"]+)`, 'gi');
@@ -3999,10 +4497,97 @@ HARD RULES:
       }
     }
 
-    // ── STEP 10: Voice Rewrite ─────────────────────────────────
+    // ── STEP 10: Pre-Lock JS Audit (V3.0 NEW) ──────────────────
+    // Deterministic verification before frame lock. JS only, zero tokens.
+    // Captures the snapshot, then audits V1 against expected structure.
     if(step<=10){
-      syncDirectAnswer(10); // V2.8: heal DA lock before voice rewrite touches V2
-      setStep(10,'active','Voice rewrite...'); setG('Claude rewriting in author voice...',true);
+      syncDirectAnswer(10); // V2.8 holdover: heal DA lock before snapshot capture
+      setStep(10,'active','Auditing frame...'); setG('Pre-Lock JS audit — verifying frame integrity...',true);
+      try {
+        // Capture snapshot first — audit uses snapshot data
+        S.frameSnapshot = captureFrameSnapshot(S.v1);
+        const audit = runPreLockAudit(S.v1, S.frameSnapshot);
+        const summary = [
+          `📋 PRE-LOCK AUDIT`,
+          ``,
+          `Snapshot captured:`,
+          `  - Headings: ${S.frameSnapshot.headings.length}`,
+          `  - Links: ${S.frameSnapshot.links.length}`,
+          `  - Tables: ${S.frameSnapshot.tables.length}`,
+          `  - FAQ Questions: ${S.frameSnapshot.faqQuestions.length}`,
+          `  - Image prompts: ${S.frameSnapshot.imagePrompts.length}`,
+          `  - Direct Answer: ${S.frameSnapshot.directAnswer.length} chars`,
+          ``,
+          audit.issues.length > 0 ? `❌ HARD ISSUES (${audit.issues.length}):` : '✅ No hard issues',
+          ...audit.issues,
+          ``,
+          audit.warnings.length > 0 ? `⚠ WARNINGS (${audit.warnings.length}):` : '',
+          ...audit.warnings,
+        ].filter(Boolean).join('\n');
+        document.getElementById('o10').textContent = summary;
+        document.getElementById('sb10').classList.add('open');
+
+        if(!audit.passed){
+          // Hard issues — surface retry option
+          setStep(10,'error','⚠ Hard Issues');
+          document.getElementById('r10').style.display='block';
+          setG('⚠ Step 10 audit failed — review issues, retry from Step 9 or continue anyway.',false,true);
+          throw new Error(`Step 10: Pre-lock audit failed — ${audit.issues.length} hard issue(s).`);
+        }
+        setStep(10,'done','Done ✓ (audit passed)');
+        saveSession(10);
+      } catch(e){
+        if(e.message.includes('Step 10:')) throw e;
+        logErr(10, e.message);
+        setStep(10,'error','Failed');
+        document.getElementById('r10').style.display='block';
+        throw new Error(`Step 10: Audit error — ${e.message}`);
+      }
+      step=11;
+    }
+
+    // ── STEP 11: Frame Lock (V3.0 NEW) ─────────────────────────
+    // The snapshot is now authoritative. Steps 12-14 cannot modify locked elements.
+    if(step<=11){
+      setStep(11,'active','Locking frame...'); setG('🔒 Locking frame snapshot...',true);
+      try {
+        if(!S.frameSnapshot || !S.frameSnapshot.timestamp){
+          // Defensive: snapshot should already exist from Step 10, but capture again if missing
+          S.frameSnapshot = captureFrameSnapshot(S.v1);
+        }
+        // Self-verify the snapshot is non-empty
+        const snap = S.frameSnapshot;
+        const verifyMsg = [
+          `🔒 FRAME LOCKED`,
+          ``,
+          `The following elements are now LOCKED. Steps 12-14 cannot modify them:`,
+          `  ✓ Direct Answer (${snap.directAnswer.length} chars)`,
+          `  ✓ ${snap.headings.length} headings`,
+          `  ✓ ${snap.links.length} links (URLs + anchor text)`,
+          `  ✓ ${snap.tables.length} tables`,
+          `  ✓ ${snap.faqQuestions.length} FAQ questions`,
+          `  ✓ ${snap.imagePrompts.length} image prompts`,
+          snap.ctaWording ? `  ✓ CTA wording: "${snap.ctaWording}"` : '',
+          ``,
+          `Voice rewrite (Step 12) may now run. JS will verify integrity at Step 14.`,
+        ].filter(Boolean).join('\n');
+        document.getElementById('o11').textContent = verifyMsg;
+        document.getElementById('sb11').classList.add('open');
+        setStep(11,'done','🔒 Locked ✓');
+        saveSession(11);
+      } catch(e){
+        logErr(11, e.message);
+        setStep(11,'error','Failed');
+        document.getElementById('r11').style.display='block';
+        throw new Error(`Step 11: Frame lock error — ${e.message}`);
+      }
+      step=12;
+    }
+
+    // ── STEP 12: Voice Rewrite (was Step 10) ───────────────────
+    if(step<=12){
+      syncDirectAnswer(12); // heal DA lock before voice rewrite touches V2
+      setStep(12,'active','Voice rewrite...'); setG('Claude rewriting in author voice (frame locked)...',true);
       const p4=getPrompt(S.docs.doc44,4);
       const flagContext=S.parsedFlags&&S.parsedFlags.length>0
         ?`\n\nVOICE FLAGS FROM GEMINI (address during rewrite):\n${S.parsedFlags.map(f=>`• ${f.id}: ${f.desc}\n  Find: ${f.find}\n  Fix: ${f.fix}`).join('\n\n')}`:'';
@@ -4017,153 +4602,128 @@ HARD RULES:
         `THE PATTERN: Lead with the verdict. React, then explain. NEVER explain before landing the point. Short sentences. Heavy contractions. Sound like the author, not a marketing writer.`
       ].filter(Boolean).join('\n\n');
 
-      // Strip checklist block from what Claude sees — same jurisdiction rule as Step 11.
-      // Claude must never reproduce or reference the checklist. hardRestoreDAZone handles the DA.
-      // Pass only from the first H1 onward (article title + DA + body).
+      // Strip checklist block from what Claude sees. Pass only from first H1 onward.
       const v1ForRewrite = (() => {
         const firstH1Match = S.v1.match(/^#\s+[^#]/m);
         return firstH1Match ? S.v1.slice(S.v1.indexOf(firstH1Match[0])) : S.v1;
       })();
 
-      const voiceUser=`PUBLISH DATE: ${document.getElementById('publishDate').value||publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p4}\n${protectedList}${flagContext}\n\n${voiceExamples}\n\nTASK: Voice rewrite ONLY. Structure, links, tables, POV slots already correct.\n\nCRITICAL OUTPUT REQUIREMENT: Output the COMPLETE FULL ARTICLE — from the H1 title to the CTA at the bottom. Do NOT output a checklist block at the top — that is handled separately. Do NOT summarize changes. Do NOT describe the rewrite. Output the full rewritten article body and nothing else.\n\nPROTECTED ZONES — DO NOT TOUCH:\n- Direct Answer (everything before first H2) — sacred ground, final, do not change a single word\n- All H2 and H3 headings\n- All markdown tables\n- All PROMPT:/ALT TEXT: image blocks\n- All internal and external hyperlinks (URLs and anchor text must stay exactly)\n- Any sentence in PROTECTED SENTENCES above\n- LAST_UPDATED_PLACEHOLDER and TOC_PLACEHOLDER — leave exactly as written\n\nEverything else: rewrite from blank page in the author's voice.\n\nARTICLE:\n${stripDAMarker(v1ForRewrite)}`;
-      S.v2=await callClaude(sys,voiceUser,akey,(p)=>{document.getElementById('o10').textContent=p;document.getElementById('sb10').classList.add('open');showV2(p);},{maxTokens:64000});
-      if(S.v2.length<8000) throw new Error(`Step 10: V2 too short (${S.v2.length} chars) — Claude likely summarized instead of rewriting. Retry.`);
-      // ── STRIP CLAUDE PREAMBLE — Claude sometimes adds task headers, verification blocks,
-      // or summary text before the article H1. Strip everything before the first # heading.
+      const voiceUser=`PUBLISH DATE: ${document.getElementById('publishDate').value||publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p4}\n${protectedList}${flagContext}\n\n${voiceExamples}\n\nTASK: Voice rewrite ONLY. Structure, links, tables, POV slots already correct.\n\nCRITICAL OUTPUT REQUIREMENT: Output the COMPLETE FULL ARTICLE — from the H1 title to the CTA at the bottom. Do NOT output a checklist block at the top — that is handled separately. Do NOT summarize changes. Do NOT describe the rewrite. Output the full rewritten article body and nothing else.\n\nPROTECTED ZONES — DO NOT TOUCH (frame is LOCKED — JS will restore any changes):\n- Direct Answer (everything before first H2) — sacred ground, final\n- All H2 and H3 headings — exact text and level\n- All markdown tables — exact content\n- All PROMPT:/ALT TEXT: image blocks\n- All internal and external hyperlinks (URLs and anchor text must stay exactly)\n- All FAQ questions (H3 in FAQ section)\n- LAST_UPDATED_PLACEHOLDER and TOC_PLACEHOLDER — leave exactly as written\n\nEverything else (body prose between locked elements): rewrite from blank page in the author's voice.\n\nARTICLE:\n${stripDAMarker(v1ForRewrite)}`;
+      S.v2=await callClaude(sys,voiceUser,akey,(p)=>{document.getElementById('o12').textContent=p;document.getElementById('sb12').classList.add('open');showV2(p);},{maxTokens:64000});
+      if(S.v2.length<8000) throw new Error(`Step 12: V2 too short (${S.v2.length} chars) — Claude likely summarized instead of rewriting. Retry.`);
+      // Strip Claude preamble before first H1
       {
         const firstHeading = S.v2.match(/^#\s+[^#]/m);
         if(firstHeading) {
           const headingPos = S.v2.indexOf(firstHeading[0]);
-          if(headingPos > 50) { // Only strip if there's meaningful content before the H1
-            S.v2 = S.v2.slice(headingPos);
-          }
+          if(headingPos > 50) S.v2 = S.v2.slice(headingPos);
         }
       }
-
       // Restore DA zone with marker after voice rewrite
       if(S.directAnswer && S.directAnswer.length>50){
         S.v2 = hardRestoreDAZone(S.v2, S.directAnswer);
       }
-      // Prepend checklist block from S.v1 — Claude never sees or reproduces it
-      // The checklist lives only in S.v1 and gets prepended back to S.v2 here
+      // Prepend checklist block from S.v1
       {
         const firstH1Match = S.v1.match(/^#\s+[^#]/m);
         if(firstH1Match) {
           const checklistBlock = S.v1.slice(0, S.v1.indexOf(firstH1Match[0]));
           if(checklistBlock.trim().length > 0) {
-            // Only prepend if S.v2 doesn't already start with the checklist
             if(!S.v2.trim().startsWith('# ') || S.v2.indexOf('AI AUTHORITY ARTICLE OPTIMIZATION CHECKLIST') === -1) {
               S.v2 = checklistBlock + S.v2;
             }
           }
         }
       }
-
-      // Binary QC checks
-      const forbiddenConclusions=['it depends on your situation','varies by case','there\'s no one-size-fits-all','both options have pros and cons','talk to a professional'];
-      const forbiddenTerms=['guaranteed results','proven roi','affordable','budget-friendly','grow your practice','tips and tricks','fast results','quick wins','guaranteed rankings','free audit'];
-      const foundConc=forbiddenConclusions.filter(p=>S.v2.toLowerCase().includes(p));
-      const foundTerms=forbiddenTerms.filter(t=>S.v2.toLowerCase().includes(t));
-      const h1m=S.v2.match(/^(?!##)#\s+.+/m);
-      let daZ=''; if(h1m){ const after=S.v2.slice(S.v2.indexOf(h1m[0])+h1m[0].length); const fh2=after.search(/^##\s/m); daZ=fh2>0?after.slice(0,fh2):after.slice(0,1500); }
-      const daHasPOV=daZ&&/\bI (believe|think|recommend|always|tell|watch|see|know)\b/i.test(daZ);
-      const qcIssues=[];
-      if(foundConc.length>0) qcIssues.push(`❌ Forbidden conclusions: "${foundConc.join('", "')}"`);
-      if(foundTerms.length>0) qcIssues.push(`❌ Forbidden terms: "${foundTerms.join('", "')}"`);
-      if(daHasPOV) qcIssues.push(`❌ POV language in Direct Answer — remove first-person from opening section`);
-      if(qcIssues.length>0){
-        const vcSys=`Fix specific voice violations. ONLY DIFF blocks.\n\nDIFF_START\nFIND:\n[text]\nREPLACE:\n[fix]\nDIFF_END\n\n4.3B:\n${S.docs.doc43B}`;
-        const vcUser=`Fix ONLY:\n${qcIssues.join('\n')}\n\nARTICLE:\n${S.v2}`;
-        const vcRes=await callClaude(vcSys,vcUser,akey,null,{maxTokens:16000});
-        if(vcRes.includes('DIFF_START')){ const {result}=applyDiffs(S.v2,vcRes); S.v2=result; showV2(S.v2); }
-      }
-      setStep(10,'done','Done ✓'); showV2(S.v2); updateWordCount(S.v2); saveSession(10);
-      step=11;
-    }
-
-    // ── STEP 11: Voice Audit Chat ──────────────────────────────
-    if(step<=11){
-      await runVoiceAudit(akey);
-      step=12;
-    }
-
-    // ── STEP 12: V2 Integrity Gate ─────────────────────────────
-    if(step<=12){
-      syncDirectAnswer(12); // V2.8: heal DA lock before V2 integrity check
-      setStep(12,'active','Checking V2...'); setG('Running V2 integrity checks...',true);
-      document.getElementById('o12').textContent='';
-      document.getElementById('cbox12').style.display='none';
-      let attempts=0; const MAX12=3;
-      while(attempts<MAX12){
-        const checks=runV2GateChecks(S.v2);
-        const failures=checks.filter(c=>!c.pass);
-        const warningKeys12 = ['images','directAnswer'];
-        // Build 4-item visual summary card
-        const cardChecks = [
-          { label: 'No links in Direct Answer', key: 'sacredGround', icon: checks.find(c=>c.key==='sacredGround')?.pass ? '✅' : '❌' },
-          { label: 'Internal links present', key: 'intLinks', icon: checks.find(c=>c.key==='intLinks')?.pass ? '✅' : '❌' },
-          { label: 'Tables present', key: 'tables', icon: checks.find(c=>c.key==='tables')?.pass ? '✅' : '❌' },
-          { label: 'CTA is text link only', key: 'cta', icon: '✅' }, // caught in Step 14 HTML review
-        ];
-        const cardHTML = cardChecks.map(c=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;">${c.icon} <span>${c.label}</span></div>`).join('');
-        document.getElementById('o12').innerHTML = `<div style="padding:8px 0;">${cardHTML}</div>`;
-        document.getElementById('sb12').classList.add('open');
-        if(failures.length===0){ setStep(12,'done','Done ✓'); saveSession(12); break; }
-        // Images, DA word count, and length are warnings only — non-blocking
-        const hardFailures=failures.filter(c=>c.key!=='images'&&c.key!=='directAnswer'&&c.key!=='length');
-        if(hardFailures.length===0){ setStep(12,'done','Done ✓ (warnings)'); saveSession(12); break; }
-        attempts++;
-        if(attempts>=MAX12){
-          document.getElementById('gateResults12').innerHTML=failures.map(f=>{
-            const isWarning = ['images','directAnswer','length'].includes(f.key);
-            const icon = isWarning ? '⚠' : '❌';
-            const color = isWarning ? '#f59e0b' : '#ef4444';
-            return `<div style="padding:2px 0;color:${color};">${icon} ${f.label} — ${f.detail}${isWarning?' (known false positive — non-blocking)':''}</div>`;
-          }).join('');
-          document.getElementById('cbox12').style.display='block';
-          setStep(12,'error','⚠ Hard Stop'); setG('⚠ Step 12 hard stop — choose an option.',false,true);
-          const dec12=await new Promise(res=>{ window._gate12Resolve=res; });
-          window._gate12Resolve=null;
-          if(dec12==='rewrite'){ retryFrom(10); return; }
-          else { checkpointDone=true; setStep(12,'done','Overridden ✓'); break; }
-        }
-        const {updated,log}=restoreFromV1(S.v2,failures); if(log.length>0){ S.v2=updated; showV2(S.v2); document.getElementById('o12').innerHTML+=`<div style='font-size:11px;color:var(--muted);margin-top:6px;'>JS Restore: ${log.join(', ')}</div>`; }
-        const stillFail=runV2GateChecks(S.v2).filter(c=>!c.pass);
-        if(stillFail.length===0){ setStep(12,'done','Done ✓'); saveSession(12); break; }
-        const fd12=stillFail.map(f=>{
-          if(f.key==='extLinks') return `MISSING external hyperlinks. Need 4+ embedded adjacent to claims.`;
-          if(f.key==='intLinks') return `MISSING internal links. Need 6+.`;
-          if(f.key==='faq') return `MISSING FAQ section.`;
-          if(f.key==='sacredGround') return `CRITICAL: Remove all links from Direct Answer (before first H2).`;
-          return `ISSUE: ${f.label} — ${f.detail}`;
-        }).filter(Boolean).join('\n\n');
-        if(fd12){
-          const fs12=`Fix AEO article V2. ONLY DIFF blocks.\n\nDIFF_START\nFIND:\n[text]\nREPLACE:\n[fix]\nDIFF_END\n\n4.3B:\n${S.docs.doc43B}`;
-          const fu12=`BRIEF:\n${S.geminiResearch}\n\nFIX:\n${fd12}\n\nARTICLE:\n${stripDAMarker(S.v2)}`;
-          try{ const fr12=await callClaude(fs12,fu12,akey,null,{maxTokens:64000}); if(fr12.includes('DIFF_START')){ const {result,applied,failed}=applyDiffs(S.v2,fr12); S.v2=result; showV2(S.v2); document.getElementById('o12').innerHTML+=`<div style='font-size:11px;color:var(--muted);margin-top:6px;'>Claude fixes: Applied ${applied}, Failed ${failed}</div>`; } }
-          catch(e){ document.getElementById('o12').innerHTML+=`<div style='font-size:11px;color:var(--orange);margin-top:6px;'>⚠ Fix error: ${e.message} — continuing to next attempt.</div>`; logErr(12, e.message); }
-        }
-      }
-      checkpointDone=true; checkUrls();
-      if(!imagesValidated) setG('⚠ Upload images to WordPress, paste URLs, then Validate Images.');
-      else { setG('✓ Images validated — assembling now...'); }
-      // Show unlock button as failsafe if pipeline is stuck after Step 12
-      setTimeout(()=>{ if(imagesValidated && checkpointDone && !asmResolve){ const ub=document.getElementById('unlockStep13Btn'); if(ub) ub.style.display='inline-block'; } }, 3000);
-      await waitAssemble();
+      setStep(12,'done','Done ✓'); showV2(S.v2); updateWordCount(S.v2); saveSession(12);
       step=13;
     }
 
-    // ── STEP 13: Final Assembly ────────────────────────────────
+    // ── STEP 13: Voice Compliance Index (was Step 11) ──────────
     if(step<=13){
-      syncDirectAnswer(13); // V2.8: heal DA lock — assembly REQUIRES it for hardRestoreDAZone
-      // V2.8: Dedupe placeholders one more time — any duplication introduced by Steps 5/6/9/10
+      await runVoiceAudit(akey);
+      step=14;
+    }
+
+    // ── STEP 14: Snapshot Diff Gate (V3.0 — replaces V2 Integrity Gate) ──
+    // JS verifies V2 against frame snapshot. Block elements silently restored.
+    // Inline elements (links) — URL drift silently healed; dropped links → retry.
+    if(step<=14){
+      syncDirectAnswer(14);
+      setStep(14,'active','Verifying frame...'); setG('🔍 Snapshot diff — verifying frame integrity...',true);
+      document.getElementById('o14').textContent='';
+      document.getElementById('cbox14').style.display='none';
+      try {
+        if(!S.frameSnapshot){
+          // Defensive: snapshot missing — skip diff, log warning
+          document.getElementById('o14').textContent = '⚠ No frame snapshot available — skipping diff. Continuing.';
+          setStep(14,'done','Done ✓ (no snapshot)');
+          saveSession(14);
+        } else {
+          const verify = verifyFrameSnapshot(S.v2, S.frameSnapshot);
+          // Apply silent restorations
+          if(verify.v2 && verify.v2 !== S.v2){
+            S.v2 = verify.v2;
+            showV2(S.v2);
+          }
+          // Build summary
+          const summary = [
+            `🔍 SNAPSHOT DIFF`,
+            ``,
+            verify.damage.length === 0 ? `✅ Frame intact — no damage detected.` : `Found ${verify.damage.length} damage event(s):`,
+            ...verify.damage.map(d => `  • ${d}`),
+            ``,
+            verify.restored.length > 0 ? `🔧 Silently restored:` : '',
+            ...verify.restored.map(r => `  ✓ ${r}`),
+            ``,
+            verify.retryNeeded.length > 0 ? `⚠ Cannot auto-restore (rewrite needed):` : '',
+            ...verify.retryNeeded.map(r => `  ❌ ${r}`),
+          ].filter(Boolean).join('\n');
+          document.getElementById('o14').textContent = summary;
+          document.getElementById('sb14').classList.add('open');
+
+          if(verify.retryNeeded.length > 0){
+            // Surface human checkpoint
+            document.getElementById('gateResults14').innerHTML = verify.retryNeeded.map(r =>
+              `<div style="padding:2px 0;color:#ef4444;">❌ ${r}</div>`
+            ).join('');
+            document.getElementById('cbox14').style.display='block';
+            setStep(14,'error','⚠ Hard Stop'); setG('⚠ Step 14 hard stop — choose an option.',false,true);
+            const dec14=await new Promise(res=>{ window._gate12Resolve=res; });
+            window._gate12Resolve=null;
+            if(dec14==='rewrite'){ retryFrom(12); return; }
+            else { checkpointDone=true; setStep(14,'done','Overridden ✓'); }
+          } else {
+            setStep(14,'done', verify.restored.length > 0 ? `Done ✓ (${verify.restored.length} restored)` : 'Done ✓');
+            saveSession(14);
+          }
+        }
+      } catch(e){
+        logErr(14, e.message);
+        document.getElementById('o14').textContent = `⚠ Snapshot diff error: ${e.message} — continuing.`;
+        setStep(14,'done','Done ✓ (error logged)');
+      }
+
+      checkpointDone=true; checkUrls();
+      if(!imagesValidated) setG('⚠ Upload images to WordPress, paste URLs, then Validate Images.');
+      else { setG('✓ Images validated — assembling now...'); }
+      // Show unlock button as failsafe if pipeline is stuck after Step 14
+      setTimeout(()=>{ if(imagesValidated && checkpointDone && !asmResolve){ const ub=document.getElementById('unlockStep13Btn'); if(ub) ub.style.display='inline-block'; } }, 3000);
+      await waitAssemble();
+      step=15;
+    }
+
+    // ── STEP 15: Final Assembly (was Step 13) ──────────────────
+    if(step<=15){
+      syncDirectAnswer(15); // heal DA lock — assembly REQUIRES it for hardRestoreDAZone
+      // Dedupe placeholders one more time — any duplication introduced by Steps 5/6/9/12
       // gets cleaned before Claude's final assembly sees the markdown.
       S.v2 = dedupePlaceholders(S.v2);
       S.v1 = dedupePlaceholders(S.v1);
       const pd=document.getElementById('publishDate').value;
-      if(!pd){ setStep(13,'error','⚠ Set Publish Date','Publish date required.'); document.getElementById('publishDate').focus(); throw new Error('Step 13: Publish date required.'); }
-      if(!S.docs.doc43B || S.docs.doc43B.trim().length < 100) { setStep(13,'error','⚠ Missing 4.3B','Client Identity Card (4.3B) is missing or empty. Return to Step 1 and reload documents.'); throw new Error('Step 13: 4.3B Client Identity Card missing — cannot assemble article without client data.'); }
-      setStep(13,'active','Assembling...'); setG('Claude producing Final HTML...',true);
+      if(!pd){ setStep(15,'error','⚠ Set Publish Date','Publish date required.'); document.getElementById('publishDate').focus(); throw new Error('Step 15: Publish date required.'); }
+      if(!S.docs.doc43B || S.docs.doc43B.trim().length < 100) { setStep(15,'error','⚠ Missing 4.3B','Client Identity Card (4.3B) is missing or empty. Return to Step 1 and reload documents.'); throw new Error('Step 15: 4.3B Client Identity Card missing — cannot assemble article without client data.'); }
+      setStep(15,'active','Assembling...'); setG('Claude producing Final HTML...',true);
       const imgLines=[]; for(let i=0;i<S.imagePrompts.length;i++){const u=S.imageUrls[i]||'';if(u)imgLines.push(`Image ${i+1} URL — ${u}`);}
       const featNum=getFeatured()+1;
       const today=new Date().toISOString().split('T')[0];
@@ -4193,12 +4753,12 @@ Featured: Image ${featNum}
 - No link in the Direct Answer section (the div with class="direct-answer")
 
 V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
-      const assemblyResult=await callClaude(`You are an expert AEO article HTML producer.\n\n4.3B:\n${S.docs.doc43B}`,htmlPrompt,akey,(p)=>{document.getElementById('o13').textContent=p;document.getElementById('sb13').classList.add('open');},{maxTokens:64000});
+      const assemblyResult=await callClaude(`You are an expert AEO article HTML producer.\n\n4.3B:\n${S.docs.doc43B}`,htmlPrompt,akey,(p)=>{document.getElementById('o15').textContent=p;document.getElementById('sb15').classList.add('open');},{maxTokens:64000});
       const schemaMatch=assemblyResult.match(/=== SCHEMA START ===([\s\S]*?)=== SCHEMA END ===/i);
       S.finalSchema=schemaMatch?schemaMatch[1].trim():'';
       const htmlMatch=assemblyResult.match(/=== HTML START ===([\s\S]*?)=== HTML END ===/i);
       if(htmlMatch&&htmlMatch[1].trim().length>100){ S.finalTXT=htmlMatch[1].trim(); }
-      else { const m2=assemblyResult.match(/```(?:html)?\n([\s\S]*?)```/i); if(m2&&m2[1].trim().length>100){ S.finalTXT=m2[1].trim(); } else { throw new Error('Step 13: No HTML block found. Retry.'); } }
+      else { const m2=assemblyResult.match(/```(?:html)?\n([\s\S]*?)```/i); if(m2&&m2[1].trim().length>100){ S.finalTXT=m2[1].trim(); } else { throw new Error('Step 15: No HTML block found. Retry.'); } }
       // ── PASS 1: Strip stray non-HTML text before first tag or after last closing tag
       S.finalTXT = S.finalTXT.replace(/^[^<]*/, '').replace(/>[^<]*$/, '>').trim();
 
@@ -4226,11 +4786,11 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
         if(clientDomain === '__NO_DOMAIN__'){
           const relCount = (S.finalTXT.match(/(?:href|src)=["']\/(?!\/)/gi) || []).length;
           if(relCount > 0){
-            document.getElementById('o13').textContent +=
+            document.getElementById('o15').textContent +=
               `\n\n⚠ Pass 3B SKIPPED: client domain could not be resolved from V1 metadata, sheet row, or 4.3B. ` +
               `${relCount} relative URL(s) left unchanged. Fix upstream config (4.2 sheet URL or 4.3B website field) ` +
               `before publishing — these URLs will resolve to whatever domain hosts the page.`;
-            logErr(13, `Pass 3B skipped — no client domain resolved (${relCount} relative URLs left in HTML)`);
+            logErr(15, `Pass 3B skipped — no client domain resolved (${relCount} relative URLs left in HTML)`);
           }
         } else if(clientDomain && !clientDomain.includes('github.io')){
           const absoluteBase = `https://${clientDomain}`;
@@ -4242,18 +4802,18 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
           const after = (S.finalTXT.match(/(?:href|src)=["']\/(?!\/)/gi) || []).length;
           const fixed = before - after;
           if(fixed > 0){
-            document.getElementById('o13').textContent += `\n\n✅ Pass 3B: ${fixed} relative URL(s) normalized to absolute (${absoluteBase}/...)`;
+            document.getElementById('o15').textContent += `\n\n✅ Pass 3B: ${fixed} relative URL(s) normalized to absolute (${absoluteBase}/...)`;
           }
         }
       } catch(e){
-        logErr(13, `Pass 3B URL normalization failed: ${e.message}`);
+        logErr(15, `Pass 3B URL normalization failed: ${e.message}`);
       }
 
       // ── PASS 4: STYLESHEET INJECTION — JS builds canonical <style> from 4.3B Section 11
       // Claude never writes CSS. This eliminates all font/color/spacing variation between runs.
       const canonicalStyle = buildStylesheetFrom43B(S.docs.doc43B);
       S.finalTXT = S.finalTXT.replace(/<style>[\s\S]*?<\/style>/i, canonicalStyle);
-      document.getElementById('o13').textContent += '\n\n✅ Canonical stylesheet injected from 4.3B.';
+      document.getElementById('o15').textContent += '\n\n✅ Canonical stylesheet injected from 4.3B.';
 
       // ── PASS 5: ARTICLE WRAPPER INTEGRITY
       // Ensures <div class="article-wrap"> opens immediately after </style>
@@ -4276,7 +4836,7 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
         // Wrap: inject open tag immediately after </style>, close tag at very end
         S.finalTXT = S.finalTXT.replace(/(<\/style>)/i, '$1\n<div class="article-wrap">');
         S.finalTXT = S.finalTXT.trimEnd() + '\n</div>';
-        document.getElementById('o13').textContent += '\n\n✅ Article wrapper integrity confirmed.';
+        document.getElementById('o15').textContent += '\n\n✅ Article wrapper integrity confirmed.';
       }
 
       // ── PASS 5C: DA PARAGRAPH ENFORCEMENT
@@ -4303,7 +4863,7 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
       // ── PASS 6: DUPLICATE CTA PARAGRAPH DETECTION
       S.finalTXT = S.finalTXT.replace(/(<p>[^<]{20,}<\/p>)\s*(<p>[^<]*<\/p>\s*)*\1/gi, (match, p1) => {
         const fixed = match.replace(new RegExp(p1.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*$'), '');
-        if(fixed !== match) document.getElementById('o13').textContent += '\n\n✅ Duplicate CTA paragraph removed.';
+        if(fixed !== match) document.getElementById('o15').textContent += '\n\n✅ Duplicate CTA paragraph removed.';
         return fixed;
       });
 
@@ -4334,7 +4894,7 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
           S.finalTXT = S.finalTXT.replace(/(<h2[^>]*>)/i, luHTML + '\n$1');
         }
       }
-      document.getElementById('o13').textContent += `\n\n✅ Last Updated injected: ${formattedDate}`;
+      document.getElementById('o15').textContent += `\n\n✅ Last Updated injected: ${formattedDate}`;
 
       // ── PASS 8B: DA GAP STRIP — enforce H1 → DA → Last Updated → ToC → H2
       // Hard rule: NOTHING is allowed between the last-updated element and the first H2.
@@ -4353,7 +4913,7 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
             .trim();
           if(cleaned !== gap.trim()) {
             S.finalTXT = before + '\n' + cleaned + '\n' + after;
-            document.getElementById('o13').textContent += '\n\n✅ DA gap stripped — filler paragraphs removed.';
+            document.getElementById('o15').textContent += '\n\n✅ DA gap stripped — filler paragraphs removed.';
           }
         }
       }
@@ -4373,7 +4933,7 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
       // ── PASS 10: TOC FULL REBUILD — JS strips Claude's ToC and builds from scratch
       // Uses heading IDs extracted from article body. Canonical structure every time.
       S.finalTXT = rebuildToC(S.finalTXT, S.docs.doc43B);
-      document.getElementById('o13').textContent += '\n\n✅ ToC rebuilt from heading IDs.';
+      document.getElementById('o15').textContent += '\n\n✅ ToC rebuilt from heading IDs.';
 
       // ── PASS 11: TABLE CLASS ENFORCEMENT
       // JS assigns class="article-table" to every <table> tag sequentially.
@@ -4385,7 +4945,7 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
         const cleanAttrs = attrs.replace(/\s*class="[^"]*"/gi, '').trim();
         return `<table class="article-table"${cleanAttrs ? ' '+cleanAttrs : ''}>`;
       });
-      if(tableIdx > 0) document.getElementById('o13').textContent += `\n\n✅ Table classes enforced: ${tableIdx} table(s) assigned class="article-table".`;
+      if(tableIdx > 0) document.getElementById('o15').textContent += `\n\n✅ Table classes enforced: ${tableIdx} table(s) assigned class="article-table".`;
 
       // ── PASS 12: CTA WRAPPER CLASS ENFORCEMENT
       // Claude is told to use class="article-cta" but may vary. JS normalizes any
@@ -4396,29 +4956,25 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
       // checklist now built as docx on demand
       userSelectedTab=false; showHTMLFinal(S.finalTXT); showSchema(S.finalSchema,pd,S.imageUrls[getFeatured()]||'');
       // Save to history immediately — outputs never lost even if Step 14 dies
-      setStep(13,'done','Done ✓'); saveSession(13);
-      step=14;
-    }
-
-    // ── STEP 14: Structured QC Audit ──────────────────────────
-    if(step<=14){
-      await runStructuredQC(akey, publishDate);
-      saveSession(14);
-      step=15;
-    }
-
-    // ── STEP 15: HTML Review Chat ──────────────────────────────
-    if(step<=15){
-      await runQC(akey,'',publishDate);
+      setStep(15,'done','Done ✓'); saveSession(15);
       step=16;
     }
 
-    // ── STEP 16: Complete ──────────────────────────────────────
+    // ── STEP 16: Structured QC Audit (was Step 14) ─────────────
     if(step<=16){
-      stopTimer();
+      await runStructuredQC(akey, publishDate);
       saveSession(16);
+      step=17;
+    }
+
+    // ── STEP 17: HTML Review & Finalize (was Steps 15+16) ──────
+    if(step<=17){
+      await runQC(akey,'',publishDate);
+      // finalizeQC() (called by user via "Finalize — Done" button) handles the final state
+      // and shows download buttons. No separate "Complete" step needed.
+      stopTimer();
+      saveSession(17);
       document.getElementById('outputsSec').classList.add('open');
-      setStep(16,'done','Done ✓','✓ Article complete — use download buttons above.');
       setG('✓ Article complete — download your files above.');
     }
   }
@@ -4777,7 +5333,7 @@ ${listItems}
 
   function handleErr(err) {
     setG(`⚠ Error: ${err.message}`,false,true); console.error(err);
-    for(let i=1;i<=16;i++){
+    for(let i=1;i<=17;i++){
       const card=document.getElementById(`step${i}`);
       if(card&&card.classList.contains('active')){
         setStep(i,'error','Failed');
@@ -4802,8 +5358,10 @@ ${listItems}
     rBtns.forEach(b=>{ b.disabled=true; b.style.opacity='0.5'; });
     if(n<=7){imagesValidated=false;checkpointDone=false;asmResolve=null;}
     if(n<=9){step8RetryCount=0;}
-    if(n<=11&&voice11Resolve){voice11Resolve();voice11Resolve=null;}
-    if(n<=15&&qc14Resolve){qc14Resolve();qc14Resolve=null;}
+    // V3.0: voice11Resolve is the VCI resolver — VCI is now Step 13
+    if(n<=13&&voice11Resolve){voice11Resolve();voice11Resolve=null;}
+    // V3.0: qc14Resolve is the QC chat resolver — HTML Review is now Step 17
+    if(n<=17&&qc14Resolve){qc14Resolve();qc14Resolve=null;}
     running=true; document.getElementById('runBtn').disabled=true;
     document.getElementById('runBtn').style.display='none';
     document.getElementById('stopBtn').style.display='flex';
@@ -4912,7 +5470,7 @@ ${listItems}
     document.getElementById('runBtn').style.display='none';
     document.getElementById('stopBtn').style.display='flex';
     document.getElementById('outputsSec').classList.remove('open');
-    for(let i=1;i<=16;i++) setStep(i,'waiting','Waiting');
+    for(let i=1;i<=17;i++) setStep(i,'waiting','Waiting');
     document.getElementById('assembleBtn').disabled=true;
     document.getElementById('assembleHint').textContent='Complete steps 1–12 first';
     document.getElementById('v1WordCount').textContent='—';
