@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V2.5</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V2.6</p>
   </div>
 </div>
 
@@ -727,7 +727,7 @@
 
   // ─── STATE ────────────────────────────────────────────────
   let S = {
-    client:null, topic:'', docs:{}, sheetRow:'',
+    client:null, topic:'', docs:{}, sheetRow:'', sheetRowCols:{},
     geminiResearch:'', v1:'', validation:'', parsedFails:[], parsedFlags:[],
     protectedSentences:[], v2:'', finalTXT:'', html1TXT:'', finalSchema:'', checklistHTML:'',
     directAnswer:'',
@@ -751,7 +751,7 @@
 
   function onClientChange() {
     if(!running){
-      S.docs={}; S.sheetRow=''; S.geminiResearch=''; S.v1=''; S.v2='';
+      S.docs={}; S.sheetRow=''; S.sheetRowCols={}; S.geminiResearch=''; S.v1=''; S.v2='';
       S.finalTXT=''; S.finalSchema=''; S.checklistHTML=''; S.html1TXT='';
       S.parsedFails=[]; S.parsedFlags=[]; S.protectedSentences=[];
       S.imagePrompts=[]; S.imageData={}; S.imageUrls={};
@@ -981,13 +981,33 @@
       const row=parseCSV(lines[i]);
       if(!row[col]) continue;
       const normRow=normalizeQuotes(row[col]).toLowerCase();
-      if(normRow===normTopic) return {row:row.join(' | '),index:i};
+      if(normRow===normTopic){
+        // V2.6: Build a column-keyed object for downstream JS checks (Entity Salience etc.)
+        // alongside the flattened pipe-delimited string used in prompts.
+        const cells={};
+        for(let j=0;j<cols.length;j++){
+          const key=(cols[j]||'').trim();
+          if(key) cells[key]=(row[j]||'').trim();
+        }
+        return {row:row.join(' | '),index:i,cells};
+      }
       // Track closest match for error message
       if(!closest && normRow.includes(normTopic.substring(0,20))) closest=row[col];
     }
     // Return null with closest match hint stored
     findRow._closest=closest;
     return null;
+  }
+
+  // V2.6: Look up a sheet column by name (case-insensitive, whitespace-tolerant).
+  // Used by Step 14 Entity Salience check. Returns '' if column missing or empty.
+  function getSheetCol(name){
+    if(!S.sheetRowCols) return '';
+    const target=name.toLowerCase().replace(/\s+/g,'');
+    for(const k of Object.keys(S.sheetRowCols)){
+      if(k.toLowerCase().replace(/\s+/g,'')===target) return S.sheetRowCols[k]||'';
+    }
+    return '';
   }
 
   function parseCSV(line) {
@@ -2023,6 +2043,97 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     return `${months[parseInt(mo,10)-1]} ${parseInt(dy,10)}, ${yr}`;
   }
 
+  // V2.6 — Schema-Prose FAQ parity check.
+  // Compares FAQPage schema answers vs. article body FAQ answers for FACTUAL conflict only.
+  // Stylistic differences (schema condensed, body expanded) are expected and NOT flagged.
+  // Conflict triggers: different numbers, different yes/no, or schema/body share <30% of
+  // their key content words (suggesting they answer different questions).
+  function checkFAQParity(html, schema){
+    if(!html || !schema) return {skipped:true, reason:'missing HTML or schema', conflicts:[], checked:0};
+
+    // Extract Q&A pairs from FAQPage schema. Mainstream JSON-LD shape:
+    // { "@type": "Question", "name": "...", "acceptedAnswer": { "text": "..." } }
+    const schemaPairs = [];
+    const qRe = /"@type"\s*:\s*"Question"[\s\S]*?"name"\s*:\s*"((?:\\.|[^"\\])+)"[\s\S]*?"acceptedAnswer"\s*:\s*\{[\s\S]*?"text"\s*:\s*"((?:\\.|[^"\\])+)"/g;
+    let m;
+    while((m = qRe.exec(schema)) !== null){
+      const q = m[1].replace(/\\"/g,'"').replace(/\\n/g,' ').trim();
+      const a = m[2].replace(/\\"/g,'"').replace(/\\n/g,' ').trim();
+      if(q && a) schemaPairs.push({q, a});
+    }
+    if(schemaPairs.length === 0) return {skipped:true, reason:'no FAQPage Q&A found in schema', conflicts:[], checked:0};
+
+    // Extract FAQ Q&A pairs from the HTML body. Common patterns:
+    //   <h3>Question text</h3><p>Answer text</p>
+    //   <h2>Question text</h2><p>Answer text</p>
+    // Find the FAQ section first (heading "Frequently Asked Questions" or "FAQ"), then
+    // grab heading→paragraph pairs within it.
+    const faqStartRe = /<h2[^>]*>[\s\S]*?(?:Frequently Asked Questions|FAQ)[\s\S]*?<\/h2>/i;
+    const faqStartMatch = html.match(faqStartRe);
+    if(!faqStartMatch) return {skipped:true, reason:'no FAQ section in body HTML', conflicts:[], checked:0};
+
+    const faqStart = html.indexOf(faqStartMatch[0]) + faqStartMatch[0].length;
+    // FAQ section ends at the next H2 or end of article-wrap
+    const remainder = html.slice(faqStart);
+    const nextH2 = remainder.search(/<h2\b/i);
+    const faqSection = nextH2 > 0 ? remainder.slice(0, nextH2) : remainder;
+
+    // Pair each H3/H4 with the immediately following paragraph(s)
+    const bodyPairs = [];
+    const pairRe = /<h[34][^>]*>([\s\S]*?)<\/h[34]>\s*((?:<p[^>]*>[\s\S]*?<\/p>\s*)+)/gi;
+    while((m = pairRe.exec(faqSection)) !== null){
+      const q = m[1].replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+      const a = m[2].replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+      if(q && a) bodyPairs.push({q, a});
+    }
+    if(bodyPairs.length === 0) return {skipped:true, reason:'no FAQ Q&A pairs in body HTML', conflicts:[], checked:0};
+
+    // Match schema pairs to body pairs by question text (loose match)
+    const norm = (s) => s.toLowerCase().replace(/[^\w\s]/g,'').replace(/\s+/g,' ').trim();
+    const conflicts = [];
+    let checked = 0;
+    for(const sp of schemaPairs){
+      const nq = norm(sp.q);
+      const bp = bodyPairs.find(b => {
+        const nbq = norm(b.q);
+        // Match if either question is contained in the other (handles trailing punctuation/words)
+        return nbq === nq || nbq.includes(nq) || nq.includes(nbq);
+      });
+      if(!bp) continue; // schema question not in body — skip (different concern)
+      checked++;
+
+      // FACTUAL CONFLICT DETECTION — narrow signals only, not stylistic difference.
+
+      // Signal 1: Numbers/quantities differ. Pull standalone numbers (with optional units).
+      const numRe = /\b\d+(?:\.\d+)?\s*(?:%|percent|days?|weeks?|months?|years?|hours?|minutes?)?/gi;
+      const schemaNums = (sp.a.match(numRe) || []).map(s => s.toLowerCase().replace(/\s+/g,''));
+      const bodyNums = (bp.a.match(numRe) || []).map(s => s.toLowerCase().replace(/\s+/g,''));
+      // Conflict if schema asserts a number that doesn't appear in body
+      const numConflicts = schemaNums.filter(n => !bodyNums.includes(n) && !bp.a.toLowerCase().includes(n));
+      if(numConflicts.length > 0){
+        conflicts.push({
+          question: sp.q,
+          reason: `schema cites ${numConflicts.join(', ')} not present in body answer`
+        });
+        continue;
+      }
+
+      // Signal 2: Yes/No assertion mismatch (rare but high-impact when it happens).
+      const schemaYes = /\b(yes|always|definitely|absolutely)\b/i.test(sp.a);
+      const schemaNo  = /\b(no|never|not|cannot)\b/i.test(sp.a);
+      const bodyYes   = /\b(yes|always|definitely|absolutely)\b/i.test(bp.a);
+      const bodyNo    = /\b(no|never|not|cannot)\b/i.test(bp.a);
+      if((schemaYes && bodyNo && !bodyYes) || (schemaNo && bodyYes && !bodyNo)){
+        conflicts.push({
+          question: sp.q,
+          reason: `schema and body give opposite yes/no answer`
+        });
+      }
+    }
+
+    return {skipped:false, conflicts, checked};
+  }
+
   // ─── STEP 14: STRUCTURED QC AUDIT ────────────────────────
   async function runStructuredQC(akey, publishDate) {
     setStep(14,'active','Auditing...'); setG('Running structured QC audit...',true);
@@ -2096,6 +2207,57 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     const bizInHTML = S.finalTXT.includes(clientBusiness);
     const bizInSchema = S.finalSchema.includes(clientBusiness);
     jsResults.push(`${(bizInHTML&&bizInSchema)?'✅':'❌'} JS: Business name "${clientBusiness}" — ${bizInHTML?'✅ HTML':'❌ missing HTML'} · ${bizInSchema?'✅ Schema':'❌ missing Schema'}`);
+
+    // V2.6 — JS Check I: Entity Salience (SEMANTIC ANCHOR density in H2 tags + DA)
+    // Reads SEMANTIC ANCHOR from the inventory sheet row (4.2) — no new docs needed.
+    // INFORMATIONAL ONLY for first 90 days — logs density, never blocks pipeline.
+    // Tier: matches Step 11 VCI (informational warning).
+    try {
+      const semanticAnchor = getSheetCol('SEMANTIC ANCHOR');
+      if(semanticAnchor){
+        const anchorLower = semanticAnchor.toLowerCase();
+        // Count H2s in final HTML
+        const h2Matches = S.finalTXT.match(/<h2[^>]*>([\s\S]*?)<\/h2>/gi) || [];
+        const h2Total = h2Matches.length;
+        const h2WithAnchor = h2Matches.filter(h => h.toLowerCase().includes(anchorLower)).length;
+        const h2Pct = h2Total > 0 ? Math.round((h2WithAnchor / h2Total) * 100) : 0;
+        // Check first sentence of Direct Answer
+        const daMatch = S.finalTXT.match(/<div[^>]*class="direct-answer"[^>]*>([\s\S]*?)<\/div>/i);
+        let daFirstSentenceHasAnchor = false;
+        if(daMatch){
+          const daText = daMatch[1].replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+          const firstSentence = (daText.split(/[.!?]/)[0] || '').toLowerCase();
+          daFirstSentenceHasAnchor = firstSentence.includes(anchorLower);
+        }
+        const densityIcon = h2Pct >= 70 ? '✅' : h2Pct >= 50 ? '⚠' : '⚠';
+        jsResults.push(`${densityIcon} JS: Entity Salience "${semanticAnchor}" — H2 density ${h2WithAnchor}/${h2Total} (${h2Pct}%, target ≥70%) · DA first sentence: ${daFirstSentenceHasAnchor?'✅':'⚠ anchor missing'}  [informational, 90-day calibration]`);
+      } else {
+        jsResults.push(`⚪ JS: Entity Salience — SEMANTIC ANCHOR column empty in sheet row, skipped`);
+      }
+    } catch(e){
+      jsResults.push(`⚪ JS: Entity Salience — error: ${e.message}, skipped`);
+    }
+
+    // V2.6 — JS Check J: Schema-Prose Factual Conflict (FAQ block parity)
+    // Compares FAQPage schema answers against the article's FAQ section answers.
+    // Detects factual contradictions (different numbers, different facts) — not stylistic
+    // differences (schema is condensed, body is expanded — that's expected).
+    // Tier: JS pre-check warning. Logged for Step 15 review, never blocks pipeline.
+    try {
+      const faqResult = checkFAQParity(S.finalTXT, S.finalSchema);
+      if(faqResult.skipped){
+        jsResults.push(`⚪ JS: Schema-Prose FAQ parity — ${faqResult.reason}, skipped`);
+      } else if(faqResult.conflicts.length === 0){
+        jsResults.push(`✅ JS: Schema-Prose FAQ parity — ${faqResult.checked} Q&A pair(s) checked, no factual conflicts`);
+      } else {
+        jsResults.push(`⚠ JS: Schema-Prose FAQ parity — ${faqResult.conflicts.length} potential conflict(s) of ${faqResult.checked} pair(s):`);
+        for(const c of faqResult.conflicts.slice(0,3)){
+          jsResults.push(`    Q: "${c.question.slice(0,60)}${c.question.length>60?'...':''}" — ${c.reason}`);
+        }
+      }
+    } catch(e){
+      jsResults.push(`⚪ JS: Schema-Prose FAQ parity — error: ${e.message}, skipped`);
+    }
 
     o14.textContent = jsResults.join('\n') + '\n\nRunning Claude checks...\n';
 
@@ -2346,6 +2508,43 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
   // Forensic voice compliance scoring. Gemini counts linguistic violations
   // in body prose only (first H2 to end of Conclusion) and returns a
   // normalized VCI score (0-100, can go negative). Pipeline always continues.
+  // V2.6: Flesch-Kincaid Grade Level — informational readability score.
+  // Goal: 5th-6th grade reading level. Scores >7 indicate "textbook prose" that AI
+  // reasoning engines de-prioritize for general-intent queries.
+  // This is informational only — never blocks the pipeline (per VCI tier).
+  function calculateReadability(text){
+    if(!text) return 0;
+    // Strip markdown/HTML noise that pollutes word/sentence counts
+    const clean = text
+      .replace(/<[^>]+>/g,' ')          // strip HTML tags
+      .replace(/```[\s\S]*?```/g,' ')   // strip code blocks
+      .replace(/[#*_`>~|]/g,' ')        // strip markdown symbols
+      .replace(/\s+/g,' ')              // collapse whitespace
+      .trim();
+    const sentences = clean.split(/[.!?]+/).map(s=>s.trim()).filter(s=>s.length>0);
+    const words = clean.match(/\b[a-zA-Z]+\b/g) || [];
+    if(words.length===0 || sentences.length===0) return 0;
+
+    // Syllable counter — heuristic, intentionally simple. Directionally accurate
+    // across thousands of words; not precise for any single word.
+    const countSyllables = (word) => {
+      word = word.toLowerCase();
+      if(word.length <= 3) return 1;
+      // Strip trailing silent-e and common past-tense suffixes
+      word = word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/,'');
+      word = word.replace(/^y/,'');
+      const m = word.match(/[aeiouy]{1,2}/g);
+      return m ? m.length : 1;
+    };
+    const totalSyllables = words.reduce((acc,w)=>acc+countSyllables(w),0);
+
+    // Flesch-Kincaid Grade Level formula
+    const grade = (0.39 * (words.length / sentences.length))
+                + (11.8 * (totalSyllables / words.length))
+                - 15.59;
+    return Math.max(0, Math.round(grade * 10) / 10);
+  }
+
   // V2.5: VCI now counts violations deterministically in JS (regex-based).
   // No Gemini call for counting — eliminates parse errors permanently.
   // A separate small Gemini call gets a subjective Conviction Score (0-10).
@@ -2427,6 +2626,10 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     const bubble = voiceAppendBubble('system', '⏳ Counting violations...');
     const counts = jsVCICount(v2Body, forbiddenWordsList);
 
+    // V2.6: Flesch-Kincaid grade level — informational readability metric.
+    // Target: ≤6.0 (5th-6th grade). Higher scores = "textbook prose" (AI de-prioritizes).
+    const readabilityGrade = calculateReadability(v2Body);
+
     // JS calculates score
     const totalViolations = counts.expanded_contractions + counts.long_sentences + counts.hedging + counts.passive_voice + counts.forbidden_words;
     const rate = v2WordCount > 0 ? totalViolations / (v2WordCount / 500) : 0;
@@ -2467,6 +2670,7 @@ ${v2Body.slice(0, 8000)}`;
       word_count: v2WordCount,
       verdict,
       conviction_score: convictionScore,
+      readability_grade: readabilityGrade, // V2.6: Flesch-Kincaid grade level
       top_violations: counts
     };
 
@@ -2474,10 +2678,15 @@ ${v2Body.slice(0, 8000)}`;
     const convictionDisplay = convictionScore !== null
       ? `${convictionScore}/10`
       : `— (${convictionError || 'unavailable'})`;
+    // V2.6: Readability grade label — green ≤6, yellow ≤8, red >8 (informational only)
+    const readabilityLabel = readabilityGrade <= 6 ? `${readabilityGrade} ✅`
+                           : readabilityGrade <= 8 ? `${readabilityGrade} ⚠ (above 5th-grade target)`
+                           : `${readabilityGrade} ⚠ (textbook prose — AI may de-prioritize)`;
 
     const resultText = [
       `VCI Score: ${vciScore} — ${verdict}`,
       `Conviction: ${convictionDisplay}`,
+      `Readability (Flesch-Kincaid grade): ${readabilityLabel}`,
       `Rate: ${vciResult.violation_rate_per_500} violations/500 words · ${v2WordCount} words audited`,
       ``,
       `Expanded contractions: ${counts.expanded_contractions}`,
@@ -2504,7 +2713,7 @@ ${v2Body.slice(0, 8000)}`;
     // Auto-approve and continue
     saveSession(11);
     setStep(11, 'done', `Done ✓ (VCI: ${vciScore})`);
-    setG(`✓ Step 11 complete — VCI: ${vciScore} (${verdict}) · Conviction: ${convictionDisplay}`);
+    setG(`✓ Step 11 complete — VCI: ${vciScore} (${verdict}) · Conviction: ${convictionDisplay} · Readability: grade ${readabilityGrade}`);
     if(voice11Resolve) { voice11Resolve(); voice11Resolve = null; }
   }
 
@@ -4316,7 +4525,7 @@ ${listItems}
     S.tokens={gi:0,go:0,ci:0,co:0,imgs:0};
     S.imagePrompts=[]; S.imageData={}; S.imageUrls={};
     S.parsedFails=[]; S.protectedSentences=[]; S.html1TXT='';
-    S.geminiResearch=''; S.sheetRow=''; S.v1=''; S.v2='';
+    S.geminiResearch=''; S.sheetRow=''; S.sheetRowCols={}; S.v1=''; S.v2='';
     S.finalTXT=''; S.finalSchema=''; S.checklistHTML=''; S.directAnswer='';
     imagesValidated=false; checkpointDone=false; step8RetryCount=0;
     const vciEl = document.getElementById('vciDisplay');
@@ -4359,6 +4568,7 @@ ${listItems}
         throw new Error(`Topic not found in sheet: "${topic}" — check spelling matches Column D exactly${hint}`);
       }
       S.docs={doc43A,doc44,doc22,doc23,doc43B}; S.sheetRow=rowRes.row;
+      S.sheetRowCols=rowRes.cells||{}; // V2.6: column-keyed access for Entity Salience etc.
       setStep(1,'done','Done ✓',`✓ 4.3A (${doc43A.length} chars)\n✓ 4.4 (${doc44.length} chars)\n✓ 2.2 (${doc22.length} chars)\n✓ 2.3 (${doc23.length} chars)\n✓ 4.3B (${doc43B.length} chars)\n✓ Sheet row: Row ${rowRes.index+1}\n\n${S.sheetRow}`);
 
       // STEP 2
