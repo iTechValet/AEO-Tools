@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V3.0.2</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V3.1</p>
   </div>
 </div>
 
@@ -1500,11 +1500,21 @@
     activeTab = tab;
     const allTabs = ['v1','v2','da','meta','htmlFinal','schema'];
     allTabs.forEach(t => {
-      const tabId = 'tab' + t.charAt(0).toUpperCase() + t.slice(1);
-      // pHTMLFinal has uppercase HTML — handle case mismatch explicitly
-      const paneId = t === 'htmlFinal' ? 'pHTMLFinal' : 'p' + t.charAt(0).toUpperCase() + t.slice(1);
-      document.getElementById(tabId)?.classList.toggle('active', tab===t);
-      document.getElementById(paneId)?.classList.toggle('active', tab===t);
+      // V3.0.3 — Explicit id mapping. HTML uses tabDA/pDA (uppercase DA) and tabV1/pV1
+      // etc. (uppercase V). Computing from lowercase t with charAt+toUpperCase produced
+      // tabDa/pDa for the DA tab — getElementById is case-sensitive, so DA tab was
+      // never activated. Map each tab to its exact id pair.
+      const ids = {
+        v1:       { tab: 'tabV1',       pane: 'pV1' },
+        v2:       { tab: 'tabV2',       pane: 'pV2' },
+        da:       { tab: 'tabDA',       pane: 'pDA' },
+        meta:     { tab: 'tabMeta',     pane: 'pMeta' },
+        htmlFinal:{ tab: 'tabHTMLFinal',pane: 'pHTMLFinal' },
+        schema:   { tab: 'tabSchema',   pane: 'pSchema' }
+      };
+      const map = ids[t]; if(!map) return;
+      document.getElementById(map.tab)?.classList.toggle('active', tab===t);
+      document.getElementById(map.pane)?.classList.toggle('active', tab===t);
     });
     const copyBtn = document.getElementById('btnCopyPane');
     if(copyBtn) copyBtn.style.display = (tab==='v2'||tab==='htmlFinal'||tab==='schema'||tab==='da') ? 'block' : 'none';
@@ -3557,9 +3567,10 @@ ${v2Body.slice(0, 8000)}`;
       }));
     }
 
-    // CTA wording — from 4.3B CTA VARIATION section
-    const ctaMatch = (S.docs.doc43B || '').match(/CTA VARIATION[\s\S]*?["""]([^"""]+)["""]?/i);
-    if (ctaMatch) snap.ctaWording = ctaMatch[1].trim();
+    // CTA wording snapshot removed in V3.0.3 — 4.3A requires fresh per-article CTA,
+    // so capturing a "canonical" CTA from 4.3B would cause Step 14 to incorrectly
+    // flag every article's fresh CTA as drift. CTA structural validation (div + link)
+    // happens in runPreLockAudit() instead.
 
     return snap;
   }
@@ -3752,11 +3763,11 @@ ${v2Body.slice(0, 8000)}`;
       }
     } catch (e) { /* skip if helpers unavailable */ }
 
-    // 10. CTA wording match — body should contain locked CTA wording at least once
-    if (snapshot.ctaWording && snapshot.ctaWording.length > 5) {
-      if (!body.includes(snapshot.ctaWording)) {
-        warnings.push(`⚠ CTA wording from 4.3B not found verbatim in body — verify Step 5 used canonical wording`);
-      }
+    // 10. CTA section present (V3.0.3 — 4.3A explicitly requires FRESH per-article CTA,
+    // not verbatim 4.3B wording. Only check that a CTA div with an anchor exists.)
+    const ctaSectionMatch = body.match(/<div\s+class="article-cta"[\s\S]*?<\/div>/i);
+    if (!ctaSectionMatch || !/<a\s+[^>]*href=/i.test(ctaSectionMatch[0])) {
+      warnings.push('⚠ CTA section missing or has no link — verify Step 5 wrote the CTA block');
     }
 
     // 11. Image prompts present
@@ -4208,7 +4219,7 @@ HARD RULES:
 - NO links in the Direct Answer (before first H2)
 - NO prose between Direct Answer and first H2 (only LAST_UPDATED_PLACEHOLDER and TOC_PLACEHOLDER belong there)
 - CTA must be a text link — NOT a button, NOT a styled element. Wrap in <div class="article-cta">.
-- CTA anchor text must use the EXACT wording from the "CTA VARIATION" section of 4.3B — do not paraphrase or alter pronoun ("My" not "your", etc.)
+- CTA: Write a FRESH per-article CTA per 4.3A CTA Constraint System (Part 6). Use "CTA Variation Examples" from 4.3B as style/voice examples — NOT verbatim text. Tailor opening hook and value description to this article's specific topic. Use the Primary CTA URL from 4.3B Conversion section. Anchor text must be unique to this article (never duplicate across posts).
 - Every H2 section addresses at least 3-4 of the 5 intent layers
 - Voice: lead with the point, then explain — NEVER setup before verdict
 - EXTERNAL LINK ATTRIBUTION: When embedding an external link, always mention the source name naturally in the surrounding sentence. Example: "According to BrightEdge..." or "Semrush data shows..." — never embed a bare link with no attribution in the text`;
@@ -5045,17 +5056,55 @@ V2 ARTICLE:\n${stripDAMarker(S.v2)}`;
       }
       document.getElementById('o15').textContent += `\n\n✅ Last Updated injected: ${formattedDate}`;
 
-      // ── PASS 8B: DA GAP STRIP — enforce H1 → DA → Last Updated → ToC → H2
+      // ── PASS 8C: AUTHOR BYLINE — JS INJECTION (V3.1)
+      // Reads Author Name and Author Title from 4.3B. If both present, injects
+      // <p class="author-byline"> immediately after the Last Updated element.
+      // CSS owns spacing (last-updated:has(+ author-byline) collapses LU margin).
+      // If 4.3B has no Author Name or no Author Title, byline is skipped entirely.
+      try {
+        const doc43B = S.docs.doc43B || '';
+        const authorMatch = doc43B.match(/\*?\s*Author(?:\s*Name)?:\s*([A-Za-z][A-Za-z\s.\-']+?)(?=\s*(?:,|DC\b|Author\s*Title|Title:|Role:|Position:|Email:|Phone:|\n|$))/i);
+        const titleMatch = doc43B.match(/\*?\s*Author\s*Title:\s*([^\n*]+?)(?=\s*(?:Author\s*Bio|Bio:|Email|Phone|LinkedIn|\n|$))/i);
+        const authorName = authorMatch ? authorMatch[1].trim() : '';
+        const authorTitle = titleMatch ? titleMatch[1].trim() : '';
+        // Strip any existing byline Claude/Step 16 may have written
+        S.finalTXT = S.finalTXT.replace(/<p[^>]*class="author-byline"[^>]*>[\s\S]*?<\/p>/gi, '');
+        if(authorName && authorTitle) {
+          const bylineHTML = `<p class="author-byline"><em>By ${authorName}, ${authorTitle}</em></p>`;
+          // Inject directly after the Last Updated </p>
+          const luCloseRe = /(<p[^>]*class="last-updated"[^>]*>[\s\S]*?<\/p>)/i;
+          if(luCloseRe.test(S.finalTXT)) {
+            S.finalTXT = S.finalTXT.replace(luCloseRe, (m) => m + '\n' + bylineHTML);
+            document.getElementById('o15').textContent += `\n✅ Author byline injected: By ${authorName}, ${authorTitle}`;
+          }
+        } else {
+          document.getElementById('o15').textContent += `\n⚠ Author byline skipped — 4.3B missing ${!authorName ? 'Author Name' : 'Author Title'}`;
+        }
+      } catch(e) {
+        console.warn('[Pass 8C] Author byline injection failed:', e);
+      }
+
+      // ── PASS 8B: DA GAP STRIP — enforce H1 → DA → Last Updated → Byline → ToC → H2
       // Hard rule: NOTHING is allowed between the last-updated element and the first H2.
-      // Surgical approach: only removes <p> and <h1-6> tags — never touches ToC divs or images.
+      // Surgical approach: only removes <p> and <h1-6> tags — never touches ToC divs, images,
+      // or the V3.1 author-byline element.
       {
-        const luEnd = S.finalTXT.indexOf('</p>', S.finalTXT.indexOf('class="last-updated"'));
+        // V3.1 — Find end of last element in the "header zone" (Last Updated OR Author Byline).
+        // The byline lives between Last Updated and ToC, so we anchor gap-strip AFTER the byline if it exists.
+        let zoneEnd = -1;
+        const bylineIdx = S.finalTXT.indexOf('class="author-byline"');
+        if (bylineIdx !== -1) {
+          zoneEnd = S.finalTXT.indexOf('</p>', bylineIdx);
+        } else {
+          zoneEnd = S.finalTXT.indexOf('</p>', S.finalTXT.indexOf('class="last-updated"'));
+        }
         const firstH2Pos = S.finalTXT.search(/<h2[^>]*>/i);
-        if(luEnd !== -1 && firstH2Pos !== -1 && firstH2Pos > luEnd) {
-          const before = S.finalTXT.slice(0, luEnd + 4);
-          const gap = S.finalTXT.slice(luEnd + 4, firstH2Pos);
+        if(zoneEnd !== -1 && firstH2Pos !== -1 && firstH2Pos > zoneEnd) {
+          const before = S.finalTXT.slice(0, zoneEnd + 4);
+          const gap = S.finalTXT.slice(zoneEnd + 4, firstH2Pos);
           const after = S.finalTXT.slice(firstH2Pos);
-          // Strip only <p> tags and stray <h1-6> tags — preserve ToC divs and images
+          // Strip only <p> tags and stray <h1-6> tags — preserve ToC divs and images.
+          // Byline is already before zoneEnd, so it's safe.
           const cleaned = gap
             .replace(/<p[^>]*>[\s\S]*?<\/p>/gi, '')
             .replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/gi, '')
@@ -5238,6 +5287,19 @@ a:hover {
   color: ${daText};
 }
 .last-updated {
+  color: ${luColor};
+  font-style: italic;
+  text-align: center;
+  margin-bottom: 100px !important;
+}
+/* V3.1 — When Author Byline follows Last Updated, byline takes the 100px gap to ToC */
+.last-updated + .author-byline {
+  margin-top: 8px;
+}
+.last-updated:has(+ .author-byline) {
+  margin-bottom: 0 !important;
+}
+.author-byline {
   color: ${luColor};
   font-style: italic;
   text-align: center;
