@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V3.0</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V3.0.1</p>
   </div>
 </div>
 
@@ -773,7 +773,7 @@
 
   function onClientChange() {
     if(!running){
-      S.docs={}; S.sheetRow=''; S.sheetRowCols={}; S.geminiResearch=''; S.v1=''; S.v2='';
+      S.docs={}; S.sheetRow=''; S.sheetRowCols={}; S.geminiResearch=''; S.v1=''; S.v1Json=null; S.v2='';
       S.finalTXT=''; S.finalSchema=''; S.checklistHTML=''; S.html1TXT='';
       S.parsedFails=[]; S.parsedFlags=[]; S.protectedSentences=[];
       S.imagePrompts=[]; S.imageData={}; S.imageUrls={};
@@ -1681,18 +1681,79 @@
   // Used to lock the DA after Step 3
   // V2.5: Fixed checklist heading collision — finds the article H1 AFTER the checklist block,
   // not the first H1 it sees. Per Gemini consensus diagnosis.
+  // V3.0.1 — Reassemble V1 markdown from the JSON response Claude returns at Step 3.
+  // This produces a markdown article that mirrors the V2.8 structure exactly, so all
+  // downstream code (Steps 4-17) works without modification. The reassembly order:
+  //   1. Blog Post Optimization Checklist block (built from checklist object)
+  //   2. --- separator
+  //   3. # H1 (from checklist.h1)
+  //   4. directAnswer prose (200-300 words)
+  //   5. <!-- DA_END --> marker (re-inserted by JS for downstream compatibility)
+  //   6. LAST_UPDATED_PLACEHOLDER
+  //   7. TOC_PLACEHOLDER
+  //   8. skeleton (starts at first H2, contains everything through CTA)
+  function assembleV1FromJSON(json) {
+    const c = json.checklist || {};
+    const checklistBlock = [
+      '## BLOG POST OPTIMIZATION CHECKLIST',
+      '',
+      `* **Meta Title:** ${c.metaTitle || ''}`,
+      `* **H1:** ${c.h1 || ''}`,
+      `* **Permalink URL:** ${c.permalink || ''}`,
+      `* **Full Blog Post URL:** ${c.fullUrl || ''}`,
+      `* **Meta Description:** ${c.metaDescription || ''}`,
+      `* **Keywords:** ${c.keywords || ''}`,
+      `* **Category:** ${c.category || ''}`,
+      `* **Featured Image URL:** [TO BE ADDED AT FINAL]`,
+      `* **Schema Markup:** [TO BE COMPLETED AT FINAL]`,
+      ''
+    ].join('\n');
+
+    const h1Line = `# ${c.h1 || 'Untitled'}`;
+    const da = (json.directAnswer || '').trim();
+    const skeleton = (json.skeleton || '').trim();
+
+    return [
+      checklistBlock,
+      '---',
+      '',
+      h1Line,
+      '',
+      da,
+      '',
+      '<!-- DA_END -->',
+      '',
+      'LAST_UPDATED_PLACEHOLDER',
+      '',
+      'TOC_PLACEHOLDER',
+      '',
+      skeleton
+    ].join('\n');
+  }
+
   function extractLockedDA(text) {
+    // V3.0.1 — If we have the parsed JSON from Step 3, return directAnswer directly.
+    // No regex hunting needed — it's the canonical source.
+    if (typeof S !== 'undefined' && S.v1Json && typeof S.v1Json.directAnswer === 'string' && S.v1Json.directAnswer.length >= 50) {
+      return S.v1Json.directAnswer.trim();
+    }
+    // Legacy V2.x fallback: hunt through markdown if JSON isn't available
+    // (e.g., old session restored without v1Json, or manual fallback runs).
     const lines = text.split('\n');
 
-    // V2.5: Find the ARTICLE H1 — skip past any checklist block at the top.
-    // Strategy: locate the checklist block by its signature (## OPTIMIZATION CHECKLIST or
-    // metadata keys like "Meta Title:"). The article H1 is the FIRST # heading AFTER the
-    // checklist ends. If no checklist is detected, the first H1 is the article H1.
+    // V3.0 fix: Find the ARTICLE H1 — skip past any checklist block at the top.
+    // Strategy: locate the checklist block by its signature. The signature is broader now
+    // than V2.x — matches any ## heading containing "OPTIMIZATION CHECKLIST" with optional
+    // prefixes (BLOG POST, AI AUTHORITY ARTICLE, ARTICLE, AEO, etc.). The article H1 is
+    // the FIRST # heading AFTER the checklist ends. If no checklist is detected, the
+    // first H1 is the article H1.
     let articleH1Idx = -1;
     let checklistEndIdx = -1;
     for(let i=0;i<lines.length;i++){
-      if(/^##\s+(AI AUTHORITY |BLOG POST )?ARTICLE OPTIMIZATION CHECKLIST/i.test(lines[i]) ||
-         /^##\s+OPTIMIZATION CHECKLIST/i.test(lines[i])){
+      // V3.0: Match any "OPTIMIZATION CHECKLIST" heading regardless of prefix.
+      // Covers: "## OPTIMIZATION CHECKLIST", "## BLOG POST OPTIMIZATION CHECKLIST",
+      // "## AI AUTHORITY ARTICLE OPTIMIZATION CHECKLIST", "## ARTICLE OPTIMIZATION CHECKLIST"
+      if(/^##\s+.*OPTIMIZATION CHECKLIST/i.test(lines[i])){
         // Found checklist heading — find its end (next --- separator or next H1)
         for(let j=i+1;j<lines.length;j++){
           if(/^---+\s*$/.test(lines[j].trim()) || /^#\s+[^#]/.test(lines[j])){
@@ -3855,69 +3916,122 @@ ${v2Body.slice(0, 8000)}`;
       setStep(3,'active','Building skeleton...'); setG('Claude building article skeleton...',true);
       const p2=getPrompt(S.docs.doc44,2);
       const skeletonInstr=`
-CRITICAL — THIS IS A SKELETON PASS ONLY:
-Your job in this call is to produce the article SKELETON — not full prose.
+CRITICAL — V3.0.1 STRICT JSON OUTPUT REQUIRED:
+Your entire response must be a single valid JSON object. The pipeline calls JSON.parse() on your raw response — any text outside the JSON object will break the parser. Your response MUST start with { and end with }. No markdown code fences. No preamble. No postamble. No artifact wrapper.
 
-WHAT TO WRITE IN FULL:
-1. The AI Authority Article Optimization Checklist (complete, with all metadata)
-2. The Direct Answer — MINIMUM 200 words, TARGET 250 words. This is the most important section and the most strictly governed. Write it as 3-4 solid paragraphs that fully answer the H1 question. Do NOT write one short paragraph and call it done. Sacred ground rules: NO links, NO images, NO prose after it except the two JS-injected placeholders below.
+JSON SCHEMA:
+{
+  "checklist": {
+    "metaTitle": "...",
+    "h1": "...",
+    "permalink": "...",
+    "fullUrl": "...",
+    "metaDescription": "...",
+    "keywords": "...",
+    "category": "..."
+  },
+  "directAnswer": "...",
+  "skeleton": "..."
+}
 
-DIRECT ANSWER CONTENT RULES — HARD VIOLATIONS (each one is a failure):
-- NO brand names or practice names of any kind. Never write "At [Practice Name]..." or reference the client practice by name.
-- NO location references. No city names. No "in Morton" or "in [city]" constructions.
-- NO opinion statements or POV language. No "Surgery is a last resort." No "Period." No conviction language of any kind.
-- NO author voice or conversational tone. The DA must read like a reference database entry — neutral, authoritative, encyclopedic. No contractions used for personality. No casual phrasing.
-- NO self-referential language. No "this article covers," no "below we explain," no forward-pointing transitions of any kind.
-- NO first-person voice. No "I've seen," no "we believe," no "our approach."
-- NO rhetorical questions, narrative hooks, or casual phrasing.
-- NO hyperlinks, images, or CTAs.
+KEY RULES:
 
-DA QUALITY TEST — run before finalizing: If an AI engine extracted only these paragraphs and presented them as a standalone answer — with no article, no brand, no surrounding context — would it still be a complete, accurate, neutral answer to the H1 question? If no, rewrite until yes.
-3. Write the exact placeholder text: LAST_UPDATED_PLACEHOLDER (JS replaces this with the correct date — do not write a date)
-4. Write the exact placeholder text: TOC_PLACEHOLDER (JS builds the full Table of Contents — do not write a ToC)
+checklist (object, exactly 7 string keys, no others):
+- metaTitle, h1, permalink, fullUrl, metaDescription, keywords, category — all strings
+- h1 is the article H1 from Gemini's recommended title (Year Flag verified)
+- permalink is the URL Slug from SHEET ROW
+- fullUrl is the full canonical URL
+- DO NOT add publish date, schema status, featured image, image tracking, last updated, or any other fields — those are populated at Prompt 7
 
-DIRECT ANSWER HARD RULE: After the Direct Answer, the ONLY things allowed before the first H2 are:
-- LAST_UPDATED_PLACEHOLDER (exactly this text, on its own line — JS injects the date)
-- TOC_PLACEHOLDER (exactly this text, on its own line — JS builds the full ToC)
-Nothing else. No "In this article..." paragraphs. No context-setting prose. No bridge sentences. No preview of what the article covers.
+directAnswer (string, 200-300 words):
+- Plain prose only. No # H1 line. No markdown headings. No links. No images. No [H#] labels.
+- The tool inserts the H1 above this prose during reassembly using checklist.h1
+- 3-4 paragraphs separated by \\n\\n inside the JSON string
+- DA CONTENT RULES (each one is a failure if violated):
+  • NO brand names or practice names of any kind
+  • NO location references, no city names
+  • NO opinion statements, POV language, or conviction language
+  • NO author voice or conversational tone — neutral, authoritative, encyclopedic only
+  • NO self-referential language ("this article", "below we explain", forward-pointing transitions)
+  • NO first-person voice
+  • NO rhetorical questions, narrative hooks, or casual phrasing
+  • NO hyperlinks, images, or CTAs
+- DA QUALITY TEST: If an AI engine extracted only this prose and presented it as a standalone answer — with no article, no brand, no surrounding context — would it still be a complete, accurate, neutral answer to the H1 question? If no, rewrite until yes.
 
-CRITICAL: Immediately after your last Direct Answer paragraph, on its own line, write exactly:
-<!-- DA_END -->
-Then write LAST_UPDATED_PLACEHOLDER on its own line. Then write TOC_PLACEHOLDER on its own line. Then write the first H2.
-This marker is required. Do not skip it.
-
-WHAT TO WRITE AS SKELETON (not full prose):
-- All H2 and H3 headings (write these in full — they are final)
-- After each H2 heading: one line — PROMPT: [image prompt here] on one line, then ALT TEXT: [alt text here] on the next line. CRITICAL: Do NOT bold these with **PROMPT:** or **ALT TEXT:** — use plain text only: PROMPT: and ALT TEXT:
+skeleton (string, full markdown from first H2 through CTA):
+- Starts with the first H2 heading. Does NOT include the Blog Post Optimization Checklist block, the H1 line, or the directAnswer prose — those live in their own keys.
+- Does NOT include Last Updated, Table of Contents, schema markup, or DA_END marker — the tool injects all of these at reassembly.
+- All H2 and H3 headings written in full (these are final)
+- After each H2 heading (except FAQ and Conclusion): one line — PROMPT: [image prompt] on one line, then ALT TEXT: [alt text] on the next line. Plain text only — NOT **PROMPT:** or **ALT TEXT:**.
 - Under each H3: write [POV SLOT X: brief description] OR [BODY PROSE: topic] as a single placeholder line
-- Mark exactly where each internal link belongs: [LINK: anchor text → URL]
-- Mark exactly where each external link belongs: [EXTERNAL LINK: source name → URL]
-- FAQ section: write all 5-8 questions in full as H3 headings, each followed by [FAQ ANSWER: topic]
+- Mark internal links: [LINK: anchor text → URL]
+- Mark external links: [EXTERNAL LINK: source name → URL]
+- FAQ section: 5-8 H3 questions in full, each followed by [FAQ ANSWER: topic]
 - Conclusion: [POV SLOT 5: CONCLUSION — CONVICTION]
 - CTA: [CTA BLOCK — diagnostic intent, text link only, NO button, wrap in div class="article-cta"]
 - Schema block: [SCHEMA PLACEHOLDER]
-
-STRUCTURE ORDER (mandatory, no exceptions):
-H1 → Direct Answer → <!-- DA_END --> → LAST_UPDATED_PLACEHOLDER → TOC_PLACEHOLDER → First H2 → ...
-
-CRITICAL RULES:
-- NO body prose between the Direct Answer and the first H2 except the two placeholders above
-- NO links anywhere in the Direct Answer
 - Minimum 3 [TABLE NEEDED: topic, columns] placeholders distributed across H2 sections
-- Every H2 must have a PROMPT:/ALT TEXT: block immediately after it (except FAQ and Conclusion)
-- All 5 POV slots must be marked: [POV SLOT 1: INTRO FRICTION], [POV SLOT 2: FRICTION H3], [POV SLOT 3: ANTI-PERSONA], [POV SLOT 4: COUNTER-INTENT], [POV SLOT 5: CONCLUSION — CONVICTION]`;
+- All 5 POV slots marked: [POV SLOT 1: INTRO FRICTION], [POV SLOT 2: FRICTION H3], [POV SLOT 3: ANTI-PERSONA], [POV SLOT 4: COUNTER-INTENT], [POV SLOT 5: CONCLUSION — CONVICTION]
+- Encode all newlines inside the skeleton string as \\n. Escape all double quotes as \\".
+
+JSON VALIDITY HARD STOP — VERIFY BEFORE DELIVERING:
+- Every literal double quote inside a string value escaped as \\"
+- Every literal newline inside a string value encoded as \\n
+- Every literal backslash escaped as \\\\
+- No trailing commas after the last key in any object
+- Response starts with { and ends with } — no characters before or after
+- All three top-level keys present (checklist, directAnswer, skeleton)
+- The checklist object contains exactly 7 keys with the names listed above
+If you are uncertain whether a particular character will break parsing, escape it.`;
 
       const anchorInstr=`
 INTERNAL LINK RULE: Every internal link MUST use the exact semantic anchor phrase from Gemini's blueprint. NEVER use the full article title as anchor text.`;
 
       const u3=`EXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${skeletonInstr}\n\n${anchorInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}`;
-      S.v1=await callClaude(sys,u3,akey,(p)=>{document.getElementById('o3').textContent=p;document.getElementById('sb3').classList.add('open');},{maxTokens:32000});
-      if(S.v1.length<1000) throw new Error(`Step 3: Skeleton too short (${S.v1.length} chars) — retry.`);
-      // Lock the DA immediately after Step 3 — this is the canonical, sacred DA
-      S.directAnswer = extractLockedDA(S.v1);
-      // V2.8: Aggressive placeholder dedupe — Claude sometimes writes the placeholder
-      // pair twice (observed in V2.7 production: LAST/TOC LAST/TOC, observed at top of S.v1).
-      // Strip any consecutive duplicate placeholder sequences down to a single pair.
+      const rawResponse = await callClaude(sys,u3,akey,(p)=>{document.getElementById('o3').textContent=p;document.getElementById('sb3').classList.add('open');},{maxTokens:32000});
+      if(rawResponse.length<500) throw new Error(`Step 3: Response too short (${rawResponse.length} chars) — retry.`);
+
+      // V3.0.1 — Parse JSON response. Strip any incidental wrapping (markdown fences, preamble).
+      let parsed;
+      try {
+        let jsonText = rawResponse.trim();
+        // Strip markdown code fences if Claude added them despite instructions
+        jsonText = jsonText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
+        // Find first { and last } to handle any preamble/postamble
+        const firstBrace = jsonText.indexOf('{');
+        const lastBrace = jsonText.lastIndexOf('}');
+        if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) {
+          throw new Error('No JSON object found in response');
+        }
+        jsonText = jsonText.slice(firstBrace, lastBrace + 1);
+        parsed = JSON.parse(jsonText);
+      } catch (parseErr) {
+        logErr(3, `JSON parse failed: ${parseErr.message}. First 300 chars of response: ${rawResponse.slice(0,300)}`);
+        throw new Error(`Step 3: Claude returned invalid JSON. ${parseErr.message}. Retry from Step 3.`);
+      }
+
+      // Validate required keys
+      if (!parsed.checklist || typeof parsed.checklist !== 'object') {
+        throw new Error('Step 3: JSON missing "checklist" object. Retry from Step 3.');
+      }
+      if (!parsed.directAnswer || typeof parsed.directAnswer !== 'string' || parsed.directAnswer.length < 100) {
+        throw new Error(`Step 3: JSON missing or short "directAnswer" string (${(parsed.directAnswer||'').length} chars). Retry from Step 3.`);
+      }
+      if (!parsed.skeleton || typeof parsed.skeleton !== 'string' || parsed.skeleton.length < 500) {
+        throw new Error(`Step 3: JSON missing or short "skeleton" string (${(parsed.skeleton||'').length} chars). Retry from Step 3.`);
+      }
+
+      // Store the parsed JSON for downstream reference
+      S.v1Json = parsed;
+      // Lock the DA immediately — single source of truth, no extraction needed
+      S.directAnswer = parsed.directAnswer.trim();
+
+      // Reassemble V1 markdown from JSON pieces. This keeps all downstream code (Steps 4-17)
+      // working unchanged. The reassembled V1 mirrors the V2.8 article structure exactly.
+      S.v1 = assembleV1FromJSON(parsed);
+
+      // V2.8: Aggressive placeholder dedupe — defense in depth (should be unnecessary now
+      // that JS owns assembly, but kept for safety).
       S.v1 = dedupePlaceholders(S.v1);
       // V2.7: Centralized preview sync — populates DA + Metadata from current state.
       // syncPreviewUI is idempotent and safe; it inherits the same render logic as the
@@ -5455,7 +5569,7 @@ ${listItems}
     S.tokens={gi:0,go:0,ci:0,co:0,imgs:0};
     S.imagePrompts=[]; S.imageData={}; S.imageUrls={};
     S.parsedFails=[]; S.protectedSentences=[]; S.html1TXT='';
-    S.geminiResearch=''; S.sheetRow=''; S.sheetRowCols={}; S.v1=''; S.v2='';
+    S.geminiResearch=''; S.sheetRow=''; S.sheetRowCols={}; S.v1=''; S.v1Json=null; S.v2='';
     S.step9Attempts=[]; // V2.7: clear retry history on fresh run
     S.finalTXT=''; S.finalSchema=''; S.checklistHTML=''; S.directAnswer='';
     imagesValidated=false; checkpointDone=false; step8RetryCount=0;
