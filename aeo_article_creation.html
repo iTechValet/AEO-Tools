@@ -267,7 +267,7 @@
   <div>
     <h1>iTech Valet <span>AEO Article Creation</span></h1>
     <p class="subtitle">Select client · Enter topic · Hit Run · Article delivers itself</p>
-    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V2.4</p>
+    <p class="subtitle" style="color:var(--accent);letter-spacing:2px;">V2.5</p>
   </div>
 </div>
 
@@ -347,7 +347,7 @@
       <div class="stat-divider"></div>
       <div class="stat-item">
         <div class="stat-label">Images</div>
-        <div class="stat-value" id="cImages">0</div>
+        <div class="stat-value" id="cImages">0<span id="imgFailIndicator" style="display:none;color:#ef4444;font-size:11px;margin-left:6px;font-weight:600;"></span></div>
       </div>
       <div class="stat-item">
         <div class="stat-label">Est. Cost</div>
@@ -542,7 +542,6 @@
       </div>
       <div class="step-body" id="sb11">
         <div id="voiceChatThread" style="display:none;margin-bottom:10px;flex-direction:column;gap:8px;padding:4px 0;"></div>
-        <div id="r11" style="display:none;"><button class="btn-retry" onclick="retryFrom(10)">↻ Retry from Step 10</button><button class="btn-retry" style="background:var(--muted);margin-left:8px;" onclick="if(voice11Resolve){voice11Resolve();voice11Resolve=null;}document.getElementById('r11').style.display='none';">Continue Anyway →</button></div>
         <button class="btn-copy-step" onclick="copyVCI()" style="display:none;" id="vciCopyBtn">Copy</button>
       </div>
     </div>
@@ -644,7 +643,6 @@
       <div class="assemble-row">
         <button class="btn-assemble" id="assembleBtn" onclick="validateImages()" disabled>Validate Images</button>
         <button class="btn-assemble" id="dlAllBtn" onclick="downloadAllImages()" disabled style="background:var(--blue);margin-left:6px;">↓ All Images</button>
-        <button class="btn-assemble" id="regenAllBtn" onclick="regenAllFailed()" style="display:none;background:var(--orange);margin-left:6px;">↻ Regen All Failed</button>
         <div class="assemble-hint" id="assembleHint">Enter all WP URLs above to unlock</div>
         <button class="btn-assemble" id="unlockStep13Btn" onclick="unlockStep13()" style="display:none;background:#4caf50;margin-left:6px;font-size:11px;">🔓 Unlock Step 13</button>
       </div>
@@ -1149,9 +1147,16 @@
         if(cur){ const alt=t.replace(/^\*\*ALT TEXT:\s*/i,'').replace(/\*\*$/,'').replace(/^ALT TEXT:\s*/i,'').replace(/^ALT:\s*/i,'').trim(); prompts.push({prompt:cur,alt,h2}); cur=null; }
       }
     }
-    // Deduplicate by alt text as a safety net
+    // V2.5: Deduplicate by composite key (h2 + alt) — prevents silent image loss when
+    // Claude reuses generic alt text like "chiropractor adjusting patient" across multiple H2s.
+    // Previous version (alt only) silently dropped unique image prompts that happened to share alt text.
     const seen=new Set();
-    return prompts.filter(p=>{ if(seen.has(p.alt)) return false; seen.add(p.alt); return true; });
+    return prompts.filter(p=>{
+      const key = `${p.h2}|||${p.alt}`;
+      if(seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   // ─── IMAGE GRID ───────────────────────────────────────────
@@ -1221,57 +1226,110 @@
   async function genAllImages(prompts,gkey) {
     let failed=0;
     for(let i=0;i<prompts.length;i++){
-      setG(`Generating image ${i+1} of ${prompts.length}...`,true);
-      document.getElementById('o7').textContent=`Generating image ${i+1} of ${prompts.length}...`;
+      // V2.5: live status update — operator sees "X of Y" while pipeline runs Steps 8-12 in background
+      const completed = i; // images done so far
+      setG(`Generating image ${i+1} of ${prompts.length} (background)...`,true);
+      document.getElementById('o7').textContent=`Generating image ${i+1} of ${prompts.length} (background)...`;
       document.getElementById('sb7').classList.add('open');
       try{ await genOneImage(prompts[i].prompt,prompts[i].alt,i,gkey); S.tokens.imgs++; updateCost(); }
       catch(err){ showImgErr(i,err.message); failed++; }
       if(i<prompts.length-1) await new Promise(r=>setTimeout(r,1500));
     }
+    // V2.5: Final status set when background queue completes
     if(failed>0) {
-      setStep(7,'done','Done ✓',`${prompts.length-failed}/${prompts.length} images generated. ${failed} failed — use Regenerate button on failed cards.`);
-      const rb=document.getElementById('regenAllBtn'); if(rb) rb.style.display='inline-block';
+      setStep(7,'error','⚠ Some Failed',`${prompts.length-failed}/${prompts.length} images generated. ${failed} failed — use Regenerate button on failed cards.`);
+    } else {
+      setStep(7,'done','Done ✓',`All ${prompts.length} images generated successfully.`);
     }
+    // V2.5: trigger checkUrls in case URLs were already entered while images were generating
+    checkUrls();
   }
 
   async function genOneImage(prompt,alt,idx,gkey) {
     const badge=document.getElementById(`ib${idx}`);
-    if(badge){badge.className='sbadge b-running';badge.textContent='Generating...';}
+    const TIMEOUT_MS=90000; // V2.5: bumped from 30s to 90s for genuine slow generations
+    const MAX_RETRIES=3;     // V2.5: auto-retry on 503/429/504 capacity errors
+    const RETRY_WAIT_MS=5000;
 
-    const TIMEOUT_MS=30000;
-    const controller=new AbortController();
-    const timeoutId=setTimeout(()=>controller.abort(),TIMEOUT_MS);
+    for(let attempt=1; attempt<=MAX_RETRIES; attempt++) {
+      // V2.5: per-card status display
+      if(badge) {
+        badge.className='sbadge b-running';
+        badge.textContent = attempt===1 ? 'Generating...' : `Retrying ${attempt}/${MAX_RETRIES}...`;
+      }
 
-    try {
-      const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMG_MODEL}:generateContent?key=${gkey}`,{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseModalities:['Text','Image']}}),
-        signal:controller.signal
-      });
-      clearTimeout(timeoutId);
-      const data=await res.json();
-      if(data.error) throw new Error(data.error.message||'Image API error');
-      const parts=data.candidates?.[0]?.content?.parts||[];
-      const imgPart=parts.find(p=>p.inlineData);
-      if(!imgPart) throw new Error('No image returned — check Gemini API key and quota');
-      const conv=await toWebP(imgPart.inlineData.data,imgPart.inlineData.mimeType||'image/png');
-      S.imageData[idx]=conv;
-      const fname=`${idx+1} ${alt.replace(/[^a-zA-Z0-9\s-]/g,'').trim()}`;
-      const fileSize=estimateSize(conv.data);
-      const disp=document.getElementById(`idisp${idx}`);
-      if(disp) disp.innerHTML=`
-        <img src="${conv.data}" alt="Image ${idx+1}" style="width:100%;border-radius:6px;display:block;margin-bottom:9px;" />
-        <div class="img-result-actions">
-          <a class="btn-dl-img" href="${conv.data}" download="${fname}.${conv.ext}">↓ Download .${conv.ext.toUpperCase()}</a>
-          <span class="img-format-badge">${conv.ext.toUpperCase()}</span>
-          <span class="img-file-info">~${fileSize} · 16:9</span>
-        </div>`;
-      if(badge){badge.className='sbadge b-done';badge.textContent='Done ✓';}
-      const rb=document.getElementById(`ir${idx}`); if(rb) rb.disabled=false;
-    } catch(err) {
-      clearTimeout(timeoutId);
-      const msg=err.name==='AbortError'?'Timed out after 30s — click Regenerate to retry':err.message;
-      throw new Error(msg);
+      const controller=new AbortController();
+      const timeoutId=setTimeout(()=>controller.abort(),TIMEOUT_MS);
+
+      try {
+        const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMG_MODEL}:generateContent?key=${gkey}`,{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseModalities:['Text','Image']}}),
+          signal:controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        // V2.5: Fast-fail on 503/429 (capacity/rate limit) — retry without waiting full timeout
+        if(res.status===503 || res.status===429) {
+          const errType = res.status===503 ? 'capacity' : 'rate limit';
+          if(attempt<MAX_RETRIES) {
+            if(badge){ badge.className='sbadge b-running'; badge.textContent=`Retrying — ${errType} (${attempt}/${MAX_RETRIES})`; }
+            await new Promise(r=>setTimeout(r,RETRY_WAIT_MS));
+            continue; // retry loop
+          } else {
+            throw new Error(`Failed — ${errType} error after ${MAX_RETRIES} attempts. Click Regenerate.`);
+          }
+        }
+
+        const data=await res.json();
+        if(data.error) {
+          // Detect capacity-style errors in body even if status was 200
+          const errMsg=(data.error.message||'').toLowerCase();
+          const isCapacity = errMsg.includes('overload') || errMsg.includes('capacity') || errMsg.includes('quota') || errMsg.includes('rate');
+          if(isCapacity && attempt<MAX_RETRIES) {
+            if(badge){ badge.className='sbadge b-running'; badge.textContent=`Retrying — capacity (${attempt}/${MAX_RETRIES})`; }
+            await new Promise(r=>setTimeout(r,RETRY_WAIT_MS));
+            continue;
+          }
+          throw new Error(data.error.message||'Image API error');
+        }
+
+        const parts=data.candidates?.[0]?.content?.parts||[];
+        const imgPart=parts.find(p=>p.inlineData);
+        if(!imgPart) throw new Error('No image returned — check Gemini API key and quota');
+        const conv=await toWebP(imgPart.inlineData.data,imgPart.inlineData.mimeType||'image/png');
+        S.imageData[idx]=conv;
+        const fname=`${idx+1} ${alt.replace(/[^a-zA-Z0-9\s-]/g,'').trim()}`;
+        const fileSize=estimateSize(conv.data);
+        const disp=document.getElementById(`idisp${idx}`);
+        if(disp) disp.innerHTML=`
+          <img src="${conv.data}" alt="Image ${idx+1}" style="width:100%;border-radius:6px;display:block;margin-bottom:9px;" />
+          <div class="img-result-actions">
+            <a class="btn-dl-img" href="${conv.data}" download="${fname}.${conv.ext}">↓ Download .${conv.ext.toUpperCase()}</a>
+            <span class="img-format-badge">${conv.ext.toUpperCase()}</span>
+            <span class="img-file-info">~${fileSize} · 16:9</span>
+          </div>`;
+        if(badge){badge.className='sbadge b-done';badge.textContent='Done ✓';}
+        const rb=document.getElementById(`ir${idx}`); if(rb) rb.disabled=false;
+        updateImageFailureIndicator();
+        return; // success — exit retry loop
+      } catch(err) {
+        clearTimeout(timeoutId);
+        // V2.5: AbortError (timeout) — retry if attempts remain
+        if(err.name==='AbortError') {
+          if(attempt<MAX_RETRIES) {
+            if(badge){ badge.className='sbadge b-running'; badge.textContent=`Retrying — timeout (${attempt}/${MAX_RETRIES})`; }
+            await new Promise(r=>setTimeout(r,RETRY_WAIT_MS));
+            continue;
+          }
+          throw new Error(`Failed — timeout after ${MAX_RETRIES} attempts (90s each). Click Regenerate.`);
+        }
+        // Non-retryable error — throw immediately on final attempt or non-network errors
+        if(attempt===MAX_RETRIES) throw err;
+        // Otherwise loop will retry
+        if(badge){ badge.className='sbadge b-running'; badge.textContent=`Retrying — error (${attempt}/${MAX_RETRIES})`; }
+        await new Promise(r=>setTimeout(r,RETRY_WAIT_MS));
+      }
     }
   }
 
@@ -1282,10 +1340,30 @@
     return `${(bytes/(1024*1024)).toFixed(1)} MB`;
   }
 
+  // V2.5: Image failure visibility helper.
+  // Recalculates from DOM state — single source of truth, no parallel counter to drift.
+  // Counts cards with badge text 'Failed' and shows orange warning in stats bar.
+  // Called from showImgErr (failure) and regenImg (success after manual retry).
+  function updateImageFailureIndicator() {
+    const indicator = document.getElementById('imgFailIndicator');
+    if(!indicator) return;
+    const failedBadges = document.querySelectorAll('.sbadge.b-error');
+    const failedCount = failedBadges.length;
+    if(failedCount > 0) {
+      indicator.style.display = 'inline';
+      indicator.textContent = `⚠ ${failedCount} failed`;
+      indicator.title = `${failedCount} image(s) failed to generate — check Step 7 cards and use Regenerate button`;
+    } else {
+      indicator.style.display = 'none';
+      indicator.textContent = '';
+    }
+  }
+
   function showImgErr(idx,msg) {
     const b=document.getElementById(`ib${idx}`); if(b){b.className='sbadge b-error';b.textContent='Failed';}
     const d=document.getElementById(`idisp${idx}`); if(d) d.innerHTML=`<div class="error-msg">⚠ ${msg}</div>`;
     const rb=document.getElementById(`ir${idx}`); if(rb) rb.disabled=false;
+    updateImageFailureIndicator();
   }
 
   async function regenImg(idx) {
@@ -1300,69 +1378,15 @@
       const totalCards = document.querySelectorAll('.img-card').length || S.imagePrompts.length;
       const failedCount = totalCards - Object.keys(S.imageData).length;
       const dlAllBtn=document.getElementById('dlAllBtn');
-      const regenAllBtn=document.getElementById('regenAllBtn');
       if(failedCount<=0){
         if(dlAllBtn){dlAllBtn.disabled=false;dlAllBtn.textContent='↓ All Images';dlAllBtn.style.background='var(--blue)';dlAllBtn.title='';}
-        if(regenAllBtn) regenAllBtn.style.display='none';
         setStep(7,'done','Done ✓',`All ${totalCards} images generated successfully.`);
       } else {
         if(dlAllBtn){dlAllBtn.disabled=true;dlAllBtn.textContent=`⚠ ${failedCount} Failed`;dlAllBtn.style.background='var(--orange)';}
-        if(regenAllBtn) regenAllBtn.style.display='inline-block';
         setStep(7,'error','⚠ Some Failed',`${totalCards-failedCount}/${totalCards} images generated. ${failedCount} failed — use Regenerate.`);
       }
     }
     catch(err){ showImgErr(idx,err.message); if(rb) rb.disabled=false; }
-  }
-
-  async function regenAllFailed() {
-    const gkey = document.getElementById('keyGemini').value.trim();
-    if(!gkey) return;
-    const btn = document.getElementById('regenAllBtn');
-    if(btn) { btn.disabled = true; btn.textContent = '↻ Retrying...'; }
-
-    // Find all failed image slots — badge shows 'Failed' or display shows error
-    const failedIdxs = [];
-    for(let i = 0; i < S.imagePrompts.length; i++) {
-      const badge = document.getElementById(`ib${i}`);
-      if(badge && badge.textContent === 'Failed') failedIdxs.push(i);
-      else if(!S.imageData[i]) failedIdxs.push(i);
-    }
-
-    if(failedIdxs.length === 0) {
-      if(btn) { btn.disabled = false; btn.textContent = '↻ Regen All Failed'; }
-      return;
-    }
-
-    setG(`Regenerating ${failedIdxs.length} failed image(s)...`, true);
-    let fixed = 0;
-    for(let i = 0; i < failedIdxs.length; i++) {
-      const idx = failedIdxs[i];
-      setG(`Regenerating failed image ${i+1} of ${failedIdxs.length}...`, true);
-      const rb = document.getElementById(`ir${idx}`); if(rb) rb.disabled = true;
-      try {
-        await genOneImage(S.imagePrompts[idx].prompt, S.imagePrompts[idx].alt, idx, gkey);
-        S.tokens.imgs++; updateCost(); fixed++;
-      } catch(err) {
-        showImgErr(idx, err.message);
-        if(rb) rb.disabled = false;
-      }
-      if(i < failedIdxs.length - 1) await new Promise(r => setTimeout(r, 1500));
-    }
-
-    // Update overall status
-    const totalCards = document.querySelectorAll('.img-card').length || S.imagePrompts.length;
-    const stillFailed = totalCards - Object.keys(S.imageData).length;
-    const dlAllBtn = document.getElementById('dlAllBtn');
-    if(stillFailed <= 0) {
-      if(dlAllBtn) { dlAllBtn.disabled = false; dlAllBtn.textContent = '↓ All Images'; dlAllBtn.style.background = 'var(--blue)'; }
-      setStep(7, 'done', 'Done ✓', `All ${totalCards} images generated successfully.`);
-      if(btn) btn.style.display = 'none';
-    } else {
-      if(dlAllBtn) { dlAllBtn.disabled = true; dlAllBtn.textContent = `⚠ ${stillFailed} Failed`; dlAllBtn.style.background = 'var(--orange)'; }
-      setStep(7, 'error', '⚠ Some Failed', `${totalCards - stillFailed}/${totalCards} images generated. ${stillFailed} still failed.`);
-      if(btn) { btn.disabled = false; btn.textContent = '↻ Regen All Failed'; }
-    }
-    setG(stillFailed <= 0 ? '✓ All images ready.' : `⚠ ${stillFailed} image(s) still failed — retry again.`);
   }
 
   async function toWebP(b64,mime) {
@@ -1600,24 +1624,49 @@
 
   // Extracts ONLY the DA prose — stops at <!-- DA_END --> marker
   // Used to lock the DA after Step 3
+  // V2.5: Fixed checklist heading collision — finds the article H1 AFTER the checklist block,
+  // not the first H1 it sees. Per Gemini consensus diagnosis.
   function extractLockedDA(text) {
     const lines = text.split('\n');
 
-    // Find the last H1 before the first H2 — that's the article H1
-    let firstH2Idx = -1;
+    // V2.5: Find the ARTICLE H1 — skip past any checklist block at the top.
+    // Strategy: locate the checklist block by its signature (## OPTIMIZATION CHECKLIST or
+    // metadata keys like "Meta Title:"). The article H1 is the FIRST # heading AFTER the
+    // checklist ends. If no checklist is detected, the first H1 is the article H1.
+    let articleH1Idx = -1;
+    let checklistEndIdx = -1;
     for(let i=0;i<lines.length;i++){
-      if(/^##\s/.test(lines[i])){ firstH2Idx=i; break; }
+      if(/^##\s+(AI AUTHORITY |BLOG POST )?ARTICLE OPTIMIZATION CHECKLIST/i.test(lines[i]) ||
+         /^##\s+OPTIMIZATION CHECKLIST/i.test(lines[i])){
+        // Found checklist heading — find its end (next --- separator or next H1)
+        for(let j=i+1;j<lines.length;j++){
+          if(/^---+\s*$/.test(lines[j].trim()) || /^#\s+[^#]/.test(lines[j])){
+            checklistEndIdx = j;
+            break;
+          }
+        }
+        break;
+      }
     }
-    if(firstH2Idx===-1) return '';
 
-    let daStartIdx = -1;
-    for(let i=firstH2Idx-1;i>=0;i--){
-      if(/^#\s+[^#]/.test(lines[i])){ daStartIdx=i+1; break; }
+    // Find article H1: if checklist detected, look after checklistEndIdx; else first H1
+    const searchStart = checklistEndIdx >= 0 ? checklistEndIdx : 0;
+    for(let i=searchStart;i<lines.length;i++){
+      if(/^#\s+[^#]/.test(lines[i])){ articleH1Idx = i; break; }
     }
-    if(daStartIdx===-1) return '';
+    if(articleH1Idx === -1) return '';
 
-    // If DA_END marker exists, use it as the boundary — most reliable
-    const daEndIdx = lines.findIndex((l,i) => i>=daStartIdx && l.trim()==='<!-- DA_END -->');
+    // Find first H2 AFTER the article H1 — that bounds the DA zone
+    let firstH2Idx = -1;
+    for(let i=articleH1Idx+1;i<lines.length;i++){
+      if(/^##\s/.test(lines[i])){ firstH2Idx = i; break; }
+    }
+    if(firstH2Idx === -1) return '';
+
+    const daStartIdx = articleH1Idx + 1;
+
+    // If DA_END marker exists between H1 and H2, use it as the boundary — most reliable
+    const daEndIdx = lines.findIndex((l,i) => i>=daStartIdx && i<firstH2Idx && l.trim()==='<!-- DA_END -->');
     if(daEndIdx>daStartIdx){
       return lines.slice(daStartIdx, daEndIdx)
         .join('\n')
@@ -1659,17 +1708,41 @@
   }
 
   // ─── GEMINI ───────────────────────────────────────────────
+  // V2.5: Added 60s timeout, HTTP status check, and finishReason check.
+  // Prevents infinite hangs and catches safety filter / overload failures cleanly.
   async function callGemini(prompt,gkey) {
-    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${gkey}`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:8192}})
-    });
-    const data=await r.json();
-    if(data.error) throw new Error(`Gemini error: ${data.error.message}`);
-    const text=data.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||'';
-    const u=data.usageMetadata||{};
-    S.tokens.gi+=u.promptTokenCount||0; S.tokens.go+=u.candidatesTokenCount||0; updateCost();
-    return text;
+    const TIMEOUT_MS = 60000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(()=>controller.abort(), TIMEOUT_MS);
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${gkey}`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:8192}}),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      // V2.5: HTTP status check — Gemini can return 429/503 with non-JSON body
+      if(!r.ok){
+        const errText = await r.text().catch(()=>'(unreadable)');
+        throw new Error(`Gemini HTTP ${r.status}: ${errText.slice(0,300)}`);
+      }
+      const data = await r.json();
+      if(data.error) throw new Error(`Gemini error: ${data.error.message}`);
+      // V2.5: finishReason check — safety filters return 200 OK with empty content
+      const candidate = data.candidates?.[0];
+      const finishReason = candidate?.finishReason;
+      if(finishReason && finishReason !== 'STOP' && finishReason !== 'MAX_TOKENS'){
+        throw new Error(`Gemini stopped early: finishReason=${finishReason} (likely safety filter or content policy)`);
+      }
+      const text = candidate?.content?.parts?.map(p=>p.text).join('') || '';
+      const u = data.usageMetadata||{};
+      S.tokens.gi += u.promptTokenCount||0; S.tokens.go += u.candidatesTokenCount||0; updateCost();
+      return text;
+    } catch(err) {
+      clearTimeout(timeoutId);
+      if(err.name === 'AbortError') throw new Error(`Gemini timeout after ${TIMEOUT_MS/1000}s — backend hang`);
+      throw err;
+    }
   }
 
   // ─── CLAUDE (STREAMING) ───────────────────────────────────
@@ -2005,8 +2078,12 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     }
 
     // Extract author and business from 4.3B for JS string checks
-    const authorMatch = S.docs.doc43B && S.docs.doc43B.match(/\*?\s*Author(?:\s*Name)?:\s*([^\n*,]+?)(?:\s*,|\s*DC|\s*\n)/i);
-    const businessMatch = S.docs.doc43B && S.docs.doc43B.match(/\*?\s*(?:Client Name|Business Name):\s*([^\n*]+)/i);
+    // V2.5: Tightened regex — previous version over-captured into adjacent fields like
+    // "Gerek Allen Author Title: Founder" or "iTech Valet Legal Business Name: 621 Enterprises Inc".
+    // Author: capture only name characters (letters, spaces, periods, hyphens, apostrophes).
+    // Business: stop at the next field label keyword.
+    const authorMatch = S.docs.doc43B && S.docs.doc43B.match(/\*?\s*Author(?:\s*Name)?:\s*([A-Za-z][A-Za-z\s.\-']+?)(?=\s*(?:,|DC\b|Author\s*Title|Title:|Role:|Position:|Email:|Phone:|\n|$))/i);
+    const businessMatch = S.docs.doc43B && S.docs.doc43B.match(/\*?\s*(?:Client Name|Business Name):\s*([^\n*]+?)(?=\s*(?:Legal\s*Business|Industry|Website|Geographic|Phone|Address|Email|Founded|DBA|\n|$))/i);
     const clientAuthor = authorMatch ? authorMatch[1].trim() : 'Gerek Allen';
     const clientBusiness = businessMatch ? businessMatch[1].trim() : 'iTech Valet';
 
@@ -2269,6 +2346,54 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
   // Forensic voice compliance scoring. Gemini counts linguistic violations
   // in body prose only (first H2 to end of Conclusion) and returns a
   // normalized VCI score (0-100, can go negative). Pipeline always continues.
+  // V2.5: VCI now counts violations deterministically in JS (regex-based).
+  // No Gemini call for counting — eliminates parse errors permanently.
+  // A separate small Gemini call gets a subjective Conviction Score (0-10).
+  // Pipeline NEVER blocks on Step 11 — if Conviction call fails, score shows "—" and continues.
+  function jsVCICount(v2Body, forbiddenWordsList) {
+    // 1. Expanded contractions — exact phrase match, word-bounded, case-insensitive
+    const expandedRe = /\b(do not|it is|cannot|are not|is not|was not|were not|has not|have not|had not|will not|would not|should not|could not|did not|does not|you are|we are|they are|i am|i have|i would|i will)\b/gi;
+    const expanded_contractions = (v2Body.match(expandedRe) || []).length;
+
+    // 2. Long sentences (>15 words) — split on terminal punctuation, count words per sentence
+    const sentences = v2Body
+      .replace(/\n+/g, ' ')                          // collapse newlines
+      .split(/(?<=[.!?])\s+/)                        // split on sentence terminators
+      .map(s => s.trim())
+      .filter(s => s.length > 5);                    // ignore stub fragments
+    let long_sentences = 0;
+    for(const s of sentences) {
+      // Count words by splitting on whitespace, filter empty
+      const wc = s.split(/\s+/).filter(w => w.length > 0).length;
+      if(wc > 15) long_sentences++;
+    }
+
+    // 3. Hedging language
+    const hedgingRe = /\b(may|might|could|generally|usually|perhaps|often|typically|seems to|appears to|tends to)\b/gi;
+    const hedgingPhrases = /(it'?s worth noting|it'?s important to|in some cases|it can be argued)/gi;
+    const hedging = (v2Body.match(hedgingRe) || []).length + (v2Body.match(hedgingPhrases) || []).length;
+
+    // 4. Passive voice — helper verb + past participle pattern
+    // V2.5: Expanded to catch 3-word passive constructions per audit recommendation.
+    // Examples now caught: "has been adjusted", "will be seen", "have been built", "is being reviewed".
+    // Pattern: helper verb + optional modal/auxiliary + past participle
+    const passiveRe = /\b(is|was|were|are|be|been|being|has been|have been|had been|will be|would be|should be|could be|can be|may be|might be|must be|is being|was being|are being|were being)\s+([a-z]+ed|born|built|chosen|done|taken|written|made|given|seen|known|shown|found|told|sold|brought|caught|bought)\b/gi;
+    const passive_voice = (v2Body.match(passiveRe) || []).length;
+
+    // 5. Forbidden words — combine universal list with client-specific terminology
+    const universalForbidden = ['Landscape','Navigate','Unlock','Robust','Comprehensive','Vital','Leverage','Utilize','Furthermore','Moreover','In conclusion','In summary'];
+    const allForbidden = [...universalForbidden, ...(forbiddenWordsList || [])];
+    let forbidden_words = 0;
+    for(const word of allForbidden) {
+      if(!word || word.length < 3) continue;
+      const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(`\\b${escapedWord}\\b`, 'gi');
+      forbidden_words += (v2Body.match(re) || []).length;
+    }
+
+    return { expanded_contractions, long_sentences, hedging, passive_voice, forbidden_words };
+  }
+
   async function runVoiceAudit(akey) {
     const gkey = document.getElementById('keyGemini').value.trim();
     const thread = document.getElementById('voiceChatThread');
@@ -2276,103 +2401,90 @@ document.querySelectorAll('.cl-ta:not(.cl-ta-schema)').forEach(ta => {
     thread.innerHTML = '';
     document.getElementById('sb11').classList.add('open');
     document.getElementById('c11').classList.remove('closed');
-    setStep(11, 'active', 'VCI Audit...');
-    setG('Gemini running Voice Compliance Index audit...', true);
+    setStep(11, 'active', 'Counting violations...');
+    setG('Running Voice Compliance Index audit...', true);
 
     // Extract body only — first H2 to end of article
     const firstH2Match = S.v2.match(/^##\s/m);
     const v2Body = firstH2Match ? S.v2.slice(S.v2.indexOf(firstH2Match[0])) : S.v2;
-
-    // Calculate word count in JS — never let AI count words (probabilistic, inaccurate)
     const v2WordCount = countWords(v2Body);
 
+    // V2.5: Extract client-specific forbidden words from 4.3B Terminology Lock
+    // Pattern: lines like "❌ wordname" or "BANNED: word1, word2"
     const termSection = S.docs.doc43B.match(/TERMINOLOGY LOCK[\s\S]*?(?=SECTION \d+:|________________\s*END|$)/i);
-    const forbiddenTerms = termSection ? termSection[0].trim() : '';
-
-    const fullPrompt = `You are a forensic linguistic auditor. Count violations in the article body below and return raw counts as JSON.
-
-SCOPE: Audit only the article body provided. Exclude FAQ question text, image prompts, and schema.
-
-VIOLATION DEFINITIONS — count each instance as 1 violation:
-1. expanded_contractions: "do not" instead of "don't", "it is" instead of "it's", "cannot" instead of "can't", "you are" instead of "you're", "does not" instead of "doesn't", "will not" instead of "won't", "is not" instead of "isn't", "has not" instead of "hasn't"
-2. long_sentences: any sentence over 15 words — count each over-limit sentence as 1 violation
-3. hedging: any instance of "may", "might", "could", "generally", "usually", "perhaps", "it's worth noting", "it's important to", "in some cases", "often", "typically", "it can be argued", "seems to", "appears to", "tends to"
-4. passive_voice: any "is/was [verb]-ed" construction — "was adjusted", "is recommended", "are considered", "was built", "is designed"
-5. forbidden_words: any of these words in the author's prose (not in quotes): "Landscape", "Navigate", "Unlock", "Robust", "Comprehensive", "Vital", "Leverage", "Utilize", "Furthermore", "Moreover", "In conclusion", "In summary"
-
-OUTPUT: Return ONLY valid JSON with raw violation counts. No preamble. No explanation. No markdown fences. Do NOT calculate scores — just count violations.
-{"expanded_contractions":integer,"long_sentences":integer,"hedging":integer,"passive_voice":integer,"forbidden_words":integer}
-
-ARTICLE BODY:
-${v2Body}`;
-
-    const bubble = voiceAppendBubble('system', '⏳ Gemini counting violations...');
-
-    // Retry up to 3 times — Gemini occasionally returns empty on large prompts
-    let raw = '';
-    let vciData = null;
-    const MAX_VCI_RETRIES = 3;
-    for(let attempt = 1; attempt <= MAX_VCI_RETRIES; attempt++) {
-      try {
-        bubble.textContent = attempt > 1 ? `⏳ Retry ${attempt}/${MAX_VCI_RETRIES}...` : '⏳ Gemini counting violations...';
-        raw = await callGemini(fullPrompt, gkey);
-        if(!raw || raw.trim().length < 10) {
-          if(attempt < MAX_VCI_RETRIES) { await new Promise(r=>setTimeout(r,5000)); continue; }
-          throw new Error('Gemini returned empty response after retries');
-        }
-        const clean = raw.replace(/```json|```/gi, '').trim();
-        const jsonStart = clean.indexOf('{');
-        const jsonEnd = clean.lastIndexOf('}');
-        if(jsonStart === -1 || jsonEnd === -1) throw new Error('No JSON object found');
-        vciData = JSON.parse(clean.slice(jsonStart, jsonEnd + 1));
-        break;
-      } catch(e) {
-        if(attempt >= MAX_VCI_RETRIES) {
-          bubble.textContent = `⚠ VCI parse error — Gemini did not return valid JSON after ${MAX_VCI_RETRIES} attempts.\n\nRaw output:\n${raw}\n\nPipeline continuing.`;
-          setStep(11, 'done', 'Done (parse error)');
-          saveSession(11);
-          if(voice11Resolve) { voice11Resolve(); voice11Resolve = null; }
-          else { document.getElementById('r11').style.display='block'; }
-          return;
-        }
-        await new Promise(r=>setTimeout(r,5000));
+    const forbiddenWordsList = [];
+    if(termSection){
+      const termText = termSection[0];
+      // Extract banned words from typical patterns
+      const bannedMatches = termText.match(/(?:❌|BANNED|FORBIDDEN|DO NOT USE)[:\s]+([^\n]+)/gi) || [];
+      for(const m of bannedMatches){
+        const words = m.replace(/(?:❌|BANNED|FORBIDDEN|DO NOT USE)[:\s]+/i,'').split(/[,;]/).map(w=>w.trim().replace(/[*"']/g,'')).filter(w=>w.length>2 && w.length<30);
+        forbiddenWordsList.push(...words);
       }
     }
 
-    // JS calculates the score — never trust AI math
-    // Gemini returns raw counts only. JS does all arithmetic.
-    const v = vciData;
-    const totalViolations = (v.expanded_contractions||0) + (v.long_sentences||0) + (v.hedging||0) + (v.passive_voice||0) + (v.forbidden_words||0);
+    // ─── JS DETERMINISTIC COUNTING (instant, zero cost, 100% reliable) ───
+    const bubble = voiceAppendBubble('system', '⏳ Counting violations...');
+    const counts = jsVCICount(v2Body, forbiddenWordsList);
+
+    // JS calculates score
+    const totalViolations = counts.expanded_contractions + counts.long_sentences + counts.hedging + counts.passive_voice + counts.forbidden_words;
     const rate = v2WordCount > 0 ? totalViolations / (v2WordCount / 500) : 0;
-    const vciScore = Math.round(100 - rate);
+    const vciScore = Math.max(0, Math.round(100 - rate));
     const verdict = vciScore >= 90 ? 'PASS' : vciScore >= 75 ? 'FIX' : 'REWRITE';
 
-    // Store full VCI object for checklist and stats bar
+    // ─── OPTIONAL: SMALL GEMINI CALL FOR CONVICTION SCORE (0-10) ───
+    // Subjective tone judgment. If it fails, score shows "—" and pipeline continues.
+    let convictionScore = null;
+    let convictionError = null;
+    bubble.textContent = '⏳ Getting conviction score...';
+
+    const convictionPrompt = `Read this article body and rate its CONVICTION on a scale of 0-10.
+Conviction = how strongly the article takes a position vs. hedging or fence-sitting.
+0 = pure hedging, no position taken. 10 = unwavering, blunt, takes a clear stand.
+
+OUTPUT ONLY THE NUMBER. No explanation. No preamble. Just the integer 0-10.
+
+ARTICLE BODY:
+${v2Body.slice(0, 8000)}`;
+
+    try {
+      const rawConv = await callGemini(convictionPrompt, gkey);
+      const numMatch = rawConv.match(/\b(10|[0-9])\b/);
+      if(numMatch) {
+        convictionScore = parseInt(numMatch[1]);
+      } else {
+        convictionError = 'No number returned';
+      }
+    } catch(e) {
+      convictionError = e.message;
+    }
+
+    // ─── ASSEMBLE RESULT ───
     const vciResult = {
       vci_score: vciScore,
       violation_rate_per_500: Math.round(rate * 100) / 100,
       word_count: v2WordCount,
       verdict,
-      top_violations: {
-        expanded_contractions: v.expanded_contractions || 0,
-        long_sentences: v.long_sentences || 0,
-        hedging: v.hedging || 0,
-        passive_voice: v.passive_voice || 0,
-        forbidden_words: v.forbidden_words || 0
-      }
+      conviction_score: convictionScore,
+      top_violations: counts
     };
 
     const scoreColor = vciScore >= 90 ? '#22c55e' : vciScore >= 75 ? '#f59e0b' : '#ef4444';
+    const convictionDisplay = convictionScore !== null
+      ? `${convictionScore}/10`
+      : `— (${convictionError || 'unavailable'})`;
 
     const resultText = [
       `VCI Score: ${vciScore} — ${verdict}`,
+      `Conviction: ${convictionDisplay}`,
       `Rate: ${vciResult.violation_rate_per_500} violations/500 words · ${v2WordCount} words audited`,
       ``,
-      `Expanded contractions: ${vciResult.top_violations.expanded_contractions}`,
-      `Long sentences (>15w): ${vciResult.top_violations.long_sentences}`,
-      `Hedging language: ${vciResult.top_violations.hedging}`,
-      `Passive voice: ${vciResult.top_violations.passive_voice}`,
-      `Forbidden words: ${vciResult.top_violations.forbidden_words}`,
+      `Expanded contractions: ${counts.expanded_contractions}`,
+      `Long sentences (>15w): ${counts.long_sentences}`,
+      `Hedging language: ${counts.hedging}`,
+      `Passive voice: ${counts.passive_voice}`,
+      `Forbidden words: ${counts.forbidden_words}`,
       ``,
       `Pipeline continues regardless of verdict.`
     ].join('\n');
@@ -2381,7 +2493,7 @@ ${v2Body}`;
     bubble.style.color = scoreColor;
     bubble.style.whiteSpace = 'pre-wrap';
 
-    // Show copy button
+    // V2.5: Always show copy button — JS counting can't fail
     const copyBtn = document.getElementById('vciCopyBtn');
     if(copyBtn) copyBtn.style.display = 'block';
 
@@ -2392,7 +2504,7 @@ ${v2Body}`;
     // Auto-approve and continue
     saveSession(11);
     setStep(11, 'done', `Done ✓ (VCI: ${vciScore})`);
-    setG(`✓ Step 11 complete — VCI Score: ${vciScore} (${verdict})`);
+    setG(`✓ Step 11 complete — VCI: ${vciScore} (${verdict}) · Conviction: ${convictionDisplay}`);
     if(voice11Resolve) { voice11Resolve(); voice11Resolve = null; }
   }
 
@@ -2431,19 +2543,26 @@ ${v2Body}`;
   function parseFails(validationText) {
     const cleaned=validationText.replace(/```[\w]*\n?/g,'').replace(/```/g,'');
     const fails=[];
-    const blocks=cleaned.match(/FAIL_START[\s\S]*?FAIL_END/g)||[];
+    // V2.5: case-insensitive to catch FAIL_start, fail_start, etc. typos
+    const blocks=cleaned.match(/FAIL_START[\s\S]*?FAIL_END/gi)||[];
     let autoId=1;
     for(const block of blocks){
-      let id=(block.match(/ID:\s*(.+)/)||[])[1]?.trim()||'';
+      let id=(block.match(/ID:\s*(.+)/i)||[])[1]?.trim()||'';
       if(!id) id=`FAIL_${String(autoId++).padStart(3,'0')}`;
-      const type=(block.match(/Type:\s*(.+)/)||[])[1]?.trim()||'WRONG';
-      let desc=(block.match(/Description:\s*([\s\S]*?)(?=\nFind:|\nReplace:|\nWhat:|\nContext:|\nPlacement:|\nScope:|\nFAIL_END)/)||[])[1]?.trim()||'';
-      let find=(block.match(/Find:\s*([\s\S]*?)(?=\nReplace:|\nScope:|\nWhat:|\nContext:|\nPlacement:|\nFAIL_END)/)||[])[1]?.trim()||'';
-      const replace=(block.match(/Replace:\s*([\s\S]*?)(?=\nScope:|\nFAIL_END)/)||[])[1]?.trim()||'';
-      const scope=(block.match(/Scope:\s*(.+)/)||[])[1]?.trim()||'FIRST_INSTANCE';
-      let what=(block.match(/What:\s*([\s\S]*?)(?=\nContext:|\nPlacement:|\nFAIL_END)/)||[])[1]?.trim()||'';
-      let context=(block.match(/Context:\s*([\s\S]*?)(?=\nPlacement:|\nFAIL_END)/)||[])[1]?.trim()||'';
-      const placement=(block.match(/Placement:\s*(.+)/)||[])[1]?.trim()||'';
+      const type=(block.match(/Type:\s*(.+)/i)||[])[1]?.trim()||'WRONG';
+      let desc=(block.match(/Description:\s*([\s\S]*?)(?=\nFind:|\nReplace:|\nWhat:|\nContext:|\nPlacement:|\nScope:|\nFAIL_END)/i)||[])[1]?.trim()||'';
+      let find=(block.match(/Find:\s*([\s\S]*?)(?=\nReplace:|\nScope:|\nWhat:|\nContext:|\nPlacement:|\nFAIL_END)/i)||[])[1]?.trim()||'';
+      // V2.5: strip wrapping brackets — Gemini sometimes copies the [VERBATIM...] template literally
+      // Pattern: leading [ followed by non-trivial content followed by trailing ]
+      if(find.startsWith('[') && find.endsWith(']') && find.length > 2) {
+        find = find.slice(1, -1).trim();
+      }
+      const replace=(block.match(/Replace:\s*([\s\S]*?)(?=\nScope:|\nFAIL_END)/i)||[])[1]?.trim()||'';
+      const scope=(block.match(/Scope:\s*(.+)/i)||[])[1]?.trim()||'FIRST_INSTANCE';
+      let what=(block.match(/What:\s*([\s\S]*?)(?=\nContext:|\nPlacement:|\nFAIL_END)/i)||[])[1]?.trim()||'';
+      let context=(block.match(/Context:\s*([\s\S]*?)(?=\nPlacement:|\nFAIL_END)/i)||[])[1]?.trim()||'';
+      const placement=(block.match(/Placement:\s*(.+)/i)||[])[1]?.trim()||'';
+      const section=(block.match(/Section:\s*(.+)/i)||[])[1]?.trim()||'';
       // Fallback: Gemini sometimes uses bullet markdown format instead of field format
       if(!desc && !find && !what && !context) {
         const bulletDesc=(block.match(/\*\s*\*\*(?:Error|Description|Rule):\*\*\s*([\s\S]*?)(?=\n\*\s*\*\*|\nFAIL_END)/i)||[])[1]?.trim()||'';
@@ -2454,17 +2573,17 @@ ${v2Body}`;
       const missing=what||context||'';
       // Discard empty FAIL blocks — Gemini sometimes produces malformed blocks with no content
       if(!desc && !find && !what && !context) continue;
-      fails.push({id,type,desc,find,replace,scope,missing,what,context,placement});
+      fails.push({id,type,desc,find,replace,scope,missing,what,context,placement,section});
     }
     // FLAGS parsed separately — stored in S.parsedFlags, never enter fix loop
     const flags=[];
-    const flagBlocks=cleaned.match(/FLAG_START[\s\S]*?FLAG_END/g)||[];
+    const flagBlocks=cleaned.match(/FLAG_START[\s\S]*?FLAG_END/gi)||[];
     for(const block of flagBlocks){
-      let id=(block.match(/ID:\s*(.+)/)||[])[1]?.trim()||'';
+      let id=(block.match(/ID:\s*(.+)/i)||[])[1]?.trim()||'';
       if(!id) id=`FLAG_${String(autoId++).padStart(3,'0')}`;
-      const desc=(block.match(/Description:\s*([\s\S]*?)(?=\nFind:|\nFix:|\nFLAG_END)/)||[])[1]?.trim()||'';
-      const flagFind=(block.match(/Find:\s*([\s\S]*?)(?=\nFix:|\nFLAG_END)/)||[])[1]?.trim()||'';
-      const flagFix=(block.match(/Fix:\s*([\s\S]*?)(?=\nFLAG_END)/)||[])[1]?.trim()||'';
+      const desc=(block.match(/Description:\s*([\s\S]*?)(?=\nFind:|\nFix:|\nFLAG_END)/i)||[])[1]?.trim()||'';
+      const flagFind=(block.match(/Find:\s*([\s\S]*?)(?=\nFix:|\nFLAG_END)/i)||[])[1]?.trim()||'';
+      const flagFix=(block.match(/Fix:\s*([\s\S]*?)(?=\nFLAG_END)/i)||[])[1]?.trim()||'';
       flags.push({id,desc,find:flagFind,fix:flagFix});
     }
     S.parsedFlags=flags;
@@ -2498,9 +2617,11 @@ ${v2Body}`;
 
       if (result.includes(findStr)) {
         if (scope === 'ALL_INSTANCES') {
-          // Replace all occurrences
-          let count = 0;
-          while (result.includes(findStr)) { result = result.replace(findStr, replaceStr); count++; }
+          // V2.5: Use split/join — safe from infinite loops when Replace contains Find as substring.
+          // (e.g., Find: "AI", Replace: "AI Authority" — old while loop would hang the browser)
+          const parts = result.split(findStr);
+          const count = parts.length - 1;
+          result = parts.join(replaceStr);
           applied++;
           log.push(`✅ Applied (ALL_INSTANCES ×${count}): ` + findStr.substring(0,60) + '...');
         } else {
@@ -3046,23 +3167,52 @@ HARD RULES:
       const u5=`IMPORTANT OVERRIDE: You are in PROSE FILL mode. You are NOT writing an article from scratch. You are filling in a skeleton that already exists. Follow the PROSE FILL INSTRUCTIONS below — ignore any "write the full article" instructions from 4.3A or Prompt 2. The skeleton structure is final. Your only job is to replace placeholders with content.\n\nPUBLISH DATE: ${publishDate}\n\nEXECUTION RULES (4.3A):\n${S.docs.doc43A}\n\n---\n${p2}\n\n${proseInstr}\n\n---\nSHEET ROW:\n${S.sheetRow}\n\n---\nGEMINI RESEARCH BRIEF:\n${S.geminiResearch}\n\n---\nSKELETON TO FILL:\n${stripDAMarker(S.v1)}`;
       const v1prose=await callClaude(sys,u5,akey,(p)=>{document.getElementById('o5').textContent=p;document.getElementById('sb5').classList.add('open');},{maxTokens:64000});
       if(v1prose.length<3000) throw new Error(`Step 5: Prose output too short (${v1prose.length} chars) — retry.`);
-      // JS safety net — strip any duplicate checklist blocks Claude may have introduced
-      // Pattern: find the first --- separator after the checklist, then check if the checklist header appears again
+      // V2.5: ROBUST duplicate detection using H1-based splitting (Gemini consensus pattern).
+      // Detects ANY duplicate where the H1 title appears twice, OR where metadata keys
+      // (Meta Title:, Permalink URL:, Keywords:, etc.) appear after the first H1 — which
+      // would indicate a duplicated checklist block in body prose. Replaces the previous
+      // safety net which only caught duplicates after a \n---\n separator.
       let cleanedProse = v1prose;
-      const firstSep = cleanedProse.indexOf('\n---\n');
-      if(firstSep > 0) {
-        const afterSep = cleanedProse.slice(firstSep + 5);
-        const dupChecklistIdx = afterSep.search(/(?:AI AUTHORITY |BLOG POST )?ARTICLE OPTIMIZATION CHECKLIST|OPTIMIZATION CHECKLIST/i);
-        if(dupChecklistIdx > -1) {
-          // Find the second occurrence of the repeated H1 after the duplicate checklist
-          // and keep everything from that point forward, splicing it after the first ---
-          const beforeSep = cleanedProse.slice(0, firstSep + 5);
-          // Find the H1 title from the original — it appears right after the duplicate checklist block
-          const dupSection = afterSep.slice(dupChecklistIdx);
-          const h1InDup = dupSection.match(/^#\s+[^#].+$/m);
-          if(h1InDup) {
-            const h1Idx = dupSection.indexOf(h1InDup[0]);
-            cleanedProse = beforeSep + dupSection.slice(h1Idx);
+      const h1Matches = [...cleanedProse.matchAll(/^#\s+[^#].+$/gm)];
+      if(h1Matches.length >= 2) {
+        // Multiple H1s detected — definitely a duplicate. Keep everything before the
+        // SECOND H1 (which is the legitimate checklist + first H1 occurrence) only if
+        // the content between them looks like a duplicate metadata block. Otherwise
+        // strip from after the FIRST H1 to right before the SECOND H1.
+        const firstH1Idx = h1Matches[0].index;
+        const firstH1End = firstH1Idx + h1Matches[0][0].length;
+        const secondH1Idx = h1Matches[1].index;
+        const betweenH1s = cleanedProse.slice(firstH1End, secondH1Idx);
+        // Check if the content between H1s contains metadata keys (signals a duplicate checklist)
+        const hasDupMetadata = /Meta Title:|Meta Description:|Permalink URL:|Full Blog Post URL:|Keywords:|Featured Image URL:/i.test(betweenH1s);
+        const hasDupChecklistHeading = /OPTIMIZATION CHECKLIST/i.test(betweenH1s);
+        if(hasDupMetadata || hasDupChecklistHeading) {
+          // Strip everything from after first H1 up to (but not including) second H1.
+          // Keep the first H1 line (legitimate title), then jump to second H1 content.
+          // The second H1 is itself a duplicate — strip it too, keep its body.
+          const secondH1End = secondH1Idx + h1Matches[1][0].length;
+          cleanedProse = cleanedProse.slice(0, firstH1End) + '\n' + cleanedProse.slice(secondH1End);
+          console.log('[Step 5 safety net] Stripped duplicate checklist block between H1s.');
+        }
+      }
+      // Secondary check: metadata keys appearing after the H1 even without a duplicate H1.
+      // This catches cases where Claude reproduced just the checklist body (no second H1).
+      const h1MatchSingle = cleanedProse.match(/^#\s+[^#].+$/m);
+      if(h1MatchSingle) {
+        const afterH1 = cleanedProse.slice(h1MatchSingle.index + h1MatchSingle[0].length);
+        // Look at the first 2000 chars after H1 — that's where any duplicate would live
+        const earlyAfter = afterH1.slice(0, 2000);
+        const metaKeyMatch = earlyAfter.match(/(Meta Title:|Meta Description:|Permalink URL:|Full Blog Post URL:|Featured Image URL:)/i);
+        if(metaKeyMatch) {
+          // Find the position of this metadata block, then find the next H1 or H2 after it
+          // Strip everything from the H1 end up to that next heading.
+          const metaIdx = h1MatchSingle.index + h1MatchSingle[0].length + earlyAfter.indexOf(metaKeyMatch[0]);
+          const restAfterMeta = cleanedProse.slice(metaIdx);
+          const nextHeading = restAfterMeta.match(/\n#{1,2}\s+[^#]/);
+          if(nextHeading) {
+            const nextHeadingIdx = metaIdx + nextHeading.index;
+            cleanedProse = cleanedProse.slice(0, h1MatchSingle.index + h1MatchSingle[0].length) + cleanedProse.slice(nextHeadingIdx);
+            console.log('[Step 5 safety net] Stripped post-H1 metadata block.');
           }
         }
       }
@@ -3183,24 +3333,23 @@ HARD RULES:
       step=7;
     }
 
-    // ── STEP 7: Image Generation ───────────────────────────────
+    // ── STEP 7: Image Generation (V2.5: NON-BLOCKING BACKGROUND QUEUE) ──
+    // Step 7 fires the image queue and immediately advances the pipeline.
+    // Images cook in the background while Steps 8-12 run.
+    // Step 13 is the lazy block — assembly waits until all images uploaded to WP (URLs filled).
+    // Architectural exception to the "atomic steps" rule — Step 7 is the ONE step that runs concurrently with downstream steps by design.
     if(step<=7){
-      setStep(7,'active','Generating images...'); setG('Generating images...',true);
+      setStep(7,'active','Generating in background...'); setG('Images generating in background — pipeline continuing...',true);
       S.v1=S.v1.replace(/^\*{1,2}PROMPT:\*{1,2}/gim,'PROMPT:').replace(/^\*{1,2}ALT TEXT:\*{1,2}/gim,'ALT TEXT:');
       S.imagePrompts=extractImgPrompts(S.v1);
       if(S.imagePrompts.length>0){
         buildImgGrid(S.imagePrompts);
-        await genAllImages(S.imagePrompts,gkey);
-        const totalCards2 = document.querySelectorAll('.img-card').length || S.imagePrompts.length;
-        const failedCount=totalCards2-Object.keys(S.imageData).length;
-        const dlAllBtn=document.getElementById('dlAllBtn');
-        if(failedCount>0){
-          if(dlAllBtn){dlAllBtn.disabled=true;dlAllBtn.textContent=`⚠ ${failedCount} Failed`;dlAllBtn.style.background='var(--orange)';}
-          setStep(7,'error','⚠ Some Failed',`${totalCards2-failedCount}/${totalCards2} generated. ${failedCount} failed — use Regenerate.`);
-        } else {
-          if(dlAllBtn) dlAllBtn.disabled=false;
-          setStep(7,'done','Done ✓',`${totalCards2} image(s) generated.`);
-        }
+        // V2.5: Fire image queue WITHOUT awaiting. Pipeline continues immediately to Step 8.
+        // genAllImages() updates Step 7 status and image cards in real time.
+        // Errors are caught inside genOneImage and shown on individual cards.
+        genAllImages(S.imagePrompts,gkey).catch(err=>{
+          logErr(7,'Background image queue error: '+err.message);
+        });
         saveSession(7);
       } else { setStep(7,'error','No Prompts Found'); document.getElementById('r7').style.display='block'; document.getElementById('cont7').style.display='inline-block'; throw new Error('Step 7: No image prompts found in V1 — retry from Step 3.'); }
       checkUrls(); step=8;
@@ -3213,7 +3362,7 @@ HARD RULES:
       const bpAnchors=(S.geminiResearch.match(/Semantic Anchor:\s*"([^"]+)"/g)||[]).map(l=>l.replace(/Semantic Anchor:\s*"/,'').replace(/"$/,''));
       const linkListStr=bpAnchors.map(a=>`Anchor text: "${a}"`).join('\n');
 
-      const vp=`MANDATORY FAIL BLOCK FORMAT — YOU MUST USE THIS EXACT STRUCTURE FOR EVERY FAIL. NO EXCEPTIONS.\nClaude's fix engine reads this programmatically. Any deviation breaks the fix pipeline.\n\nFAIL_START\nID: FAIL_001\nType: WRONG / MISSING / DELETE\nSeverity: CRITICAL / STANDARD / MINOR\nPriority: 1 / 2 / 3\nSection: [Exact H2 or H3 heading this appears under, or TOP if before first H2]\nDescription: [One sentence — what is wrong and why]\nFind: [VERBATIM quoted text from the article — minimum 10 words of surrounding context. This field is NON-NEGOTIABLE. If you cannot find exact text to quote, issue a FLAG instead of a FAIL.]\nReplace: [Leave blank if Type=DELETE. For WRONG, leave blank — Claude determines replacement. For MISSING, describe what to insert and where.]\nScope: FIRST_INSTANCE / ALL_INSTANCES\nFAIL_END\n\nCRITICAL RULES:\n- Find field must contain verbatim quoted text from the article. No paraphrasing. No descriptions. Exact words.\n- If you cannot locate exact text to quote, do NOT issue a FAIL — issue a FLAG instead.\n- A FAIL with no Find text is worse than no FAIL — it wastes Claude's fix attempts.\n- One FAIL block per issue. Output in priority order (Priority 1 first).\n\n---\n\nYou are operating inside the AEO Authority Pipeline as Quality Assurance Auditor.\n\nCRITICAL OUTPUT RULE: Output ALL FAIL_START/FAIL_END and FLAG_START/FLAG_END blocks FIRST. Summary line LAST.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${S.geminiResearch}\n\nLINK VERIFICATION — these anchor phrases should appear:\n${linkListStr}\n\n---\n\n${p3}\n\nArticle text below:\n${stripDAMarker(S.v1)}`;
+      const vp=`MANDATORY FAIL BLOCK FORMAT — YOU MUST USE THIS EXACT STRUCTURE FOR EVERY FAIL. NO EXCEPTIONS.\nClaude's fix engine reads this programmatically. Any deviation breaks the fix pipeline.\n\nFAIL_START\nID: FAIL_001\nType: WRONG / MISSING / DELETE\nSeverity: CRITICAL / STANDARD / MINOR\nPriority: 1 / 2 / 3\nSection: Exact H2 or H3 heading this appears under, or TOP if before first H2\nDescription: One sentence — what is wrong and why\nFind: VERBATIM quoted text from the article — minimum 10 words of surrounding context.\nReplace: Leave blank if Type=DELETE. For WRONG, leave blank — Claude determines replacement. For MISSING, describe what to insert and where.\nScope: FIRST_INSTANCE / ALL_INSTANCES\nFAIL_END\n\nCRITICAL RULES FOR THE Find FIELD:\n- Provide ONLY the raw verbatim text from the article — do NOT wrap in brackets, quotes, tags, or any other delimiters.\n- The text after "Find: " must match the article exactly, character-for-character. Claude searches the article for this exact string.\n- If you wrap the text in [brackets] or "quotes" the search will fail and the fix will not apply.\n\nPOSITIVE EXAMPLE:\nFind: The practices winning patient recommendations right now aren't the ones with the most traffic.\n\nNEGATIVE EXAMPLE (DO NOT DO THIS):\nFind: [The practices winning patient recommendations right now aren't the ones with the most traffic.]\n\nADDITIONAL RULES:\n- Find field must contain verbatim quoted text from the article. No paraphrasing. No descriptions. Exact words.\n- If you cannot locate exact text to quote, do NOT issue a FAIL — issue a FLAG instead.\n- A FAIL with no Find text is worse than no FAIL — it wastes Claude's fix attempts.\n- One FAIL block per issue. Output in priority order (Priority 1 first).\n- FAIL_START and FAIL_END must be UPPERCASE — not FAIL_start or fail_end.\n\n---\n\nYou are operating inside the AEO Authority Pipeline as Quality Assurance Auditor.\n\nCRITICAL OUTPUT RULE: Output ALL FAIL_START/FAIL_END and FLAG_START/FLAG_END blocks FIRST. Summary line LAST.\n\nCLIENT IDENTITY CARD (4.3B):\n${S.docs.doc43B}\n\nMASTER INVENTORY SHEET ROW:\n${S.sheetRow}\n\nROUND 1 RESEARCH BRIEF:\n${S.geminiResearch}\n\nLINK VERIFICATION — these anchor phrases should appear:\n${linkListStr}\n\n---\n\n${p3}\n\nArticle text below:\n${stripDAMarker(S.v1)}`;
       S.validation=await callGemini(vp,gkey);
       S.parsedFails=parseFails(S.validation);
       const flagNote=S.parsedFlags.length>0?`\n\n--- VOICE FLAGS (for Step 10 voice rewrite) ---\n${S.parsedFlags.map(f=>`🚩 ${f.id}: ${f.desc}`).join('\n')}`:'';
@@ -3234,8 +3383,13 @@ HARD RULES:
         document.getElementById('sb9').classList.add('open');
         const failInstructions=S.parsedFails.map(f=>{
           if(f.type==='FLAG') return null;
-          // Skip any FAIL whose Find text anchors to the checklist block — Claude can't find it in body prose
-          if(f.find && /BLOG POST OPTIMIZATION CHECKLIST|AI AUTHORITY ARTICLE OPTIMIZATION CHECKLIST|Meta Title:|Permalink URL:|Full Blog Post URL:|Meta Description:|Keywords:|Category:/i.test(f.find)) return null;
+          // V2.5: Refined checklist filter — only skip FAILs that target the LEGITIMATE
+          // checklist metadata at the top of the doc (Section: TOP, not DELETE type).
+          // DELETE-type FAILs are explicitly trying to remove DUPLICATED checklists in body
+          // prose — those must pass through. Section: TOP + non-DELETE = legitimate metadata.
+          const looksLikeChecklist = f.find && /BLOG POST OPTIMIZATION CHECKLIST|AI AUTHORITY ARTICLE OPTIMIZATION CHECKLIST|Meta Title:|Permalink URL:|Full Blog Post URL:|Meta Description:|Keywords:|Category:/i.test(f.find);
+          const isLegitimateMetadata = looksLikeChecklist && f.section === 'TOP' && f.type !== 'DELETE';
+          if(isLegitimateMetadata) return null;
           if(f.type==='MISSING') return `INSERT:\nDesc: ${f.desc}\nWhat: ${f.what||f.missing}\nContext: ${f.context||'see surrounding content'}\nPlacement: ${f.placement||'NEAR_CLAIM'}`;
           return `FIX:\nDesc: ${f.desc}\nFind: ${f.find}\nReplace: ${f.replace}\nScope: ${f.scope}`;
         }).filter(Boolean).join('\n\n---\n\n');
