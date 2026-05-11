@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iTech Valet — AEO V4.0 (Milestone 1)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600&display=swap');
+  :root {
+    --blue: #063a6c; --accent: #2494e0; --orange: #dd6b00;
+    --green: #4caf50; --red: #c0392b; --bg: #ffffff; --surface: #f9f9f9;
+    --border: #e0e0e0; --muted: #888; --faint: #aaa;
+  }
+  * { box-sizing: border-box; }
+  body { font-family:'Lexend',sans-serif; font-weight:300; background:var(--bg); color:var(--blue); min-height:100vh; padding:20px 24px; margin:0; }
+
+  .top-bar { max-width:1700px; margin:0 auto 12px; border-bottom:2px solid var(--border); padding-bottom:12px; display:flex; align-items:center; gap:16px; }
+  .top-bar h1 { font-family:'Bebas Neue',sans-serif; font-size:28px; text-transform:uppercase; letter-spacing:3px; margin:0; }
+  .top-bar h1 span { color:var(--accent); }
+  .ver-badge { font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:2px; color:var(--orange); margin-left:8px; padding:2px 8px; border:1px solid var(--orange); border-radius:4px; }
+  .subtitle { font-size:11px; color:var(--muted); margin:2px 0 0; }
+
+  .top-section { max-width:1700px; margin:0 auto 16px; }
+  .control-panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; }
+  .cp-row { display:grid; gap:14px; margin-bottom:14px; }
+  .cp-row:last-child { margin-bottom:0; }
+  .cp-row.keys { grid-template-columns:1fr 1fr 1fr; }
+  .cp-row.article { grid-template-columns:220px 1fr auto auto auto; align-items:end; gap:10px; }
+  .cp-row.stats { display:flex; justify-content:space-between; align-items:center; padding:10px 0 4px; border-top:1px solid var(--border); }
+  .stats-left, .stats-right { display:flex; align-items:center; gap:24px; }
+  .cp-divider { border:none; border-top:1px solid var(--border); margin:14px 0; }
+
+  .cp-group { display:flex; flex-direction:column; gap:5px; }
+  .cp-label { font-family:'Bebas Neue',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:2px; color:var(--blue); opacity:0.7; }
+  .cp-hint { font-size:10px; color:var(--muted); margin-top:2px; }
+  .krow { display:flex; gap:5px; }
+  .krow input { flex:1; background:#fff; border:1px solid var(--border); border-radius:6px; padding:8px 10px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:12px; outline:none; transition:border-color .2s; }
+  .krow input:focus { border-color:var(--accent); }
+  .btn-toggle { background:none; border:1px solid var(--border); color:var(--muted); border-radius:6px; padding:8px 10px; font-family:'Lexend',sans-serif; font-size:10px; cursor:pointer; }
+  .btn-toggle:hover { border-color:var(--accent); color:var(--accent); }
+  .cp-select, .cp-input { background:#fff; border:1px solid var(--border); border-radius:6px; padding:8px 10px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:12px; outline:none; transition:border-color .2s; width:100%; }
+  .cp-select:focus, .cp-input:focus { border-color:var(--accent); }
+
+  .btn-run { background:var(--orange); color:#fff; border:none; border-radius:8px; padding:9px 24px; font-family:'Bebas Neue',sans-serif; font-size:20px; text-transform:uppercase; letter-spacing:2px; cursor:pointer; height:38px; display:flex; align-items:center; }
+  .btn-run:hover { opacity:.85; }
+  .btn-run:disabled { opacity:.35; cursor:not-allowed; }
+  .btn-cache { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:9px 14px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; cursor:pointer; height:38px; }
+  .btn-cache:hover { opacity:.85; }
+  .btn-cache:disabled { opacity:.35; cursor:not-allowed; }
+  .btn-stop { background:var(--red); color:#fff; border:none; border-radius:8px; padding:9px 14px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; cursor:pointer; height:38px; display:none; }
+
+  .stat-item { display:flex; flex-direction:column; gap:3px; }
+  .stat-label { font-family:'Bebas Neue',sans-serif; font-size:12px; text-transform:uppercase; letter-spacing:1.5px; color:var(--blue); opacity:0.55; }
+  .stat-value { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--blue); letter-spacing:1px; line-height:1; }
+  .stat-value.orange { color:var(--orange); }
+  .stat-value.green { color:var(--green); }
+  .stat-value.accent { color:var(--accent); }
+  .stat-divider { width:1px; height:32px; background:var(--border); align-self:center; }
+
+  .gstatus { font-size:12px; color:var(--accent); min-height:16px; font-weight:400; padding:6px 0 2px; }
+
+  .layout { max-width:1700px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
+  .left-col, .right-col { min-width:0; }
+
+  .pipeline { display:flex; flex-direction:column; gap:7px; }
+  .phase-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; transition:border-color .3s; }
+  .phase-card.active { border-color:var(--accent); }
+  .phase-card.done { border-color:var(--green); }
+  .phase-card.error { border-color:var(--red); }
+  .phase-card.stub { opacity:.55; }
+  .phase-header { display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer; user-select:none; }
+  .phase-num { font-family:'Bebas Neue',sans-serif; font-size:24px; color:var(--border); line-height:1; min-width:36px; transition:color .3s; }
+  .phase-card.active .phase-num { color:var(--accent); }
+  .phase-card.done .phase-num { color:var(--green); }
+  .phase-card.error .phase-num { color:var(--red); }
+  .phase-info { flex:1; }
+  .phase-title { font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:1.5px; color:var(--blue); margin-bottom:1px; }
+  .phase-desc { font-size:12px; color:var(--faint); }
+  .phase-right { display:flex; align-items:center; gap:7px; }
+  .pbadge { font-family:'Bebas Neue',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:1px; padding:3px 8px; border-radius:4px; white-space:nowrap; }
+  .b-waiting { background:#ececec; color:var(--faint); }
+  .b-running { background:rgba(36,148,224,.15); color:var(--accent); }
+  .b-done { background:rgba(76,175,80,.15); color:var(--green); }
+  .b-error { background:rgba(192,57,43,.15); color:var(--red); }
+  .b-stub { background:#fff8e6; color:#b8860b; border:1px dashed #d4a418; }
+  .schev { color:var(--faint); font-size:11px; transition:transform .2s; }
+  .schev.closed { transform:rotate(-90deg); }
+  .phase-body { display:none; padding:0 14px 12px 14px; font-size:12px; color:var(--blue); }
+  .phase-body.open { display:block; }
+  .phase-out { background:#fff; border:1px solid var(--border); border-radius:6px; padding:10px 12px; max-height:400px; overflow:auto; font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.55; white-space:pre-wrap; word-break:break-word; }
+  .phase-out:empty:before { content:'(no output yet)'; color:var(--faint); font-style:italic; }
+  .phase-meta { font-size:11px; color:var(--muted); margin-top:6px; }
+
+  .preview-panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:0; overflow:hidden; }
+  .ptabs { display:flex; gap:0; background:#eef3f8; border-bottom:1px solid var(--border); }
+  .ptab { flex:1; padding:11px 14px; cursor:pointer; font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1.5px; text-align:center; color:var(--muted); border-right:1px solid var(--border); transition:background .2s,color .2s; }
+  .ptab:last-child { border-right:none; }
+  .ptab.active { background:#fff; color:var(--blue); border-bottom:2px solid var(--accent); }
+  .ppane { display:none; padding:14px 16px; max-height:780px; overflow:auto; }
+  .ppane.active { display:block; }
+  .ppane pre { background:#fff; border:1px solid var(--border); border-radius:6px; padding:12px; font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.55; white-space:pre-wrap; word-break:break-word; margin:0; max-height:730px; overflow:auto; }
+
+  .cache-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+  .cache-stat { background:#fff; border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
+  .cache-stat-label { font-family:'Bebas Neue',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:var(--blue); opacity:0.6; margin-bottom:4px; }
+  .cache-stat-value { font-family:'Bebas Neue',sans-serif; font-size:26px; color:var(--blue); letter-spacing:1px; }
+  .cache-stat-value.green { color:var(--green); }
+  .cache-stat-value.orange { color:var(--orange); }
+  .cache-log-row { padding:10px 12px; border-bottom:1px solid var(--border); font-size:12px; display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr; gap:8px; align-items:center; }
+  .cache-log-row.header { font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1.5px; color:var(--blue); opacity:.6; background:#eef3f8; }
+  .cache-log-row .verdict.hit { color:var(--green); font-weight:600; }
+  .cache-log-row .verdict.miss { color:var(--orange); font-weight:600; }
+  .cache-log-row .verdict.partial { color:var(--accent); font-weight:600; }
+
+  .runlog { font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.6; }
+  .runlog .line { padding:3px 6px; border-bottom:1px solid #eef0f3; }
+  .runlog .line.info { color:var(--blue); }
+  .runlog .line.ok { color:var(--green); }
+  .runlog .line.warn { color:var(--orange); }
+  .runlog .line.err { color:var(--red); font-weight:500; }
+  .runlog .ts { color:var(--faint); margin-right:8px; }
+
+  .legend-box { background:#fff8f4; border:1px solid #ffd4a3; border-radius:6px; padding:8px 12px; font-size:11px; color:#8a4a00; margin-bottom:10px; line-height:1.5; }
+
+  .password-gate { position:fixed; top:0; left:0; width:100%; height:100%; background:#fff; z-index:9999; display:flex; align-items:center; justify-content:center; }
+  .password-gate-inner { text-align:center; max-width:340px; width:100%; padding:36px 24px; }
+  .pg-brand { font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:3px; color:#063a6c; margin-bottom:4px; }
+  .pg-sub { font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:2px; color:var(--orange); margin-bottom:26px; }
+  .pg-input { width:100%; background:#f2f2f2; border:1px solid #ddd; border-radius:8px; padding:11px 14px; color:#063a6c; font-family:'Lexend',sans-serif; font-size:13px; outline:none; margin-bottom:9px; text-align:center; }
+  .pg-btn { width:100%; background:var(--orange); color:#fff; border:none; border-radius:8px; padding:11px; font-family:'Bebas Neue',sans-serif; font-size:17px; letter-spacing:2px; cursor:pointer; }
+  .pg-err { font-size:11px; color:var(--orange); margin-top:7px; min-height:16px; }
+
+  .spinner { display:inline-block; width:10px; height:10px; border:2px solid var(--accent); border-right-color:transparent; border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; margin-right:6px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div class="password-gate" id="passwordGate">
+  <div class="password-gate-inner">
+    <div class="pg-brand">iTech Valet</div>
+    <div class="pg-sub">AEO V4.0 — Milestone 1</div>
+    <input type="password" class="pg-input" id="gateInput" placeholder="Enter access password..." onkeydown="if(event.key==='Enter')checkPw()" />
+    <button class="pg-btn" onclick="checkPw()">Enter</button>
+    <div class="pg-err" id="gateErr"></div>
+  </div>
+</div>
+
+<div id="mainContent" style="display:none;">
+
+<div class="top-bar">
+  <div>
+    <h1>iTech Valet <span>AEO V4.0</span><span class="ver-badge">M1</span></h1>
+    <p class="subtitle">Phase 1 (research + thesis) → Phase 2 (V1 via Tool Use) → Phase 6 stub. Caching verifier built in.</p>
+  </div>
+</div>
+
+<div class="top-section">
+<div class="control-panel">
+
+  <div class="cp-row keys">
+    <div class="cp-group">
+      <div class="cp-label">Google Drive API Key</div>
+      <div class="krow"><input type="password" id="keyDrive" placeholder="Drive key..." oninput="saveKeys()" /><button class="btn-toggle" onclick="toggleKey('keyDrive',this)">Show</button></div>
+      <div class="cp-hint">Fetches 4.3A / 4.3B / 4.4 by file ID</div>
+    </div>
+    <div class="cp-group">
+      <div class="cp-label">Gemini API Key</div>
+      <div class="krow"><input type="password" id="keyGemini" placeholder="Gemini key..." oninput="saveKeys()" /><button class="btn-toggle" onclick="toggleKey('keyGemini',this)">Show</button></div>
+      <div class="cp-hint">Phase 1 research + thesis</div>
+    </div>
+    <div class="cp-group">
+      <div class="cp-label">Anthropic API Key</div>
+      <div class="krow"><input type="password" id="keyAnthropic" placeholder="Anthropic key..." oninput="saveKeys()" /><button class="btn-toggle" onclick="toggleKey('keyAnthropic',this)">Show</button></div>
+      <div class="cp-hint">Phase 2 V1 via Tool Use (cached)</div>
+    </div>
+  </div>
+
+  <hr class="cp-divider">
+
+  <div class="cp-row" style="grid-template-columns: 1fr 1fr auto auto; align-items:end;">
+    <div class="cp-group">
+      <div class="cp-label">4.3A Folder ID (universal — voice rules)</div>
+      <input class="cp-input" type="text" id="global43A" placeholder="e.g. 1cQhDEzVXMUdFDApLqXWodZqmjXswGwir" oninput="markGlobalsDirty()" />
+    </div>
+    <div class="cp-group">
+      <div class="cp-label">4.4 Folder ID (universal — prompts)</div>
+      <input class="cp-input" type="text" id="global44" placeholder="e.g. 12RQwBXZW8hIVyC9iPlZyfLdB8mU55tgk" oninput="markGlobalsDirty()" />
+    </div>
+    <button class="btn-cache" id="saveGlobalsBtn" onclick="saveGlobals()" style="background:var(--blue);">💾 Save Globals</button>
+    <div class="cp-group">
+      <div class="cp-label">Status</div>
+      <div id="globalsStatus" style="font-size:11px; color:var(--muted); min-height:18px; padding:6px 0;">—</div>
+    </div>
+  </div>
+
+  <hr class="cp-divider">
+
+  <div class="cp-row article">
+    <div class="cp-group">
+      <div class="cp-label">Client</div>
+      <select class="cp-select" id="clientSelect" onchange="onClientChange()"><option value="">— Select client —</option></select>
+    </div>
+    <div class="cp-group">
+      <div class="cp-label">Topic — exact match to sheet</div>
+      <input class="cp-input" type="text" id="topicInput" placeholder="Paste topic exactly as it appears in the sheet..." />
+    </div>
+    <button class="btn-run" id="runBtn" onclick="startPipeline()">⚡ Run Phase 1+2</button>
+    <button class="btn-cache" id="cacheBtn" onclick="repeatPhase2()" disabled title="Re-runs Phase 2 with same context to verify cache hit. Must complete an initial run first.">↻ Repeat P2 (Test Cache)</button>
+    <button class="btn-stop" id="stopBtn" onclick="stopPipeline()">⬛ Stop</button>
+  </div>
+
+  <div class="gstatus" id="gstatus">Ready. Select client, paste topic, hit Run.</div>
+
+  <div class="cp-row stats">
+    <div class="stats-left">
+      <div class="stat-item">
+        <div class="stat-label">Gemini Tokens</div>
+        <div class="stat-value" id="cGemini">0</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-label">Claude In</div>
+        <div class="stat-value" id="cClaudeIn">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Cache Read</div>
+        <div class="stat-value green" id="cCacheRead">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Cache Write</div>
+        <div class="stat-value orange" id="cCacheWrite">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Claude Out</div>
+        <div class="stat-value" id="cClaudeOut">0</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-label">Est. Cost</div>
+        <div class="stat-value orange" id="cCost">$0.000</div>
+      </div>
+    </div>
+    <div class="stats-right">
+      <div class="stat-item">
+        <div class="stat-label">Run Time</div>
+        <div class="stat-value" id="timerDisplay">0:00</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <div class="stat-label">Cache Verdict</div>
+        <div class="stat-value accent" id="cacheVerdict">—</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<div class="layout">
+
+<div class="left-col">
+  <div class="pipeline">
+
+    <div class="phase-card" id="phase1">
+      <div class="phase-header" onclick="togglePhase(1)">
+        <div class="phase-num">1</div>
+        <div class="phase-info">
+          <div class="phase-title">Phase 1 — Gemini Research + Thesis</div>
+          <div class="phase-desc">JSON brief: sources, anchorTextTargets, faqSeeds, factClaims, semanticAnchor, clientSpecificThesis</div>
+        </div>
+        <div class="phase-right"><div class="pbadge b-waiting" id="b1">Waiting</div><span class="schev closed" id="c1">▼</span></div>
+      </div>
+      <div class="phase-body" id="sb1">
+        <div class="phase-out" id="o1"></div>
+        <div class="phase-meta" id="m1"></div>
+      </div>
+    </div>
+
+    <div class="phase-card" id="phase2">
+      <div class="phase-header" onclick="togglePhase(2)">
+        <div class="phase-num">2</div>
+        <div class="phase-info">
+          <div class="phase-title">Phase 2 — Claude V1 (Tool Use, cached context)</div>
+          <div class="phase-desc">Returns V1 JSON via submit_v1_article tool. JS assigns IDs post-parse. Cache breakpoint at end of system context.</div>
+        </div>
+        <div class="phase-right"><div class="pbadge b-waiting" id="b2">Waiting</div><span class="schev closed" id="c2">▼</span></div>
+      </div>
+      <div class="phase-body" id="sb2">
+        <div class="phase-out" id="o2"></div>
+        <div class="phase-meta" id="m2"></div>
+      </div>
+    </div>
+
+    <div class="phase-card stub" id="phase3">
+      <div class="phase-header" onclick="togglePhase(3)">
+        <div class="phase-num">3</div>
+        <div class="phase-info">
+          <div class="phase-title">Phase 3 — Dual Validation (3A JS structural + 3B Gemini semantic)</div>
+          <div class="phase-desc">Not implemented in M1 — Milestone 2</div>
+        </div>
+        <div class="phase-right"><div class="pbadge b-stub" id="b3">M2</div><span class="schev closed" id="c3">▼</span></div>
+      </div>
+      <div class="phase-body" id="sb3"><div class="phase-out" id="o3">Pending Milestone 2.</div></div>
+    </div>
+
+    <div class="phase-card stub" id="phase4">
+      <div class="phase-header" onclick="togglePhase(4)">
+        <div class="phase-num">4</div>
+        <div class="phase-info">
+          <div class="phase-title">Phase 4 — V1 Freeze (Object.freeze)</div>
+          <div class="phase-desc">Not implemented in M1 — Milestone 2</div>
+        </div>
+        <div class="phase-right"><div class="pbadge b-stub" id="b4">M2</div><span class="schev closed" id="c4">▼</span></div>
+      </div>
+      <div class="phase-body" id="sb4"><div class="phase-out" id="o4">Pending Milestone 2.</div></div>
+    </div>
+
+    <div class="phase-card stub" id="phase5">
+      <div class="phase-header" onclick="togglePhase(5)">
+        <div class="phase-num">5</div>
+        <div class="phase-info">
+          <div class="phase-title">Phase 5 — Voice Draft (Option E unified CoT)</div>
+          <div class="phase-desc">Not implemented in M1 — Milestone 3</div>
+        </div>
+        <div class="phase-right"><div class="pbadge b-stub" id="b5">M3</div><span class="schev closed" id="c5">▼</span></div>
+      </div>
+      <div class="phase-body" id="sb5"><div class="phase-out" id="o5">Pending Milestone 3.</div></div>
+    </div>
+
+    <div class="phase-card stub" id="phase55">
+      <div class="phase-header" onclick="togglePhase(55)">
+        <div class="phase-num">5.5</div>
+        <div class="phase-info">
+          <div class="phase-title">Phase 5.5 — Forensic Critique + JS quality checks</div>
+          <div class="phase-desc">Not implemented in M1 — Milestone 4</div>
+        </div>
+        <div class="phase-right"><div class="pbadge b-stub" id="b55">M4</div><span class="schev closed" id="c55">▼</span></div>
+      </div>
+      <div class="phase-body" id="sb55"><div class="phase-out" id="o55">Pending Milestone 4.</div></div>
+    </div>
+
+    <div class="phase-card" id="phase6">
+      <div class="phase-header" onclick="togglePhase(6)">
+        <div class="phase-num">6</div>
+        <div class="phase-info">
+          <div class="phase-title">Phase 6 — Final Assembly (M1: stub)</div>
+          <div class="phase-desc">M1 stub: emits minimal HTML (H1 + DA prose) so end-to-end smoke test renders something. Full assembly = Milestone 5.</div>
+        </div>
+        <div class="phase-right"><div class="pbadge b-waiting" id="b6">Waiting</div><span class="schev closed" id="c6">▼</span></div>
+      </div>
+      <div class="phase-body" id="sb6">
+        <div class="phase-out" id="o6"></div>
+        <div class="phase-meta" id="m6"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="right-col">
+  <div class="preview-panel">
+    <div class="ptabs">
+      <div class="ptab active" onclick="switchTab('runlog')">Run Log</div>
+      <div class="ptab" onclick="switchTab('research')">Research Brief</div>
+      <div class="ptab" onclick="switchTab('v1json')">V1 JSON</div>
+      <div class="ptab" onclick="switchTab('cache')">Cache Stats</div>
+      <div class="ptab" onclick="switchTab('html')">HTML Stub</div>
+    </div>
+
+    <div class="ppane active" id="pane-runlog">
+      <div class="legend-box">
+        <strong>What to look for:</strong> First Phase 2 call → <code>cache_creation_input_tokens &gt; 0</code>, <code>cache_read_input_tokens = 0</code> (cache MISS — context being written). Second Phase 2 call within ~5 min → <code>cache_read_input_tokens &gt; 0</code> (cache HIT). The "↻ Repeat P2 (Test Cache)" button proves the round trip.
+      </div>
+      <div class="runlog" id="runlogBody"><div class="line info"><span class="ts">—</span>V4.0 M1 ready.</div></div>
+    </div>
+
+    <div class="ppane" id="pane-research">
+      <pre id="researchPre">Phase 1 output appears here.</pre>
+    </div>
+
+    <div class="ppane" id="pane-v1json">
+      <pre id="v1Pre">Phase 2 output appears here. JS assigns IDs (da_, thesis_, section_, para_, h3_, link_, table_, img_, faq_, ans_, cta_) post-parse.</pre>
+    </div>
+
+    <div class="ppane" id="pane-cache">
+      <div class="cache-grid">
+        <div class="cache-stat">
+          <div class="cache-stat-label">Last call — cache_creation</div>
+          <div class="cache-stat-value orange" id="lastCreate">—</div>
+        </div>
+        <div class="cache-stat">
+          <div class="cache-stat-label">Last call — cache_read</div>
+          <div class="cache-stat-value green" id="lastRead">—</div>
+        </div>
+        <div class="cache-stat">
+          <div class="cache-stat-label">Last call — input (uncached)</div>
+          <div class="cache-stat-value" id="lastInput">—</div>
+        </div>
+        <div class="cache-stat">
+          <div class="cache-stat-label">Last call — output</div>
+          <div class="cache-stat-value" id="lastOutput">—</div>
+        </div>
+      </div>
+      <div class="cache-log-row header">
+        <div>#</div><div>Phase</div><div>Cache Write</div><div>Cache Read</div><div>Verdict</div>
+      </div>
+      <div id="cacheLogRows"></div>
+      <div style="margin-top:14px; padding:10px 12px; background:#eef9ee; border:1px solid #c8e6c9; border-radius:6px; font-size:11px; color:#1b5e20;">
+        <strong>Milestone 1 cache verification passes when:</strong> a Run produces row 1 with cache_creation &gt; 0 (MISS or PARTIAL), then "↻ Repeat P2 (Test Cache)" within 5 min produces row 2 with cache_read &gt; 0 (HIT). Both numbers visible above = caching is wired correctly.
+      </div>
+    </div>
+
+    <div class="ppane" id="pane-html">
+      <pre id="htmlPre">Phase 6 stub output appears here.</pre>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+  // ─── AUTH ─────────────────────────────────────────────────
+  const PW = 'ITVsuccess123!';
+  function checkPw(){
+    if(document.getElementById('gateInput').value === PW){
+      sessionStorage.setItem('aeo_auth','1');
+      document.getElementById('passwordGate').style.display='none';
+      document.getElementById('mainContent').style.display='block';
+      init();
+    } else {
+      document.getElementById('gateErr').textContent='Incorrect password.';
+      document.getElementById('gateInput').value='';
+      document.getElementById('gateInput').focus();
+    }
+  }
+  if(sessionStorage.getItem('aeo_auth')==='1'){
+    document.getElementById('passwordGate').style.display='none';
+    document.getElementById('mainContent').style.display='block';
+    window.addEventListener('load', init);
+  } else {
+    window.addEventListener('load',()=>document.getElementById('gateInput').focus());
+  }
+
+  // ─── CONSTANTS ─────────────────────────────────────────────
+  const CLIENTS_KEY='aeo_clients', GLOBALS_KEY='aeo_globals', KEYS_KEY='aeo_session_keys';
+  const PROXY = 'https://anthropic-proxy.gerek.workers.dev';
+  const GEMINI_MODEL = 'gemini-2.5-pro';
+  const CLAUDE_MODEL = 'claude-sonnet-4-5';
+  const MAX_TOKENS = 64000;
+
+  // ─── STATE ─────────────────────────────────────────────────
+  let S = {
+    client: null,
+    topic: '',
+    docs: { doc43A:'', doc43B:'', doc44:'' },
+    sheetRow: '',
+    sheetRowCols: {},
+    research: null,           // Phase 1 JSON
+    v1: null,                 // Phase 2 JSON (with JS-assigned IDs)
+    htmlStub: '',             // Phase 6 stub output
+    tokens: { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 },
+    cacheLog: []              // [{phase, callIndex, cacheCreate, cacheRead, input, output, verdict, ts}]
+  };
+  let running = false;
+  let timerStart=0, timerInterval=null;
+
+  function init(){
+    loadClients();
+    loadKeys();
+    loadGlobals();
+  }
+
+  // ─── GLOBALS (4.3A + 4.4 folder IDs, shared with V3.1 via aeo_globals key) ──
+  // V3.1 Client Manager writes the same shape under the same key. If you saved them
+  // there from a different origin (e.g. itechvalet.github.io vs file://), they don't
+  // cross over. This panel makes V4 self-sufficient — values written here are
+  // readable by V3.1 too as long as origin matches.
+  function extractDriveId(input){
+    if(!input) return '';
+    const s = input.trim();
+    let m;
+    if((m = s.match(/[?&]id=([a-zA-Z0-9_-]+)/))) return m[1];
+    if((m = s.match(/\/file\/d\/([a-zA-Z0-9_-]+)/))) return m[1];
+    if((m = s.match(/\/folders\/([a-zA-Z0-9_-]+)/))) return m[1];
+    if((m = s.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/))) return m[1];
+    return s;
+  }
+  function loadGlobals(){
+    let g = {};
+    try { g = JSON.parse(localStorage.getItem(GLOBALS_KEY)) || {}; } catch(_){}
+    const i43A = document.getElementById('global43A');
+    const i44 = document.getElementById('global44');
+    const status = document.getElementById('globalsStatus');
+    if(g.folder43A) i43A.value = g.folder43A;
+    if(g.folder44) i44.value = g.folder44;
+    if(g.folder43A && g.folder44){
+      status.textContent = 'Loaded ✓';
+      status.style.color = 'var(--green)';
+    } else if(g.folder43A || g.folder44){
+      status.textContent = 'Partial — fill both';
+      status.style.color = 'var(--orange)';
+    } else {
+      status.textContent = 'Empty — paste IDs and Save';
+      status.style.color = 'var(--orange)';
+    }
+  }
+  function markGlobalsDirty(){
+    const status = document.getElementById('globalsStatus');
+    status.textContent = 'Unsaved changes';
+    status.style.color = 'var(--orange)';
+  }
+  function saveGlobals(){
+    const folder43A = extractDriveId(document.getElementById('global43A').value);
+    const folder44 = extractDriveId(document.getElementById('global44').value);
+    const status = document.getElementById('globalsStatus');
+    if(!folder43A || !folder44){
+      status.textContent = 'Both fields required';
+      status.style.color = 'var(--red)';
+      return;
+    }
+    document.getElementById('global43A').value = folder43A;
+    document.getElementById('global44').value = folder44;
+    localStorage.setItem(GLOBALS_KEY, JSON.stringify({ folder43A, folder44 }));
+    status.textContent = 'Saved ✓';
+    status.style.color = 'var(--green)';
+    log(`Globals saved — 43A: ${folder43A.slice(0,12)}…, 44: ${folder44.slice(0,12)}…`, 'ok');
+  }
+
+  // ─── CLIENT / KEYS ─────────────────────────────────────────
+  function loadClients(){
+    const cl = JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');
+    const sel = document.getElementById('clientSelect');
+    sel.innerHTML = '<option value="">— Select client —</option>';
+    cl.forEach((c,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=c.name; sel.appendChild(o); });
+    if(!cl.length){
+      log('No clients in localStorage. Configure them via aeo_client_manager.html (V3.1) — V4.0 reads the same aeo_clients key.', 'warn');
+    }
+  }
+  function loadKeys(){
+    const k = JSON.parse(sessionStorage.getItem(KEYS_KEY)||'{}');
+    if(k.drive) document.getElementById('keyDrive').value=k.drive;
+    if(k.gemini) document.getElementById('keyGemini').value=k.gemini;
+    if(k.anthropic) document.getElementById('keyAnthropic').value=k.anthropic;
+  }
+  function saveKeys(){
+    sessionStorage.setItem(KEYS_KEY, JSON.stringify({
+      drive: document.getElementById('keyDrive').value,
+      gemini: document.getElementById('keyGemini').value,
+      anthropic: document.getElementById('keyAnthropic').value
+    }));
+  }
+  function toggleKey(id, btn){
+    const inp=document.getElementById(id);
+    inp.type = inp.type==='password'?'text':'password';
+    btn.textContent = inp.type==='password'?'Show':'Hide';
+  }
+  function onClientChange(){
+    if(running) return;
+    S.research=null; S.v1=null; S.htmlStub=''; S.docs={doc43A:'',doc43B:'',doc44:''};
+    S.sheetRow=''; S.sheetRowCols={}; S.tokens={gi:0,go:0,ci:0,co:0,cacheRead:0,cacheCreate:0}; S.cacheLog=[];
+    updateCost(); renderCacheLog();
+    setPhase(1,'waiting','Waiting'); setPhase(2,'waiting','Waiting'); setPhase(6,'waiting','Waiting');
+    document.getElementById('o1').textContent=''; document.getElementById('m1').textContent='';
+    document.getElementById('o2').textContent=''; document.getElementById('m2').textContent='';
+    document.getElementById('o6').textContent=''; document.getElementById('m6').textContent='';
+    document.getElementById('researchPre').textContent='Phase 1 output appears here.';
+    document.getElementById('v1Pre').textContent='Phase 2 output appears here.';
+    document.getElementById('htmlPre').textContent='Phase 6 stub output appears here.';
+    document.getElementById('cacheBtn').disabled=true;
+    document.getElementById('cacheVerdict').textContent='—';
+    setG('Client changed. Ready.');
+  }
+
+  // ─── UI HELPERS ────────────────────────────────────────────
+  function setPhase(n, status, label){
+    const card = document.getElementById('phase'+n);
+    const badge = document.getElementById('b'+n);
+    if(!card||!badge) return;
+    card.classList.remove('active','done','error');
+    if(status==='active') card.classList.add('active');
+    if(status==='done') card.classList.add('done');
+    if(status==='error') card.classList.add('error');
+    badge.className = 'pbadge b-' + (status==='active'?'running':status==='done'?'done':status==='error'?'error':'waiting');
+    badge.textContent = label || status;
+  }
+  function togglePhase(n){
+    const body = document.getElementById('sb'+n);
+    const chev = document.getElementById('c'+n);
+    if(!body) return;
+    const open = body.classList.contains('open');
+    body.classList.toggle('open', !open);
+    if(chev) chev.classList.toggle('closed', open);
+  }
+  function setG(text, active=false, error=false){
+    const el = document.getElementById('gstatus');
+    el.style.color = error ? 'var(--red)' : '';
+    el.style.fontWeight = error ? '600' : '400';
+    el.innerHTML = active ? `<span class="spinner"></span>${text}` : text;
+  }
+  function switchTab(name){
+    document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.ppane').forEach(p=>p.classList.remove('active'));
+    const tabs = ['runlog','research','v1json','cache','html'];
+    const idx = tabs.indexOf(name);
+    if(idx>=0){
+      document.querySelectorAll('.ptab')[idx].classList.add('active');
+      document.getElementById('pane-'+name).classList.add('active');
+    }
+  }
+  function log(msg, level='info'){
+    const body = document.getElementById('runlogBody');
+    const ts = new Date().toLocaleTimeString();
+    const line = document.createElement('div');
+    line.className = 'line ' + level;
+    line.innerHTML = `<span class="ts">${ts}</span>${escapeHtml(msg)}`;
+    body.appendChild(line);
+    body.scrollTop = body.scrollHeight;
+  }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ─── TIMER ─────────────────────────────────────────────────
+  function startTimer(){
+    timerStart = Date.now();
+    const el = document.getElementById('timerDisplay');
+    timerInterval = setInterval(()=>{
+      const s = Math.floor((Date.now()-timerStart)/1000);
+      el.textContent = `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+    }, 500);
+  }
+  function stopTimer(){ if(timerInterval){ clearInterval(timerInterval); timerInterval=null; } }
+
+  // ─── COST ──────────────────────────────────────────────────
+  // Sonnet 4.5: $3 / 1M input, $15 / 1M output. Cache write: 1.25x base input. Cache read: 0.1x base input.
+  // Gemini 2.5 Pro: $1.25 / 1M input, $10 / 1M output.
+  function updateCost(){
+    document.getElementById('cGemini').textContent = (S.tokens.gi+S.tokens.go).toLocaleString();
+    document.getElementById('cClaudeIn').textContent = S.tokens.ci.toLocaleString();
+    document.getElementById('cCacheRead').textContent = S.tokens.cacheRead.toLocaleString();
+    document.getElementById('cCacheWrite').textContent = S.tokens.cacheCreate.toLocaleString();
+    document.getElementById('cClaudeOut').textContent = S.tokens.co.toLocaleString();
+    const geminiCost = (S.tokens.gi/1e6*1.25) + (S.tokens.go/1e6*10.0);
+    const claudeCost = (S.tokens.ci/1e6*3.0)
+                     + (S.tokens.cacheCreate/1e6*3.75)
+                     + (S.tokens.cacheRead/1e6*0.30)
+                     + (S.tokens.co/1e6*15.0);
+    document.getElementById('cCost').textContent = '$' + (geminiCost + claudeCost).toFixed(3);
+  }
+
+  // ─── DRIVE ─────────────────────────────────────────────────
+  async function fetchFile(id, key){
+    if(!id) throw new Error('Missing file ID — check Client Manager config');
+    const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, { headers: {'x-goog-api-key': key} });
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(`Drive error (${r.status}): ${e?.error?.message||'check file ID'}`); }
+    return r.text();
+  }
+  async function fetchSheet(id, key){
+    const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=text%2Fcsv`, { headers: {'x-goog-api-key': key} });
+    if(!r.ok) throw new Error(`Sheet fetch failed: ${r.status}`);
+    return r.text();
+  }
+  function normalizeQuotes(str){
+    return str.replace(/[‘’‚‛′‵]/g,"'")
+              .replace(/[“”„‟″‶]/g,'"')
+              .replace(/[—–]/g,'-').trim();
+  }
+  function parseCSV(line){
+    const res=[]; let cur='', i=0;
+    while(i<line.length){
+      if(line[i]==='"'){ i++;
+        while(i<line.length){
+          if(line[i]==='"'&&line[i+1]==='"'){ cur+='"'; i+=2; }
+          else if(line[i]==='"'){ i++; break; }
+          else { cur+=line[i++]; }
+        }
+        if(line[i]===',') i++;
+        res.push(cur.trim()); cur='';
+      } else {
+        while(i<line.length && line[i]!==','){ cur+=line[i++]; }
+        if(line[i]===',') i++;
+        res.push(cur.trim()); cur='';
+      }
+    }
+    return res;
+  }
+  function findRow(csv, topic){
+    const lines = csv.split('\n');
+    const cols = parseCSV(lines[0]);
+    const colIdx = cols.findIndex(c => c.toLowerCase().includes('aeo question') || c.toLowerCase().includes('question title'));
+    const col = colIdx >= 0 ? colIdx : 3;
+    const normTopic = normalizeQuotes(topic).toLowerCase();
+    for(let i=1; i<lines.length; i++){
+      const row = parseCSV(lines[i]);
+      if(!row[col]) continue;
+      const normRow = normalizeQuotes(row[col]).toLowerCase();
+      if(normRow === normTopic){
+        const cells = {};
+        for(let j=0; j<cols.length; j++){
+          const k = (cols[j]||'').trim();
+          if(k) cells[k] = (row[j]||'').trim();
+        }
+        return { row: row.join(' | '), cells };
+      }
+    }
+    return null;
+  }
+  function getSheetCol(name){
+    if(!S.sheetRowCols) return '';
+    const target = name.toLowerCase().replace(/\s+/g,'');
+    for(const k of Object.keys(S.sheetRowCols)){
+      if(k.toLowerCase().replace(/\s+/g,'') === target) return S.sheetRowCols[k] || '';
+    }
+    return '';
+  }
+
+  // ─── CRITICAL DIRECTIVE #1: MARKDOWN WRAPPER STRIPPING ──────
+  // Every Claude/Gemini text response that should be JSON MUST run this first.
+  // Per V4.0 Build Plan F2 + Handoff Notes. Non-negotiable.
+  function stripMarkdownWrappers(text){
+    if(!text) return text;
+    let s = String(text).trim();
+    // Strip leading ```json or ``` (with optional whitespace and language tag)
+    s = s.replace(/^```[a-z]*\s*/i, '');
+    // Strip trailing ```
+    s = s.replace(/\s*```\s*$/, '');
+    // Strip any leading conversational text before first {
+    const firstBrace = s.indexOf('{');
+    if(firstBrace > 0) s = s.slice(firstBrace);
+    // Strip any trailing conversational text after last }
+    const lastBrace = s.lastIndexOf('}');
+    if(lastBrace >= 0 && lastBrace < s.length - 1) s = s.slice(0, lastBrace + 1);
+    return s.trim();
+  }
+
+  function tolerantParseJSON(text){
+    // Layer 1: direct
+    try { return JSON.parse(text); } catch(_) {}
+    // Layer 2: strip wrappers, retry
+    const cleaned = stripMarkdownWrappers(text);
+    try { return JSON.parse(cleaned); } catch(_) {}
+    // Layer 3: strip control chars, trailing commas
+    const further = cleaned
+      .replace(/[\x00-\x1F]/g, '')
+      .replace(/,(\s*[}\]])/g, '$1');
+    return JSON.parse(further); // final attempt — let it throw if still bad
+  }
+
+  // ─── GEMINI ────────────────────────────────────────────────
+  async function callGemini(prompt, gkey, opts={}){
+    const TIMEOUT_MS = 90000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(()=>controller.abort(), TIMEOUT_MS);
+    const generationConfig = { maxOutputTokens: opts.maxTokens || 16384 };
+    if(opts.json) generationConfig.responseMimeType = 'application/json';
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${gkey}`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if(!r.ok){
+        const errText = await r.text().catch(()=>'(unreadable)');
+        throw new Error(`Gemini HTTP ${r.status}: ${errText.slice(0,300)}`);
+      }
+      const data = await r.json();
+      if(data.error) throw new Error(`Gemini error: ${data.error.message}`);
+      const candidate = data.candidates?.[0];
+      const finishReason = candidate?.finishReason;
+      if(finishReason && finishReason !== 'STOP' && finishReason !== 'MAX_TOKENS'){
+        throw new Error(`Gemini stopped early: finishReason=${finishReason}`);
+      }
+      const text = candidate?.content?.parts?.map(p=>p.text).join('') || '';
+      const u = data.usageMetadata || {};
+      S.tokens.gi += u.promptTokenCount || 0;
+      S.tokens.go += u.candidatesTokenCount || 0;
+      updateCost();
+      return text;
+    } catch(err){
+      clearTimeout(timeoutId);
+      if(err.name === 'AbortError') throw new Error(`Gemini timeout after ${TIMEOUT_MS/1000}s`);
+      throw err;
+    }
+  }
+
+  // ─── CLAUDE (STREAMING + TOOL USE + PROMPT CACHING) ────────
+  // Returns { textOutput, toolCalls: [{name, input}], usage: {input, output, cacheRead, cacheCreate} }
+  // - systemBlocks: array of {type:'text', text:'...', cache_control?:{type:'ephemeral'}}
+  // - tools: array of tool definitions
+  // - tool_choice: {type:'tool', name:'...'} to force a tool call
+  async function callClaude({ systemBlocks, userText, tools, toolChoice, akey, maxTokens=MAX_TOKENS }){
+    const body = {
+      model: CLAUDE_MODEL,
+      max_tokens: maxTokens,
+      stream: true,
+      system: systemBlocks,
+      messages: [{ role:'user', content: userText }]
+    };
+    if(tools && tools.length) body.tools = tools;
+    if(toolChoice) body.tool_choice = toolChoice;
+
+    const r = await fetch(PROXY, {
+      method:'POST', headers:{'Content-Type':'application/json','x-api-key':akey},
+      body: JSON.stringify(body)
+    });
+    if(!r.ok || !r.body){
+      const t = await r.text().catch(()=>'(unreadable)');
+      throw new Error(`Claude HTTP ${r.status}: ${t.slice(0,400)}`);
+    }
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    let textOutput = '';
+    const blocks = []; // {type, name?, partialJson?, text?}
+    let usage = { input:0, output:0, cacheRead:0, cacheCreate:0 };
+
+    while(true){
+      const { done, value } = await reader.read();
+      if(done) break;
+      buf += dec.decode(value, { stream:true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data: ')) continue;
+        const d = line.slice(6).trim();
+        if(d === '[DONE]') continue;
+        let p;
+        try { p = JSON.parse(d); } catch(_){ continue; }
+        if(p.type === 'message_start' && p.message?.usage){
+          const u = p.message.usage;
+          usage.input = u.input_tokens || 0;
+          usage.cacheCreate = u.cache_creation_input_tokens || 0;
+          usage.cacheRead = u.cache_read_input_tokens || 0;
+        }
+        if(p.type === 'content_block_start'){
+          const cb = p.content_block || {};
+          if(cb.type === 'tool_use'){
+            blocks[p.index] = { type:'tool_use', id: cb.id, name: cb.name, partialJson: '' };
+          } else if(cb.type === 'text'){
+            blocks[p.index] = { type:'text', text: '' };
+          }
+        }
+        if(p.type === 'content_block_delta'){
+          const blk = blocks[p.index];
+          if(!blk) continue;
+          if(p.delta?.type === 'text_delta'){
+            blk.text = (blk.text||'') + (p.delta.text||'');
+            textOutput += (p.delta.text||'');
+          } else if(p.delta?.type === 'input_json_delta'){
+            blk.partialJson = (blk.partialJson||'') + (p.delta.partial_json||'');
+          }
+        }
+        if(p.type === 'message_delta' && p.usage){
+          usage.output = p.usage.output_tokens || 0;
+        }
+        if(p.type === 'error'){
+          throw new Error(`Claude stream error: ${p.error?.message || 'Unknown'}`);
+        }
+      }
+    }
+
+    const toolCalls = blocks.filter(b => b && b.type === 'tool_use').map(b => {
+      let input = {};
+      const raw = b.partialJson || '';
+      try { input = JSON.parse(raw); }
+      catch(_){
+        // F2 directive: even tool input occasionally wraps. Strip and retry.
+        try { input = tolerantParseJSON(raw); }
+        catch(e){ input = { __parse_error: e.message, __raw: raw.slice(0,500) }; }
+      }
+      return { name: b.name, input };
+    });
+
+    S.tokens.ci += usage.input;
+    S.tokens.co += usage.output;
+    S.tokens.cacheCreate += usage.cacheCreate;
+    S.tokens.cacheRead += usage.cacheRead;
+    updateCost();
+
+    return { textOutput, toolCalls, usage };
+  }
+
+  // ─── PROMPT BUILDERS ───────────────────────────────────────
+  function buildPhase1Prompt(){
+    return `You are doing research for an AEO (Answer Engine Optimization) article.
+
+Your output MUST be a single JSON object matching this exact schema. Return ONLY the JSON. First character must be "{", last character must be "}". No code fences, no preamble, no commentary.
+
+Schema:
+{
+  "sources": [{"url": "string", "relevance": "string"}],
+  "anchorTextTargets": [{"anchorText": "string", "url": "string", "type": "internal" | "external"}],
+  "faqSeeds": ["question 1", "question 2", "question 3", "question 4", "question 5"],
+  "factClaims": [{"claim": "string", "source": "string", "dataPoints": ["string"]}],
+  "semanticAnchor": "string from sheet row's SEMANTIC_ANCHOR / SEMANTIC ANCHOR column if present, else best-guess phrase that gives this article AEO signal",
+  "clientSpecificThesis": {
+    "proprietaryFrame": "the unique position this client owns on this topic",
+    "competitiveDifferentiator": "what competitors miss or get wrong on this topic",
+    "thesisStatement": "the one-sentence spine of the article — the clientSpecificThesis MUST cross-reference the topic against the 4.3B Identity Card to formulate the proprietary frame"
+  }
+}
+
+Hard constraints:
+- sources: 5-10 entries, real URLs (no fabrications)
+- anchorTextTargets: 8-15 entries, mix of internal (client's own domain) and external (cite-worthy authority sources)
+- faqSeeds: at least 5 distinct questions
+- factClaims: at least 6 claims with sources and quantitative data points where possible
+- semanticAnchor: pull from SEMANTIC ANCHOR column of sheet row if present
+- clientSpecificThesis: this is the article's spine — frame this client owns that competitors don't. Cross-reference topic against client's 4.3B Identity Card.
+
+TOPIC:
+${S.topic}
+
+SHEET ROW (pipe-delimited):
+${S.sheetRow}
+
+PROJECT CONTEXT — UNIVERSAL VOICE RULES (4.3A):
+${S.docs.doc43A}
+
+PROJECT CONTEXT — CLIENT IDENTITY (4.3B):
+${S.docs.doc43B}
+
+PROJECT CONTEXT — PROMPT REFERENCE (4.4):
+${S.docs.doc44}
+
+Output the JSON now.`;
+  }
+
+  function buildPhase2SystemBlocks(){
+    // Single big cached block: voice rules + client identity + prompt reference + research + thesis.
+    // Per Anthropic prompt caching: cache_control on the last content block in `system` marks
+    // the caching boundary. Everything in the system array up to and including that block is cached.
+    const ctx = `You are an AEO article generator. Your sole job in Phase 2 of the V4.0 pipeline is to call the submit_v1_article tool with a complete V1 article structure as JSON. Do NOT respond in plain text. Always invoke submit_v1_article.
+
+ARCHITECTURAL PRINCIPLE: JS owns structure. You own prose and content. Phase 4 will Object.freeze your output and downstream phases (5, 5.5) cannot touch the structure — only rewrite prose targeting IDs that JS will assign. Ship it correct on the first call.
+
+HARD CONSTRAINTS for V1:
+- sections: at least 4 H2 sections
+- faq: at least 5 FAQ entries
+- tables: at least 3 tables across all sections combined (distributed however makes sense for the topic)
+- imagePrompts: at least 1 per H2 section
+- directAnswer.prose: 200-300 words
+- thesis.statement: must mirror the clientSpecificThesis from the research brief — the article's spine
+- Direct Answer must reference or align with the clientSpecificThesis
+- Every link's anchorText should map to an entry from anchorTextTargets in the research brief
+- Every internal link URL must be on the client's domain (extract from 4.3B and sheet row)
+- CTA url must match 4.3B Conversion Primary CTA URL
+- DO NOT include id fields in your output — JS assigns IDs post-parse. Each addressable object will receive da_*, thesis_*, section_*, para_*, h3_*, link_*, table_*, img_*, faq_*, ans_*, cta_*.
+
+PROJECT CONTEXT — UNIVERSAL VOICE RULES (4.3A):
+${S.docs.doc43A}
+
+PROJECT CONTEXT — CLIENT IDENTITY (4.3B):
+${S.docs.doc43B}
+
+PROJECT CONTEXT — PROMPT REFERENCE (4.4):
+${S.docs.doc44}
+
+PHASE 1 RESEARCH BRIEF (sources, thesis, fact claims):
+${JSON.stringify(S.research, null, 2)}
+
+CLIENT-SPECIFIC THESIS (the article's spine — anchor everything around this):
+${S.research?.clientSpecificThesis?.thesisStatement || '(missing — escalate F1)'}
+
+Wait for the user message containing the per-article topic and sheet row, then immediately call submit_v1_article with the complete V1 JSON.`;
+
+    // Single block with cache_control. Total tokens depend on doc sizes (~30-100k typical).
+    return [{ type: 'text', text: ctx, cache_control: { type: 'ephemeral' } }];
+  }
+
+  function buildPhase2UserText(){
+    return `TOPIC: ${S.topic}
+
+SHEET ROW: ${S.sheetRow}
+
+Generate the V1 article structure now by calling submit_v1_article. Do not respond with text — always invoke the tool.`;
+  }
+
+  // ─── V1 TOOL SCHEMA ────────────────────────────────────────
+  const V1_TOOL = {
+    name: 'submit_v1_article',
+    description: 'Submit the V1 article structure as a complete JSON object. This is the only valid response in Phase 2. JS will assign unique IDs to every addressable object after parsing — do not include id fields.',
+    input_schema: {
+      type: 'object',
+      required: ['checklist','directAnswer','thesis','sections','faq','cta'],
+      additionalProperties: false,
+      properties: {
+        checklist: {
+          type: 'object',
+          required: ['metaTitle','h1','permalink','fullUrl','metaDescription','keywords','category'],
+          additionalProperties: false,
+          properties: {
+            metaTitle: { type:'string' },
+            h1: { type:'string' },
+            permalink: { type:'string' },
+            fullUrl: { type:'string' },
+            metaDescription: { type:'string' },
+            keywords: { type:'string' },
+            category: { type:'string' }
+          }
+        },
+        directAnswer: {
+          type:'object', required:['prose'], additionalProperties:false,
+          properties: { prose: { type:'string', description:'200-300 words. Plain prose. No headings, no links, no images.' } }
+        },
+        thesis: {
+          type:'object', required:['statement'], additionalProperties:false,
+          properties: { statement: { type:'string', description:'One-sentence spine of the article. Mirror Phase 1 clientSpecificThesis.thesisStatement.' } }
+        },
+        sections: {
+          type:'array', minItems: 4,
+          items: {
+            type:'object', required:['h2','paragraphs'], additionalProperties:false,
+            properties: {
+              h2: { type:'string' },
+              paragraphs: {
+                type:'array', minItems: 1,
+                items: { type:'object', required:['prose'], additionalProperties:false,
+                         properties: { prose: { type:'string' } } }
+              },
+              h3sections: {
+                type:'array',
+                items: {
+                  type:'object', required:['h3','paragraphs'], additionalProperties:false,
+                  properties: {
+                    h3: { type:'string' },
+                    paragraphs: {
+                      type:'array', minItems: 1,
+                      items: { type:'object', required:['prose'], additionalProperties:false,
+                               properties: { prose: { type:'string' } } }
+                    }
+                  }
+                }
+              },
+              links: {
+                type:'array',
+                items: {
+                  type:'object', required:['anchorText','url','placementHint'], additionalProperties:false,
+                  properties: {
+                    anchorText: { type:'string' },
+                    url: { type:'string' },
+                    placementHint: { type:'string', description:'Which paragraph (by description) this link belongs to.' }
+                  }
+                }
+              },
+              tables: {
+                type:'array',
+                items: {
+                  type:'object', required:['headers','rows'], additionalProperties:false,
+                  properties: {
+                    headers: { type:'array', items:{ type:'string' } },
+                    rows: { type:'array', items:{ type:'array', items:{ type:'string' } } }
+                  }
+                }
+              },
+              imagePrompts: {
+                type:'array',
+                items: {
+                  type:'object', required:['prompt','alt'], additionalProperties:false,
+                  properties: {
+                    prompt: { type:'string' },
+                    alt: { type:'string' }
+                  }
+                }
+              }
+            }
+          }
+        },
+        faq: {
+          type:'array', minItems: 5,
+          items: {
+            type:'object', required:['question','answer'], additionalProperties:false,
+            properties: {
+              question: { type:'string' },
+              answer: {
+                type:'object', required:['prose'], additionalProperties:false,
+                properties: { prose: { type:'string' } }
+              }
+            }
+          }
+        },
+        cta: {
+          type:'object', required:['hookProse','anchorText','url'], additionalProperties:false,
+          properties: {
+            hookProse: { type:'string' },
+            anchorText: { type:'string' },
+            url: { type:'string' }
+          }
+        }
+      }
+    }
+  };
+
+  // ─── ID ASSIGNMENT (JS, post-parse — Build Plan: "JS assigns unique IDs (NOT Claude's job)") ──
+  let _idCounter = 0;
+  function genId(prefix){
+    _idCounter += 1;
+    const rand = Math.random().toString(36).slice(2, 6);
+    return `${prefix}_${rand}${_idCounter.toString(36)}`;
+  }
+  function assignIds(v1){
+    _idCounter = 0;
+    if(v1.directAnswer) v1.directAnswer.id = genId('da');
+    if(v1.thesis) v1.thesis.id = genId('thesis');
+    if(Array.isArray(v1.sections)){
+      v1.sections.forEach(sec => {
+        sec.id = genId('section');
+        (sec.paragraphs||[]).forEach(p => p.id = genId('para'));
+        (sec.h3sections||[]).forEach(h3s => {
+          h3s.id = genId('h3');
+          (h3s.paragraphs||[]).forEach(p => p.id = genId('para'));
+        });
+        (sec.links||[]).forEach(l => l.id = genId('link'));
+        (sec.tables||[]).forEach(t => t.id = genId('table'));
+        (sec.imagePrompts||[]).forEach(im => im.id = genId('img'));
+      });
+    }
+    if(Array.isArray(v1.faq)){
+      v1.faq.forEach(f => {
+        f.id = genId('faq');
+        if(f.answer) f.answer.id = genId('ans');
+      });
+    }
+    if(v1.cta) v1.cta.id = genId('cta');
+    return v1;
+  }
+
+  // ─── CACHE LOG ─────────────────────────────────────────────
+  function logCacheCall(phase, usage){
+    const callIndex = S.cacheLog.length + 1;
+    let verdict = 'MISS';
+    if(usage.cacheRead > 0 && usage.cacheCreate === 0) verdict = 'HIT';
+    else if(usage.cacheRead > 0 && usage.cacheCreate > 0) verdict = 'PARTIAL';
+    else if(usage.cacheRead === 0 && usage.cacheCreate > 0) verdict = 'MISS (write)';
+    else if(usage.cacheRead === 0 && usage.cacheCreate === 0) verdict = 'NO CACHE';
+    S.cacheLog.push({
+      phase, callIndex,
+      cacheCreate: usage.cacheCreate,
+      cacheRead: usage.cacheRead,
+      input: usage.input, output: usage.output, verdict,
+      ts: new Date().toLocaleTimeString()
+    });
+    document.getElementById('lastCreate').textContent = usage.cacheCreate.toLocaleString();
+    document.getElementById('lastRead').textContent = usage.cacheRead.toLocaleString();
+    document.getElementById('lastInput').textContent = usage.input.toLocaleString();
+    document.getElementById('lastOutput').textContent = usage.output.toLocaleString();
+    document.getElementById('cacheVerdict').textContent = verdict;
+    renderCacheLog();
+    log(`Phase ${phase} cache → write:${usage.cacheCreate} read:${usage.cacheRead} input:${usage.input} output:${usage.output} → ${verdict}`,
+        verdict === 'HIT' ? 'ok' : verdict === 'PARTIAL' ? 'info' : 'warn');
+  }
+  function renderCacheLog(){
+    const c = document.getElementById('cacheLogRows');
+    if(!S.cacheLog.length){ c.innerHTML = '<div style="padding:14px; color:var(--faint); font-style:italic;">No calls yet.</div>'; return; }
+    c.innerHTML = S.cacheLog.map(r => {
+      const klass = r.verdict.startsWith('HIT') ? 'hit' : r.verdict.startsWith('PARTIAL') ? 'partial' : 'miss';
+      return `<div class="cache-log-row">
+        <div>${r.callIndex}</div>
+        <div>${r.phase}</div>
+        <div>${r.cacheCreate.toLocaleString()}</div>
+        <div>${r.cacheRead.toLocaleString()}</div>
+        <div class="verdict ${klass}">${r.verdict} <span style="color:var(--faint);font-size:10px;">${r.ts}</span></div>
+      </div>`;
+    }).join('');
+  }
+
+  // ─── PIPELINE ──────────────────────────────────────────────
+  async function startPipeline(){
+    if(running){ log('Pipeline already running.', 'warn'); return; }
+    const akey = document.getElementById('keyAnthropic').value.trim();
+    const gkey = document.getElementById('keyGemini').value.trim();
+    const dkey = document.getElementById('keyDrive').value.trim();
+    const sel = document.getElementById('clientSelect');
+    const clients = JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');
+    const globals = JSON.parse(localStorage.getItem(GLOBALS_KEY)||'{}');
+    const topic = document.getElementById('topicInput').value.trim();
+
+    if(!akey){ alert('Anthropic API key required.'); return; }
+    if(!gkey){ alert('Gemini API key required.'); return; }
+    if(!dkey){ alert('Drive API key required.'); return; }
+    if(!sel.value){ alert('Select a client first.'); return; }
+    if(!topic){ alert('Paste a topic first.'); return; }
+
+    S.client = clients[parseInt(sel.value)];
+    S.topic = topic;
+    S.tokens = { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 };
+    S.cacheLog = [];
+    S.research = null; S.v1 = null; S.htmlStub = '';
+    updateCost(); renderCacheLog();
+    document.getElementById('cacheVerdict').textContent = '—';
+    document.getElementById('cacheBtn').disabled = true;
+
+    running = true;
+    document.getElementById('runBtn').disabled = true;
+    document.getElementById('stopBtn').style.display = 'flex';
+    startTimer();
+
+    try {
+      // ── Load docs + sheet ─────────────────────────────────
+      setG('Loading 4.3A / 4.3B / 4.4 + sheet row...', true);
+      log(`Run started — client: ${S.client.name}, topic: "${S.topic}"`);
+      if(!globals.folder43A || !globals.folder44) throw new Error('Universal globals missing folder43A or folder44. Paste them into the "4.3A Folder ID" and "4.4 Folder ID" fields above and click Save Globals. (Note: localStorage is per-origin — if you saved them from V3.1 at a different URL, V4 cannot see them.)');
+      if(!S.client.folder43B || !S.client.sheet42) throw new Error(`Client "${S.client.name}" missing folder43B or sheet42 — fix in Client Manager.`);
+
+      const [doc43A, doc43B, doc44, sheetCsv] = await Promise.all([
+        fetchFile(globals.folder43A, dkey),
+        fetchFile(S.client.folder43B, dkey),
+        fetchFile(globals.folder44, dkey),
+        fetchSheet(S.client.sheet42, dkey)
+      ]);
+      S.docs = { doc43A, doc43B, doc44 };
+      const row = findRow(sheetCsv, S.topic);
+      if(!row) throw new Error(`Topic not found in sheet — check exact match. Topic: "${S.topic}"`);
+      S.sheetRow = row.row;
+      S.sheetRowCols = row.cells;
+      log(`Docs loaded — 4.3A:${doc43A.length}b, 4.3B:${doc43B.length}b, 4.4:${doc44.length}b, sheet row matched.`, 'ok');
+
+      // ── PHASE 1: Gemini research + thesis ────────────────
+      setG('Phase 1 — Gemini research + clientSpecificThesis...', true);
+      setPhase(1, 'active', 'Running');
+      const t1 = Date.now();
+      const phase1Raw = await callGemini(buildPhase1Prompt(), gkey, { json: true, maxTokens: 16384 });
+      let phase1Json;
+      try { phase1Json = tolerantParseJSON(phase1Raw); }
+      catch(e){
+        log(`Phase 1 JSON parse failed: ${e.message}`, 'err');
+        document.getElementById('o1').textContent = phase1Raw.slice(0, 4000);
+        throw new Error(`Phase 1 JSON parse failed: ${e.message}`);
+      }
+      // Light shape validation (full F1 retry logic ships in Milestone 2)
+      if(!phase1Json.clientSpecificThesis?.thesisStatement){
+        throw new Error('Phase 1 missing clientSpecificThesis.thesisStatement (F1 escalation deferred to M2).');
+      }
+      if(!Array.isArray(phase1Json.sources) || !phase1Json.sources.length){
+        throw new Error('Phase 1 sources empty (F1 escalation deferred to M2).');
+      }
+      S.research = phase1Json;
+      const elapsed1 = ((Date.now()-t1)/1000).toFixed(1);
+      document.getElementById('o1').textContent = JSON.stringify(phase1Json, null, 2).slice(0, 4000);
+      document.getElementById('m1').textContent = `Done in ${elapsed1}s — ${phase1Json.sources.length} sources, ${phase1Json.faqSeeds?.length||0} faqSeeds, ${phase1Json.factClaims?.length||0} factClaims. Thesis: "${phase1Json.clientSpecificThesis.thesisStatement.slice(0,120)}..."`;
+      document.getElementById('researchPre').textContent = JSON.stringify(phase1Json, null, 2);
+      setPhase(1, 'done', `Done ${elapsed1}s`);
+      log(`Phase 1 complete: ${phase1Json.sources.length} sources, thesis present.`, 'ok');
+
+      // ── PHASE 2: Claude V1 via Tool Use, with caching ────
+      setG('Phase 2 — Claude V1 via Tool Use (caching context)...', true);
+      setPhase(2, 'active', 'Running');
+      const t2 = Date.now();
+      const sysBlocks = buildPhase2SystemBlocks();
+      const userText = buildPhase2UserText();
+      const result = await callClaude({
+        systemBlocks: sysBlocks,
+        userText,
+        tools: [V1_TOOL],
+        toolChoice: { type:'tool', name:'submit_v1_article' },
+        akey
+      });
+      logCacheCall(2, result.usage);
+      if(!result.toolCalls.length){
+        throw new Error(`Phase 2: Claude returned no tool call. Text output: ${result.textOutput.slice(0,400)}`);
+      }
+      const v1raw = result.toolCalls[0].input;
+      if(v1raw.__parse_error){
+        throw new Error(`Phase 2 tool input failed to parse: ${v1raw.__parse_error}. Raw fragment: ${v1raw.__raw}`);
+      }
+      const v1 = assignIds(v1raw);
+      S.v1 = v1;
+      const elapsed2 = ((Date.now()-t2)/1000).toFixed(1);
+      const summary = `sections:${v1.sections?.length||0}  faq:${v1.faq?.length||0}  tables:${countTables(v1)}  links:${countLinks(v1)}  imagePrompts:${countImages(v1)}`;
+      document.getElementById('o2').textContent = JSON.stringify(v1, null, 2).slice(0, 4000);
+      document.getElementById('m2').textContent = `Done in ${elapsed2}s — ${summary}. Thesis: "${v1.thesis?.statement?.slice(0,100)||'(missing)'}..."`;
+      document.getElementById('v1Pre').textContent = JSON.stringify(v1, null, 2);
+      setPhase(2, 'done', `Done ${elapsed2}s`);
+      log(`Phase 2 complete — ${summary}`, 'ok');
+
+      // ── PHASE 6 STUB ─────────────────────────────────────
+      setPhase(6, 'active', 'Running');
+      S.htmlStub = buildPhase6Stub(v1);
+      document.getElementById('o6').textContent = S.htmlStub;
+      document.getElementById('m6').textContent = `M1 stub assembled (${S.htmlStub.length}b). Full Phase 6 ships in Milestone 5.`;
+      document.getElementById('htmlPre').textContent = S.htmlStub;
+      setPhase(6, 'done', 'Stub ready');
+
+      setG(`✓ Milestone 1 complete. Cache verdict: ${S.cacheLog[0]?.verdict || '—'}. Click "↻ Repeat P2 (Test Cache)" to verify HIT on second call.`);
+      document.getElementById('cacheBtn').disabled = false;
+      switchTab('cache');
+    } catch(err){
+      console.error(err);
+      log(`PIPELINE ERROR: ${err.message}`, 'err');
+      setG(`Error: ${err.message}`, false, true);
+      // Mark active phase as error
+      ['1','2','6'].forEach(n => {
+        const card = document.getElementById('phase'+n);
+        if(card?.classList.contains('active')) setPhase(n, 'error', 'Error');
+      });
+    } finally {
+      running = false;
+      stopTimer();
+      document.getElementById('runBtn').disabled = false;
+      document.getElementById('stopBtn').style.display = 'none';
+    }
+  }
+
+  async function repeatPhase2(){
+    if(running){ log('Pipeline already running.', 'warn'); return; }
+    if(!S.research || !S.docs.doc43A){ alert('Run the full pipeline first.'); return; }
+    const akey = document.getElementById('keyAnthropic').value.trim();
+    if(!akey){ alert('Anthropic API key required.'); return; }
+    running = true;
+    document.getElementById('runBtn').disabled = true;
+    document.getElementById('cacheBtn').disabled = true;
+    setG('Re-running Phase 2 to verify cache HIT...', true);
+    setPhase(2, 'active', 'Re-run');
+    const t = Date.now();
+    try {
+      const result = await callClaude({
+        systemBlocks: buildPhase2SystemBlocks(),
+        userText: buildPhase2UserText(),
+        tools: [V1_TOOL],
+        toolChoice: { type:'tool', name:'submit_v1_article' },
+        akey
+      });
+      logCacheCall(2, result.usage);
+      const elapsed = ((Date.now()-t)/1000).toFixed(1);
+      setPhase(2, 'done', `Re-ran ${elapsed}s`);
+      const verdict = S.cacheLog[S.cacheLog.length-1].verdict;
+      const verdictClass = verdict === 'HIT' ? 'ok' : 'warn';
+      log(`Repeat Phase 2 verdict: ${verdict} (cache_read=${result.usage.cacheRead}, cache_create=${result.usage.cacheCreate})`, verdictClass);
+      setG(`Repeat Phase 2 verdict: ${verdict}. cache_read_input_tokens=${result.usage.cacheRead}, cache_creation_input_tokens=${result.usage.cacheCreate}.`);
+      switchTab('cache');
+    } catch(err){
+      log(`Repeat error: ${err.message}`, 'err');
+      setG(`Repeat error: ${err.message}`, false, true);
+      setPhase(2, 'error', 'Error');
+    } finally {
+      running = false;
+      document.getElementById('runBtn').disabled = false;
+      document.getElementById('cacheBtn').disabled = false;
+    }
+  }
+
+  function stopPipeline(){
+    log('Stop requested — current in-flight call will complete then halt.', 'warn');
+    setG('Stop requested.', false, true);
+    running = false;
+    document.getElementById('runBtn').disabled = false;
+    document.getElementById('stopBtn').style.display = 'none';
+  }
+
+  // ─── COUNTING HELPERS ──────────────────────────────────────
+  function countTables(v1){ return (v1.sections||[]).reduce((n,s)=>n+(s.tables?.length||0), 0); }
+  function countLinks(v1){ return (v1.sections||[]).reduce((n,s)=>n+(s.links?.length||0), 0); }
+  function countImages(v1){ return (v1.sections||[]).reduce((n,s)=>n+(s.imagePrompts?.length||0), 0); }
+
+  // ─── PHASE 6 STUB ──────────────────────────────────────────
+  // Minimal "Hello World" assembly per spec. Full Phase 6 = Milestone 5.
+  function buildPhase6Stub(v1){
+    const h1 = escapeHtml(v1.checklist?.h1 || 'Untitled');
+    const da = escapeHtml(v1.directAnswer?.prose || '(no direct answer)');
+    const thesis = escapeHtml(v1.thesis?.statement || '(no thesis)');
+    const sectionList = (v1.sections||[]).map((s,i)=>`  <li>${escapeHtml(s.h2)} <span style="color:#888;">(${(s.paragraphs?.length||0)} paragraphs, ${(s.tables?.length||0)} tables, ${(s.imagePrompts?.length||0)} images)</span></li>`).join('\n');
+    return `<!-- Phase 6 STUB — Milestone 1. Full assembly in M5. -->
+<div class="article-wrap">
+  <h1>${h1}</h1>
+  <div class="direct-answer"><p>${da}</p></div>
+  <p style="font-style:italic; color:#063a6c;">Thesis: ${thesis}</p>
+  <div style="background:#fff8e6; border:1px dashed #d4a418; padding:12px; margin:16px 0;">
+    <strong>STUB NOTICE:</strong> Phase 6 is a Milestone 1 stub. Real assembly (sections, FAQ, schema, ToC, byline, etc.) ships in Milestone 5.
+  </div>
+  <h2>Section index (${(v1.sections||[]).length})</h2>
+  <ul>
+${sectionList}
+  </ul>
+  <h2>FAQ count: ${(v1.faq||[]).length}</h2>
+  <h2>CTA</h2>
+  <div class="article-cta">
+    <p>${escapeHtml(v1.cta?.hookProse||'(no CTA hook)')}</p>
+    <p><a href="${escapeHtml(v1.cta?.url||'#')}">${escapeHtml(v1.cta?.anchorText||'(no anchor)')}</a></p>
+  </div>
+</div>`;
+  }
+
+</script>
+
+</body>
+</html>
