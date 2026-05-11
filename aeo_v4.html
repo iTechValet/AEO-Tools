@@ -382,7 +382,7 @@
         <div class="phase-num">3</div>
         <div class="phase-info">
           <div class="phase-title">Phase 3 — Dual Validation</div>
-          <div class="phase-desc">3A: JS structural checks (sections≥4, FAQ≥5, tables≥3, images≥H2, anchorText match, internal-link domain, DA 200–300 words, CTA URL, schema, thesis present+referenced). 3B: Gemini semantic (claims align w/ research + anchors clientSpecificThesis).</div>
+          <div class="phase-desc">3A: JS structural checks (sections≥4, FAQ≥5, tables≥3, images≥H2, link↔research match, internal-link domain, DA 200–300 words, CTA URL, schema, thesis present+referenced). 3B: Gemini semantic (claims align w/ research + anchors clientSpecificThesis).</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b3">Waiting</div><span class="schev closed" id="c3">▼</span></div>
       </div>
@@ -568,7 +568,8 @@
     tokens: { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 },
     cacheLog: [],             // [{phase, callIndex, cacheCreate, cacheRead, input, output, verdict, ts}]
     escalationsRed: [],       // per-run RED escalations [{code, msg, ts}]
-    cta43BWarned: false       // so the "4.3B CTA URL not parseable" YELLOW only fires once per run
+    cta43BWarned: false,      // so the "4.3B CTA URL not parseable" YELLOW only fires once per run
+    _extraLinksWarned: false  // so the "extra external links" YELLOW only fires once per run
   };
   let yellowWarnings = [];    // rolling, persisted to localStorage, capped at 10
   let running = false;
@@ -706,7 +707,7 @@
     const clients = JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');
     S.client = sel.value !== '' ? clients[parseInt(sel.value)] : null;
     S.research=null; S.v1=null; S.v1Frozen=false; S.validation=null; S.htmlStub=''; S.docs={doc43A:'',doc43B:'',doc44:''};
-    S.sheetRow=''; S.sheetRowCols={}; S.cta43BWarned=false; S.tokens={gi:0,go:0,ci:0,co:0,cacheRead:0,cacheCreate:0}; S.cacheLog=[];
+    S.sheetRow=''; S.sheetRowCols={}; S.cta43BWarned=false; S._extraLinksWarned=false; S.tokens={gi:0,go:0,ci:0,co:0,cacheRead:0,cacheCreate:0}; S.cacheLog=[];
     updateCost(); renderCacheLog(); renderModeUI();
     ['1','2','3','4','6'].forEach(n=>{ setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
     document.getElementById('researchPre').textContent='Phase 1 output appears here.';
@@ -1128,11 +1129,11 @@ HARD CONSTRAINTS for V1:
 - sections: at least 4 H2 sections
 - faq: at least 5 FAQ entries
 - tables: at least 3 tables across all sections combined (distributed however makes sense for the topic)
-- imagePrompts: at least 1 per H2 section
+- imagePrompts: at least 1 per H2 section (every section MUST have an imagePrompts array with >= 1 entry)
 - directAnswer.prose: 200-300 words
 - thesis.statement: must mirror the clientSpecificThesis from the research brief — the article's spine
 - Direct Answer must reference or align with the clientSpecificThesis
-- Every link's anchorText should map to an entry from anchorTextTargets in the research brief
+- Links: strongly prefer the links from anchorTextTargets in the research brief — copy those URLs exactly. You may add a small number of additional reputable external citations if genuinely needed, but never invent internal links.
 - Every internal link URL must be on the client's domain (extract from 4.3B and sheet row)
 - CTA url must match 4.3B Conversion Primary CTA URL
 - DO NOT include id fields in your output — JS assigns IDs post-parse. Each addressable object will receive da_*, thesis_*, section_*, para_*, h3_*, link_*, table_*, img_*, faq_*, ans_*, cta_*.
@@ -1204,7 +1205,7 @@ Wait for the user message containing the per-article topic and sheet row, then i
         sections: {
           type:'array', minItems: 4,
           items: {
-            type:'object', required:['h2','paragraphs'], additionalProperties:false,
+            type:'object', required:['h2','paragraphs','imagePrompts'], additionalProperties:false,
             properties: {
               h2: { type:'string' },
               paragraphs: {
@@ -1248,7 +1249,7 @@ Wait for the user message containing the per-article topic and sheet row, then i
                 }
               },
               imagePrompts: {
-                type:'array',
+                type:'array', minItems: 1,
                 items: {
                   type:'object', required:['prompt','alt'], additionalProperties:false,
                   properties: {
@@ -1600,21 +1601,40 @@ Wait for the user message containing the per-article topic and sheet row, then i
       if(!cl[f] || !String(cl[f]).trim()) F('checklist_field', `checklist.${f} non-empty`, '(empty)', `checklist.${f}`);
     });
 
-    // Every link anchorText matches an entry in research.anchorTextTargets
-    const targetAnchors = new Set((research?.anchorTextTargets || []).map(t => (t.anchorText||'').trim().toLowerCase()));
+    // Link discipline. A link is "known" if its URL (robust — Claude reliably echoes given URLs)
+    // OR its anchorText matches a research anchorTextTargets entry.
+    //   • A fabricated INTERNAL link (a page on the client's own site that isn't in the research)
+    //     is a broken-link risk → hard FAIL.
+    //   • An extra EXTERNAL citation Claude added is just sourcing → YELLOW (logged once/run, not blocking).
+    // This narrows the spec's "every anchorText in links matches an entry in anchorTextTargets"
+    // to the part with real downstream cost (404s on the client domain), per operator calibration.
+    const normUrl = u => (u||'').trim().replace(/^https?:\/\//i,'').replace(/\/+$/,'').toLowerCase();
+    const targetAnchors = new Set((research?.anchorTextTargets || []).map(t => (t.anchorText||'').trim().toLowerCase()).filter(Boolean));
+    const targetUrls = new Set((research?.anchorTextTargets || []).map(t => normUrl(t.url)).filter(Boolean));
+    const haveTargets = targetAnchors.size > 0 || targetUrls.size > 0;
     const clientDomain = getClientDomainV4();
+    const extraExternal = [];
     sections.forEach(sec => {
       (sec.links || []).forEach(l => {
         const a = (l.anchorText||'').trim().toLowerCase();
-        if(targetAnchors.size && !targetAnchors.has(a)) F('link_anchor_match', `anchorText must be one of research.anchorTextTargets`, `"${l.anchorText}" not in targets`, l.id);
-        // Internal link domain check: a link is "internal" if its url is relative or on the client domain.
-        if(isInternalUrl(l.url, clientDomain)){
-          if(clientDomain !== '__NO_DOMAIN__' && /^https?:\/\//i.test(l.url) && !l.url.toLowerCase().includes(clientDomain) && !/github\.io/i.test(l.url)){
-            F('internal_link_domain', `internal link URL on ${clientDomain}`, l.url, l.id);
-          }
+        const u = normUrl(l.url);
+        const known = haveTargets && (targetAnchors.has(a) || targetUrls.has(u));
+        const internal = isInternalUrl(l.url, clientDomain);
+        if(!known && internal){
+          F('internal_link_not_in_research', `internal links must match a research anchorTextTargets entry (do not fabricate client pages)`, `internal link "${l.url}" (anchor "${l.anchorText}") is not in the research targets`, l.id);
+        } else if(!known && !internal && haveTargets){
+          extraExternal.push(`"${l.anchorText}" → ${l.url}`);
+        }
+        // Internal-link domain check: an internal link's absolute URL must be on the client domain.
+        if(internal && clientDomain !== '__NO_DOMAIN__' && /^https?:\/\//i.test(l.url) && !l.url.toLowerCase().includes(clientDomain) && !/github\.io/i.test(l.url)){
+          F('internal_link_domain', `internal link URL on ${clientDomain}`, l.url, l.id);
         }
       });
     });
+    if(extraExternal.length && !S._extraLinksWarned){
+      S._extraLinksWarned = true;
+      warnYellow('P3A', `V1 has ${extraExternal.length} external link(s) not in the research brief's anchorTextTargets (allowed — extra citations, not blocking): ${extraExternal.slice(0,8).join('; ')}${extraExternal.length>8?' …':''}`);
+    }
 
     // CTA url matches 4.3B Conversion Primary CTA URL (if extractable)
     const ctaUrl = (v1.cta?.url || '').trim();
@@ -1671,23 +1691,34 @@ Output the JSON now.`;
   }
 
   // ─── PHASE 3 RESULT RENDERING ──────────────────────────────
-  function renderPhase3(structuralFails, semanticFails, attemptN, passed){
+  // injectedThisAttempt: true when the M2 test-injection dropped a section this attempt —
+  // so a section_count failure is unmistakably attributed to the test, not to Claude.
+  function renderPhase3(structuralFails, semanticFails, attemptN, passed, injectedThisAttempt){
     const o3 = document.getElementById('o3');
     const lines = [];
-    lines.push(`Validation attempt ${attemptN + 1} — ${passed ? 'PASS ✓' : 'FAIL ✗'}`);
+    const which = attemptN === 0 ? 'initial generation' : `retry ${attemptN} of 2`;
+    lines.push(`Validation — attempt ${attemptN + 1} of 3 (${which}) — ${passed ? 'PASS ✓' : 'FAIL ✗'}${injectedThisAttempt ? '   [🧪 test injection active this attempt]' : ''}`);
     lines.push('');
     lines.push(`3A · JS STRUCTURAL — ${structuralFails.length ? structuralFails.length + ' fail(s):' : 'all checks pass'}`);
-    structuralFails.forEach(f => lines.push(`  • ${f.check}${f.id && f.id !== f.check ? ' ['+f.id+']' : ''}: expected ${f.expected}, got ${f.actual}`));
+    structuralFails.forEach(f => {
+      const tag = (injectedThisAttempt && f.check === 'section_count') ? '  ← 🧪 caused by the test injection (Claude did not produce this; reset Test injection to Off for real runs)' : '';
+      lines.push(`  • ${f.check}${f.id && f.id !== f.check ? ' ['+f.id+']' : ''}: expected ${f.expected}, got ${f.actual}${tag}`);
+    });
     lines.push('');
     lines.push(`3B · GEMINI SEMANTIC — ${semanticFails.length ? semanticFails.length + ' fail(s):' : 'aligned with research brief + thesis anchored'}`);
     semanticFails.forEach(f => lines.push(`  • [${f.targetId || '?'}] ${f.issue}${f.suggestedRevision ? '  → '+f.suggestedRevision : ''}`));
     o3.textContent = lines.join('\n');
   }
-  function formatValidationFeedback(structuralFails, semanticFails){
+  function formatValidationFeedback(structuralFails, semanticFails, research){
     const parts = [];
+    parts.push('HARD STRUCTURAL MINIMUMS YOU MUST MEET (these are not optional): sections >= 4 H2 sections, faq >= 5, tables >= 3 across all sections combined, imagePrompts >= 1 PER H2 section (every section needs its own imagePrompts array with at least one entry), directAnswer.prose 200-300 words.');
     if(structuralFails.length){
-      parts.push('STRUCTURAL PROBLEMS (3A):');
+      parts.push('STRUCTURAL PROBLEMS IN YOUR LAST V1 (3A):');
       structuralFails.forEach(f => parts.push(`- ${f.check}${f.id && f.id !== f.check ? ' ('+f.id+')' : ''}: expected ${f.expected}, you produced ${f.actual}. Fix this.`));
+      if(structuralFails.some(f => f.check === 'internal_link_not_in_research') && Array.isArray(research?.anchorTextTargets) && research.anchorTextTargets.length){
+        parts.push('You fabricated an internal link not in the research brief. Use ONLY these links (anchorText → url). Copy the URLs exactly; never invent a page on the client domain:');
+        research.anchorTextTargets.forEach(t => parts.push(`  • "${t.anchorText}" → ${t.url}${t.type ? ' ['+t.type+']' : ''}`));
+      }
     }
     if(semanticFails.length){
       parts.push('SEMANTIC PROBLEMS (3B — your content vs the research brief / thesis):');
@@ -1769,7 +1800,7 @@ Output the JSON now.`;
     S.topic = topic;
     S.tokens = { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 };
     S.cacheLog = [];
-    S.research = null; S.v1 = null; S.v1Frozen = false; S.validation = null; S.htmlStub = ''; S.cta43BWarned = false;
+    S.research = null; S.v1 = null; S.v1Frozen = false; S.validation = null; S.htmlStub = ''; S.cta43BWarned = false; S._extraLinksWarned = false;
     updateCost(); renderCacheLog();
     document.getElementById('cacheVerdict').textContent = '—';
     setCacheBtnsDisabled(true);
@@ -1879,13 +1910,18 @@ Output the JSON now.`;
         log(`Phase 2 ${attempt>0?'(retry '+attempt+') ':''}complete — ${summary}`, 'ok');
 
         // —— TEST INJECTION (M2 verification only — Operator Setup → Test injection) ——
+        // 'recover' fires ONLY on attempt 0 (the first iteration). 'escalate' fires every attempt.
         const inject = document.getElementById('testInjection')?.value || 'off';
+        let injectedThisAttempt = false;
         if((inject === 'escalate') || (inject === 'recover' && attempt === 0)){
           if(Array.isArray(v1.sections) && v1.sections.length > 3){
             v1.sections = v1.sections.slice(0, 3);
-            log(`🧪 TEST INJECTION: dropped sections past index 2 — V1 now has ${v1.sections.length} sections (below the ≥4 minimum). Phase 3A should catch this.`, 'warn');
+            injectedThisAttempt = true;
+            log(`🧪 TEST INJECTION (mode=${inject}, attempt ${attempt+1}): dropped sections past index 2 — V1 now has ${v1.sections.length} sections (below the ≥4 minimum). Phase 3A should catch this. ${inject==='recover' ? 'This will NOT fire again on the next attempt.' : ''}`, 'warn');
             document.getElementById('v1Pre').textContent = JSON.stringify(v1, null, 2);
           }
+        } else if(inject === 'recover' && attempt > 0){
+          log(`🧪 TEST INJECTION (mode=recover): NOT firing on attempt ${attempt+1} — by design it only fires on attempt 1. If Phase 3 still reports a section_count failure now, that came from Claude, not the test.`, 'info');
         }
 
         // —— Phase 3A (JS structural) ——
@@ -1904,8 +1940,8 @@ Output the JSON now.`;
         const passed = structuralFails.length === 0 && semanticFails.length === 0;
         lastValidation = { structuralFails, semanticFails, passed };
         S.validation = lastValidation;
-        renderPhase3(structuralFails, semanticFails, attempt, passed);
-        document.getElementById('m3').textContent = `Attempt ${attempt+1}: 3A=${structuralFails.length} structural fail(s), 3B=${semanticFails.length} semantic fail(s) → ${passed ? 'PASS' : 'FAIL'}`;
+        renderPhase3(structuralFails, semanticFails, attempt, passed, injectedThisAttempt);
+        document.getElementById('m3').textContent = `Attempt ${attempt+1} of 3 (${attempt===0?'initial':'retry '+attempt+'/2'}): 3A=${structuralFails.length} structural fail(s), 3B=${semanticFails.length} semantic fail(s) → ${passed ? 'PASS' : 'FAIL'}`;
 
         if(passed){
           setPhase(3, 'done', 'PASS ✓');
@@ -1915,7 +1951,7 @@ Output the JSON now.`;
         // FAIL
         if(attempt < 2){
           setPhase(3, 'active', `Fail → retry ${attempt+1}`);
-          feedback = formatValidationFeedback(structuralFails, semanticFails);
+          feedback = formatValidationFeedback(structuralFails, semanticFails, S.research);
           log(`Phase 3 found ${structuralFails.length + semanticFails.length} issue(s) — looping to Phase 2 with feedback (retry ${attempt+1}/2).`, 'warn');
           continue;
         }
