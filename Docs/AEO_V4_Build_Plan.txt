@@ -1,0 +1,1349 @@
+AEO ARTICLE CREATION PIPELINE — V4.0 BUILD PLAN
+================================================================
+Created: May 10, 2026 | End of Chat 19 | Gemini Pro consensus + voice upgrade
+Includes: Option E unified CoT, Phase 5.5 forensic critique, gold-standard
+          exemplars, AI-tell kill list, intent-matched exemplars, data
+          preservation, typographic rhythm, information gain, 5 JS quality checks
+
+Target: Clean rebuild replacing V3.1 (17 steps, 57 locks, 13 passes)
+Architecture: 7 phases (incl. Phase 5.5), ~12 locks, deterministic JS validation
+Quality bar: Lamborghini — articles AEO engines cite, that read as ONE thing,
+             with proprietary thesis, factual density, and conversational voice
+Budget: $3/article ceiling (real usage ~$1.50-$2.00 with caching)
+Build tool: Claude Code (multi-file, persistent context, real testing)
+================================================================
+
+START OF EVERY NEW CHAT / CLAUDE CODE SESSION:
+"Read the AEO V4.0 Build Plan and the AEO Master Doc before doing anything.
+The V4.0 Build Plan is the spec. The Master Doc is the V3.1 history. Do not
+make assumptions from training data — everything you need is in those documents."
+
+
+═══════════════════════════════════════════════════════════════
+THE HUMAN OVERVIEW — WHAT WE ARE ACTUALLY BUILDING
+═══════════════════════════════════════════════════════════════
+
+Read this first. Everything else is technical implementation.
+
+WHAT THE TOOL DOES (PLAIN ENGLISH):
+It produces AEO articles for service-business clients (chiropractors, gold
+IRA dealers, etc.) at a quality level that AI answer engines (ChatGPT,
+Gemini, Perplexity) will cite as authoritative sources. Not blog posts.
+Not SEO fluff. Real authority content with strong POV, conversational
+voice, and structural rigor.
+
+THE PIPELINE HAS TWO HALVES — THINK OF IT THIS WAY:
+
+HALF ONE — BUILD THE FOUNDATION (Phases 1-4)
+This is the structural engineering. We're building the bones of the article.
+- WHAT goes in the article — research, sources, facts, the proprietary
+  thesis this client owns
+- WHERE everything lives — section structure, headings, FAQ questions,
+  internal/external links, tables, image placements, CTA
+- VALIDATION — every piece checked deterministically by JavaScript and
+  semantically by Gemini before locking
+- FREEZE — once the bones are right, they are mathematically immutable.
+  Nothing downstream can move a heading, change an anchor text, or drop
+  a link. This was the biggest failure of V3.x — the bones kept moving.
+
+By end of Half One, we have a fully-structured article in JSON form. Every
+fact is correct. Every link points where it should. Every section is in
+the right place. The skeleton is locked.
+
+But the prose at this stage is functional, not great. It's AI writing
+correct content. It's not Lamborghini yet.
+
+HALF TWO — MAKE IT SOUND HUMAN (Phases 5-6)
+This is where we beat the AI tone out of the article. Same bones. Better
+prose.
+- VOICE DRAFT (Phase 5) — Claude rewrites the prose in your voice. Not
+  generic AI helpful tone. Not corporate hedge-everything language. Your
+  voice: direct, conversational, strong POV, "beer with a friend" energy.
+  Loaded with 3-4 examples of your best articles so Claude has a real
+  pattern to match, not just abstract rules.
+- FORENSIC CRITIQUE (Phase 5.5) — Claude reads its own output as a ruthless
+  editor and rewrites anything that still sounds like AI textbook.
+- QUALITY CHECKS (Phase 5.6) — six deterministic JavaScript tests verify
+  the voice is actually working: paragraphs don't start with dry nouns,
+  the article has rhythm, the callback phrase bridges intro and conclusion,
+  data anchors survived, no banned AI-tell words, semantic anchor preserved.
+- ASSEMBLY (Phase 6) — JavaScript takes the final JSON and builds clean
+  HTML + schema. Deterministic. No surprises.
+
+By end of Half Two, the article sounds like you wrote it, not an AI.
+
+THE CORE INSIGHT:
+V3.x tried to do everything at once — write prose AND maintain structure
+AND fix errors AND keep voice consistent — in big text blocks that got
+patched by regex. It kept breaking because nothing was ever truly LOCKED.
+
+V4.0 separates the two jobs cleanly:
+- Structure is JSON. JS owns it. It freezes. It cannot drift.
+- Voice is prose. Claude owns it. It rewrites freely WITHIN the frozen
+  structure. It cannot break the bones because it physically can't reach
+  them.
+
+That's the whole architecture. Bones locked. Voice free. Different tools
+for different jobs.
+
+THE OPERATIONAL MODEL:
+- The OPERATOR (Gerek) is the architect and the taste filter. Reviews the
+  first 10 articles per new client. Adjusts prompts and exemplars when
+  voice drifts. Sets the standards.
+- The VA is the operator's hands. Hits "Start Pipeline." Confirms publish.
+  Never reads article content. Only forwards error codes to operator.
+- The TOOL is the assembly line. Runs autonomously. Recovers from errors
+  it knows how to recover from. Escalates the ones it doesn't.
+
+THIS BUILD PLAN HAS TWO MAJOR PARTS:
+1. THE HAPPY PATH — exactly how the tool works when everything goes right.
+   Phases 1-6, JSON shapes, Tool Use schemas, JS validation, prompt caching.
+2. THE ERROR RECOVERY MATRIX — exactly how the tool handles 20 documented
+   failure modes. Each failure has a defined automatic response and
+   escalation rule. No reactive patching. No mystery crashes.
+
+Together: a system that mostly runs itself, and tells humans clearly when
+it needs help.
+
+
+═══════════════════════════════════════════════════════════════
+WHY V4.0 EXISTS
+═══════════════════════════════════════════════════════════════
+
+V3.x problem:
+The pipeline was built to recreate stateful chat context using stateless API
+calls + JavaScript structure. Each safety net created new failure modes. By
+V3.1: 17 steps, 57 architectural locks, 13 post-assembly passes, articles
+still broke. Voice quality degraded to "AI textbook" tone (grade 9+, no
+conviction, no callbacks, no architectural intent).
+
+V4.0 solution:
+Use Anthropic prompt caching to give Claude real context. Use strict JSON via
+Tool Use throughout. Lock V1 bones as frozen JSON. V2 voice rewrite uses
+"Option E" — voice architecture + transition logic + prose in ONE continuous
+JSON response, defeating Token Myopia. Phase 5.5 ruthless critique loop scrubs
+remaining AI-tone. JS deterministic checks verify voice quality. Gold-standard
+exemplars (intent-matched) replace abstract voice rules with concrete examples.
+
+Architectural principle (extends V3.0):
+"JS owns structure. Claude owns prose. Gemini owns research and semantic
+validation. Each tool does ONE job. No tool's output is used as another tool's
+spec without deterministic verification first. Voice quality is engineered
+through iteration, not hoped for in one shot."
+
+The Lamborghini bar:
+Articles AEO engines cite as canonical sources. Strong POV from sentence one.
+Zero hedging. Conversational transitions. Factual density preserved through
+voice pass. Typographic pacing. Proprietary client thesis embedded in every
+piece. Reads as ONE THING with throughline, callbacks, conviction arcs.
+
+
+═══════════════════════════════════════════════════════════════
+THE 7 PHASES — ARCHITECTURE OVERVIEW
+═══════════════════════════════════════════════════════════════
+
+PHASE 1: RESEARCH + CLIENT-SPECIFIC THESIS (Gemini call, ~30s)
+- Full project context cached: 4.3A, 4.3B, 4.4, sheet row, BIL, voice playbook
+- DUAL OUTPUT:
+  1. Standard research brief (sources, anchor text targets, FAQ seeds, fact claims)
+  2. CLIENT-SPECIFIC THESIS — cross-references the topic against 4.3B Identity
+     Card to formulate the proprietary frame this client owns on this topic
+     that competitors don't.
+     Example: Topic = "Call Tracking" -> Thesis: "How iTech Valet's tracking
+     philosophy invalidates standard call tracking metrics."
+- Returns JSON:
+  {
+    sources: [{ url, relevance }],
+    anchorTextTargets: [{ anchorText, url, type: "internal" | "external" }],
+    faqSeeds: ["question 1", ...],
+    factClaims: [{ claim, source, dataPoints: [...] }],
+    semanticAnchor: "from sheet row",
+    clientSpecificThesis: {
+      proprietaryFrame: "the unique position this client owns",
+      competitiveDifferentiator: "what competitors miss or get wrong",
+      thesisStatement: "the one-sentence spine of the article"
+    }
+  }
+
+PHASE 2: V1 GENERATION (Claude call, ~60-90s)
+- Cached: full project context + research brief + thesis
+- Tool Use schema enforces V1 JSON shape
+- Hard constraint: article MUST anchor around clientSpecificThesis
+- Returns V1 as STRUCTURED JSON OBJECT:
+  {
+    checklist: { metaTitle, h1, permalink, fullUrl, metaDescription, keywords, category },
+    directAnswer: { id: "da_xxxx", prose: "200-300 word DA" },
+    thesis: { id: "thesis_xxxx", statement: "from Phase 1" },
+    sections: [
+      {
+        id: "section_xxxx",
+        h2: "...",
+        paragraphs: [{ id: "para_xxxx", prose: "..." }, ...],
+        h3sections: [{ id: "h3_xxxx", h3: "...", paragraphs: [...] }],
+        links: [{ id: "link_xxxx", anchorText: "...", url: "...", placementHint: "..." }],
+        tables: [{ id: "table_xxxx", headers: [...], rows: [[...]] }],
+        imagePrompts: [{ id: "img_xxxx", prompt: "...", alt: "..." }]
+      }
+    ],
+    faq: [{ id: "faq_xxxx", question: "...", answer: { id: "ans_xxxx", prose: "..." } }],
+    cta: { id: "cta_xxxx", hookProse: "...", anchorText: "...", url: "..." }
+  }
+- JS assigns unique IDs post-parse (NOT Claude's job)
+- Hard structural minimums: sections >= 4, FAQs >= 5, tables >= 3,
+  image prompts >= H2 count
+
+PHASE 3: DUAL VALIDATION
+
+3A: JS STRUCTURAL VALIDATION (deterministic, instant, free)
+  Checks:
+  - Section count >= 4
+  - FAQ count >= 5
+  - Table count >= 3
+  - Image prompts >= H2 count
+  - Every anchorText in links matches an entry in anchorTextTargets
+  - Every internal link URL is on client's domain
+  - Direct Answer word count 200-300
+  - CTA anchor URL matches 4.3B Conversion Primary CTA URL
+  - Schema-ready data complete
+  - THESIS PRESENT and referenced in DA or first section
+  Output: { passed, structuralFails: [{ id, expected, actual }] }
+
+3B: GEMINI SEMANTIC VALIDATION (1 call, cached)
+  ONE job only: Do the article's claims align with the research brief, AND
+  does the article anchor around the clientSpecificThesis?
+  Returns: { semanticFails: [{ targetId, issue, suggestedRevision }] }
+
+If 3A or 3B fails: loop to Phase 2 with feedback, max 2 retries.
+After retry exhaustion: Checkpoint 1 (VA accepts or restarts).
+
+PHASE 4: V1 FREEZE
+- JS calls Object.freeze() recursively on V1 JSON
+- Saves snapshot to session
+- Bones immutable from this point forward
+
+PHASE 5: VOICE DRAFT — UNIFIED COT (Claude call, ~75s) — BUSINESS-CRITICAL
+
+5.0 CACHED CONTEXT:
+  - 4.3A V3.3 voice execution rules (incl. Conjunction Mandate + Typographic Rhythm)
+  - 4.3B voice playbook + tone playbook (per-client)
+  - 4.3B Terminology Lock (banned/canonical words for this client)
+  - AI-TELL KILL LIST (universal — see below)
+  - GOLD-STANDARD EXEMPLARS — intent-matched, 3-4 articles loaded based on
+    intent layer from sheet row. Built from library of 9-12 articles
+    (3-4 per intent: Tactical, Strategic, Philosophical/POV).
+  - Frozen V1 JSON
+
+5.1 TOOL USE SCHEMA (OPTION E — UNIFIED CHAIN-OF-THOUGHT):
+  Claude is forced to generate voice architecture FIRST, then transition
+  logic + data anchors + prose for each rewrite, in ONE continuous JSON
+  response. This defeats Token Myopia by binding Claude's attention to the
+  global plan and forcing per-paragraph connective tissue.
+
+  Schema:
+  {
+    voice_architecture: {
+      core_conviction: "1 sentence — the aggressive stance this article takes",
+      friction_setup: "where in the article we agitate the problem",
+      callback_phrase: "specific punchy phrase to use in intro AND repeat in conclusion",
+      pacing_strategy: "where tone is rapid-fire vs slows down",
+      thesis_reinforcement: "how clientSpecificThesis manifests across sections"
+    },
+    rewrites: [
+      {
+        targetId: "da_xxxx" | "para_xxxx" | "ans_xxxx" | "cta_xxxx",
+        data_anchors_to_preserve: ["78 broken links", "248-word homepage"],
+        pacing_directive: "short punch" | "standard expansion" | "list extraction",
+        transition_logic: "1 sentence — how this connects to the prior box",
+
+        // Conditional output based on pacing_directive:
+        // - If "short punch" or "standard expansion": use newProse string
+        // - If "list extraction": use newListItems array
+        newProse: "the actual rewrite (used when pacing is short punch or standard)",
+        newListItems: ["item 1", "item 2", "item 3"]  // used when pacing is list extraction
+      },
+      ...
+    ]
+  }
+
+  PACING DIRECTIVE VALUES + OUTPUT FORMAT:
+  - "short punch" = single-sentence paragraph for maximum impact
+    → output in newProse string
+  - "standard expansion" = regular 2-3 sentence paragraph
+    → output in newProse string
+  - "list extraction" = becomes a bulleted list, not prose
+    → output in newListItems array (3-7 items typically)
+    → JS maps directly to <ul><li> in Phase 6, no English parsing required
+
+  This eliminates the V3.x failure pattern of JS parsing prose strings
+  to "guess where bullets go." Deterministic output, deterministic
+  assembly. Per the V4.0 principle: JS executes on fixed specs.
+
+5.2 ALLOWED TARGETS (prose-only fields):
+  - directAnswer.id
+  - sections[].paragraphs[].id
+  - sections[].h3sections[].paragraphs[].id
+  - faq[].answer.id
+  - cta.id (hookProse only)
+
+5.3 DISALLOWED (JS rejects if rewrite targets these):
+  - Any section.id, h3.id, link.id, table.id, image.id
+  - Any heading text (h2, h3)
+  - Any anchorText or URL
+  - Any FAQ question text
+  - Any checklist field
+
+PHASE 5.5: FORENSIC CRITIQUE (Claude call, ~30s) — EDITORIAL PASS
+
+LLMs are vastly better at critiquing than generating zero-shot. This phase
+runs V2 back through Claude as a ruthless editor.
+
+5.5.0 CACHED CONTEXT:
+  - Same as Phase 5 (gold-standard exemplars, AI-tell kill list, voice rules)
+  - V2 draft from Phase 5 — ENTIRE rewrites array (not just flagged paragraphs)
+    This is critical (the "Frankenstein Risk" fix): Claude must see the full
+    flow to understand transitions. If it rewrites paragraph 4 in isolation,
+    the transitions to paragraphs 3 and 5 break. Pass the whole array so
+    Claude reads continuity, even though schema only lets it output modified
+    paragraphs.
+
+5.5.1 EDITORIAL PROMPT:
+  "You are a ruthless editor reviewing AI-generated voice.
+
+  Assume the previous writer was a lazy corporate PR intern. If a paragraph
+  reads like a textbook, delete it and rewrite it as if you are speaking
+  directly to a skeptical business owner over coffee. Cut adverbs. Kill
+  passive voice. Introduce friction.
+
+  Read all paragraph rewrites in sequence — the flow matters. When you flag
+  a paragraph for rewrite, check the paragraphs before and after to maintain
+  transitions.
+
+  Flag any paragraph that fails these tests:
+  - Starts with a dry subject noun ('Answer Engine Optimization is...',
+    'iTech Valet provides...', 'AI engines need...')
+  - Contains hedging language ('might', 'could', 'perhaps', 'somewhat')
+  - Lacks a conversational transition at paragraph start
+  - Drops factual data from data_anchors_to_preserve
+  - Uses any word from the AI-Tell Kill List
+  - Reads as textbook prose (no rhythm change, no rhetorical question,
+    no single-sentence punch paragraph in the section)
+  - Breaks transition with the paragraph before or after it
+
+  For each flagged paragraph, rewrite ONLY the flagged paragraph to fix
+  the specific issue while preserving transition to neighbors. Return the
+  surgical corrections in the same JSON schema as Phase 5."
+
+5.5.2 OUTPUT:
+  Same Tool Use schema as Phase 5 — voice_architecture (copy from Phase 5) +
+  rewrites array (only flagged + corrected paragraphs).
+
+5.5.3 JS MERGE:
+  JavaScript merges the 5.5 corrections over the 5.0 draft. V1 bones remain
+  entirely untouched. Final V2 is now ready for assembly.
+
+PHASE 5.6: JS DETERMINISTIC QUALITY CHECKS
+
+After Phase 5.5 merge, JS runs 6 voice quality tests. Any failure routes
+back to Phase 5.5 with specific feedback (max 2 retries):
+
+  1. PRONOUN/NOUN START RATIO
+     Strip <strong>, <em>, and other inline HTML tags from each newProse
+     string FIRST, then check the first word. If > 60% start with subject
+     nouns (The, A, This, iTech, AI, Chiropractors, etc.), connective
+     tissue is dead. FAIL.
+
+  2. CALLBACK VERIFIER (DISTANCE-BASED)
+     Extract callback_phrase from voice_architecture. Find every occurrence
+     in the article. Pass requires:
+     - Instance 1 appears within the top 20% of total paragraphs
+     - Instance 2 appears within the bottom 20% of total paragraphs
+     A callback that bridges intro-to-conclusion. If both instances appear
+     in the first half, it's just repetition. FAIL.
+
+  3. QUESTION MARK DENSITY (RELATIVE)
+     Count rhetorical questions across all newProse. Calculate ratio:
+     questions per 500 words. If ratio < 1.0 (less than one question per
+     500 words), article reads as a lecture not a conversation. FAIL.
+
+  4. AI-TELL SCAN
+     JS regex check for AI-Tell Kill List words (universal list + 4.3B
+     Terminology Lock for this client). Any occurrence = FAIL.
+
+  5. DATA ANCHOR PRESERVATION
+     For each rewrite with data_anchors_to_preserve, verify every anchor
+     string appears verbatim in the corresponding newProse. Missing
+     anchor = FAIL.
+
+  6. SEMANTIC ANCHOR PRESERVATION (NEW per Gemini final review)
+     Read the SEMANTIC_ANCHOR column from the 4.2 sheet row for this article.
+     This is the proprietary phrase the article must use for AEO signal.
+     Verify exact phrase appears in V2 body prose (anywhere). If missing,
+     article has lost its AEO signal entirely. FAIL.
+
+PHASE 6: FINAL ASSEMBLY (JS, deterministic, ~2s)
+- Take V2 JSON, assemble HTML:
+  1. <style> from buildStylesheetFrom43B (preserved from V3.1)
+  2. <div class="article-wrap">
+  3. <h1>
+  4. <div class="direct-answer"><p>{DA prose}</p></div>
+  5. <p class="last-updated">Last Updated: {formattedDate}</p>
+  6. <p class="author-byline"><em>By {Author Name}, {Author Title}</em></p>
+     (V3.1 byline injection logic, preserved)
+  7. <div class="toc">{built from sections[].h2 + h3sections[].h3}</div>
+  8. For each section: <h2>, <img>, then paragraphs assembled by reading
+     each paragraph's pacing_directive:
+     - "short punch" → wrap newProse in <p> with class="punch" for styling
+     - "standard expansion" → wrap newProse in standard <p>
+     - "list extraction" → wrap newListItems array in <ul><li>...</li></ul>
+       (each array element becomes one <li>, JS does NOT parse prose)
+  9. <h2>FAQ</h2> + <h3>'s with answers
+  10. <h2>Conclusion</h2> (last section in sections array)
+  11. <div class="article-cta"><p>{hookProse}</p><p><a href="{url}">{anchorText}</a></p></div>
+- Apply bold to key entities/punchlines if voice_architecture specifies them
+- Generate schema JSON-LD:
+  - BlogPosting
+  - FAQPage (built directly from V2.faq — guaranteed parity, no regex)
+  - BreadcrumbList
+- Output: final HTML + final schema
+
+NO post-assembly passes. NO regex cleanup. NO snapshot restoration.
+
+
+═══════════════════════════════════════════════════════════════
+THE AI-TELL KILL LIST (HARD-CODED IN PHASE 5 + 5.5)
+═══════════════════════════════════════════════════════════════
+
+These words are banned in newProse. JS regex check in Phase 5.6 enforces.
+Universal across all clients. Per-client banned words from 4.3B Terminology
+Lock are MERGED with this list at runtime.
+
+Banned single words:
+- delve, navigate, landscape, crucial, vital, robust, tapestry, realm,
+  seamless, paramount, moreover, furthermore, leverage (as verb),
+  utilize (use "use" instead), facilitate, plethora, myriad, intricate,
+  testament, unlock, elevate, beacon, demystify, comprehensive (in body),
+  transformative, bustling
+
+Banned phrases:
+- "in today's digital age"
+- "at the end of the day"
+- "in the realm of"
+- "navigate the landscape"
+- "delve into"
+- "a robust solution"
+- "comprehensive guide" (in body — OK in metadata)
+- "ever-evolving"
+- "game-changer"
+- "unlock the power of"
+- "it's important to note that"
+- "whether you are [X] or [Y]" (template phrase pattern)
+
+This list lives as a constant in the V4.0 codebase. Editable by operator.
+The list will evolve as new AI-tells emerge in production runs.
+
+
+═══════════════════════════════════════════════════════════════
+GOLD-STANDARD EXEMPLARS — THE VOICE LIBRARY
+═══════════════════════════════════════════════════════════════
+
+The single highest-leverage voice quality lever. Concrete examples beat
+abstract rules. Cached, so cost is trivial.
+
+INTENT TAXONOMY — USES EXISTING 4.1 INTENT LAYER SYSTEM:
+The 4.2 sheet already has an Intent Layer column populated by 4.1 V4.0
+output. V4.0 routing reads that column directly. No new column required.
+
+The 5 Intent Layers (defined in 4.1 V4.0):
+1. DIRECT INTENT — searcher wants the specific service/provider directly
+   ("Best chiropractor in Huntington Beach")
+   Voice: confident, conversion-aware, slightly aggressive
+2. INDIRECT INTENT — searcher has a problem the service solves but hasn't
+   named the service yet ("How to fix a pinched nerve in my neck")
+   Voice: empathetic, diagnostic, educational with conviction
+3. LATENT INTENT — searcher has an underlying issue not yet connected to
+   the service ("Why do I get headaches after sitting at my desk?")
+   Voice: revelatory, connection-making, surprising
+4. COUNTER-INTENT — searcher evaluating objections, myths, or risks
+   ("Is chiropractic safe for seniors?")
+   Voice: confrontational, myth-busting, evidence-loaded
+5. POST-INTENT — searcher has already used the service, looking for
+   maintenance or next steps ("Daily stretches after chiropractic care")
+   Voice: instructional, ongoing-value, community-building
+
+LIBRARY STRUCTURE:
+- 10-15 articles per client (2-3 per intent layer)
+- Each article must demonstrate:
+  - Strong POV from first sentence
+  - Zero hedging
+  - Conversational transitions (But, And, So, Here's, That means)
+  - Hard data preserved with specificity
+  - Clear thesis defended, not summarized
+  - Voice that sounds like operator, not polished AI
+
+STORAGE (PER-CLIENT — SINGLE FILE):
+ONE file per client lives in the client's existing 4.3B Drive folder:
+  voice_exemplars.txt
+
+This single file contains ALL exemplars for the client, with intent
+markers inside the file:
+
+  === DIRECT INTENT EXEMPLAR 1 ===
+  Title: [article title]
+  Why it works: [1-2 sentences on what makes it great]
+  [full article text]
+
+  === DIRECT INTENT EXEMPLAR 2 ===
+  ...
+
+  === INDIRECT INTENT EXEMPLAR 1 ===
+  ...
+
+  === LATENT INTENT EXEMPLAR 1 ===
+  ...
+
+  === COUNTER-INTENT EXEMPLAR 1 ===
+  ...
+
+  === POST-INTENT EXEMPLAR 1 ===
+  ...
+
+This avoids the "5 files per client" Client Manager bloat. ONE file ID
+per client added to Client Manager. JS parses the markers and filters
+to matching intent at Phase 5.
+
+CLIENT MANAGER ADDITION:
+Add ONE new field per client config:
+  folderVoiceExemplars (file ID for voice_exemplars.txt)
+
+ROUTING:
+Phase 5 reads Intent Layer column from sheet row (4.2 sheet — already
+populated by 4.1).
+JS fetches voice_exemplars.txt for the client.
+JS parses === INTENT EXEMPLAR N === markers.
+JS extracts only exemplars matching the article's intent.
+Caches with rest of Phase 5 context.
+
+OPERATOR ACTION REQUIRED BEFORE MILESTONE 3:
+For each client (start with iTV):
+- Open a fresh Claude chat or Project
+- Upload 15-25 of the client's best articles from archive
+- Use the Exemplar Selection Prompt (see CODE_PROMPT_AND_MILESTONE_1.txt)
+- Claude selects 10-15 best, sorts by intent, formats with markers
+- Operator reviews output, may swap articles based on taste
+- Save final output as voice_exemplars.txt in client's 4.3B Drive folder
+- Add file ID to client's Client Manager entry
+
+If exemplars unavailable for an intent, V4.0 falls back to other intents
+in this priority order: Direct → Indirect → Strategic-equivalent fallback.
+F12 in Error Recovery Matrix handles this.
+
+
+═══════════════════════════════════════════════════════════════
+TYPOGRAPHIC RHYTHM MANDATE (4.3A V3.3 ADDITION)
+═══════════════════════════════════════════════════════════════
+
+Voice isn't just words — it's pacing. AI defaults to uniform paragraph blocks.
+Real writers use formatting to create visual peaks and valleys.
+
+Add to 4.3A V3.3 as new voice section:
+
+"TYPOGRAPHIC RHYTHM
+- At least ONE single-sentence paragraph per H2 section, used for impact
+- Bold key entities and counter-intuitive punchlines (markdown **bold**)
+- Use bullet points for lists of 3+ items, NEVER comma-separated lists in body
+- Use rhetorical questions to break monotony — at least one per article
+- Paragraph length variance: mix 1-sentence, 2-3 sentence, and 4-5 sentence
+  paragraphs. NEVER more than 3 consecutive paragraphs of similar length.
+
+THE CONJUNCTION MANDATE
+- At least 30% of all paragraphs MUST begin with a conversational transition
+- Acceptable transitions: But, And, So, Here's the thing, That means,
+  Now, Look, The thing is
+- Do NOT start consecutive paragraphs with the same subject noun
+- Do NOT start paragraphs with The/A/An unless absolutely necessary"
+
+
+═══════════════════════════════════════════════════════════════
+VA WORKFLOW — NO HUMAN READS CONTENT
+═══════════════════════════════════════════════════════════════
+
+V4.0 enforces the Master Doc principle: "NO HUMAN READS ARTICLES DURING
+PRODUCTION." V3.x violated this with mid-pipeline review buttons. V4.0
+fixes it.
+
+WHAT THE VA SEES IN PRODUCTION MODE:
+- A single "Start Pipeline" button per tab
+- A progress bar showing current phase (Phase 1: Research, Phase 2: V1,
+  etc.) — no detail, just status
+- Escalation Panel — empty in 95%+ of runs
+- "Pipeline Complete" notification when Phase 6 finishes
+
+WHAT THE VA DOES NOT DO:
+- Read article content for quality
+- Decide if voice sounds human
+- Approve or reject V1 bones
+- Review V2 prose
+- Make judgment calls about ANY content
+
+WHAT THE VA DOES:
+- Hit "Start Pipeline"
+- Wait for completion
+- Click "Publish" when all checks pass and HTML is delivered
+- Forward RED escalation codes to operator if surfaced
+
+WHAT THE OPERATOR (GEREK) DOES:
+- Reviews first 10 articles per client in Calibration Mode
+- Receives RED escalation alerts (email/SMS)
+- Adjusts 4.3B exemplars, 4.3A voice rules, AI-Tell list as new
+  failure patterns emerge in production data
+- Monitors cost-per-article and cache-hit-ratio dashboards
+- Promotes clients from Calibration to Production Mode
+
+ESCALATION FLOW:
+1. Pipeline detects failure (any F-code from Error Recovery Matrix)
+2. Auto-recovery runs per matrix definition
+3. If auto-recovery succeeds → silent continue
+4. If RED ESCALATION fires → VA sees error code + remediation hint
+5. VA clicks "Notify Operator" — operator receives alert with full
+   context (which article, which client, which phase, which F-code)
+6. Operator handles. Either fixes upstream config (4.3B, sheet) and
+   restarts pipeline, or accepts a manual override.
+
+
+═══════════════════════════════════════════════════════════════
+WHAT DISAPPEARS FROM V3.1
+═══════════════════════════════════════════════════════════════
+
+Pipeline steps removed:
+- Frame Lock (Step 11) — V1 frozen, structurally impossible to drift
+- Snapshot Diff (Step 14) — replaced by deep-equal JSON comparison
+- Pre-Lock Audit (Step 10) — folded into Phase 3A
+- Structured QC Audit (Step 16) — folded into Phase 3A + Phase 6
+- HTML Review (Step 17) — replaced by Checkpoint 2 visual review
+- Step 5 prose generation in markdown — V1 is JSON
+- Step 9 fix application via fuzzy matching — patches target IDs
+- Step 12 voice rewrite without architecture — replaced by Phase 5 Option E
+
+JS helpers removed:
+- assembleV1FromJSON — assembly is Phase 6 from V2 JSON
+- normalizeStep5Response — all Claude calls return JSON via Tool Use
+- extractLockedDA — DA is a JSON field
+- hardRestoreDAZone — no DA zone to restore
+- dedupePlaceholders — no placeholders, JS owns insertion points
+- syncDirectAnswer — no syncing needed
+- applyDiffs, parseStructuralPatches, applyStructuralPatches — no prose patches
+- captureFrameSnapshot, verifyFrameSnapshot — no snapshots
+- 13 post-assembly passes — replaced by Phase 6's deterministic assembly
+
+Architectural locks removed: ~45 of current 57. Remaining ~12 govern V4.0.
+
+
+═══════════════════════════════════════════════════════════════
+WHAT SURVIVES FROM V3.1
+═══════════════════════════════════════════════════════════════
+
+Code helpers to preserve (port directly to V4.0):
+- buildStylesheetFrom43B() — Phase 6 unchanged
+- formatPublishDate() — Phase 6 unchanged
+- getClientDomain() — used in Phase 3A internal-link validation
+- getSheetCol() — Phase 1 reads INTENT_LAYER + SEMANTIC ANCHOR
+- Cloudflare proxy URL — unchanged
+- Drive API fetch pattern (x-goog-api-key header) — unchanged
+- Author byline extraction from 4.3B (V3.1 regex) — Phase 6
+- Last Updated injection logic — Phase 6
+- ToC building logic — Phase 6 (simpler: builds directly from sections[])
+- Image generation logic — runs in parallel with Phase 5/5.5
+
+Architectural principles preserved:
+- JS executes on fixed specs; Claude writes prose
+- Client-agnostic — all client data flows from 4.3B
+- No human reads articles mid-pipeline (only at 2 checkpoints)
+- API keys session-only
+- Multi-tab simultaneous runs supported
+- Cloudflare proxy for Claude streaming
+- File IDs not folder IDs for Drive fetches
+
+Companion documents to update for V4.0:
+- 4.3A V3.2 -> V3.3 (add Typographic Rhythm + Conjunction Mandate)
+- 4.4 V10.2 -> V11.0 (major rewrite — prompts become Tool Use schemas,
+  drop validation FAIL format, drop structural coordinates)
+- 4.3B Master Prompt — add Voice Exemplar fields (filenames + intent mapping)
+- 4.2 Sheet schema — add INTENT_LAYER column
+
+
+═══════════════════════════════════════════════════════════════
+BUILD ORDER — MILESTONE-BASED (CLAUDE CODE)
+═══════════════════════════════════════════════════════════════
+
+Build V4.0 as parallel file: aeo_v4.html
+Keep V3.1 (aeo_article_creation.html) untouched as production fallback.
+
+MILESTONE 1: SKELETON + PHASE 1-2 WITH CACHING (1 session)
+Goals:
+- New file aeo_v4.html with clean UI: 7 phase cards
+- Phase 1 implemented: research + client-specific thesis
+- Phase 2 implemented: V1 generation via Tool Use
+- Phase 6 stub: writes "Hello World" HTML
+- Prompt caching verified (cache_creation_input_tokens + cache_read_input_tokens)
+Exit criteria:
+- V1 JSON renders in preview tab for an iTV test topic
+- Thesis appears in output
+- Cache hits visible in API response logs
+
+MILESTONE 2: VALIDATION + FREEZE + ERROR RECOVERY FOUNDATION (1 session)
+Goals:
+- Phase 3A (JS structural) + Phase 3B (Gemini semantic) implemented
+- Phase 4 (Object.freeze) implemented
+- Error Recovery Matrix codes F1-F4 implemented as foundation
+- Calibration vs Production mode tracking (localStorage)
+- Escalation Panel UI built (empty by default, populated on RED flags)
+- NO V1 review checkpoint — pipeline auto-continues to Phase 5 on validation pass
+Exit criteria:
+- V1 with intentional structural failure (3 sections instead of 4) gets
+  auto-caught, auto-retried, eventually passes or RED escalates
+- V1 with bad fact (Gemini-caught) routes to retry, then passes or RED escalates
+- Calibration mode tracks article count correctly per client
+- Escalation Panel shows F-codes correctly when triggered
+
+MILESTONE 3: VOICE DRAFT — OPTION E (1 session) — CRITICAL
+Goals:
+- Phase 5 implemented with Tool Use Option E schema
+- voice_architecture + transition_logic + data_anchors_to_preserve forced
+- AI-Tell Kill List baked into system prompt
+- Gold-standard exemplars loaded (operator must provide 9-12 by this point)
+- Intent-matched exemplar routing functional
+Exit criteria:
+- V2 prose reads dramatically more human than V3.1 voice rewrite
+- voice_architecture appears in JSON output and is non-trivial
+- transition_logic appears before each rewrite
+- Tested on 3 different topics + 2 different clients (iTV + Brighton Gold)
+- Operator confirms voice quality matches chat-version standards
+
+MILESTONE 4: FORENSIC CRITIQUE (Phase 5.5) + JS QUALITY CHECKS (1 session)
+Goals:
+- Phase 5.5 implemented (ruthless editor pass with FULL array context for
+  transition preservation — Frankenstein Risk fix)
+- 6 JS quality checks implemented as PURE FUNCTIONS with unit tests FIRST,
+  then wired into pipeline:
+  1. Pronoun/Noun Start Ratio (HTML-tag-stripped)
+  2. Callback Verifier (distance-based: top 20% + bottom 20%)
+  3. Question Mark Density (relative: per 500 words)
+  4. AI-Tell Scan
+  5. Data Anchor Preservation
+  6. Semantic Anchor Preservation (from 4.2 sheet)
+- Retry loop on quality check failures (max 2 retries -> Checkpoint 2)
+- json5 or regex pre-cleaner installed for tolerant JSON parsing
+Exit criteria:
+- All 6 JS checks pass unit tests in isolation BEFORE pipeline integration
+- Articles that fail Phase 5.6 checks get auto-fixed in Phase 5.5
+- Final V2 passes all 6 JS checks on 5 consecutive test articles
+- JSON parser handles malformed Claude output without crashing pipeline
+- Quality measurably better than V3.1's flat textbook prose
+
+MILESTONE 5: ASSEMBLY (1 session)
+Goals:
+- Phase 6 full assembly implemented
+- Byline, Last Updated, ToC, schema injection
+- Typographic rhythm preserved in HTML
+- Side-by-side HTML output vs V3.1 on same topic
+Exit criteria:
+- V4.0 HTML passes Google Rich Results Test
+- Visually polished — bolding, bullets, paragraph variance
+- Schema valid
+
+MILESTONE 6: SIDE-BY-SIDE TESTING + UI POLISH (1-2 sessions)
+Goals:
+- Run 5 articles through V3.1 and V4.0 in parallel
+- Compare quality (operator subjective read), cost, time
+- Polish UI, error messages, VA-facing copy
+- Test on iTV + Brighton Gold (multi-client validation)
+Exit criteria:
+- V4.0 produces measurably better articles at equal or lower cost
+- VA can run V4.0 end-to-end without operator assistance
+- V3.1 deprecated
+
+MILESTONE 7: V4.0 SHIPPED + DOCS UPDATED
+Goals:
+- 4.4 updated to V11.0
+- 4.3A updated to V3.3
+- Master Doc updated
+- VAs trained on Checkpoint 1 + Checkpoint 2 UX
+- V3.1 archived
+
+
+═══════════════════════════════════════════════════════════════
+SUCCESS CRITERIA — HOW WE KNOW V4.0 WORKS
+═══════════════════════════════════════════════════════════════
+
+V4.0 is successful when:
+1. Articles consistently sound human — operator subjective test across 10+
+   articles: "would I have written this?"
+2. V1 bones never drift in V2 (deep-equal check passes 100%)
+3. Pipeline completes in under 6 minutes wall-clock
+4. Total API cost per article under $2.00 (well below $3 ceiling)
+5. VA can run a complete article without operator intervention
+6. Articles consistently pass all 6 Phase 5.6 quality checks
+7. New client onboarding requires only a new 4.3B + voice exemplars (no code)
+8. Codebase fits in single chat context (< 50% of context budget)
+9. Architectural locks count under 15
+10. VA Intervention Rate < 15% — how often the pipeline hard-stops at a
+    checkpoint requiring operator escalation
+11. Time-to-Resolution (TTR) on Phase 3 failures < 2 minutes — if VA spends
+    longer trying to understand a failure, the system has failed its primary
+    operational goal (VA-runnability)
+12. Cache Hit Ratio tracked — monitor cost per article. If cache hit ratio
+    drops, cost spikes (5-min cache TTL means slow VA review = uncached call)
+
+V4.0 is NOT successful if:
+- Voice rewrite produces articles that "sound like AI"
+- Frame Lock or Snapshot Diff has to be re-introduced
+- More than 1 post-assembly pass needed
+- Articles fail Phase 5.6 quality checks more than 1 in 5 runs
+- VA hits error states requiring operator escalation
+- Architectural complexity creeps back toward V3.x
+
+
+═══════════════════════════════════════════════════════════════
+OPERATIONAL MODES — CALIBRATION VS PRODUCTION (NO HUMAN READS)
+═══════════════════════════════════════════════════════════════
+
+CORE PRINCIPLE (from V3.x Master Doc, enforced in V4.0):
+"NO HUMAN READS ARTICLES DURING PRODUCTION. The system must be trusted."
+
+V3.x violated this by routing "Continue Anyway" buttons and validation
+review prompts to humans mid-pipeline. V4.0 fixes this with two modes:
+
+CALIBRATION MODE (initial onboarding period per client):
+- Operator (Gerek) reviews voice quality on each article BEFORE the
+  article is published
+- VA's role in Calibration: hit "Start Pipeline" → at completion, click
+  "Download Draft for Operator Review" button
+- VA does NOT publish in Calibration mode — VA only generates and queues
+- Handoff: VA drops the downloaded .html + .json files into the operator's
+  Slack/Monday.com review queue (per client agreement)
+- Operator reviews, accepts or rejects, sends feedback for prompt/exemplar
+  tuning if needed
+- After enough successful runs, OPERATOR manually flips the client to
+  Production Mode via a "Promote to Production" button in the tool's
+  client settings
+
+PRODUCTION MODE (operator-promoted only):
+- Pipeline runs end-to-end fully autonomous
+- If all 6 Phase 5.6 quality checks pass → AUTO-PUBLISH (no human eyes)
+- VA's only role: hit "Start Pipeline" and confirm publish on success
+- VA does NOT read article content for quality
+- VA only intervenes on RED ESCALATION flag (terminal error, retries
+  exhausted, safety filter refusal, etc.)
+
+NO AUTO-ADVANCE:
+- The tool does NOT automatically promote clients from Calibration to
+  Production based on article count or any other metric
+- Promotion is a manual operator decision based on subjective voice
+  quality assessment across the calibration run
+- Operator may promote after 5 articles or 30 — at their discretion
+- Operator may also DEMOTE a client back to Calibration if production
+  drift is observed (e.g., voice quality degrades, exemplars need refresh)
+
+MODE TRACKING:
+- Stored per-client in localStorage: `aeo_v4_mode_{clientName}` =
+  "calibration" | "production"
+- Article counter (informational only, not used for auto-promotion):
+  `aeo_v4_calibrated_count_{clientName}` = integer
+- Mode toggle button in tool UI under per-client settings (operator
+  access only — VAs cannot toggle)
+
+NEW CLIENT ONBOARDING:
+- New 4.3B + voice exemplars + 4.2 sheet structure required
+- Defaults to Calibration Mode
+- Operator runs or supervises first articles personally before promoting
+
+If Phase 5.6 quality checks FAIL after max retries (in either mode), the
+pipeline does NOT silently ship. It throws a RED ESCALATION flag.
+
+
+═══════════════════════════════════════════════════════════════
+ERROR RECOVERY MATRIX — EVERY FAILURE MODE DEFINED
+═══════════════════════════════════════════════════════════════
+
+PRINCIPLE: Every failure has a defined response. No human reads ANY article
+for content quality. Humans only see RED ESCALATION flags with specific
+error codes and remediation steps. Pipeline auto-recovers wherever possible.
+
+ESCALATION LEVELS:
+- AUTO-RECOVER: Pipeline handles silently, never tells VA
+- AUTO-RETRY: Pipeline retries with backoff, tells VA only on retry exhaustion
+- YELLOW WARNING: Pipeline continues but logs warning, surfaces to operator dashboard
+- RED ESCALATION: Pipeline hard-stops, VA pings operator with error code
+
+────────────────────────────────────────────────────────────
+F1: GEMINI RESEARCH RETURNS EMPTY OR GARBAGE (Phase 1)
+────────────────────────────────────────────────────────────
+TRIGGER: Phase 1 response has empty `sources` array OR missing
+         `clientSpecificThesis` OR missing `factClaims`
+DETECTION: JS validates Phase 1 JSON shape after parse
+ACTION: AUTO-RETRY with same prompt (Gemini occasionally returns shallow
+        results on first call). Max 2 retries with 10s wait between.
+RETRY BUDGET: 2
+ESCALATION: RED — "Research failed after 2 retries. Topic may be too
+            narrow or Gemini API issue. Code: F1"
+
+────────────────────────────────────────────────────────────
+F2: MALFORMED JSON FROM CLAUDE (any phase)
+────────────────────────────────────────────────────────────
+TRIGGER: JSON.parse() throws OR json5 fallback throws
+DETECTION: Try/catch around all JSON parsing
+ACTION: AUTO-RECOVER — MUST run this exact sequence:
+        1. STRIP MARKDOWN WRAPPERS FIRST. Claude has a stubborn habit
+           of wrapping Tool Use JSON in markdown code fences during
+           retries, even when explicitly told not to. Run regex:
+             - Strip leading ```json or ``` (with optional whitespace)
+             - Strip trailing ``` (with optional whitespace)
+             - Strip any leading/trailing conversational text before
+               the first { and after the last }
+        2. Pass cleaned string to JSON.parse() first (cheaper, faster)
+        3. If JSON.parse() throws, pipe through json5 tolerant parser
+        4. If json5 also fails, run secondary regex pre-cleaner:
+             - Strip control characters
+             - Escape stray quotes inside string values
+             - Remove trailing commas
+        5. If still fails, AUTO-RETRY the Claude call with system prompt
+           appended: "Your previous response had invalid JSON OR was
+           wrapped in markdown. Return raw JSON only — no code fences,
+           no preamble, no explanation."
+RETRY BUDGET: 2
+ESCALATION: RED — "Claude returned unparseable JSON after 2 retries.
+            Code: F2. May indicate prompt issue or model issue."
+
+────────────────────────────────────────────────────────────
+F3: TRUNCATED JSON FROM TOKEN EXHAUSTION (Phase 2 or 5)
+────────────────────────────────────────────────────────────
+TRIGGER: Response ends mid-string OR `stop_reason: "max_tokens"` in API response
+DETECTION: Check `stop_reason` in Anthropic response. Check JSON ends with
+           closing brace. If neither, truncation.
+ACTION: AUTO-RECOVER — Parse-and-merge-arrays (NOT raw string concat).
+
+        DO NOT attempt blind string concatenation. Claude will add
+        conversational preambles ("Here is the rest of your JSON:") or
+        repeat closing brackets, producing unparseable joined strings.
+
+        Correct sequence:
+        1. Run truncated response through F2's tolerant parser. Strip
+           markdown wrappers first. Use json5 to close the truncated
+           JSON structure as best it can.
+        2. Identify the last SUCCESSFULLY COMPLETED targetId in the
+           rewrites array (the last object that has all required fields
+           populated cleanly).
+        3. Discard any partial/malformed trailing object.
+        4. Send a new Claude call with system prompt:
+           "Your previous response stopped after completing the rewrite
+           for targetId [XYZ]. Return a NEW JSON array (same Tool Use
+           schema) starting from the NEXT targetId. Do NOT repeat any
+           rewrites you've already completed. Do NOT include preamble."
+        5. Parse the second response (run through F2's cleaner again).
+        6. JS merges the two ARRAYS programmatically:
+             merged_array = first_array.concat(second_array)
+           Never merge raw strings.
+        7. Validate merged array contains rewrites for ALL expected
+           targetIds. If any are missing, escalate.
+
+RETRY BUDGET: 1 continuation attempt. If still truncated or merged array
+              is incomplete, escalate.
+ESCALATION: RED — "Response exceeded token budget even after continuation.
+            Code: F3. Article scope may be too large, or continuation
+            response also failed."
+
+────────────────────────────────────────────────────────────
+F4: API DOWN (Claude / Gemini / Drive)
+────────────────────────────────────────────────────────────
+TRIGGER: Fetch throws OR returns 500-599 status
+DETECTION: HTTP status code + fetch error handling
+ACTION: AUTO-RETRY with exponential backoff: 5s, 15s, 45s
+RETRY BUDGET: 3
+ESCALATION: RED — "{API name} unavailable after 3 retries. Code: F4.
+            Check provider status page."
+
+────────────────────────────────────────────────────────────
+F5: 429 RATE LIMIT (multi-tab parallel runs)
+────────────────────────────────────────────────────────────
+TRIGGER: HTTP 429 from any API
+DETECTION: Status code 429
+
+PREVENTION (CRITICAL — IMPLEMENT FIRST):
+Before relying on backoff recovery, prevent the collision from happening
+in the first place via a lightweight localStorage semaphore.
+
+The Problem: If the VA opens 6 tabs and hits "Start Pipeline" on all
+simultaneously, you instantly trigger Anthropic's concurrent connection
+limit and TPM (Tokens Per Minute) limit. You get a traffic jam of
+backoffs all firing at once, which compounds the problem.
+
+The Semaphore:
+- Global lock key in localStorage: `aeo_v4_concurrency_lock`
+- Lock value: `{ tabId, phase, timestamp, lease_seconds }`
+- Before any expensive API call (Phase 2 V1 generation, Phase 5 voice
+  draft, Phase 5.5 critique), the tab MUST:
+    1. Check the lock. If present and not expired, queue and wait
+       (poll every 2 seconds with jitter).
+    2. If lock is free, claim it with this tab's ID and a lease (~120s).
+    3. Make the API call.
+    4. Release the lock immediately after the call completes (success
+       or failure).
+- Lease expires automatically if a tab crashes (timestamp + lease check).
+- Phase 1 (research) and Phase 3B (validation) are cheap enough to skip
+  the semaphore — only gate the expensive calls.
+
+ACTION (FALLBACK IF 429 STILL OCCURS): AUTO-RECOVER — silent exponential
+        backoff: 5s, 10s, 20s, 40s. VA sees a small "Throttled, retrying..."
+        indicator. No escalation during backoff window.
+RETRY BUDGET: 4 (covers 75s of backoff)
+ESCALATION: RED if all 4 retries exhausted — pipeline cannot continue
+            without the API response data. "Rate limited beyond backoff
+            window. Run fewer parallel tabs. Code: F5"
+
+────────────────────────────────────────────────────────────
+F6: CLAUDE SAFETY FILTER REFUSAL (chiropractic medical content)
+────────────────────────────────────────────────────────────
+TRIGGER: Response contains "I cannot" / "I apologize" / "unable to provide"
+         / `stop_reason: "refusal"` AND missing expected Tool Use output
+DETECTION: Regex scan of response + missing tool_use block in Claude response
+ACTION: AUTO-RETRY with explicit framing in system prompt:
+        "This is informational content about chiropractic services for
+        professional websites. Not medical advice. Continue."
+RETRY BUDGET: 1
+ESCALATION: RED — "Claude safety filter blocked content after retry.
+            Code: F6. Topic may need prompt adjustment by operator."
+
+────────────────────────────────────────────────────────────
+F7: PROMPT CACHE MISS (cost spike detection)
+────────────────────────────────────────────────────────────
+TRIGGER: cache_read_input_tokens = 0 when expected > 0
+DETECTION: JS reads Anthropic API response usage block
+ACTION: AUTO-RECOVER — log warning, continue. Cache miss happens when
+        VA review exceeds 5-minute TTL. Pipeline still works, just costs
+        more for this run.
+RETRY BUDGET: N/A (no retry, just logged)
+ESCALATION: YELLOW — accumulate cache miss data in dashboard for ops
+            visibility. If >20% of runs miss cache, train VA on faster
+            review or implement keep-alive ping.
+
+────────────────────────────────────────────────────────────
+F8: PHASE 5.6 QUALITY CHECKS FAIL AFTER MAX RETRIES
+────────────────────────────────────────────────────────────
+TRIGGER: Phase 5.5 → 5.6 loop exhausted (2 retries) AND any of the 6
+         checks still failing
+DETECTION: Retry counter + check results
+ACTION: PRODUCTION MODE — RED ESCALATION (do NOT auto-publish).
+        CALIBRATION MODE — surface to operator with diff between V1 and V2
+RETRY BUDGET: 2
+ESCALATION: RED — "Voice quality checks failed. Code: F8. Specific
+            failures: [list of which checks failed]. Manual operator
+            review required."
+
+────────────────────────────────────────────────────────────
+F9: IMAGE GENERATION PARTIAL FAILURE
+────────────────────────────────────────────────────────────
+TRIGGER: One or more images in Phase 5/7 returns error or empty bytes
+DETECTION: Per-image try/catch in image queue
+ACTION: AUTO-RETRY failed images individually (up to 2 retries each).
+        If image still fails: PROCEED ANYWAY with placeholder URL in
+        HTML output + RED escalation note
+RETRY BUDGET: 2 per image
+ESCALATION: YELLOW — "{N} of {total} images failed. Article published
+            with placeholder URLs. Regenerate images and update post-publish.
+            Code: F9"
+
+────────────────────────────────────────────────────────────
+F10: DRIVE API FETCH FAILS (4.3A / 4.3B / 4.4)
+────────────────────────────────────────────────────────────
+TRIGGER: Drive API returns 404 / 403 / 500
+DETECTION: HTTP status from Drive fetch
+ACTION: AUTO-RETRY with 5s wait
+RETRY BUDGET: 2
+ESCALATION: RED — "Cannot fetch {document name}. Check Drive permissions
+            or file ID. Code: F10"
+
+────────────────────────────────────────────────────────────
+F11: INTENT LAYER MISSING OR INVALID IN SHEET ROW
+────────────────────────────────────────────────────────────
+TRIGGER: Intent Layer column from 4.2 sheet is empty or not one of
+         (Direct, Indirect, Latent, Counter, Post-Intent)
+         Note: this should never happen if 4.1 V4.0 produced the row
+         correctly, but defensive check required
+DETECTION: JS validates sheet row at Phase 1 start
+ACTION: AUTO-FALLBACK — default to "Indirect" (middle-ground intent
+         covering most chiropractic search behavior). Log warning.
+RETRY BUDGET: N/A
+ESCALATION: YELLOW — "Intent Layer missing for {article topic}. Defaulted
+            to Indirect. Code: F11. Check 4.2 sheet row — 4.1 V4.0 should
+            have populated this. May indicate manual sheet edit."
+
+────────────────────────────────────────────────────────────
+F12: VOICE EXEMPLAR FILE MISSING OR INTENT NOT REPRESENTED
+────────────────────────────────────────────────────────────
+TRIGGER: voice_exemplars.txt not in 4.3B folder, OR file exists but
+         contains no exemplars matching the article's Intent Layer
+DETECTION: Drive API returns 404 OR file parse finds zero matching
+           === [INTENT] EXEMPLAR N === blocks
+ACTION: AUTO-FALLBACK — use closest intent in this priority order:
+         Missing Direct → use Indirect
+         Missing Indirect → use Direct
+         Missing Latent → use Indirect
+         Missing Counter-Intent → use Indirect
+         Missing Post-Intent → use Latent
+         If file completely missing → proceed with NO exemplars
+         (voice rules only from 4.3A/4.3B)
+RETRY BUDGET: N/A
+ESCALATION: YELLOW — "Voice exemplars missing for {intent}, fell back
+            to {fallback intent}. Code: F12. Add exemplars to
+            voice_exemplars.txt before next run."
+
+────────────────────────────────────────────────────────────
+F13: CLAUDE REWRITES ARRAY REFERENCES NON-EXISTENT targetId
+────────────────────────────────────────────────────────────
+TRIGGER: A rewrite's targetId doesn't match any ID in frozen V1
+DETECTION: JS validates each targetId against V1 ID registry before apply
+ACTION: AUTO-RECOVER — discard the orphaned rewrite, log warning, continue
+        with remaining valid rewrites
+RETRY BUDGET: N/A (silent drop)
+ESCALATION: YELLOW — only if >20% of rewrites are orphaned. Then RED:
+            "Phase 5 returned mostly invalid targetIds. Code: F13.
+            Possible model confusion."
+
+────────────────────────────────────────────────────────────
+F14: TOOL USE SCHEMA VIOLATION
+────────────────────────────────────────────────────────────
+TRIGGER: Claude returns tool_use block missing required fields OR
+         containing disallowed fields
+DETECTION: JS validates Tool Use response against expected schema
+ACTION: AUTO-RETRY with system prompt: "Your previous response was
+        missing required fields: [list]. Return valid Tool Use output
+        with all required fields populated."
+RETRY BUDGET: 2
+ESCALATION: RED — "Claude failed to follow Tool Use schema after 2
+            retries. Code: F14"
+
+────────────────────────────────────────────────────────────
+F15: CLOUDFLARE PROXY 524 TIMEOUT
+────────────────────────────────────────────────────────────
+TRIGGER: HTTP 524 from anthropic-proxy.gerek.workers.dev
+DETECTION: Status code 524
+ACTION: AUTO-RETRY — Cloudflare 524 = upstream took too long. Retry with
+        streaming explicitly enabled (preserved from V3.1 architectural
+        lock).
+RETRY BUDGET: 2
+ESCALATION: RED — "Cloudflare proxy timeout. Code: F15. Verify proxy is
+            up and streaming flag is set on all Claude calls."
+
+────────────────────────────────────────────────────────────
+F16: VA CLOSES TAB MID-PIPELINE (session loss)
+────────────────────────────────────────────────────────────
+TRIGGER: Browser tab closed before Phase 6 completion
+DETECTION: N/A — happens externally
+ACTION: NO MID-PIPELINE SESSION RESTORE (per V3.0 architectural lock).
+        Multi-tab simultaneous runs are the operational pattern. If a tab
+        closes, that article's IN-FLIGHT state is lost.
+
+        HOWEVER: ARTIFACT AUTO-SAVE is mandatory. At two milestones, JS
+        silently dumps expensive outputs to localStorage:
+        1. End of Phase 4 (V1 frozen) → saves V1 JSON
+        2. End of Phase 6 (HTML assembled) → saves HTML + schema + V2 JSON
+
+        localStorage keys:
+        - `aeo_v4_artifact_v1_{clientName}_{timestamp}` = frozen V1 JSON
+        - `aeo_v4_artifact_final_{clientName}_{timestamp}` = HTML + schema + V2
+
+        UI: "Recover Last Generated Assets" button in tool header.
+        Shows most recent saved artifacts per client. VA or operator
+        can recover the V1 JSON (resume to Phase 5) or the final HTML
+        (just publish what was already generated) without re-running
+        the full $2 pipeline.
+
+        Auto-cleanup: localStorage entries older than 7 days auto-purged
+        to prevent storage bloat.
+RETRY BUDGET: N/A
+ESCALATION: N/A — VA uses "Recover Last Generated Assets" button
+
+────────────────────────────────────────────────────────────
+F17: getClientDomain() RETURNS __NO_DOMAIN__
+────────────────────────────────────────────────────────────
+TRIGGER: V3.1 sentinel for unresolvable client domain
+DETECTION: JS checks before Phase 3A internal-link validation
+ACTION: HARD STOP — internal link validation impossible without domain.
+        Pipeline cannot continue safely.
+RETRY BUDGET: 0
+ESCALATION: RED — "Cannot resolve client domain for {clientName}. Check
+            4.3B Section 12 for domain or sheet row for client URL.
+            Code: F17"
+
+────────────────────────────────────────────────────────────
+F18: BROWSER BACKGROUND TAB THROTTLING (silent hang)
+────────────────────────────────────────────────────────────
+TRIGGER: Phase exceeds expected wall-clock time by 2x
+DETECTION: JS heartbeat timer per phase. Expected durations:
+           Phase 1: 30s (alert at 60s)
+           Phase 2: 90s (alert at 180s)
+           Phase 3: 30s (alert at 60s)
+           Phase 5: 75s (alert at 150s)
+           Phase 5.5: 30s (alert at 60s)
+ACTION: AUTO-RECOVER — display visible UI warning on the tab:
+        "Pipeline running slowly. Please keep this tab active and visible."
+        Continue waiting. Do NOT auto-cancel.
+RETRY BUDGET: N/A (just wait)
+ESCALATION: YELLOW after 3x expected duration: "Pipeline stalled. Keep
+            tab active. Code: F18. If unresolved, refresh and restart."
+
+────────────────────────────────────────────────────────────
+F19: GEMINI VALIDATION RETURNS GARBAGE (Phase 3B)
+────────────────────────────────────────────────────────────
+TRIGGER: Phase 3B semantic check returns empty array OR malformed response
+        when V1 has obvious issues, OR Phase 3B fails completely
+DETECTION: Sanity-check Gemini response shape
+ACTION: AUTO-RETRY with explicit framing
+RETRY BUDGET: 1
+ESCALATION: RED if retry fails. Article cannot be published without
+            semantic validation against research brief — that's the
+            entire reason for the $3/article investment. Without F19
+            passing, we have no guarantee the article hits the client's
+            proprietary thesis. "Semantic validation failed after retry.
+            Article unsafe to publish. Code: F19"
+
+────────────────────────────────────────────────────────────
+F20: COST CEILING EXCEEDED ($3.00 PER ARTICLE)
+────────────────────────────────────────────────────────────
+TRIGGER: Running cost total for an article exceeds $3.00
+DETECTION: JS tracks cumulative cost per phase
+ACTION: YELLOW WARNING at $2.50, log full breakdown.
+        HARD STOP at $3.00 — do not start next phase.
+RETRY BUDGET: N/A
+ESCALATION: RED at $3.00 — "Article exceeded $3 budget. Code: F20.
+            Cost breakdown: [phase-by-phase]. Likely cause: cache miss
+            or excessive retries. Operator review."
+
+────────────────────────────────────────────────────────────
+F21: DELIVERY / PUBLISH FAILURE (the last mile)
+────────────────────────────────────────────────────────────
+TRIGGER: After Phase 6 completes successfully, the delivery step fails:
+         - HTML download blocked by browser
+         - Clipboard copy denied (clipboard API permission)
+         - WordPress API push fails (if using direct API integration)
+         - File system write blocked (rare, e.g., disk full)
+DETECTION: Try/catch around delivery action
+ACTION: AUTO-RECOVER — trigger fail-safe payload download. JS forces
+        a browser download of TWO files to the VA's local machine:
+        1. `{article_slug}_final.html` — the assembled HTML
+        2. `{article_slug}_full_payload.json` — V2 JSON + schema +
+           run metadata
+        These files contain everything needed to publish manually.
+        Costs nothing extra (article is already generated).
+RETRY BUDGET: N/A (fail-safe is the action)
+ESCALATION: YELLOW — "Delivery method failed but assets saved locally.
+            VA must manually publish from downloaded files. Code: F21"
+
+────────────────────────────────────────────────────────────
+SUMMARY: ERROR ESCALATION DASHBOARD
+────────────────────────────────────────────────────────────
+
+The V4.0 UI has a single "Escalation Panel" visible to VAs:
+- Shows any RED flags from current pipeline runs
+- Shows accumulated YELLOW warnings (last 10 runs)
+- Shows error code + 1-sentence remediation
+- Has "Notify Operator" button that triggers email/SMS to Gerek
+
+VAs never read article CONTENT. They only see ERROR CODES.
+Operator (Gerek) handles all RED escalations.
+
+In Production Mode: 95%+ of pipeline runs should produce NO escalations.
+The Error Recovery Matrix exists so that the 5% that fail have defined,
+documented, automated responses — not reactive patching like V3.x.
+
+
+═══════════════════════════════════════════════════════════════
+HANDOFF NOTES FOR CLAUDE CODE
+═══════════════════════════════════════════════════════════════
+
+Working environment:
+- Repo: itechvalet.github.io/AEO-Tools/
+- V3.1 file: aeo_article_creation.html (~5,731 lines, production fallback)
+- Build target: aeo_v4.html (parallel file, do not modify V3.1)
+- Cloudflare proxy: anthropic-proxy.gerek.workers.dev
+- Direct Gemini API: generativelanguage.googleapis.com
+
+Anthropic API references:
+- Prompt caching: https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
+- Tool Use: https://docs.anthropic.com/en/docs/build-with-claude/tool-use
+- Model: claude-sonnet-4-5
+- Max tokens: 64,000
+- Streaming required (Cloudflare proxy times out without streaming)
+
+Gemini API references:
+- Model: gemini-2.5-pro
+- API key in x-goog-api-key header (not URL query string)
+
+Drive API:
+- File ID fetch: https://www.googleapis.com/drive/v3/files/{FILE_ID}?alt=media
+- API key in x-goog-api-key header
+- Key restricted to itechvalet.github.io domain
+
+Per-client config (preserve from V3.1):
+{ name, folder22, folder23, folder43B, sheet42 }
+Universal:
+{ folder43A, folder44 }
+NEW for V4.0: 4.3B folder includes voice_exemplars_*.txt files.
+NEW for V4.0: 4.2 sheet includes INTENT_LAYER column.
+
+Critical: V4.0 must be client-agnostic from day one. Every feature reads
+client data from existing sources. V4.0 must run identically on iTV,
+Brighton Gold, Bushido, MV without per-client tool changes.
+
+CRITICAL LLM-BEHAVIOR DIRECTIVES (READ BEFORE WRITING ANY API CODE):
+
+These three behaviors will silently destroy the pipeline if implemented
+naively. They are documented in the Error Recovery Matrix but flagged
+here because they affect EVERY Claude/Gemini API call you write.
+
+1. MARKDOWN WRAPPER STRIPPING (applies to every Claude response):
+   Claude 3.5 Sonnet has a stubborn habit of wrapping Tool Use JSON in
+   markdown code fences (```json ... ```), especially during retries.
+   Standard JSON.parse() and json5 both crash on backticks.
+
+   Every API response handler MUST run this regex BEFORE JSON.parse():
+   - Strip leading ```json or ``` (with optional whitespace)
+   - Strip trailing ``` (with optional whitespace)
+   - Strip any leading/trailing conversational text before first { and
+     after last }
+
+   See F2 for full implementation. This is NON-NEGOTIABLE for every
+   Claude API call in V4.0.
+
+2. TRUNCATED JSON CONTINUATION (applies to Phase 2 and Phase 5):
+   When Claude hits max_tokens mid-response, DO NOT blindly concatenate
+   the second response onto the first. Claude will add preambles
+   ("Here is the rest...") or repeat closing brackets, producing
+   unparseable joined strings.
+
+   Correct pattern: parse what you have with tolerant parser, identify
+   last completed targetId, request continuation starting from the NEXT
+   targetId, merge as JS ARRAYS (not strings).
+
+   See F3 for full implementation.
+
+3. CONCURRENCY SEMAPHORE (applies to multi-tab pattern):
+   The VA operating model is multi-tab parallel runs. Without a
+   concurrency lock, hitting "Start" on 6 tabs simultaneously triggers
+   Anthropic's TPM limit instantly — all 6 tabs hit 429, all 6 enter
+   backoff, all 6 compound the problem.
+
+   Implement a localStorage semaphore that gates expensive API calls
+   (Phase 2 and Phase 5). Phase 1 and Phase 3B are cheap and don't need
+   gating. Lock with lease/expiry so crashed tabs don't deadlock.
+
+   See F5 for full implementation.
+
+Begin with Milestone 1. Verify prompt caching works before proceeding.
+Ship one milestone at a time. Each milestone gets side-by-side test against
+V3.1 before declaring done.
+
+
+═══════════════════════════════════════════════════════════════
+END OF V4.0 BUILD PLAN
+═══════════════════════════════════════════════════════════════

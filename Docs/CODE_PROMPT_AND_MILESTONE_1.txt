@@ -1,0 +1,273 @@
+CLAUDE CODE PROMPT + MILESTONE 1 CHECK + EXEMPLAR SELECTION PROMPT
+================================================================
+Three things you need in one file. Use as needed.
+================================================================
+
+
+═══════════════════════════════════════════════════════════════
+PART 1 — CLAUDE CODE HANDOFF PROMPT (copy/paste at start)
+═══════════════════════════════════════════════════════════════
+
+When you first start Claude Code, paste this exact prompt:
+
+---
+
+Read AEO_V4_Build_Plan.txt and AEO_Article_Creation_Tool_Master_Doc.txt
+in the project files before doing anything. The Build Plan is the spec.
+The Master Doc is the V3.1 history.
+
+Start with the "Human Overview" section of the Build Plan for mental
+model, then read through the full spec. Pay particular attention to:
+- The 21 failure modes in the Error Recovery Matrix
+- The three Critical LLM-Behavior Directives in the Handoff Notes section
+  (markdown wrapper stripping, truncated JSON continuation, concurrency
+  semaphore)
+
+Start with Milestone 1: skeleton + Phase 1-2 with prompt caching.
+Verify prompt caching works (cache_creation_input_tokens AND
+cache_read_input_tokens visible in API response logs) before proceeding
+to Milestone 2.
+
+Do not modify aeo_article_creation.html — that is V3.1 production
+fallback. Build V4.0 as parallel file aeo_v4.html. Ship one milestone
+at a time. Show me the Milestone 1 result before starting Milestone 2.
+
+---
+
+
+═══════════════════════════════════════════════════════════════
+PART 2 — MILESTONE 1 EXIT CHECK (what to verify before approving)
+═══════════════════════════════════════════════════════════════
+
+When Claude Code says "Milestone 1 complete," DO NOT approve until
+you verify ALL FIVE of these:
+
+1. NEW FILE EXISTS
+   aeo_v4.html lives at itechvalet.github.io/AEO-Tools/aeo_v4.html
+   (parallel to aeo_article_creation.html, NOT replacing it)
+
+2. UI IS CLEAN
+   When you open aeo_v4.html in browser, you see:
+   - Client selector dropdown
+   - Topic input field
+   - Start Pipeline button
+   - 7 phase status cards (Phase 1 Research, Phase 2 V1, etc.)
+   - Empty Escalation Panel
+   - NO 17-step layout from V3.1
+
+3. PHASE 1 WORKS
+   Click Start. Phase 1 fires.
+   Console/UI should show:
+   - Gemini API call made with full context
+   - Response includes both research brief AND clientSpecificThesis
+   - JSON parses successfully
+
+4. PHASE 2 WORKS
+   Phase 2 fires after Phase 1.
+   Console/UI should show:
+   - Claude API call made with research brief + cached context
+   - Response is valid JSON in V1 shape (checklist, directAnswer,
+     thesis, sections, faq, cta)
+   - V1 JSON renders in preview tab
+
+5. ⚠️ PROMPT CACHING IS WORKING (CRITICAL)
+   This is the non-negotiable check. Without caching, the cost model breaks.
+
+   Inspect the Claude API response from Phase 2. Look at the "usage" block.
+   You MUST see BOTH:
+
+   "cache_creation_input_tokens": [some number > 0]  ← first call writes cache
+   "cache_read_input_tokens": [some number > 0]      ← subsequent call reads
+
+   If "cache_read_input_tokens" is 0 or missing on the second run with
+   the same context: CACHING IS NOT WORKING. Tell Claude Code:
+
+   "Cache read tokens are 0. The cache_control parameter is not being
+   set correctly on the cached content blocks. Fix this before Milestone 2."
+
+   Reference: https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
+
+   If both numbers show: caching works, approve Milestone 1.
+
+
+═══════════════════════════════════════════════════════════════
+PART 3 — EXEMPLAR SELECTION PROMPT (for collecting voice samples)
+═══════════════════════════════════════════════════════════════
+
+WHAT THIS IS:
+A prompt to use in a FRESH Claude chat (or Claude Project) to have
+Claude help you select the best 10-15 voice exemplars from your
+archive of past articles. You do this ONCE per client.
+
+HOW TO USE:
+1. Open a new Claude chat (Claude.ai) — does NOT need to be in a
+   project. Fresh slate is fine.
+2. Upload 15-25 of your best past articles for the client as .txt files
+   or paste them inline (whichever is easier).
+3. Paste the prompt below, replacing [CLIENT NAME] with the actual
+   client name (iTech Valet, Brighton Gold, etc.)
+4. Review Claude's output. Swap any selections you disagree with.
+5. Save the final formatted output as voice_exemplars.txt
+6. Upload to the client's 4.3B Drive folder
+7. Add the file ID to Client Manager (folderVoiceExemplars field)
+
+
+═══ PASTE THIS PROMPT IN A FRESH CLAUDE CHAT ═══
+
+I'm building a content production pipeline that uses your past
+articles as voice exemplars to teach an AI to write in my voice.
+
+CONTEXT:
+I am [YOUR NAME], operator of [CLIENT NAME]. My writing style is:
+- Direct, casual, conversational ("beer with a friend" energy)
+- Strong POV from the first sentence
+- Zero hedging language
+- Heavy use of conversational transitions (But, And, So, Here's, That means)
+- Hard data preserved with specificity (real numbers, not "many" or "several")
+- Clear thesis defended, not summarized
+- Slightly confrontational when calling out competitors or industry BS
+- Short paragraphs, varied length, with rhetorical questions for rhythm
+
+The articles I'm uploading were all written or heavily edited by me.
+Some are stronger than others. I need you to pick the ones that BEST
+represent my voice and have the strongest POV.
+
+INTENT LAYER TAXONOMY:
+I write articles across 5 intent layers. Sort the selected exemplars
+into these buckets:
+
+1. DIRECT INTENT — The reader knows what they want and is ready to act
+   (e.g., "Best [service] in [location]")
+2. INDIRECT INTENT — The reader has a problem your service solves but
+   hasn't named the service (e.g., "How to fix [problem]")
+3. LATENT INTENT — The reader has an underlying issue they don't know
+   is connected to your service (e.g., "Why does X happen?")
+4. COUNTER-INTENT — The reader is evaluating objections, myths, risks
+   (e.g., "Is [service] safe?" or "Is [service] worth it?")
+5. POST-INTENT — The reader has already used the service and wants
+   maintenance or next steps (e.g., "What to do after [service]")
+
+YOUR JOB:
+1. Read every article I uploaded.
+2. Select 10-15 total that BEST represent my voice — strong POV, zero
+   hedging, conversational rhythm, hard data, clear thesis.
+3. Sort selections across the 5 intent layers (aim for 2-3 per intent
+   if possible — but quality over distribution; if I gave you 7
+   Indirect Intent articles and only 1 Direct Intent, that's fine).
+4. For each selected article, write a 1-2 sentence "Why this works"
+   note explaining what makes it strong (the friction setup, the
+   callback, the conviction moment, etc.)
+
+OUTPUT FORMAT (exact format, copy verbatim):
+
+=== DIRECT INTENT EXEMPLAR 1 ===
+Title: [article title]
+Why this works: [1-2 sentences on what makes the voice strong]
+
+[full article text]
+
+=== DIRECT INTENT EXEMPLAR 2 ===
+Title: [article title]
+Why this works: [1-2 sentences]
+
+[full article text]
+
+=== INDIRECT INTENT EXEMPLAR 1 ===
+[and so on for all 10-15 selections]
+
+CRITICAL FORMATTING RULES:
+- Use the exact === [INTENT] EXEMPLAR N === marker format. JS parses
+  these markers. Any variation breaks the parser.
+- Include the FULL article text for each exemplar, not summaries.
+- Number sequentially WITHIN each intent layer (Direct 1, Direct 2,
+  not globally).
+- If an intent layer has zero good exemplars from my uploads, skip it.
+  Don't fabricate or stretch to fill it.
+
+Begin the analysis. Show me your reasoning for the top picks BEFORE
+producing the final formatted file.
+
+═══ END OF PROMPT ═══
+
+
+═══════════════════════════════════════════════════════════════
+PART 4 — 4.3B SECTION 14 (add to master template + 6 client docs)
+═══════════════════════════════════════════════════════════════
+
+UPDATE THE 4.3B MASTER PROMPT TEMPLATE WITH THIS NEW SECTION.
+THEN COPY TO ALL 6 CLIENT-SPECIFIC 4.3B DOCS.
+
+═══ ADD THIS SECTION TO 4.3B ═══
+
+SECTION 14 — VOICE EXEMPLARS (V4.0 PIPELINE)
+
+This client has a voice_exemplars.txt file stored in this 4.3B Drive
+folder containing gold-standard article examples used by the V4.0
+AEO Article Creation Pipeline at Phase 5 (Voice Draft).
+
+File: voice_exemplars.txt
+File ID: [enter Drive file ID after creating the file]
+
+Structure inside the file uses these markers (parsed by JS):
+  === DIRECT INTENT EXEMPLAR N ===
+  === INDIRECT INTENT EXEMPLAR N ===
+  === LATENT INTENT EXEMPLAR N ===
+  === COUNTER-INTENT EXEMPLAR N ===
+  === POST-INTENT EXEMPLAR N ===
+
+The pipeline reads the Intent Layer column from the 4.2 sheet row
+(populated by 4.1 V4.0) and loads only the matching-intent exemplars
+into Phase 5's cached context. This ensures Claude sees concrete
+examples of voice in the exact intent layer being written.
+
+If voice_exemplars.txt is missing or has no exemplars for the target
+intent, the pipeline falls back to closest intent (Direct↔Indirect,
+Latent→Indirect, Counter→Indirect, Post→Latent), then to no exemplars
+(voice rules only). This is handled by Error Recovery code F12.
+
+═══ END OF SECTION 14 ═══
+
+
+═══════════════════════════════════════════════════════════════
+PART 5 — YOUR ACTUAL SEQUENCE (the next 48 hours)
+═══════════════════════════════════════════════════════════════
+
+DAY 1 (TODAY OR TOMORROW):
+1. Install Claude Code. Point at AEO-Tools repo.
+2. Upload AEO_V4_Build_Plan.txt + AEO_Article_Creation_Tool_Master_Doc.txt
+   + aeo_article_creation.html to wherever Claude Code reads project files
+   from (usually a local directory).
+3. Paste the Claude Code Handoff Prompt (Part 1 above).
+4. Let Claude Code work on Milestone 1.
+
+PARALLEL (WHILE CLAUDE CODE BUILDS):
+5. Open a fresh Claude chat.
+6. Upload 15-25 of iTV's best past articles.
+7. Paste the Exemplar Selection Prompt (Part 3 above) with [CLIENT NAME]
+   replaced with "iTech Valet".
+8. Review Claude's selections. Swap if needed.
+9. Save final output as voice_exemplars.txt
+10. Upload to iTV's 4.3B Drive folder. Note the file ID.
+
+DAY 2:
+11. Verify Milestone 1 using Part 2 checklist.
+12. If pass: approve Milestone 1, Claude Code moves to Milestone 2.
+13. If fail: paste the specific failure back to Claude Code for fix.
+
+DAY 2-3:
+14. Update 4.3A to V3.3 (Conjunction Mandate + Typographic Rhythm sections
+    from build plan).
+15. Add Section 14 to your 4.3B Master Prompt Template.
+16. Copy Section 14 into all 6 client-specific 4.3B docs.
+17. Update each client's Section 14 with their voice_exemplars.txt file ID.
+18. Continue through Milestones with Claude Code.
+
+POST-MILESTONE 3 (when V4.0 voice rewrite is working):
+19. Generate exemplars for the other 5 clients (each takes ~30-60 min
+    using the same prompt). DO NOT block Milestone 3 on this — iTV
+    exemplars are enough to validate the architecture.
+
+
+═══════════════════════════════════════════════════════════════
+END OF FILE
+═══════════════════════════════════════════════════════════════
