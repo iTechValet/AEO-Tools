@@ -68,6 +68,8 @@
   .phase-card.done { border-color:var(--green); }
   .phase-card.error { border-color:var(--red); }
   .phase-card.stub { opacity:.55; }
+  .phase-card.stubdone { border-color:#d4a418; }
+  .phase-card.stubdone .phase-num { color:#d4a418; }
   .phase-header { display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer; user-select:none; }
   .phase-num { font-family:'Bebas Neue',sans-serif; font-size:24px; color:var(--border); line-height:1; min-width:36px; transition:color .3s; }
   .phase-card.active .phase-num { color:var(--accent); }
@@ -179,25 +181,32 @@
 
   <hr class="cp-divider">
 
-  <div class="cp-row" style="grid-template-columns: 1fr 1fr auto auto; align-items:end;">
-    <div class="cp-group">
-      <div class="cp-label">4.3A Folder ID (universal — voice rules)</div>
-      <input class="cp-input" type="text" id="global43A" placeholder="e.g. 1cQhDEzVXMUdFDApLqXWodZqmjXswGwir" oninput="markGlobalsDirty()" />
-    </div>
-    <div class="cp-group">
-      <div class="cp-label">4.4 Folder ID (universal — prompts)</div>
-      <input class="cp-input" type="text" id="global44" placeholder="e.g. 12RQwBXZW8hIVyC9iPlZyfLdB8mU55tgk" oninput="markGlobalsDirty()" />
-    </div>
-    <button class="btn-cache" id="saveGlobalsBtn" onclick="saveGlobals()" style="background:var(--blue);">💾 Save Globals</button>
-    <div class="cp-group">
-      <div class="cp-label">Status</div>
-      <div id="globalsStatus" style="font-size:11px; color:var(--muted); min-height:18px; padding:6px 0;">—</div>
+  <div style="display:flex; align-items:center; gap:10px; font-size:11px; color:var(--muted);">
+    <button onclick="toggleAdmin()" id="adminToggleBtn" style="background:none; border:1px solid var(--border); color:var(--muted); border-radius:6px; padding:5px 10px; font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1px; cursor:pointer;">⚙ Operator Setup ▸</button>
+    <span id="adminHint">Universal Drive folder IDs (4.3A / 4.4). Admin only — hidden from the VA-facing view.</span>
+  </div>
+
+  <div id="adminPanel" style="display:none; margin-top:12px;">
+    <div class="cp-row" style="grid-template-columns: 1fr 1fr auto auto; align-items:end;">
+      <div class="cp-group">
+        <div class="cp-label">4.3A Folder ID (universal — voice rules)</div>
+        <input class="cp-input" type="text" id="global43A" placeholder="e.g. 1cQhDEzVXMUdFDApLqXWodZqmjXswGwir" oninput="markGlobalsDirty()" />
+      </div>
+      <div class="cp-group">
+        <div class="cp-label">4.4 Folder ID (universal — prompts)</div>
+        <input class="cp-input" type="text" id="global44" placeholder="e.g. 12RQwBXZW8hIVyC9iPlZyfLdB8mU55tgk" oninput="markGlobalsDirty()" />
+      </div>
+      <button class="btn-cache" id="saveGlobalsBtn" onclick="saveGlobals()" style="background:var(--blue);">💾 Save Globals</button>
+      <div class="cp-group">
+        <div class="cp-label">Status</div>
+        <div id="globalsStatus" style="font-size:11px; color:var(--muted); min-height:18px; padding:6px 0;">—</div>
+      </div>
     </div>
   </div>
 
   <hr class="cp-divider">
 
-  <div class="cp-row article">
+  <div class="cp-row" style="grid-template-columns: 220px 1fr auto auto; align-items:end; gap:10px;">
     <div class="cp-group">
       <div class="cp-label">Client</div>
       <select class="cp-select" id="clientSelect" onchange="onClientChange()"><option value="">— Select client —</option></select>
@@ -207,9 +216,10 @@
       <input class="cp-input" type="text" id="topicInput" placeholder="Paste topic exactly as it appears in the sheet..." />
     </div>
     <button class="btn-run" id="runBtn" onclick="startPipeline()">⚡ Run Phase 1+2</button>
-    <button class="btn-cache" id="cacheBtn" onclick="repeatPhase2()" disabled title="Re-runs Phase 2 with same context to verify cache hit. Must complete an initial run first.">↻ Repeat P2 (Test Cache)</button>
     <button class="btn-stop" id="stopBtn" onclick="stopPipeline()">⬛ Stop</button>
   </div>
+  <!-- Hidden helper id so legacy references stay valid; the real visible button lives in the Cache Stats tab. -->
+  <button id="cacheBtn" onclick="repeatPhase2()" disabled style="display:none;"></button>
 
   <div class="gstatus" id="gstatus">Ready. Select client, paste topic, hit Run.</div>
 
@@ -371,7 +381,7 @@
 
     <div class="ppane active" id="pane-runlog">
       <div class="legend-box">
-        <strong>What to look for:</strong> First Phase 2 call → <code>cache_creation_input_tokens &gt; 0</code>, <code>cache_read_input_tokens = 0</code> (cache MISS — context being written). Second Phase 2 call within ~5 min → <code>cache_read_input_tokens &gt; 0</code> (cache HIT). The "↻ Repeat P2 (Test Cache)" button proves the round trip.
+        <strong>What to look for:</strong> First Phase 2 call → <code>cache_creation_input_tokens &gt; 0</code>, <code>cache_read_input_tokens = 0</code> (cache MISS — context being written). Second Phase 2 call within ~5 min → <code>cache_read_input_tokens &gt; 0</code> (cache HIT). The "↻ Verify Cache" button in the Cache Stats tab proves the round trip.
       </div>
       <div class="runlog" id="runlogBody"><div class="line info"><span class="ts">—</span>V4.0 M1 ready.</div></div>
     </div>
@@ -385,6 +395,12 @@
     </div>
 
     <div class="ppane" id="pane-cache">
+      <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px; padding:12px 14px; background:#eef3f8; border:1px solid var(--border); border-radius:8px;">
+        <button class="btn-cache" id="cacheBtnPanel" onclick="repeatPhase2()" disabled style="background:var(--blue);">↻ Verify Cache — re-run Phase 2</button>
+        <div style="font-size:11px; color:var(--muted); line-height:1.5;">
+          Re-runs Phase 2 with the identical cached context. Within ~5 min of a completed run, the result row below should read <strong style="color:var(--green);">HIT</strong> with <code>cache_read &gt; 0</code>. Enabled only after ⚡ Run Phase 1+2 completes. Streams live in the V1 JSON tab — it is working even if the result takes 30–90s.
+        </div>
+      </div>
       <div class="cache-grid">
         <div class="cache-stat">
           <div class="cache-stat-label">Last call — cache_creation</div>
@@ -408,7 +424,7 @@
       </div>
       <div id="cacheLogRows"></div>
       <div style="margin-top:14px; padding:10px 12px; background:#eef9ee; border:1px solid #c8e6c9; border-radius:6px; font-size:11px; color:#1b5e20;">
-        <strong>Milestone 1 cache verification passes when:</strong> a Run produces row 1 with cache_creation &gt; 0 (MISS or PARTIAL), then "↻ Repeat P2 (Test Cache)" within 5 min produces row 2 with cache_read &gt; 0 (HIT). Both numbers visible above = caching is wired correctly.
+        <strong>Milestone 1 cache verification passes when:</strong> ⚡ Run produces row 1 with cache_creation &gt; 0 (verdict MISS or PARTIAL — context being written), then ↻ Verify Cache within 5 min produces row 2 with cache_read &gt; 0 (verdict HIT — context replayed from cache). Both numbers visible = caching is wired correctly.
       </div>
     </div>
 
@@ -512,6 +528,17 @@
     status.textContent = 'Unsaved changes';
     status.style.color = 'var(--orange)';
   }
+  function setAdminOpen(open){
+    document.getElementById('adminPanel').style.display = open ? 'block' : 'none';
+    document.getElementById('adminToggleBtn').textContent = open ? '⚙ Operator Setup ▾' : '⚙ Operator Setup ▸';
+    document.getElementById('adminHint').textContent = open
+      ? 'Universal Drive folder IDs (4.3A / 4.4). Saved to the aeo_globals localStorage key — same key V3.1 reads.'
+      : 'Universal Drive folder IDs (4.3A / 4.4). Admin only — hidden from the VA-facing view.';
+  }
+  function toggleAdmin(){
+    const open = document.getElementById('adminPanel').style.display === 'block';
+    setAdminOpen(!open);
+  }
   function saveGlobals(){
     const folder43A = extractDriveId(document.getElementById('global43A').value);
     const folder44 = extractDriveId(document.getElementById('global44').value);
@@ -569,23 +596,28 @@
     document.getElementById('researchPre').textContent='Phase 1 output appears here.';
     document.getElementById('v1Pre').textContent='Phase 2 output appears here.';
     document.getElementById('htmlPre').textContent='Phase 6 stub output appears here.';
-    document.getElementById('cacheBtn').disabled=true;
+    setCacheBtnsDisabled(true);
     document.getElementById('cacheVerdict').textContent='—';
     setG('Client changed. Ready.');
   }
 
   // ─── UI HELPERS ────────────────────────────────────────────
+  // status: 'waiting' | 'active' | 'done' | 'error' | 'stubdone'
+  // 'stubdone' = amber, NOT green — used for M1 stubs so a VA doesn't read it as a real completion.
   function setPhase(n, status, label){
     const card = document.getElementById('phase'+n);
     const badge = document.getElementById('b'+n);
     if(!card||!badge) return;
-    card.classList.remove('active','done','error');
+    card.classList.remove('active','done','error','stub','stubdone');
     if(status==='active') card.classList.add('active');
-    if(status==='done') card.classList.add('done');
-    if(status==='error') card.classList.add('error');
-    badge.className = 'pbadge b-' + (status==='active'?'running':status==='done'?'done':status==='error'?'error':'waiting');
+    else if(status==='done') card.classList.add('done');
+    else if(status==='error') card.classList.add('error');
+    else if(status==='stubdone') card.classList.add('stubdone');
+    const badgeClass = status==='active'?'running' : status==='done'?'done' : status==='error'?'error' : status==='stubdone'?'stub' : 'waiting';
+    badge.className = 'pbadge b-' + badgeClass;
     badge.textContent = label || status;
   }
+  const sleep = ms => new Promise(res=>setTimeout(res, ms));
   function togglePhase(n){
     const body = document.getElementById('sb'+n);
     const chev = document.getElementById('c'+n);
@@ -790,7 +822,10 @@
   // - systemBlocks: array of {type:'text', text:'...', cache_control?:{type:'ephemeral'}}
   // - tools: array of tool definitions
   // - tool_choice: {type:'tool', name:'...'} to force a tool call
-  async function callClaude({ systemBlocks, userText, tools, toolChoice, akey, maxTokens=MAX_TOKENS }){
+  // - onProgress({textOutput, toolJson, outputTokens}) — called on every delta for live UI
+  // - timeoutMs — abort the request (and any silent hang) after this long. Stop button also aborts.
+  let _activeClaudeAbort = null;
+  async function callClaude({ systemBlocks, userText, tools, toolChoice, akey, maxTokens=MAX_TOKENS, onProgress=null, timeoutMs=300000 }){
     const body = {
       model: CLAUDE_MODEL,
       max_tokens: maxTokens,
@@ -801,11 +836,28 @@
     if(tools && tools.length) body.tools = tools;
     if(toolChoice) body.tool_choice = toolChoice;
 
-    const r = await fetch(PROXY, {
-      method:'POST', headers:{'Content-Type':'application/json','x-api-key':akey},
-      body: JSON.stringify(body)
-    });
+    const controller = new AbortController();
+    _activeClaudeAbort = controller;
+    // Watchdog: if no SSE event arrives for >90s, treat as a silent hang and abort.
+    let lastEventAt = Date.now();
+    const hangCheck = setInterval(()=>{
+      if(Date.now() - lastEventAt > 90000) controller.abort(new Error('No stream activity for 90s — connection appears stalled. Aborted.'));
+    }, 5000);
+    const hardTimeout = setTimeout(()=>controller.abort(new Error(`Claude call exceeded ${Math.round(timeoutMs/1000)}s — aborted.`)), timeoutMs);
+
+    let r;
+    try {
+      r = await fetch(PROXY, {
+        method:'POST', headers:{'Content-Type':'application/json','x-api-key':akey},
+        body: JSON.stringify(body),
+        signal: controller.signal
+      });
+    } catch(e){
+      clearInterval(hangCheck); clearTimeout(hardTimeout); _activeClaudeAbort = null;
+      throw new Error(`Claude request failed: ${controller.signal.reason?.message || e.message || e}`);
+    }
     if(!r.ok || !r.body){
+      clearInterval(hangCheck); clearTimeout(hardTimeout); _activeClaudeAbort = null;
       const t = await r.text().catch(()=>'(unreadable)');
       throw new Error(`Claude HTTP ${r.status}: ${t.slice(0,400)}`);
     }
@@ -815,50 +867,62 @@
     let textOutput = '';
     const blocks = []; // {type, name?, partialJson?, text?}
     let usage = { input:0, output:0, cacheRead:0, cacheCreate:0 };
+    const emitProgress = ()=>{ if(onProgress){ try { onProgress({ textOutput, toolJson: (blocks.find(b=>b&&b.type==='tool_use')||{}).partialJson||'', outputTokens: usage.output }); } catch(_){} } };
 
-    while(true){
-      const { done, value } = await reader.read();
-      if(done) break;
-      buf += dec.decode(value, { stream:true });
-      const lines = buf.split('\n');
-      buf = lines.pop();
-      for(const line of lines){
-        if(!line.startsWith('data: ')) continue;
-        const d = line.slice(6).trim();
-        if(d === '[DONE]') continue;
-        let p;
-        try { p = JSON.parse(d); } catch(_){ continue; }
-        if(p.type === 'message_start' && p.message?.usage){
-          const u = p.message.usage;
-          usage.input = u.input_tokens || 0;
-          usage.cacheCreate = u.cache_creation_input_tokens || 0;
-          usage.cacheRead = u.cache_read_input_tokens || 0;
-        }
-        if(p.type === 'content_block_start'){
-          const cb = p.content_block || {};
-          if(cb.type === 'tool_use'){
-            blocks[p.index] = { type:'tool_use', id: cb.id, name: cb.name, partialJson: '' };
-          } else if(cb.type === 'text'){
-            blocks[p.index] = { type:'text', text: '' };
+    try {
+      while(true){
+        let chunk;
+        try { chunk = await reader.read(); }
+        catch(e){ throw new Error(`Claude stream read error: ${controller.signal.reason?.message || e.message || e}`); }
+        const { done, value } = chunk;
+        if(done) break;
+        lastEventAt = Date.now();
+        buf += dec.decode(value, { stream:true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for(const line of lines){
+          if(!line.startsWith('data: ')) continue;
+          const d = line.slice(6).trim();
+          if(d === '[DONE]') continue;
+          let p;
+          try { p = JSON.parse(d); } catch(_){ continue; }
+          if(p.type === 'message_start' && p.message?.usage){
+            const u = p.message.usage;
+            usage.input = u.input_tokens || 0;
+            usage.cacheCreate = u.cache_creation_input_tokens || 0;
+            usage.cacheRead = u.cache_read_input_tokens || 0;
           }
-        }
-        if(p.type === 'content_block_delta'){
-          const blk = blocks[p.index];
-          if(!blk) continue;
-          if(p.delta?.type === 'text_delta'){
-            blk.text = (blk.text||'') + (p.delta.text||'');
-            textOutput += (p.delta.text||'');
-          } else if(p.delta?.type === 'input_json_delta'){
-            blk.partialJson = (blk.partialJson||'') + (p.delta.partial_json||'');
+          if(p.type === 'content_block_start'){
+            const cb = p.content_block || {};
+            if(cb.type === 'tool_use'){
+              blocks[p.index] = { type:'tool_use', id: cb.id, name: cb.name, partialJson: '' };
+            } else if(cb.type === 'text'){
+              blocks[p.index] = { type:'text', text: '' };
+            }
           }
-        }
-        if(p.type === 'message_delta' && p.usage){
-          usage.output = p.usage.output_tokens || 0;
-        }
-        if(p.type === 'error'){
-          throw new Error(`Claude stream error: ${p.error?.message || 'Unknown'}`);
+          if(p.type === 'content_block_delta'){
+            const blk = blocks[p.index];
+            if(!blk) continue;
+            if(p.delta?.type === 'text_delta'){
+              blk.text = (blk.text||'') + (p.delta.text||'');
+              textOutput += (p.delta.text||'');
+              emitProgress();
+            } else if(p.delta?.type === 'input_json_delta'){
+              blk.partialJson = (blk.partialJson||'') + (p.delta.partial_json||'');
+              emitProgress();
+            }
+          }
+          if(p.type === 'message_delta'){
+            if(p.usage) usage.output = p.usage.output_tokens || 0;
+            emitProgress();
+          }
+          if(p.type === 'error'){
+            throw new Error(`Claude stream error: ${p.error?.message || 'Unknown'}`);
+          }
         }
       }
+    } finally {
+      clearInterval(hangCheck); clearTimeout(hardTimeout); _activeClaudeAbort = null;
     }
 
     const toolCalls = blocks.filter(b => b && b.type === 'tool_use').map(b => {
@@ -1166,6 +1230,28 @@ Generate the V1 article structure now by calling submit_v1_article. Do not respo
     }).join('');
   }
 
+  // ─── PHASE 2 STREAMING DISPLAY ─────────────────────────────
+  // Returns an onProgress callback that streams the tool-input JSON into the Phase 2
+  // output box (and the V1 JSON tab) live, so the operator can watch it being written.
+  function makePhase2Progress(label){
+    let lastPaint = 0;
+    return ({ textOutput, toolJson, outputTokens }) => {
+      const now = Date.now();
+      if(now - lastPaint < 120) return; // throttle DOM writes
+      lastPaint = now;
+      const chars = (toolJson||'').length;
+      const head = `⏳ ${label} — streaming live · ${outputTokens||0} output tokens · ${chars.toLocaleString()} JSON chars\n` + '─'.repeat(40) + '\n';
+      const preamble = textOutput ? ('[preamble text]\n' + textOutput + '\n\n') : '';
+      const tail = (toolJson||'').slice(-2500);
+      const o2 = document.getElementById('o2');
+      if(o2){ o2.textContent = head + preamble + (chars>2500 ? '…(showing last 2500 chars)…\n' : '') + tail; o2.scrollTop = o2.scrollHeight; }
+      const m2 = document.getElementById('m2');
+      if(m2) m2.textContent = `${label} in progress — ${outputTokens||0} tokens, ${chars.toLocaleString()} chars so far…`;
+      const v1Pre = document.getElementById('v1Pre');
+      if(v1Pre){ v1Pre.textContent = (textOutput?('[preamble]\n'+textOutput+'\n\n'):'') + (toolJson||''); v1Pre.scrollTop = v1Pre.scrollHeight; }
+    };
+  }
+
   // ─── PIPELINE ──────────────────────────────────────────────
   async function startPipeline(){
     if(running){ log('Pipeline already running.', 'warn'); return; }
@@ -1190,7 +1276,7 @@ Generate the V1 article structure now by calling submit_v1_article. Do not respo
     S.research = null; S.v1 = null; S.htmlStub = '';
     updateCost(); renderCacheLog();
     document.getElementById('cacheVerdict').textContent = '—';
-    document.getElementById('cacheBtn').disabled = true;
+    setCacheBtnsDisabled(true);
 
     running = true;
     document.getElementById('runBtn').disabled = true;
@@ -1201,7 +1287,10 @@ Generate the V1 article structure now by calling submit_v1_article. Do not respo
       // ── Load docs + sheet ─────────────────────────────────
       setG('Loading 4.3A / 4.3B / 4.4 + sheet row...', true);
       log(`Run started — client: ${S.client.name}, topic: "${S.topic}"`);
-      if(!globals.folder43A || !globals.folder44) throw new Error('Universal globals missing folder43A or folder44. Paste them into the "4.3A Folder ID" and "4.4 Folder ID" fields above and click Save Globals. (Note: localStorage is per-origin — if you saved them from V3.1 at a different URL, V4 cannot see them.)');
+      if(!globals.folder43A || !globals.folder44){
+        setAdminOpen(true);
+        throw new Error('Universal globals missing folder43A or folder44. The "⚙ Operator Setup" panel is now open above — paste the 4.3A and 4.4 folder IDs and click Save Globals. (Note: localStorage is per-origin — if you saved them from V3.1 at a different URL, V4 cannot see them.)');
+      }
       if(!S.client.folder43B || !S.client.sheet42) throw new Error(`Client "${S.client.name}" missing folder43B or sheet42 — fix in Client Manager.`);
 
       const [doc43A, doc43B, doc44, sheetCsv] = await Promise.all([
@@ -1245,17 +1334,21 @@ Generate the V1 article structure now by calling submit_v1_article. Do not respo
       log(`Phase 1 complete: ${phase1Json.sources.length} sources, thesis present.`, 'ok');
 
       // ── PHASE 2: Claude V1 via Tool Use, with caching ────
-      setG('Phase 2 — Claude V1 via Tool Use (caching context)...', true);
-      setPhase(2, 'active', 'Running');
+      setG('Phase 2 — Claude V1 via Tool Use (caching context)... watch the V1 JSON tab', true);
+      setPhase(2, 'active', 'Streaming');
+      document.getElementById('sb2').classList.add('open');
+      document.getElementById('c2').classList.remove('closed');
+      document.getElementById('o2').textContent = '⏳ Connecting to Claude…';
+      switchTab('v1json');
       const t2 = Date.now();
-      const sysBlocks = buildPhase2SystemBlocks();
-      const userText = buildPhase2UserText();
       const result = await callClaude({
-        systemBlocks: sysBlocks,
-        userText,
+        systemBlocks: buildPhase2SystemBlocks(),
+        userText: buildPhase2UserText(),
         tools: [V1_TOOL],
         toolChoice: { type:'tool', name:'submit_v1_article' },
-        akey
+        akey,
+        onProgress: makePhase2Progress('Phase 2'),
+        timeoutMs: 300000
       });
       logCacheCall(2, result.usage);
       if(!result.toolCalls.length){
@@ -1276,15 +1369,21 @@ Generate the V1 article structure now by calling submit_v1_article. Do not respo
       log(`Phase 2 complete — ${summary}`, 'ok');
 
       // ── PHASE 6 STUB ─────────────────────────────────────
-      setPhase(6, 'active', 'Running');
+      // Visible transition beat so a VA sees Phase 6 actually run, not flash green.
+      // Badge is amber 'STUB', not green — this is a Milestone 1 placeholder, not a real assembly.
+      setPhase(6, 'active', 'Assembling');
+      document.getElementById('sb6').classList.add('open');
+      document.getElementById('c6').classList.remove('closed');
+      document.getElementById('o6').textContent = '⏳ Building M1 stub HTML…';
+      await sleep(450);
       S.htmlStub = buildPhase6Stub(v1);
       document.getElementById('o6').textContent = S.htmlStub;
-      document.getElementById('m6').textContent = `M1 stub assembled (${S.htmlStub.length}b). Full Phase 6 ships in Milestone 5.`;
+      document.getElementById('m6').textContent = `M1 STUB only — ${S.htmlStub.length}b. Real Phase 6 assembly (sections, FAQ, schema, ToC, byline) ships in Milestone 5.`;
       document.getElementById('htmlPre').textContent = S.htmlStub;
-      setPhase(6, 'done', 'Stub ready');
+      setPhase(6, 'stubdone', 'M1 STUB ✓');
 
-      setG(`✓ Milestone 1 complete. Cache verdict: ${S.cacheLog[0]?.verdict || '—'}. Click "↻ Repeat P2 (Test Cache)" to verify HIT on second call.`);
-      document.getElementById('cacheBtn').disabled = false;
+      setG(`✓ Phases 1–2 complete (Phase 6 = M1 stub). First-run cache verdict: ${S.cacheLog[0]?.verdict || '—'}. Go to the Cache Stats tab and click "↻ Verify Cache" to confirm a HIT on the second call.`);
+      setCacheBtnsDisabled(false);
       switchTab('cache');
     } catch(err){
       console.error(err);
@@ -1303,16 +1402,29 @@ Generate the V1 article structure now by calling submit_v1_article. Do not respo
     }
   }
 
+  // Cache verification: re-run Phase 2 with the same context. If the first run wrote the
+  // cache and we're within the ~5-min TTL, this second run should report cache_read > 0
+  // and cache_creation = 0 → verdict HIT. Streams live so it never looks stalled; aborts
+  // on watchdog timeout so a real hang surfaces as an error instead of hanging forever.
+  function setCacheBtnsDisabled(disabled){
+    ['cacheBtn','cacheBtnPanel'].forEach(id=>{ const b=document.getElementById(id); if(b) b.disabled = disabled; });
+  }
   async function repeatPhase2(){
-    if(running){ log('Pipeline already running.', 'warn'); return; }
-    if(!S.research || !S.docs.doc43A){ alert('Run the full pipeline first.'); return; }
+    if(running){ log('A run is already in progress.', 'warn'); return; }
+    if(!S.research || !S.docs.doc43A){ alert('Run the full pipeline (⚡ Run Phase 1+2) first — there is no context to re-send yet.'); return; }
     const akey = document.getElementById('keyAnthropic').value.trim();
     if(!akey){ alert('Anthropic API key required.'); return; }
     running = true;
     document.getElementById('runBtn').disabled = true;
-    document.getElementById('cacheBtn').disabled = true;
-    setG('Re-running Phase 2 to verify cache HIT...', true);
-    setPhase(2, 'active', 'Re-run');
+    setCacheBtnsDisabled(true);
+    document.getElementById('stopBtn').style.display = 'flex';
+    setG('Cache verification — re-running Phase 2 with the same context. Watch it stream in the V1 JSON tab.', true);
+    setPhase(2, 'active', 'Cache test');
+    document.getElementById('sb2').classList.add('open');
+    document.getElementById('c2').classList.remove('closed');
+    document.getElementById('o2').textContent = '⏳ Connecting to Claude (cache verification run)…';
+    switchTab('v1json');
+    startTimer();
     const t = Date.now();
     try {
       const result = await callClaude({
@@ -1320,32 +1432,49 @@ Generate the V1 article structure now by calling submit_v1_article. Do not respo
         userText: buildPhase2UserText(),
         tools: [V1_TOOL],
         toolChoice: { type:'tool', name:'submit_v1_article' },
-        akey
+        akey,
+        onProgress: makePhase2Progress('Cache test'),
+        timeoutMs: 300000
       });
       logCacheCall(2, result.usage);
       const elapsed = ((Date.now()-t)/1000).toFixed(1);
-      setPhase(2, 'done', `Re-ran ${elapsed}s`);
       const verdict = S.cacheLog[S.cacheLog.length-1].verdict;
-      const verdictClass = verdict === 'HIT' ? 'ok' : 'warn';
-      log(`Repeat Phase 2 verdict: ${verdict} (cache_read=${result.usage.cacheRead}, cache_create=${result.usage.cacheCreate})`, verdictClass);
-      setG(`Repeat Phase 2 verdict: ${verdict}. cache_read_input_tokens=${result.usage.cacheRead}, cache_creation_input_tokens=${result.usage.cacheCreate}.`);
+      const isHit = verdict.startsWith('HIT');
+      setPhase(2, isHit ? 'done' : 'error', isHit ? `Cache HIT ${elapsed}s` : `Cache ${verdict}`);
+      // Refresh the o2/m2 boxes with the parsed result so it doesn't sit on the streaming view
+      if(result.toolCalls.length && !result.toolCalls[0].input.__parse_error){
+        const v1b = assignIds(result.toolCalls[0].input);
+        document.getElementById('o2').textContent = JSON.stringify(v1b, null, 2).slice(0, 4000);
+        document.getElementById('v1Pre').textContent = JSON.stringify(v1b, null, 2);
+      }
+      document.getElementById('m2').textContent = `Cache test done in ${elapsed}s — cache_read=${result.usage.cacheRead}, cache_creation=${result.usage.cacheCreate} → ${verdict}`;
+      log(`Cache verification verdict: ${verdict} (cache_read=${result.usage.cacheRead}, cache_creation=${result.usage.cacheCreate})`, isHit ? 'ok' : 'warn');
+      setG(isHit
+        ? `✓ CACHE HIT CONFIRMED. cache_read_input_tokens=${result.usage.cacheRead}, cache_creation_input_tokens=${result.usage.cacheCreate}. Milestone 1 caching verification complete.`
+        : `Cache verdict: ${verdict} (cache_read=${result.usage.cacheRead}, cache_creation=${result.usage.cacheCreate}). If >5 min passed since the first run the TTL expired — run ⚡ Run Phase 1+2 again then click ↻ Verify Cache promptly.`, false, !isHit);
       switchTab('cache');
     } catch(err){
-      log(`Repeat error: ${err.message}`, 'err');
-      setG(`Repeat error: ${err.message}`, false, true);
+      console.error(err);
+      log(`Cache verification error: ${err.message}`, 'err');
+      setG(`Cache verification error: ${err.message}`, false, true);
       setPhase(2, 'error', 'Error');
     } finally {
       running = false;
+      stopTimer();
       document.getElementById('runBtn').disabled = false;
-      document.getElementById('cacheBtn').disabled = false;
+      setCacheBtnsDisabled(false);
+      document.getElementById('stopBtn').style.display = 'none';
     }
   }
 
   function stopPipeline(){
-    log('Stop requested — current in-flight call will complete then halt.', 'warn');
-    setG('Stop requested.', false, true);
+    log('Stop requested — aborting the in-flight Claude call.', 'warn');
+    if(_activeClaudeAbort){ try { _activeClaudeAbort.abort(new Error('Stopped by operator.')); } catch(_){} }
+    setG('Stop requested — call aborted.', false, true);
     running = false;
+    stopTimer();
     document.getElementById('runBtn').disabled = false;
+    if(S.research && S.docs.doc43A) setCacheBtnsDisabled(false);
     document.getElementById('stopBtn').style.display = 'none';
   }
 
