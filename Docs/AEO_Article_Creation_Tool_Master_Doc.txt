@@ -1,12 +1,15 @@
 AEO ARTICLE CREATION PIPELINE — MASTER REFERENCE DOC
-Last Updated: May 10, 2026 | Chat 19 END | V3.1 (production) | V4.0 (SPEC FINAL — ready for Claude Code)
+Last Updated: May 11, 2026 | Post-Chat-19 build session | V3.1 (production) | V4.0 (BUILD UNDERWAY — Milestone 2 shipped)
 ================================================
 
-⚠️ V4.0 ARCHITECTURAL REBUILD — SPEC COMPLETE, GEMINI SIGNED OFF
+⚠️ V4.0 ARCHITECTURAL REBUILD — BUILD IN PROGRESS (Claude Code)
 End of Chat 19: Three Gemini Pro consultations concluded with full sign-off.
-V4.0 spec is bulletproof and ready for Claude Code execution.
+The spec is now being executed by Claude Code against aeo_v4.html. As of
+May 11, 2026: Milestones 1 and 2 are BUILT. Milestone 1 cache verification
+confirmed (cache HIT on the second Phase 2 call). See "V4.0 BUILD STATUS"
+section below for the milestone-by-milestone state and the known M2 bug.
 
-Final spec includes:
+Spec includes (full detail in AEO_V4_Build_Plan.txt):
 - 7-phase architecture (Research → V1 → Validation → Freeze → Voice Draft →
   Forensic Critique → Assembly)
 - Option E Unified Chain-of-Thought (defeats Token Myopia in voice rewrite)
@@ -23,17 +26,18 @@ Final spec includes:
 - Artifact auto-save at Phase 4 and Phase 6
 - Cost ceiling $3/article with detection at $2.50
 
-Build plan: AEO_V4_Build_Plan.txt (1,290 lines, spec-complete)
+Build plan: AEO_V4_Build_Plan.txt (1,350 lines, spec-complete)
 Build tool: Claude Code (multi-file, persistent context, real testing)
-Build target: aeo_v4.html (parallel file)
-Production fallback: aeo_article_creation.html (V3.1, untouched)
+Build target: AEO-Article-Creation/aeo_v4.html (parallel file — M2 shipped)
+Production fallback: AEO-Article-Creation/aeo_article_creation.html (V3.1, untouched)
 
-READ ORDER FOR NEW CHATS:
+READ ORDER FOR NEW CHATS / CLAUDE CODE SESSIONS:
 1. AEO_V4_Build_Plan.txt — the new architecture spec (forward-looking)
    Start with the "Human Overview" section at the top for mental model.
-2. This Master Doc — V3.1 history and current production state
+2. This Master Doc — V3.1 history, current production state, and the
+   "V4.0 BUILD STATUS" section (what's built, what's next, known bugs)
 
-OPERATOR PREREQUISITE BEFORE MILESTONE 3:
+OPERATOR PREREQUISITE BEFORE MILESTONE 3 (⚠️ STILL OUTSTANDING as of May 11, 2026 — M3 is the next build step after the M2 fix, so this is now on the critical path):
 - For each client (start with iTV), produce ONE voice_exemplars.txt file
 - Contains 10-15 best articles from chat-version archive
 - Tagged with === [INTENT LAYER] EXEMPLAR N === markers inside file
@@ -45,6 +49,162 @@ OPERATOR PREREQUISITE BEFORE MILESTONE 3:
 
 Intent Layer column is ALREADY in 4.2 sheets (populated by 4.1 V4.0
 output). No 4.2 schema changes required. No 4.1 changes required.
+
+================================================
+
+REPO & HOSTING (REORGANIZED — May 11, 2026)
+-------------------------------------------
+The GitHub repo was renamed AEO-Tools → iTV-Tools and the files were
+moved into subfolders. All tool URLs changed accordingly.
+
+Repo: github.com/itechvalet/iTV-Tools  (GitHub Pages site: itechvalet.github.io/iTV-Tools/)
+
+Subfolders:
+  AEO-Article-Creation/      — aeo_v4.html (V4.0 build), aeo_article_creation.html (V3.1 production)
+  Client-Manager/            — aeo_client_manager.html
+  Archive/                   — retired builds / old versions
+  Docs/                      — this Master Doc, AEO_V4_Build_Plan.txt, companion docs
+  Dashboard/                 — (dashboard tool)
+  AI-Visibility-Reporting/   — (AI visibility reporting tool)
+  AEO-Topic-Research-4.1/    — (4.1 topic research tool)
+
+NEW URLS (the old AEO-Tools URLs are dead):
+  V4.0 (build):     https://itechvalet.github.io/iTV-Tools/AEO-Article-Creation/aeo_v4.html
+  V3.1 (production): https://itechvalet.github.io/iTV-Tools/AEO-Article-Creation/aeo_article_creation.html
+  Client Manager:   https://itechvalet.github.io/iTV-Tools/Client-Manager/aeo_client_manager.html
+
+Unchanged: Cloudflare proxy (anthropic-proxy.gerek.workers.dev), password
+(ITVsuccess123!), localStorage/sessionStorage keys. NOTE: localStorage is
+per-origin — the origin changed (AEO-Tools → iTV-Tools path is the same
+origin itechvalet.github.io, so localStorage carries over; only the file
+PATHS changed, not the origin). If anything was ever saved from a file://
+origin or a different host it does not cross over.
+
+================================================
+
+═══════════════════════════════════════════════════════════════
+V4.0 BUILD STATUS — AS OF MAY 11, 2026
+═══════════════════════════════════════════════════════════════
+
+The V4.0 rebuild is no longer just a spec. Claude Code is executing the
+build plan against AEO-Article-Creation/aeo_v4.html. Milestones 1 and 2
+are shipped. V3.1 remains untouched and in production.
+
+MILESTONE 1 — SKELETON + PHASE 1-2 WITH CACHING — ✅ BUILT & VERIFIED
+- aeo_v4.html created: 7 phase cards, VA-facing UI, password gate, Operator
+  Setup panel for 4.3A/4.4 folder IDs, clients/keys read from the same
+  aeo_clients / aeo_session_keys keys V3.1 uses.
+- Phase 1: Gemini research + clientSpecificThesis (JSON brief — sources,
+  anchorTextTargets, faqSeeds, factClaims, semanticAnchor, thesis).
+- Phase 2: Claude V1 generation via submit_v1_article Tool Use schema,
+  streaming over the Cloudflare proxy, JS assigns all IDs post-parse
+  (da_, thesis_, section_, para_, h3_, link_, table_, img_, faq_, ans_, cta_).
+- Prompt caching wired: single cached system block (4.3A + 4.3B + 4.4 +
+  research + thesis), cache_creation_input_tokens / cache_read_input_tokens
+  tracked and surfaced in a Cache Stats tab + cost line.
+- VERIFIED: "↻ Verify Cache" re-runs Phase 2 with identical context — cache
+  HIT confirmed on the second call (cache_read > 0, cache_creation = 0).
+  Milestone 1 cache verification = PASS.
+
+MILESTONE 2 — VALIDATION + FREEZE + ERROR RECOVERY FOUNDATION — ✅ BUILT, ⚠️ PARTIALLY TESTED
+- Phase 3A: JS structural validation (validateV1Structure) — sections≥4,
+  FAQ≥5, tables≥3, images≥H2 count, DA 200-300 words, thesis present +
+  referenced in DA/section 1, checklist fields non-empty, link discipline
+  (fabricated INTERNAL link = hard FAIL; extra EXTERNAL citation = YELLOW),
+  internal-link-domain check, CTA URL vs 4.3B Conversion Primary CTA URL.
+- Phase 3B: Gemini semantic validation (validateV1Semantic) — one job:
+  claims align with research brief AND thesis is anchored. Returns
+  semanticFails array. F19 RED on garbage/empty after one retry (article
+  unsafe to publish without semantic validation).
+- Phase 2 ↔ Phase 3 retry loop: generate → validate → on FAIL, loop back to
+  Phase 2 with structured feedback, max 2 retries → then CHK1 RED escalation
+  (manual operator review). NO mid-pipeline review buttons.
+- Phase 4: recursive Object.freeze on V1 JSON + F16 artifact auto-save to
+  localStorage (aeo_v4_artifact_v1_{client}_{ts}, 7-day auto-purge).
+- Phase 6: STILL A STUB (minimal H1 + DA + section index + CTA HTML, badged
+  amber "STUB ✓" so a VA never reads it as a real completion). Real
+  assembly = Milestone 5.
+- Error recovery F1–F4 implemented as the foundation: F1 (Gemini research
+  empty/garbage — 2 retries), F2 (unparseable Claude JSON — markdown-strip
+  + tolerant parser + raw-JSON-only retry, 2 retries), F3 (max_tokens
+  truncation — currently detects + logs YELLOW; full continuation-merge
+  deferred to M4), F4 (API down — fetchWithRetry, 5s/15s/45s backoff, 3
+  retries, wraps all Drive/Gemini/Claude calls). Plus F16 (artifact save),
+  F19 (semantic validation RED).
+- Calibration vs Production modes: per-client localStorage
+  (aeo_v4_mode_{client} = "calibration" | "production"), operator-only
+  toggle in the Admin panel, informational calibrated-count (never
+  auto-promotes). New clients default to Calibration.
+- Escalation Panel: single VA-facing panel — RED flags (per run) + rolling
+  last-10 YELLOW warnings (persisted), error code + remediation hint,
+  "Notify Operator" clipboard handoff.
+- Test-injection dropdown (Operator Setup → "🧪 Test injection (Phase 3)"):
+  "recover" = drop a section on attempt 1 only (demo auto-recovery →
+  Phase 2 retry → passes); "escalate" = drop a section every attempt (demo
+  RED escalation → CHK1). For M2 verification only; reset to "Off" for real runs.
+
+  TESTED: test injection ran, Phase 3 caught the section_count failure and
+  triggered the retry loop correctly. RED escalation path reached on the
+  "escalate" setting.
+
+  ⚠️ KNOWN M2 BUG (FIX PENDING — DO BEFORE M3): the "recover" test injection
+  ("attempt 1 only") did NOT clear on attempt 2 — it kept firing, so the
+  pipeline needed 3 attempts to pass instead of the intended 2. The
+  injection should fire on attempt 0 only and the "recover" branch on
+  attempt > 0 should be a true no-op (it currently re-drops the section).
+  This is a test-harness bug, not a pipeline-logic bug, but it must be
+  fixed before M2 can be called clean.
+
+WHAT'S NOT BUILT YET:
+- Phase 5 (Voice Draft, Option E unified CoT) — stub card, "M3".
+- Phase 5.5 (Forensic Critique + 6 JS quality checks) — stub card, "M4".
+- Phase 6 real assembly (sections, FAQ, schema JSON-LD, ToC, byline,
+  typographic rhythm) — "M5".
+- F5 concurrency semaphore, full F3 continuation-merge, gold-standard
+  exemplar loading/routing, AI-Tell kill list enforcement, side-by-side
+  testing harness (M5/M6).
+
+NEXT STEPS (in order):
+1. M2 FIX: (a) the test-injection "attempt 1 only" bug above; (b) anchor-text
+   validation calibration — tune validateV1Structure's link-discipline rules
+   against real iTV runs (the current internal-fabrication-hard-FAIL /
+   extra-external-YELLOW split is a first calibration; adjust as real V1s
+   show what's noise vs. real risk).
+2. M3: Phase 5 voice draft via Tool Use (Option E schema —
+   voice_architecture + per-rewrite transition_logic + data_anchors_to_preserve
+   + pacing_directive). BLOCKED on the operator producing voice_exemplars.txt
+   for iTV first (see OPERATOR PREREQUISITE above) — exemplars are the single
+   highest-leverage voice lever and M3's exit criteria depend on them.
+3. M4 onward per the build plan (AEO_V4_Build_Plan.txt → BUILD ORDER).
+
+V4.0 ARCHITECTURAL LOCKS (so far — will be consolidated when V4.0 ships):
+  V4-1. JS owns structure; Claude owns prose; Gemini owns research + semantic
+        validation. No tool's output is another tool's spec without
+        deterministic verification first.
+  V4-2. JS assigns ALL IDs post-parse (Claude never writes id fields). LLMs
+        are bad at counting — downstream patches target IDs, not array indexes.
+  V4-3. Claude returns JSON via Tool Use schemas, never freeform. Every
+        response handler runs stripMarkdownWrappers() before JSON.parse()
+        then a tolerant parser (Critical Directive #1 — non-negotiable).
+  V4-4. Phase 4 Object.freeze is the structural lock — there is no Frame Lock
+        / Snapshot Diff / structural-coordinate machinery in V4.0 and it must
+        not come back. If the bones can drift, the freeze is broken — fix the
+        freeze, don't add a backstop.
+  V4-5. Single cached system block per Claude phase, cache_control on the last
+        block. Cache hit ratio is a tracked health metric (5-min TTL — slow VA
+        review = uncached call = cost spike).
+  V4-6. No human reads article content mid-pipeline. Calibration mode = operator
+        reviews the finished draft before publish; Production mode = auto-publish
+        on all-checks-pass. Promotion is a manual operator decision, never
+        auto-triggered by article count.
+  V4-7. Every failure has a defined F-code response (F1–F21 in the build plan).
+        Pipeline auto-recovers where it can; RED escalations surface to the VA
+        as a code + one-line remediation; the operator handles RED. No reactive
+        patching.
+  V4-8. Client-agnostic from day one — every feature reads client data from
+        existing sources (aeo_clients config, 4.3B, 4.2 sheet incl. INTENT_LAYER).
+        Must run identically on iTV, Brighton Gold, Bushido, MV with zero
+        per-client tool changes.
 
 ================================================
 
@@ -70,9 +230,10 @@ A single-file HTML/JS tool that orchestrates a 17-step pipeline producing AEO
 (Answer Engine Optimization) articles for service-business clients. Operator
 is non-coder; Claude is the architect. Multi-tab simultaneous runs supported.
 
-CURRENT VERSION: V3.1
-- File: aeo_article_creation.html (~5,731 lines, ~325KB)
-- Hosted: itechvalet.github.io/AEO-Tools/aeo_article_creation.html
+CURRENT PRODUCTION VERSION: V3.1  (V4.0 is being built in parallel — see "V4.0 BUILD STATUS" above; M2 shipped, V3.1 stays in production until V4.0 passes side-by-side)
+- File: AEO-Article-Creation/aeo_article_creation.html (~5,731 lines, ~325KB)
+- Hosted: itechvalet.github.io/iTV-Tools/AEO-Article-Creation/aeo_article_creation.html
+  (repo renamed AEO-Tools → iTV-Tools, files moved into subfolders — May 11, 2026; old URL is dead)
 - Cloudflare proxy: anthropic-proxy.gerek.workers.dev
 - Models: claude-sonnet-4-5 (prose), gemini-2.5-pro (research/validation)
 - Companion docs: 4.3A V3.2, 4.3B (per-client), 4.4 V10.2 (in progress), Master Doc (this file)
@@ -170,12 +331,17 @@ OPERATOR PRINCIPLES (NON-NEGOTIABLE)
 TOOL IDENTITY
 -------------
 Tool name: iTech Valet AEO Article Creation Pipeline
-Version: V3.0.1 (displayed in tool header)
-Versioning: V1.x = bug fixes/UI, V2.x = major architecture, V3.x = locked-frame
-File: aeo_article_creation.html
-Hosted: https://itechvalet.github.io/AEO-Tools/aeo_article_creation.html
+Version: V3.0.1 (displayed in V3.1 tool header — header subtitle not bumped past V3.0.1; V4.0 build shows "AEO V4.0 — Milestone 2")
+Versioning: V1.x = bug fixes/UI, V2.x = major architecture, V3.x = locked-frame, V4.0 = JSON/Tool-Use/caching rebuild
+Files (repo reorganized May 11, 2026 — AEO-Tools → iTV-Tools):
+  V3.1 production:  AEO-Article-Creation/aeo_article_creation.html
+  V4.0 build:       AEO-Article-Creation/aeo_v4.html  (Milestone 2 shipped)
+Hosted:
+  V3.1: https://itechvalet.github.io/iTV-Tools/AEO-Article-Creation/aeo_article_creation.html
+  V4.0: https://itechvalet.github.io/iTV-Tools/AEO-Article-Creation/aeo_v4.html
 Password: ITVsuccess123! (sessionStorage key: aeo_auth)
-Companion tool: aeo_client_manager.html (same password)
+Companion tool: Client-Manager/aeo_client_manager.html (same password) —
+  https://itechvalet.github.io/iTV-Tools/Client-Manager/aeo_client_manager.html
 
 Cloudflare proxy: https://anthropic-proxy.gerek.workers.dev
 Claude model: claude-sonnet-4-5
@@ -657,21 +823,38 @@ KNOWN BUGS — UNRESOLVED
 
 NEXT SESSION PRIORITIES
 -----------------------
-0. ⚠️ V4.0 REBUILD IS THE PRIORITY. V3.1 is in production but the architecture
-   has reached its limit. Gemini Pro consensus reached end of Chat 19. Build
-   plan documented in AEO_V4_Build_Plan.txt — that file is the spec for the
-   next phase of work. Operator handing off to Claude Code for execution.
+0. ⚠️ V4.0 REBUILD IS THE PRIORITY — AND IT'S UNDERWAY. M1 and M2 are BUILT
+   in AEO-Article-Creation/aeo_v4.html (see "V4.0 BUILD STATUS" section above
+   for the full state). M1 cache verification confirmed (cache HIT on the
+   second Phase 2 call). M2 (Phase 3 dual validation, Phase 4 freeze, Phase
+   2↔3 retry loop, Escalation Panel, Calibration/Production modes, F1–F4) is
+   built and the retry/escalation paths were exercised via test injection.
+   Build plan: AEO_V4_Build_Plan.txt — still the spec for everything past M2.
 
-   Six milestones:
-   M1: Skeleton + Phase 1-2 with prompt caching
-   M2: Phase 3 dual validation (JS structural + Gemini semantic) + Phase 4 freeze
-   M3: Phase 5 voice rewrite via Tool Use (business-critical)
-   M4: Phase 6 final assembly
-   M5: Side-by-side testing V3.1 vs V4.0
-   M6: V4.0 ships, V3.1 deprecated
+   IMMEDIATE NEXT STEPS:
+   a) M2 FIX — (1) test-injection "attempt 1 only" bug: the "recover" injection
+      keeps firing on attempt 2, so the pipeline takes 3 attempts instead of 2.
+      The "recover" branch on attempt > 0 must be a true no-op. (2) anchor-text
+      validation calibration — tune validateV1Structure's link-discipline rules
+      against real iTV runs.
+   b) M3 — Phase 5 voice draft via Tool Use (Option E schema). BLOCKED on the
+      operator producing voice_exemplars.txt for iTV first (OPERATOR PREREQUISITE
+      section above) — exemplars are required for M3's exit criteria.
+   c) M4 → M7 per the build plan's BUILD ORDER.
 
-   Build target: aeo_v4.html (parallel file). Do NOT modify aeo_article_creation.html
-   during V4.0 build. V3.1 remains production until V4.0 passes side-by-side.
+   Milestone map (build plan is authoritative — note the build plan now has
+   7 milestones; M4 = Forensic Critique + JS quality checks, M5 = Assembly):
+   M1: Skeleton + Phase 1-2 with prompt caching ............ ✅ BUILT & VERIFIED
+   M2: Phase 3 dual validation + Phase 4 freeze + F1–F4 .... ✅ BUILT, ⚠️ fix pending
+   M3: Phase 5 voice draft via Tool Use (Option E) ......... ⏭ NEXT (needs exemplars)
+   M4: Phase 5.5 forensic critique + 6 JS quality checks ... pending
+   M5: Phase 6 final assembly .............................. pending (Phase 6 is a stub now)
+   M6: Side-by-side testing V3.1 vs V4.0 + UI polish ....... pending
+   M7: V4.0 ships, V3.1 deprecated, docs updated .......... pending
+
+   Build target: AEO-Article-Creation/aeo_v4.html (parallel file). Do NOT modify
+   aeo_article_creation.html during V4.0 build. V3.1 remains production until
+   V4.0 passes side-by-side.
 
 V3.1 MAINTENANCE (do not invest heavily — focus on V4.0):
 1. If a V3.1 critical bug surfaces blocking production article delivery: patch
@@ -848,6 +1031,53 @@ Confirmed costs: ~$1.33-1.58 per article + ~$0.05-0.10 VCI.
 
 CHANGE LOG
 ----------
+May 11, 2026 (post-Chat-19 build session — Claude Code): V4.0 MILESTONES 1 & 2 BUILT.
+
+  Repo reorganized: GitHub repo renamed AEO-Tools → iTV-Tools; files moved into
+  subfolders (AEO-Article-Creation/, Client-Manager/, Archive/, Docs/, Dashboard/,
+  AI-Visibility-Reporting/, AEO-Topic-Research-4.1/). All tool URLs changed — see
+  "REPO & HOSTING" section. Old AEO-Tools URLs are dead.
+
+  Milestone 1 — Skeleton + Phase 1-2 with prompt caching — BUILT & VERIFIED:
+  - AEO-Article-Creation/aeo_v4.html created. 7 phase cards, VA-facing UI,
+    password gate, Operator Setup panel (4.3A/4.4 folder IDs), reads the same
+    aeo_clients / aeo_session_keys keys as V3.1.
+  - Phase 1: Gemini research + clientSpecificThesis → JSON brief.
+  - Phase 2: Claude V1 via submit_v1_article Tool Use schema, streaming over the
+    Cloudflare proxy. JS assigns all IDs post-parse (V4-2 lock).
+  - Prompt caching wired: single cached system block (4.3A+4.3B+4.4+research+thesis),
+    cache_creation / cache_read tracked, surfaced in a Cache Stats tab.
+  - VERIFIED: "↻ Verify Cache" re-runs Phase 2 with identical context → cache HIT
+    confirmed (cache_read > 0, cache_creation = 0). M1 cache verification PASS.
+
+  Milestone 2 — Validation + Freeze + Error Recovery foundation — BUILT, PARTIALLY TESTED:
+  - Phase 3A: JS structural validation (validateV1Structure). Phase 3B: Gemini
+    semantic validation (validateV1Semantic, F19 RED on garbage after one retry).
+  - Phase 2 ↔ Phase 3 retry loop: generate → validate → on FAIL loop to Phase 2
+    with structured feedback, max 2 retries → CHK1 RED escalation. No mid-pipeline
+    review buttons.
+  - Phase 4: recursive Object.freeze + F16 artifact auto-save to localStorage
+    (7-day purge). Phase 6 still a stub (amber "STUB ✓").
+  - Error recovery F1–F4 (Gemini research empty, unparseable Claude JSON, max_tokens
+    truncation [detect+YELLOW; full continuation-merge deferred to M4], API down /
+    fetchWithRetry 5/15/45s) + F16 + F19.
+  - Calibration vs Production modes per client (localStorage, operator-only toggle,
+    informational calibrated-count, never auto-promotes). Escalation Panel (RED +
+    rolling last-10 YELLOW, "Notify Operator" clipboard handoff).
+  - Test-injection dropdown for M2 verification (drop a section to demo
+    auto-recovery vs RED escalation).
+  - TESTED: test injection ran, Phase 3 caught the section_count failure and drove
+    the retry loop; RED escalation path reached on the "escalate" setting.
+  - ⚠️ KNOWN M2 BUG (fix pending, before M3): the "recover" test injection
+    ("attempt 1 only") did not clear on attempt 2 — it kept re-dropping the section,
+    so the pipeline needed 3 attempts to pass instead of 2. Test-harness bug, not a
+    pipeline-logic bug, but M2 isn't clean until it's fixed. Plus anchor-text
+    validation calibration is queued alongside the fix.
+
+  V3.1 untouched and still in production throughout. Eight provisional V4.0
+  architectural locks recorded (V4-1 … V4-8 in the "V4.0 BUILD STATUS" section)
+  — will be consolidated when V4.0 ships.
+
 Chat 19 (END OF SESSION): V4.0 ARCHITECTURAL REBUILD APPROVED.
 
   During final article test on V3.1, multiple architectural failures cascaded:

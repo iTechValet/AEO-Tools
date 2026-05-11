@@ -1286,6 +1286,46 @@ Wait for the user message containing the per-article topic and sheet row, then i
     }
   };
 
+  // ─── V1 SHAPE NORMALIZATION (defensive — run BEFORE assignIds / validation) ──
+  // Claude (and especially the tolerant parser recovering a truncated/retried tool
+  // call) sometimes hands back an object with numeric keys ({"0":{…},"1":{…}}) — or a
+  // lone object — where the schema expects a JSON array. Those make .reduce()/.forEach()
+  // throw ("(v1.sections || []).reduce is not a function"). Coerce every expected array
+  // field to a real array first so downstream counting/iteration can't blow up.
+  function toArray(x){
+    if(Array.isArray(x)) return x;
+    if(x && typeof x === 'object'){
+      const keys = Object.keys(x);
+      if(!keys.length) return [];
+      if(keys.every(k => /^\d+$/.test(k))) return keys.sort((a,b)=>(+a)-(+b)).map(k => x[k]);
+      return [x]; // a single object where an array was expected → wrap it
+    }
+    return [];
+  }
+  function normalizeV1Shape(v1){
+    if(!v1 || typeof v1 !== 'object') return v1;
+    let coerced = false;
+    const arr = (x) => {
+      if(Array.isArray(x)) return x;
+      if(x !== undefined && x !== null) coerced = true; // a real value sat where an array belongs
+      return toArray(x);
+    };
+    v1.sections = arr(v1.sections).map(sec => {
+      if(!sec || typeof sec !== 'object'){ coerced = true; return { h2: String(sec == null ? '' : sec), paragraphs: [], imagePrompts: [] }; }
+      sec.paragraphs   = arr(sec.paragraphs);
+      sec.h3sections   = arr(sec.h3sections).map(h3s => { if(h3s && typeof h3s === 'object') h3s.paragraphs = arr(h3s.paragraphs); return h3s; });
+      sec.links        = arr(sec.links);
+      sec.tables       = arr(sec.tables).map(t => { if(t && typeof t === 'object'){ t.headers = arr(t.headers); t.rows = arr(t.rows).map(r => arr(r)); } return t; });
+      sec.imagePrompts = arr(sec.imagePrompts);
+      return sec;
+    });
+    v1.faq = arr(v1.faq).map(f => { if(f && typeof f === 'object' && f.answer && typeof f.answer !== 'object') f.answer = { prose: String(f.answer) }; return f; });
+    if(coerced){
+      try { warnYellow('F14', 'Phase 2 returned a non-array where the V1 schema expects an array (sections / faq / paragraphs / links / tables / imagePrompts). JS coerced it to an array before validation — watch the V1 JSON tab; if this recurs the Tool Use schema or the tolerant parser needs attention.'); } catch(_){}
+    }
+    return v1;
+  }
+
   // ─── ID ASSIGNMENT (JS, post-parse — Build Plan: "JS assigns unique IDs (NOT Claude's job)") ──
   let _idCounter = 0;
   function genId(prefix){
@@ -1295,25 +1335,29 @@ Wait for the user message containing the per-article topic and sheet row, then i
   }
   function assignIds(v1){
     _idCounter = 0;
+    normalizeV1Shape(v1); // belt-and-suspenders — guarantees the arrays below are real arrays
     if(v1.directAnswer) v1.directAnswer.id = genId('da');
     if(v1.thesis) v1.thesis.id = genId('thesis');
     if(Array.isArray(v1.sections)){
       v1.sections.forEach(sec => {
+        if(!sec || typeof sec !== 'object') return;
         sec.id = genId('section');
-        (sec.paragraphs||[]).forEach(p => p.id = genId('para'));
-        (sec.h3sections||[]).forEach(h3s => {
+        toArray(sec.paragraphs).forEach(p => { if(p && typeof p === 'object') p.id = genId('para'); });
+        toArray(sec.h3sections).forEach(h3s => {
+          if(!h3s || typeof h3s !== 'object') return;
           h3s.id = genId('h3');
-          (h3s.paragraphs||[]).forEach(p => p.id = genId('para'));
+          toArray(h3s.paragraphs).forEach(p => { if(p && typeof p === 'object') p.id = genId('para'); });
         });
-        (sec.links||[]).forEach(l => l.id = genId('link'));
-        (sec.tables||[]).forEach(t => t.id = genId('table'));
-        (sec.imagePrompts||[]).forEach(im => im.id = genId('img'));
+        toArray(sec.links).forEach(l => { if(l && typeof l === 'object') l.id = genId('link'); });
+        toArray(sec.tables).forEach(t => { if(t && typeof t === 'object') t.id = genId('table'); });
+        toArray(sec.imagePrompts).forEach(im => { if(im && typeof im === 'object') im.id = genId('img'); });
       });
     }
     if(Array.isArray(v1.faq)){
       v1.faq.forEach(f => {
+        if(!f || typeof f !== 'object') return;
         f.id = genId('faq');
-        if(f.answer) f.answer.id = genId('ans');
+        if(f.answer && typeof f.answer === 'object') f.answer.id = genId('ans');
       });
     }
     if(v1.cta) v1.cta.id = genId('cta');
@@ -1568,10 +1612,15 @@ Wait for the user message containing the per-article topic and sheet row, then i
     const fails = [];
     const F = (check, expected, actual, id) => fails.push({ check, expected, actual: String(actual), id: id || check });
 
-    const sections = Array.isArray(v1.sections) ? v1.sections : [];
-    const faq = Array.isArray(v1.faq) ? v1.faq : [];
-    const totalTables = sections.reduce((n,s)=>n+((s.tables||[]).length),0);
-    const totalImages = sections.reduce((n,s)=>n+((s.imagePrompts||[]).length),0);
+    // Be paranoid about shape — Claude/tolerant-parser can hand back objects where arrays
+    // are expected. assignIds() already runs normalizeV1Shape(), but never assume.
+    const sections = (Array.isArray(v1.sections) ? v1.sections : toArray(v1.sections)).filter(s => s && typeof s === 'object');
+    const faq = (Array.isArray(v1.faq) ? v1.faq : toArray(v1.faq)).filter(f => f && typeof f === 'object');
+    const secTables = s => Array.isArray(s.tables) ? s.tables : toArray(s.tables);
+    const secImages = s => Array.isArray(s.imagePrompts) ? s.imagePrompts : toArray(s.imagePrompts);
+    const secLinks  = s => Array.isArray(s.links) ? s.links : toArray(s.links);
+    const totalTables = sections.reduce((n,s)=>n+secTables(s).length,0);
+    const totalImages = sections.reduce((n,s)=>n+secImages(s).length,0);
     const h2Count = sections.length;
 
     if(sections.length < 4) F('section_count', '>= 4', sections.length);
@@ -1615,7 +1664,8 @@ Wait for the user message containing the per-article topic and sheet row, then i
     const clientDomain = getClientDomainV4();
     const extraExternal = [];
     sections.forEach(sec => {
-      (sec.links || []).forEach(l => {
+      secLinks(sec).forEach(l => {
+        if(!l || typeof l !== 'object') return;
         const a = (l.anchorText||'').trim().toLowerCase();
         const u = normUrl(l.url);
         const known = haveTargets && (targetAnchors.has(a) || targetUrls.has(u));
@@ -2092,10 +2142,11 @@ Output the JSON now.`;
     document.getElementById('stopBtn').style.display = 'none';
   }
 
-  // ─── COUNTING HELPERS ──────────────────────────────────────
-  function countTables(v1){ return (v1.sections||[]).reduce((n,s)=>n+(s.tables?.length||0), 0); }
-  function countLinks(v1){ return (v1.sections||[]).reduce((n,s)=>n+(s.links?.length||0), 0); }
-  function countImages(v1){ return (v1.sections||[]).reduce((n,s)=>n+(s.imagePrompts?.length||0), 0); }
+  // ─── COUNTING HELPERS (array-safe — never assume Claude gave us real arrays) ──
+  function _secs(v1){ return Array.isArray(v1?.sections) ? v1.sections : toArray(v1?.sections); }
+  function countTables(v1){ return _secs(v1).reduce((n,s)=>n+(Array.isArray(s?.tables)?s.tables.length:0), 0); }
+  function countLinks(v1){ return _secs(v1).reduce((n,s)=>n+(Array.isArray(s?.links)?s.links.length:0), 0); }
+  function countImages(v1){ return _secs(v1).reduce((n,s)=>n+(Array.isArray(s?.imagePrompts)?s.imagePrompts.length:0), 0); }
 
   // ─── PHASE 6 STUB ──────────────────────────────────────────
   // Minimal "Hello World" assembly per spec. Full Phase 6 = Milestone 5.
@@ -2103,7 +2154,9 @@ Output the JSON now.`;
     const h1 = escapeHtml(v1.checklist?.h1 || 'Untitled');
     const da = escapeHtml(v1.directAnswer?.prose || '(no direct answer)');
     const thesis = escapeHtml(v1.thesis?.statement || '(no thesis)');
-    const sectionList = (v1.sections||[]).map((s,i)=>`  <li>${escapeHtml(s.h2)} <span style="color:#888;">(${(s.paragraphs?.length||0)} paragraphs, ${(s.tables?.length||0)} tables, ${(s.imagePrompts?.length||0)} images)</span></li>`).join('\n');
+    const secs = _secs(v1).filter(s => s && typeof s === 'object');
+    const faqArr = Array.isArray(v1.faq) ? v1.faq : toArray(v1.faq);
+    const sectionList = secs.map((s,i)=>`  <li>${escapeHtml(s.h2||'')} <span style="color:#888;">(${(Array.isArray(s.paragraphs)?s.paragraphs.length:0)} paragraphs, ${(Array.isArray(s.tables)?s.tables.length:0)} tables, ${(Array.isArray(s.imagePrompts)?s.imagePrompts.length:0)} images)</span></li>`).join('\n');
     return `<!-- Phase 6 STUB — Milestone 1. Full assembly in M5. -->
 <div class="article-wrap">
   <h1>${h1}</h1>
@@ -2112,11 +2165,11 @@ Output the JSON now.`;
   <div style="background:#fff8e6; border:1px dashed #d4a418; padding:12px; margin:16px 0;">
     <strong>STUB NOTICE:</strong> Phase 6 is a Milestone 1 stub. Real assembly (sections, FAQ, schema, ToC, byline, etc.) ships in Milestone 5.
   </div>
-  <h2>Section index (${(v1.sections||[]).length})</h2>
+  <h2>Section index (${secs.length})</h2>
   <ul>
 ${sectionList}
   </ul>
-  <h2>FAQ count: ${(v1.faq||[]).length}</h2>
+  <h2>FAQ count: ${faqArr.length}</h2>
   <h2>CTA</h2>
   <div class="article-cta">
     <p>${escapeHtml(v1.cta?.hookProse||'(no CTA hook)')}</p>
