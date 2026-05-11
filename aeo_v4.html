@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>iTech Valet — AEO V4.0 (Milestone 1)</title>
+<title>iTech Valet — AEO V4.0 (Milestone 2)</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600&display=swap');
   :root {
@@ -18,6 +18,7 @@
   .top-bar h1 { font-family:'Bebas Neue',sans-serif; font-size:28px; text-transform:uppercase; letter-spacing:3px; margin:0; }
   .top-bar h1 span { color:var(--accent); }
   .ver-badge { font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:2px; color:var(--orange); margin-left:8px; padding:2px 8px; border:1px solid var(--orange); border-radius:4px; }
+  .build-stamp { font-family:'SF Mono',Menlo,monospace; font-size:10px; color:var(--faint); margin-left:10px; vertical-align:middle; }
   .subtitle { font-size:11px; color:var(--muted); margin:2px 0 0; }
 
   .top-section { max-width:1700px; margin:0 auto 16px; }
@@ -124,6 +125,34 @@
 
   .legend-box { background:#fff8f4; border:1px solid #ffd4a3; border-radius:6px; padding:8px 12px; font-size:11px; color:#8a4a00; margin-bottom:10px; line-height:1.5; }
 
+  /* MODE BADGE (calibration / production, per client) */
+  .mode-badge { font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1.5px; padding:3px 9px; border-radius:4px; text-transform:uppercase; }
+  .mode-badge.calibration { background:#fff3cd; color:#8a6d00; border:1px solid #e0c000; }
+  .mode-badge.production { background:#e6f4ea; color:#1b5e20; border:1px solid #4caf50; }
+
+  /* ESCALATION PANEL */
+  .escalation-panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; margin-bottom:16px; overflow:hidden; transition:border-color .3s; }
+  .escalation-panel.has-red { border-color:var(--red); }
+  .escalation-panel.has-yellow { border-color:var(--orange); }
+  .esc-header { display:flex; align-items:center; gap:10px; padding:11px 16px; cursor:pointer; user-select:none; }
+  .esc-title { font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:1.5px; color:var(--blue); flex:1; }
+  .esc-count { font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1px; padding:2px 8px; border-radius:4px; background:#ececec; color:var(--faint); }
+  .esc-count.red { background:rgba(192,57,43,.15); color:var(--red); }
+  .esc-count.yellow { background:rgba(221,107,0,.15); color:var(--orange); }
+  .esc-body { display:none; padding:0 16px 14px; }
+  .esc-body.open { display:block; }
+  .esc-entry { border-radius:8px; padding:10px 12px; margin-top:8px; font-size:12px; line-height:1.5; }
+  .esc-entry.red { background:#fdecea; border:1px solid #f5c6c0; }
+  .esc-entry.yellow { background:#fff8e6; border:1px solid #ffd99a; }
+  .esc-entry .esc-code { font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; }
+  .esc-entry.red .esc-code { color:var(--red); }
+  .esc-entry.yellow .esc-code { color:var(--orange); }
+  .esc-entry .esc-msg { color:#333; margin-top:3px; }
+  .esc-entry .esc-ts { color:var(--faint); font-size:10px; }
+  .esc-notify { margin-top:8px; background:var(--red); color:#fff; border:none; border-radius:6px; padding:7px 14px; font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1px; cursor:pointer; }
+  .esc-notify:hover { opacity:.85; }
+  .esc-empty { padding:10px 0 2px; font-size:11px; color:var(--faint); font-style:italic; }
+
   .password-gate { position:fixed; top:0; left:0; width:100%; height:100%; background:#fff; z-index:9999; display:flex; align-items:center; justify-content:center; }
   .password-gate-inner { text-align:center; max-width:340px; width:100%; padding:36px 24px; }
   .pg-brand { font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:3px; color:#063a6c; margin-bottom:4px; }
@@ -142,7 +171,7 @@
 <div class="password-gate" id="passwordGate">
   <div class="password-gate-inner">
     <div class="pg-brand">iTech Valet</div>
-    <div class="pg-sub">AEO V4.0 — Milestone 1</div>
+    <div class="pg-sub">AEO V4.0 — Milestone 2</div>
     <input type="password" class="pg-input" id="gateInput" placeholder="Enter access password..." onkeydown="if(event.key==='Enter')checkPw()" />
     <button class="pg-btn" onclick="checkPw()">Enter</button>
     <div class="pg-err" id="gateErr"></div>
@@ -152,9 +181,14 @@
 <div id="mainContent" style="display:none;">
 
 <div class="top-bar">
-  <div>
-    <h1>iTech Valet <span>AEO V4.0</span><span class="ver-badge">M1</span></h1>
-    <p class="subtitle">Phase 1 (research + thesis) → Phase 2 (V1 via Tool Use) → Phase 6 stub. Caching verifier built in.</p>
+  <div style="flex:1;">
+    <h1>iTech Valet <span>AEO V4.0</span><span class="ver-badge">M2</span><span class="build-stamp" id="buildStamp">build …</span></h1>
+    <p class="subtitle">Phase 1 (research+thesis) → Phase 2 (V1 Tool Use, cached) → Phase 3 dual validation → Phase 4 freeze → Phase 6 stub. Error recovery F1–F4. Calibration/Production modes.</p>
+  </div>
+  <div style="text-align:right;">
+    <div class="cp-label" style="opacity:.55;">Client Mode</div>
+    <div style="margin-top:3px;"><span class="mode-badge calibration" id="modeBadge">— no client —</span></div>
+    <div style="font-size:10px; color:var(--faint); margin-top:3px;" id="modeCount"></div>
   </div>
 </div>
 
@@ -200,6 +234,30 @@
       <div class="cp-group">
         <div class="cp-label">Status</div>
         <div id="globalsStatus" style="font-size:11px; color:var(--muted); min-height:18px; padding:6px 0;">—</div>
+      </div>
+    </div>
+    <div class="cp-row" style="grid-template-columns: auto auto 1fr; align-items:center; gap:14px; margin-top:14px; padding-top:14px; border-top:1px dashed var(--border);">
+      <div class="cp-group">
+        <div class="cp-label">Selected client mode</div>
+        <div style="margin-top:3px;"><span class="mode-badge calibration" id="modeBadgeAdmin">— select a client —</span></div>
+      </div>
+      <button class="btn-cache" id="modeToggleBtn" onclick="toggleClientMode()" disabled style="background:var(--blue);">⇄ Promote / Demote</button>
+      <div style="font-size:11px; color:var(--muted); line-height:1.5;">
+        Calibration = operator reviews each article before publish; pipeline never auto-promotes. Promote to Production only when voice quality is consistently right. Operator-only — VAs cannot toggle. Calibrated count is informational, never used for auto-promotion.
+        <span id="modeCountAdmin" style="display:block; color:var(--faint); margin-top:2px;"></span>
+      </div>
+    </div>
+    <div class="cp-row" style="grid-template-columns: auto 1fr; align-items:center; gap:14px; margin-top:14px; padding-top:14px; border-top:1px dashed var(--border);">
+      <div class="cp-group">
+        <div class="cp-label">🧪 Test injection (Phase 3)</div>
+        <select class="cp-select" id="testInjection" style="margin-top:3px; min-width:280px;">
+          <option value="off">Off — normal pipeline</option>
+          <option value="recover">Drop a section on attempt 1 only — demo auto-recovery (3A catches it → Phase 2 retry → passes)</option>
+          <option value="escalate">Drop a section on every attempt — demo RED escalation (2 retries exhausted → CHK1 in the panel)</option>
+        </select>
+      </div>
+      <div style="font-size:11px; color:var(--muted); line-height:1.5;">
+        For verifying Milestone 2 only. When set, JS removes sections past index 2 from the V1 (leaving 3, below the ≥4 minimum) right before Phase 3A. Watch the Phase 3 card + Escalation Panel. Reset to "Off" for real runs.
       </div>
     </div>
   </div>
@@ -268,6 +326,22 @@
 </div>
 </div>
 
+<!-- ESCALATION PANEL — single VA-facing panel. Empty in 95%+ of runs. -->
+<div class="top-section">
+  <div class="escalation-panel" id="escPanel">
+    <div class="esc-header" onclick="toggleEsc()">
+      <span class="esc-title">⚠ Escalation Panel</span>
+      <span class="esc-count" id="escRedCount">0 RED</span>
+      <span class="esc-count" id="escYellowCount">0 YELLOW</span>
+      <span class="schev closed" id="escChev">▼</span>
+    </div>
+    <div class="esc-body" id="escBody">
+      <div class="esc-empty" id="escEmpty">No escalations. The pipeline auto-recovers from F1–F4 where it can; RED flags appear here only when retries are exhausted.</div>
+      <div id="escEntries"></div>
+    </div>
+  </div>
+</div>
+
 <div class="layout">
 
 <div class="left-col">
@@ -293,7 +367,7 @@
         <div class="phase-num">2</div>
         <div class="phase-info">
           <div class="phase-title">Phase 2 — Claude V1 (Tool Use, cached context)</div>
-          <div class="phase-desc">Returns V1 JSON via submit_v1_article tool. JS assigns IDs post-parse. Cache breakpoint at end of system context.</div>
+          <div class="phase-desc">Returns V1 JSON via submit_v1_article tool. JS assigns IDs post-parse. Cache breakpoint at end of system context. Re-invoked with feedback if Phase 3 fails (max 2 retries).</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b2">Waiting</div><span class="schev closed" id="c2">▼</span></div>
       </div>
@@ -303,28 +377,34 @@
       </div>
     </div>
 
-    <div class="phase-card stub" id="phase3">
+    <div class="phase-card" id="phase3">
       <div class="phase-header" onclick="togglePhase(3)">
         <div class="phase-num">3</div>
         <div class="phase-info">
-          <div class="phase-title">Phase 3 — Dual Validation (3A JS structural + 3B Gemini semantic)</div>
-          <div class="phase-desc">Not implemented in M1 — Milestone 2</div>
+          <div class="phase-title">Phase 3 — Dual Validation</div>
+          <div class="phase-desc">3A: JS structural checks (sections≥4, FAQ≥5, tables≥3, images≥H2, anchorText match, internal-link domain, DA 200–300 words, CTA URL, schema, thesis present+referenced). 3B: Gemini semantic (claims align w/ research + anchors clientSpecificThesis).</div>
         </div>
-        <div class="phase-right"><div class="pbadge b-stub" id="b3">M2</div><span class="schev closed" id="c3">▼</span></div>
+        <div class="phase-right"><div class="pbadge b-waiting" id="b3">Waiting</div><span class="schev closed" id="c3">▼</span></div>
       </div>
-      <div class="phase-body" id="sb3"><div class="phase-out" id="o3">Pending Milestone 2.</div></div>
+      <div class="phase-body" id="sb3">
+        <div class="phase-out" id="o3" style="white-space:pre-wrap;"></div>
+        <div class="phase-meta" id="m3"></div>
+      </div>
     </div>
 
-    <div class="phase-card stub" id="phase4">
+    <div class="phase-card" id="phase4">
       <div class="phase-header" onclick="togglePhase(4)">
         <div class="phase-num">4</div>
         <div class="phase-info">
-          <div class="phase-title">Phase 4 — V1 Freeze (Object.freeze)</div>
-          <div class="phase-desc">Not implemented in M1 — Milestone 2</div>
+          <div class="phase-title">Phase 4 — V1 Freeze</div>
+          <div class="phase-desc">Object.freeze recursively on V1 JSON. Snapshot saved to localStorage (artifact recovery). Bones immutable from here — downstream phases cannot drift the structure.</div>
         </div>
-        <div class="phase-right"><div class="pbadge b-stub" id="b4">M2</div><span class="schev closed" id="c4">▼</span></div>
+        <div class="phase-right"><div class="pbadge b-waiting" id="b4">Waiting</div><span class="schev closed" id="c4">▼</span></div>
       </div>
-      <div class="phase-body" id="sb4"><div class="phase-out" id="o4">Pending Milestone 2.</div></div>
+      <div class="phase-body" id="sb4">
+        <div class="phase-out" id="o4" style="white-space:pre-wrap;"></div>
+        <div class="phase-meta" id="m4"></div>
+      </div>
     </div>
 
     <div class="phase-card stub" id="phase5">
@@ -332,7 +412,7 @@
         <div class="phase-num">5</div>
         <div class="phase-info">
           <div class="phase-title">Phase 5 — Voice Draft (Option E unified CoT)</div>
-          <div class="phase-desc">Not implemented in M1 — Milestone 3</div>
+          <div class="phase-desc">Not implemented yet — Milestone 3</div>
         </div>
         <div class="phase-right"><div class="pbadge b-stub" id="b5">M3</div><span class="schev closed" id="c5">▼</span></div>
       </div>
@@ -344,7 +424,7 @@
         <div class="phase-num">5.5</div>
         <div class="phase-info">
           <div class="phase-title">Phase 5.5 — Forensic Critique + JS quality checks</div>
-          <div class="phase-desc">Not implemented in M1 — Milestone 4</div>
+          <div class="phase-desc">Not implemented yet — Milestone 4</div>
         </div>
         <div class="phase-right"><div class="pbadge b-stub" id="b55">M4</div><span class="schev closed" id="c55">▼</span></div>
       </div>
@@ -355,8 +435,8 @@
       <div class="phase-header" onclick="togglePhase(6)">
         <div class="phase-num">6</div>
         <div class="phase-info">
-          <div class="phase-title">Phase 6 — Final Assembly (M1: stub)</div>
-          <div class="phase-desc">M1 stub: emits minimal HTML (H1 + DA prose) so end-to-end smoke test renders something. Full assembly = Milestone 5.</div>
+          <div class="phase-title">Phase 6 — Final Assembly (still a stub)</div>
+          <div class="phase-desc">Runs after Phase 4 freeze. M2 still emits the minimal H1 + DA stub HTML. Real assembly (sections, FAQ, schema, ToC, byline) = Milestone 5.</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b6">Waiting</div><span class="schev closed" id="c6">▼</span></div>
       </div>
@@ -462,10 +542,16 @@
 
   // ─── CONSTANTS ─────────────────────────────────────────────
   const CLIENTS_KEY='aeo_clients', GLOBALS_KEY='aeo_globals', KEYS_KEY='aeo_session_keys';
+  const MODE_KEY_PREFIX = 'aeo_v4_mode_';                 // + clientName  → "calibration" | "production"
+  const CALCOUNT_KEY_PREFIX = 'aeo_v4_calibrated_count_'; // + clientName  → integer (informational only)
+  const ARTIFACT_V1_PREFIX = 'aeo_v4_artifact_v1_';       // + clientName + "_" + ts → frozen V1 JSON (F16)
+  const YELLOW_KEY = 'aeo_v4_yellow_warnings';            // rolling last-10 YELLOW warnings across runs
+  const ARTIFACT_TTL_MS = 7 * 24 * 60 * 60 * 1000;       // 7-day auto-purge (F16)
   const PROXY = 'https://anthropic-proxy.gerek.workers.dev';
   const GEMINI_MODEL = 'gemini-2.5-pro';
   const CLAUDE_MODEL = 'claude-sonnet-4-5';
   const MAX_TOKENS = 64000;
+  const BACKOFF_MS = [5000, 15000, 45000];               // F4 exponential backoff schedule
 
   // ─── STATE ─────────────────────────────────────────────────
   let S = {
@@ -476,17 +562,47 @@
     sheetRowCols: {},
     research: null,           // Phase 1 JSON
     v1: null,                 // Phase 2 JSON (with JS-assigned IDs)
+    v1Frozen: false,          // Phase 4
+    validation: null,         // { structuralFails:[], semanticFails:[], passed:bool }
     htmlStub: '',             // Phase 6 stub output
     tokens: { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 },
-    cacheLog: []              // [{phase, callIndex, cacheCreate, cacheRead, input, output, verdict, ts}]
+    cacheLog: [],             // [{phase, callIndex, cacheCreate, cacheRead, input, output, verdict, ts}]
+    escalationsRed: [],       // per-run RED escalations [{code, msg, ts}]
+    cta43BWarned: false       // so the "4.3B CTA URL not parseable" YELLOW only fires once per run
   };
+  let yellowWarnings = [];    // rolling, persisted to localStorage, capped at 10
   let running = false;
+  let pipelineHalted = false; // set true by escalateRed — stops the orchestrator
   let timerStart=0, timerInterval=null;
 
   function init(){
+    renderBuildStamp();
     loadClients();
     loadKeys();
     loadGlobals();
+    loadYellowWarnings();
+    purgeOldArtifacts();
+    renderEscalationPanel();
+    renderModeUI();
+  }
+
+  // ─── BUILD STAMP ───────────────────────────────────────────
+  // Auto — no manual edits, no build step. document.lastModified reflects the file's
+  // Last-Modified header when served (e.g. GitHub Pages reflects the deploy time) or the
+  // filesystem mtime when opened locally. Updates on every save/push by itself.
+  function renderBuildStamp(){
+    const el = document.getElementById('buildStamp');
+    if(!el) return;
+    const raw = document.lastModified || '';
+    const d = raw ? new Date(raw) : null;
+    if(d && !isNaN(d.getTime()) && d.getFullYear() > 2000){
+      const p = n => String(n).padStart(2,'0');
+      el.textContent = `build ${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+      el.title = `document.lastModified = "${raw}" — auto-reflects the file's deploy/save time. Hosted on GitHub Pages this is the deploy timestamp; opened locally it's the file mtime.`;
+    } else {
+      el.textContent = 'build (timestamp unavailable)';
+      el.title = `document.lastModified was empty or invalid: "${raw}". The server may not be sending a Last-Modified header.`;
+    }
   }
 
   // ─── GLOBALS (4.3A + 4.4 folder IDs, shared with V3.1 via aeo_globals key) ──
@@ -586,19 +702,21 @@
   }
   function onClientChange(){
     if(running) return;
-    S.research=null; S.v1=null; S.htmlStub=''; S.docs={doc43A:'',doc43B:'',doc44:''};
-    S.sheetRow=''; S.sheetRowCols={}; S.tokens={gi:0,go:0,ci:0,co:0,cacheRead:0,cacheCreate:0}; S.cacheLog=[];
-    updateCost(); renderCacheLog();
-    setPhase(1,'waiting','Waiting'); setPhase(2,'waiting','Waiting'); setPhase(6,'waiting','Waiting');
-    document.getElementById('o1').textContent=''; document.getElementById('m1').textContent='';
-    document.getElementById('o2').textContent=''; document.getElementById('m2').textContent='';
-    document.getElementById('o6').textContent=''; document.getElementById('m6').textContent='';
+    const sel = document.getElementById('clientSelect');
+    const clients = JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');
+    S.client = sel.value !== '' ? clients[parseInt(sel.value)] : null;
+    S.research=null; S.v1=null; S.v1Frozen=false; S.validation=null; S.htmlStub=''; S.docs={doc43A:'',doc43B:'',doc44:''};
+    S.sheetRow=''; S.sheetRowCols={}; S.cta43BWarned=false; S.tokens={gi:0,go:0,ci:0,co:0,cacheRead:0,cacheCreate:0}; S.cacheLog=[];
+    updateCost(); renderCacheLog(); renderModeUI();
+    ['1','2','3','4','6'].forEach(n=>{ setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
     document.getElementById('researchPre').textContent='Phase 1 output appears here.';
     document.getElementById('v1Pre').textContent='Phase 2 output appears here.';
+    document.getElementById('o3').textContent='';
+    document.getElementById('o4').textContent='';
     document.getElementById('htmlPre').textContent='Phase 6 stub output appears here.';
     setCacheBtnsDisabled(true);
     document.getElementById('cacheVerdict').textContent='—';
-    setG('Client changed. Ready.');
+    setG(S.client ? `Client: ${S.client.name} [${getClientMode(S.client.name)}]. Ready.` : 'Ready. Select client, paste topic, hit Run.');
   }
 
   // ─── UI HELPERS ────────────────────────────────────────────
@@ -681,15 +799,15 @@
     document.getElementById('cCost').textContent = '$' + (geminiCost + claudeCost).toFixed(3);
   }
 
-  // ─── DRIVE ─────────────────────────────────────────────────
+  // ─── DRIVE (F4-wrapped) ────────────────────────────────────
   async function fetchFile(id, key){
     if(!id) throw new Error('Missing file ID — check Client Manager config');
-    const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, { headers: {'x-goog-api-key': key} });
+    const r = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, { headers: {'x-goog-api-key': key} }, 'Drive');
     if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(`Drive error (${r.status}): ${e?.error?.message||'check file ID'}`); }
     return r.text();
   }
   async function fetchSheet(id, key){
-    const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=text%2Fcsv`, { headers: {'x-goog-api-key': key} });
+    const r = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=text%2Fcsv`, { headers: {'x-goog-api-key': key} }, 'Drive (sheet)');
     if(!r.ok) throw new Error(`Sheet fetch failed: ${r.status}`);
     return r.text();
   }
@@ -779,19 +897,19 @@
     return JSON.parse(further); // final attempt — let it throw if still bad
   }
 
-  // ─── GEMINI ────────────────────────────────────────────────
+  // ─── GEMINI (F4-wrapped) ───────────────────────────────────
   async function callGemini(prompt, gkey, opts={}){
-    const TIMEOUT_MS = 90000;
+    const TIMEOUT_MS = 150000; // generous: must cover one F4 backoff cycle if Gemini 5xxs
     const controller = new AbortController();
-    const timeoutId = setTimeout(()=>controller.abort(), TIMEOUT_MS);
+    const timeoutId = setTimeout(()=>controller.abort(new Error(`Gemini timeout after ${TIMEOUT_MS/1000}s`)), TIMEOUT_MS);
     const generationConfig = { maxOutputTokens: opts.maxTokens || 16384 };
     if(opts.json) generationConfig.responseMimeType = 'application/json';
     try {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${gkey}`, {
+      const r = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${gkey}`, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig }),
         signal: controller.signal
-      });
+      }, 'Gemini API');
       clearTimeout(timeoutId);
       if(!r.ok){
         const errText = await r.text().catch(()=>'(unreadable)');
@@ -812,18 +930,19 @@
       return text;
     } catch(err){
       clearTimeout(timeoutId);
-      if(err.name === 'AbortError') throw new Error(`Gemini timeout after ${TIMEOUT_MS/1000}s`);
+      if(err.name === 'AbortError') throw new Error(controller.signal.reason?.message || `Gemini timeout after ${TIMEOUT_MS/1000}s`);
       throw err;
     }
   }
 
   // ─── CLAUDE (STREAMING + TOOL USE + PROMPT CACHING) ────────
-  // Returns { textOutput, toolCalls: [{name, input}], usage: {input, output, cacheRead, cacheCreate} }
+  // Returns { textOutput, toolCalls: [{name, input}], usage: {...}, stopReason }
   // - systemBlocks: array of {type:'text', text:'...', cache_control?:{type:'ephemeral'}}
   // - tools: array of tool definitions
   // - tool_choice: {type:'tool', name:'...'} to force a tool call
   // - onProgress({textOutput, toolJson, outputTokens}) — called on every delta for live UI
   // - timeoutMs — abort the request (and any silent hang) after this long. Stop button also aborts.
+  // stopReason 'max_tokens' → F3 truncation territory; caller handles.
   let _activeClaudeAbort = null;
   async function callClaude({ systemBlocks, userText, tools, toolChoice, akey, maxTokens=MAX_TOKENS, onProgress=null, timeoutMs=300000 }){
     const body = {
@@ -845,15 +964,18 @@
     }, 5000);
     const hardTimeout = setTimeout(()=>controller.abort(new Error(`Claude call exceeded ${Math.round(timeoutMs/1000)}s — aborted.`)), timeoutMs);
 
+    // F4: retry the initial connection on 5xx / network error (backoff). Once the stream
+    // starts, a mid-stream failure is not retried (an SSE stream cannot be resumed).
     let r;
     try {
-      r = await fetch(PROXY, {
+      r = await fetchWithRetry(PROXY, {
         method:'POST', headers:{'Content-Type':'application/json','x-api-key':akey},
         body: JSON.stringify(body),
         signal: controller.signal
-      });
+      }, 'Claude API (proxy)');
     } catch(e){
       clearInterval(hangCheck); clearTimeout(hardTimeout); _activeClaudeAbort = null;
+      if(e.f4) throw e;
       throw new Error(`Claude request failed: ${controller.signal.reason?.message || e.message || e}`);
     }
     if(!r.ok || !r.body){
@@ -865,6 +987,7 @@
     const dec = new TextDecoder();
     let buf = '';
     let textOutput = '';
+    let stopReason = null;
     const blocks = []; // {type, name?, partialJson?, text?}
     let usage = { input:0, output:0, cacheRead:0, cacheCreate:0 };
     const emitProgress = ()=>{ if(onProgress){ try { onProgress({ textOutput, toolJson: (blocks.find(b=>b&&b.type==='tool_use')||{}).partialJson||'', outputTokens: usage.output }); } catch(_){} } };
@@ -914,6 +1037,7 @@
           }
           if(p.type === 'message_delta'){
             if(p.usage) usage.output = p.usage.output_tokens || 0;
+            if(p.delta?.stop_reason) stopReason = p.delta.stop_reason;
             emitProgress();
           }
           if(p.type === 'error'){
@@ -943,7 +1067,7 @@
     S.tokens.cacheRead += usage.cacheRead;
     updateCost();
 
-    return { textOutput, toolCalls, usage };
+    return { textOutput, toolCalls, usage, stopReason };
   }
 
   // ─── PROMPT BUILDERS ───────────────────────────────────────
@@ -1034,12 +1158,16 @@ Wait for the user message containing the per-article topic and sheet row, then i
     return [{ type: 'text', text: ctx, cache_control: { type: 'ephemeral' } }];
   }
 
-  function buildPhase2UserText(){
-    return `TOPIC: ${S.topic}
-
-SHEET ROW: ${S.sheetRow}
-
-Generate the V1 article structure now by calling submit_v1_article. Do not respond with text — always invoke the tool.`;
+  // feedback: validation problems from Phase 3 (empty on first attempt). f2hint: F2 raw-JSON nudge.
+  function buildPhase2UserText(feedback, f2hint){
+    let t = `TOPIC: ${S.topic}\n\nSHEET ROW: ${S.sheetRow}\n\nGenerate the V1 article structure now by calling submit_v1_article. Do not respond with text — always invoke the tool.`;
+    if(feedback && feedback.trim()){
+      t += `\n\n─────────────────────────────────────────\nYOUR PREVIOUS V1 ATTEMPT FAILED VALIDATION. Fix every problem below and resubmit the FULL V1 via submit_v1_article:\n${feedback}\n─────────────────────────────────────────`;
+    }
+    if(f2hint){
+      t += `\n\nNOTE: a previous attempt produced output that could not be parsed. Call submit_v1_article with clean structured JSON only — no code fences, no preamble inside string values, no commentary.`;
+    }
+    return t;
   }
 
   // ─── V1 TOOL SCHEMA ────────────────────────────────────────
@@ -1230,6 +1358,344 @@ Generate the V1 article structure now by calling submit_v1_article. Do not respo
     }).join('');
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // MILESTONE 2 — ERROR RECOVERY (F1–F4), CALIBRATION/PRODUCTION MODES, ESCALATION PANEL,
+  // PHASE 3 DUAL VALIDATION, PHASE 4 FREEZE
+  // ═══════════════════════════════════════════════════════════
+
+  // ─── ESCALATION SYSTEM ─────────────────────────────────────
+  // RED  = pipeline hard-stops, surfaced to VA with code + remediation, operator handles.
+  // YELLOW = pipeline continues, logged, accumulates in a rolling last-10 list.
+  function escalateRed(code, msg){
+    const entry = { code, msg, ts: new Date().toLocaleString() };
+    S.escalationsRed.push(entry);
+    pipelineHalted = true;
+    log(`RED ESCALATION [${code}]: ${msg}`, 'err');
+    renderEscalationPanel();
+    setEscOpen(true);
+  }
+  function warnYellow(code, msg){
+    const entry = { code, msg, ts: new Date().toLocaleString() };
+    yellowWarnings.unshift(entry);
+    if(yellowWarnings.length > 10) yellowWarnings = yellowWarnings.slice(0, 10);
+    saveYellowWarnings();
+    log(`YELLOW [${code}]: ${msg}`, 'warn');
+    renderEscalationPanel();
+  }
+  function loadYellowWarnings(){
+    try { yellowWarnings = JSON.parse(localStorage.getItem(YELLOW_KEY)) || []; } catch(_){ yellowWarnings = []; }
+  }
+  function saveYellowWarnings(){
+    try { localStorage.setItem(YELLOW_KEY, JSON.stringify(yellowWarnings)); } catch(_){}
+  }
+  function clearRunEscalations(){ S.escalationsRed = []; renderEscalationPanel(); }
+  function setEscOpen(open){
+    document.getElementById('escBody').classList.toggle('open', open);
+    document.getElementById('escChev').classList.toggle('closed', !open);
+  }
+  function toggleEsc(){ setEscOpen(!document.getElementById('escBody').classList.contains('open')); }
+  function renderEscalationPanel(){
+    const panel = document.getElementById('escPanel');
+    const redN = S.escalationsRed.length, yelN = yellowWarnings.length;
+    document.getElementById('escRedCount').textContent = `${redN} RED`;
+    document.getElementById('escRedCount').className = 'esc-count' + (redN ? ' red' : '');
+    document.getElementById('escYellowCount').textContent = `${yelN} YELLOW`;
+    document.getElementById('escYellowCount').className = 'esc-count' + (yelN ? ' yellow' : '');
+    panel.classList.toggle('has-red', redN > 0);
+    panel.classList.toggle('has-yellow', redN === 0 && yelN > 0);
+    const empty = document.getElementById('escEmpty');
+    const entriesEl = document.getElementById('escEntries');
+    if(!redN && !yelN){ empty.style.display = 'block'; entriesEl.innerHTML = ''; return; }
+    empty.style.display = 'none';
+    let html = '';
+    if(redN){
+      html += S.escalationsRed.map(e => `<div class="esc-entry red"><span class="esc-code">RED · ${escapeHtml(e.code)}</span> <span class="esc-ts">${escapeHtml(e.ts)}</span><div class="esc-msg">${escapeHtml(e.msg)}</div></div>`).join('');
+      html += `<button class="esc-notify" onclick="notifyOperator()">📨 Notify Operator</button>`;
+    }
+    if(yelN){
+      html += `<div style="margin-top:12px; font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1px; color:var(--orange);">YELLOW WARNINGS (last 10)</div>`;
+      html += yellowWarnings.map(e => `<div class="esc-entry yellow"><span class="esc-code">YELLOW · ${escapeHtml(e.code)}</span> <span class="esc-ts">${escapeHtml(e.ts)}</span><div class="esc-msg">${escapeHtml(e.msg)}</div></div>`).join('');
+    }
+    entriesEl.innerHTML = html;
+  }
+  function notifyOperator(){
+    const lines = [];
+    lines.push(`AEO V4.0 ESCALATION — ${new Date().toLocaleString()}`);
+    lines.push(`Client: ${S.client?.name || '(none)'}  |  Topic: ${S.topic || '(none)'}`);
+    lines.push('');
+    if(S.escalationsRed.length){ lines.push('RED:'); S.escalationsRed.forEach(e => lines.push(`  [${e.code}] ${e.msg}  (${e.ts})`)); }
+    if(yellowWarnings.length){ lines.push('YELLOW (recent):'); yellowWarnings.forEach(e => lines.push(`  [${e.code}] ${e.msg}  (${e.ts})`)); }
+    const text = lines.join('\n');
+    if(navigator.clipboard?.writeText){
+      navigator.clipboard.writeText(text).then(()=>alert('Escalation details copied to clipboard — forward to the operator (Gerek).')).catch(()=>prompt('Copy this and send to the operator:', text));
+    } else {
+      prompt('Copy this and send to the operator:', text);
+    }
+    log('Operator notification prepared (clipboard). Email/SMS integration is post-M2.', 'warn');
+  }
+
+  // ─── CALIBRATION / PRODUCTION MODE (per client) ────────────
+  function getClientMode(name){
+    if(!name) return 'calibration';
+    return localStorage.getItem(MODE_KEY_PREFIX + name) || 'calibration';
+  }
+  function setClientMode(name, mode){ if(name) localStorage.setItem(MODE_KEY_PREFIX + name, mode); }
+  function getCalibratedCount(name){
+    if(!name) return 0;
+    const n = parseInt(localStorage.getItem(CALCOUNT_KEY_PREFIX + name) || '0', 10);
+    return isNaN(n) ? 0 : n;
+  }
+  function incrementCalibratedCount(name){
+    if(!name) return;
+    localStorage.setItem(CALCOUNT_KEY_PREFIX + name, String(getCalibratedCount(name) + 1));
+  }
+  function toggleClientMode(){
+    if(!S.client){ alert('Select a client first.'); return; }
+    const cur = getClientMode(S.client.name);
+    const next = cur === 'production' ? 'calibration' : 'production';
+    setClientMode(S.client.name, next);
+    log(`Client "${S.client.name}" mode: ${cur} → ${next} (operator action — never auto-promoted).`, 'ok');
+    renderModeUI();
+  }
+  function renderModeUI(){
+    const name = S.client?.name;
+    const mode = name ? getClientMode(name) : null;
+    const count = name ? getCalibratedCount(name) : 0;
+    const badge = document.getElementById('modeBadge');
+    const badgeAdmin = document.getElementById('modeBadgeAdmin');
+    const countEl = document.getElementById('modeCount');
+    const countAdminEl = document.getElementById('modeCountAdmin');
+    const toggleBtn = document.getElementById('modeToggleBtn');
+    if(!name){
+      badge.textContent = '— no client —'; badge.className = 'mode-badge calibration';
+      badgeAdmin.textContent = '— select a client —'; badgeAdmin.className = 'mode-badge calibration';
+      countEl.textContent = ''; countAdminEl.textContent = '';
+      toggleBtn.disabled = true;
+      return;
+    }
+    badge.textContent = mode; badge.className = 'mode-badge ' + mode;
+    badgeAdmin.textContent = `${name}: ${mode}`; badgeAdmin.className = 'mode-badge ' + mode;
+    countEl.textContent = `${name} · ${count} calibrated`;
+    countAdminEl.textContent = `${name} calibrated runs: ${count} (informational — never triggers promotion)`;
+    toggleBtn.disabled = false;
+  }
+
+  // ─── F16 ARTIFACT AUTO-SAVE / PURGE ────────────────────────
+  function saveV1Artifact(clientName, v1){
+    try {
+      const key = ARTIFACT_V1_PREFIX + clientName + '_' + Date.now();
+      localStorage.setItem(key, JSON.stringify(v1));
+      return key;
+    } catch(e){ warnYellow('F16', `Could not save V1 artifact to localStorage: ${e.message}`); return null; }
+  }
+  function purgeOldArtifacts(){
+    const now = Date.now();
+    for(let i = localStorage.length - 1; i >= 0; i--){
+      const k = localStorage.key(i);
+      if(!k || !k.startsWith(ARTIFACT_V1_PREFIX)) continue;
+      const ts = parseInt(k.slice(k.lastIndexOf('_') + 1), 10);
+      if(!isNaN(ts) && now - ts > ARTIFACT_TTL_MS) localStorage.removeItem(k);
+    }
+  }
+
+  // ─── F4: FETCH WITH BACKOFF RETRY ──────────────────────────
+  // Retries on network error or HTTP 5xx; backoff 5s / 15s / 45s (3 retries). Returns the
+  // Response object on success (caller handles 4xx). Throws an F4-tagged error after exhaustion.
+  async function fetchWithRetry(url, opts, label){
+    let lastErr = null;
+    for(let attempt = 0; attempt <= BACKOFF_MS.length; attempt++){
+      if(attempt > 0){
+        const wait = BACKOFF_MS[attempt - 1];
+        warnYellow('F4', `${label} unavailable (attempt ${attempt}/${BACKOFF_MS.length + 1}) — retrying in ${wait/1000}s. ${lastErr ? '('+lastErr+')' : ''}`);
+        setG(`${label} unreachable — retrying in ${wait/1000}s…`, true);
+        await sleep(wait);
+      }
+      try {
+        const r = await fetch(url, opts);
+        if(r.status >= 500 && r.status <= 599){ lastErr = `HTTP ${r.status}`; if(attempt < BACKOFF_MS.length) continue; const t = await r.text().catch(()=>'(unreadable)'); const e = new Error(`F4: ${label} returned HTTP ${r.status} after ${BACKOFF_MS.length + 1} attempts. ${t.slice(0,200)}`); e.f4 = true; e.label = label; throw e; }
+        return r; // success or 4xx — caller decides
+      } catch(err){
+        if(err.f4) throw err; // already our wrapped error
+        if(err.name === 'AbortError') throw err; // operator stop / watchdog — don't retry
+        lastErr = err.message || String(err);
+        if(attempt < BACKOFF_MS.length) continue;
+        const e = new Error(`F4: ${label} unreachable after ${BACKOFF_MS.length + 1} attempts. Last error: ${lastErr}`);
+        e.f4 = true; e.label = label; throw e;
+      }
+    }
+  }
+
+  // ─── PHASE 4: RECURSIVE FREEZE ─────────────────────────────
+  function deepFreeze(obj){
+    if(obj && typeof obj === 'object' && !Object.isFrozen(obj)){
+      Object.keys(obj).forEach(k => deepFreeze(obj[k]));
+      Object.freeze(obj);
+    }
+    return obj;
+  }
+
+  // ─── CLIENT DOMAIN (simplified V4 port of getClientDomain) ──
+  function getClientDomainV4(){
+    const tryUrl = u => { if(!u) return ''; const m = String(u).match(/https?:\/\/(?:www\.)?([^\/\s"',]+)/i); if(m && !/github\.io|google\.com|googleapis/i.test(m[1])) return m[1].toLowerCase().replace(/^www\./,''); return ''; };
+    let d = tryUrl(S.v1?.checklist?.fullUrl); if(d) return d;
+    if(S.research?.anchorTextTargets){ for(const t of S.research.anchorTextTargets){ if(t.type === 'internal'){ d = tryUrl(t.url); if(d) return d; } } }
+    if(S.docs.doc43B){ const m = S.docs.doc43B.match(/https?:\/\/(?:www\.)?([^\/\s"',]+\.[a-z]{2,})/i); if(m && !/github\.io/i.test(m[1])) return m[1].toLowerCase().replace(/^www\./,''); }
+    if(S.sheetRow){ const re = /https?:\/\/(?:www\.)?([^\/\s,]+)/gi; let m; while((m = re.exec(S.sheetRow))){ const dom = m[1].toLowerCase().replace(/^www\./,''); if(!/github\.io|google\.com|googleapis/i.test(dom)) return dom; } }
+    return '__NO_DOMAIN__';
+  }
+  function isInternalUrl(url, clientDomain){
+    if(!url) return false;
+    if(url.startsWith('/')) return true;
+    if(!/^https?:\/\//i.test(url)) return true; // relative
+    if(clientDomain === '__NO_DOMAIN__') return false;
+    return url.toLowerCase().includes(clientDomain) || /github\.io/i.test(url);
+  }
+
+  // ─── 4.3B FIELD EXTRACTION (best-effort) ───────────────────
+  function extract43BField(doc43B, label){
+    if(!doc43B) return '';
+    // Look for a line "<label> ... : value" or "<label> — value" or "<label> - value"
+    const esc = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(esc + '[^\\n:—-]*[:—-]\\s*(.+)', 'i');
+    const m = doc43B.match(re);
+    return m ? m[1].trim() : '';
+  }
+
+  // ─── PHASE 3A: JS STRUCTURAL VALIDATION ────────────────────
+  // Pure(ish) — reads S.research / S.docs.doc43B / S.v1 via the params passed.
+  function validateV1Structure(v1, research, doc43B){
+    const fails = [];
+    const F = (check, expected, actual, id) => fails.push({ check, expected, actual: String(actual), id: id || check });
+
+    const sections = Array.isArray(v1.sections) ? v1.sections : [];
+    const faq = Array.isArray(v1.faq) ? v1.faq : [];
+    const totalTables = sections.reduce((n,s)=>n+((s.tables||[]).length),0);
+    const totalImages = sections.reduce((n,s)=>n+((s.imagePrompts||[]).length),0);
+    const h2Count = sections.length;
+
+    if(sections.length < 4) F('section_count', '>= 4', sections.length);
+    if(faq.length < 5) F('faq_count', '>= 5', faq.length);
+    if(totalTables < 3) F('table_count', '>= 3 (across all sections)', totalTables);
+    if(totalImages < h2Count) F('image_prompt_count', `>= H2 count (${h2Count})`, totalImages);
+
+    // Direct Answer 200-300 words
+    const daWords = (v1.directAnswer?.prose || '').trim().split(/\s+/).filter(Boolean).length;
+    if(daWords < 200 || daWords > 300) F('direct_answer_word_count', '200–300 words', daWords, v1.directAnswer?.id);
+
+    // Thesis present and referenced in DA or first section
+    const thesisStmt = (v1.thesis?.statement || '').trim();
+    if(!thesisStmt){
+      F('thesis_present', 'non-empty thesis.statement', '(empty)', v1.thesis?.id);
+    } else {
+      const refText = ((v1.directAnswer?.prose||'') + ' ' + (sections[0] ? JSON.stringify(sections[0]) : '')).toLowerCase();
+      const contentWords = thesisStmt.toLowerCase().match(/\b[a-z][a-z'-]{4,}\b/g) || [];
+      const uniq = [...new Set(contentWords)];
+      const hits = uniq.filter(w => refText.includes(w)).length;
+      if(uniq.length >= 2 && hits < 2) F('thesis_referenced', '>= 2 thesis content words appear in Direct Answer or section 1', `${hits} of ${uniq.length}`, v1.thesis?.id);
+    }
+
+    // Schema-ready data complete (checklist core fields)
+    const cl = v1.checklist || {};
+    ['metaTitle','h1','permalink','fullUrl','metaDescription','keywords','category'].forEach(f => {
+      if(!cl[f] || !String(cl[f]).trim()) F('checklist_field', `checklist.${f} non-empty`, '(empty)', `checklist.${f}`);
+    });
+
+    // Every link anchorText matches an entry in research.anchorTextTargets
+    const targetAnchors = new Set((research?.anchorTextTargets || []).map(t => (t.anchorText||'').trim().toLowerCase()));
+    const clientDomain = getClientDomainV4();
+    sections.forEach(sec => {
+      (sec.links || []).forEach(l => {
+        const a = (l.anchorText||'').trim().toLowerCase();
+        if(targetAnchors.size && !targetAnchors.has(a)) F('link_anchor_match', `anchorText must be one of research.anchorTextTargets`, `"${l.anchorText}" not in targets`, l.id);
+        // Internal link domain check: a link is "internal" if its url is relative or on the client domain.
+        if(isInternalUrl(l.url, clientDomain)){
+          if(clientDomain !== '__NO_DOMAIN__' && /^https?:\/\//i.test(l.url) && !l.url.toLowerCase().includes(clientDomain) && !/github\.io/i.test(l.url)){
+            F('internal_link_domain', `internal link URL on ${clientDomain}`, l.url, l.id);
+          }
+        }
+      });
+    });
+
+    // CTA url matches 4.3B Conversion Primary CTA URL (if extractable)
+    const ctaUrl = (v1.cta?.url || '').trim();
+    const expectedCta = extract43BField(doc43B, 'Conversion Primary CTA URL') || extract43BField(doc43B, 'Primary CTA URL') || extract43BField(doc43B, 'Conversion Primary CTA');
+    if(expectedCta){
+      // Compare loosely (ignore trailing slash, protocol)
+      const norm = u => u.replace(/^https?:\/\//i,'').replace(/\/$/,'').toLowerCase();
+      if(norm(ctaUrl) !== norm(expectedCta)) F('cta_url_match', `CTA url == 4.3B Conversion Primary CTA URL (${expectedCta})`, ctaUrl, v1.cta?.id);
+    } else if(!S.cta43BWarned){
+      S.cta43BWarned = true;
+      warnYellow('P3A', 'Could not parse "Conversion Primary CTA URL" from 4.3B — CTA URL match check skipped this run. Verify 4.3B has that field labeled clearly.');
+    }
+    if(!ctaUrl) F('cta_url_present', 'cta.url non-empty', '(empty)', v1.cta?.id);
+
+    return { passed: fails.length === 0, structuralFails: fails };
+  }
+
+  // ─── PHASE 3B: GEMINI SEMANTIC VALIDATION ──────────────────
+  function buildPhase3BPrompt(v1, research){
+    return `You are a semantic fact-checker for an AEO article. You have exactly ONE job: verify (1) the article's factual claims align with the research brief, and (2) the article anchors around the clientSpecificThesis (it appears in the Direct Answer or the first section, and is threaded through the piece — not just summarized once).
+
+Return ONLY a JSON object: {"semanticFails": [{"targetId": "<the id of the offending box>", "issue": "<one sentence>", "suggestedRevision": "<one sentence>"}]}
+If there are no problems, return {"semanticFails": []}. No code fences, no preamble. First char "{", last char "}".
+
+Be precise, not nitpicky: only flag claims that contradict or are not supported by the research brief, or a genuine failure to anchor the thesis. Do NOT flag voice, tone, or style — that is not your job.
+
+RESEARCH BRIEF (source of truth):
+${JSON.stringify(research, null, 2)}
+
+CLIENT-SPECIFIC THESIS (must be anchored):
+${JSON.stringify(research?.clientSpecificThesis || {}, null, 2)}
+
+V1 ARTICLE (with JS-assigned IDs — use these IDs in targetId):
+${JSON.stringify(v1, null, 2)}
+
+Output the JSON now.`;
+  }
+  async function validateV1Semantic(v1, research, gkey){
+    let lastErr = null;
+    for(let attempt = 0; attempt < 2; attempt++){
+      if(attempt > 0){ warnYellow('F19', 'Phase 3B returned malformed/empty output — retrying once.'); await sleep(3000); }
+      let raw;
+      try { raw = await callGemini(buildPhase3BPrompt(v1, research), gkey, { json: true, maxTokens: 8192 }); }
+      catch(e){ if(e.f4) throw e; lastErr = e.message; continue; }
+      try {
+        const parsed = tolerantParseJSON(raw);
+        if(!parsed || !Array.isArray(parsed.semanticFails)){ lastErr = 'no semanticFails array'; continue; }
+        return { semanticFails: parsed.semanticFails, raw };
+      } catch(e){ lastErr = e.message; continue; }
+    }
+    // Both attempts failed — RED F19 (article unsafe to publish without semantic validation)
+    escalateRed('F19', `Phase 3B semantic validation failed after retry — article unsafe to publish without it. Last error: ${lastErr || 'unknown'}`);
+    return { semanticFails: [], raw: '', failed: true };
+  }
+
+  // ─── PHASE 3 RESULT RENDERING ──────────────────────────────
+  function renderPhase3(structuralFails, semanticFails, attemptN, passed){
+    const o3 = document.getElementById('o3');
+    const lines = [];
+    lines.push(`Validation attempt ${attemptN + 1} — ${passed ? 'PASS ✓' : 'FAIL ✗'}`);
+    lines.push('');
+    lines.push(`3A · JS STRUCTURAL — ${structuralFails.length ? structuralFails.length + ' fail(s):' : 'all checks pass'}`);
+    structuralFails.forEach(f => lines.push(`  • ${f.check}${f.id && f.id !== f.check ? ' ['+f.id+']' : ''}: expected ${f.expected}, got ${f.actual}`));
+    lines.push('');
+    lines.push(`3B · GEMINI SEMANTIC — ${semanticFails.length ? semanticFails.length + ' fail(s):' : 'aligned with research brief + thesis anchored'}`);
+    semanticFails.forEach(f => lines.push(`  • [${f.targetId || '?'}] ${f.issue}${f.suggestedRevision ? '  → '+f.suggestedRevision : ''}`));
+    o3.textContent = lines.join('\n');
+  }
+  function formatValidationFeedback(structuralFails, semanticFails){
+    const parts = [];
+    if(structuralFails.length){
+      parts.push('STRUCTURAL PROBLEMS (3A):');
+      structuralFails.forEach(f => parts.push(`- ${f.check}${f.id && f.id !== f.check ? ' ('+f.id+')' : ''}: expected ${f.expected}, you produced ${f.actual}. Fix this.`));
+    }
+    if(semanticFails.length){
+      parts.push('SEMANTIC PROBLEMS (3B — your content vs the research brief / thesis):');
+      semanticFails.forEach(f => parts.push(`- Box ${f.targetId || '(unspecified)'}: ${f.issue}. Suggested fix: ${f.suggestedRevision || '(use your judgment, anchored to the research brief)'}`));
+    }
+    return parts.join('\n');
+  }
+
   // ─── PHASE 2 STREAMING DISPLAY ─────────────────────────────
   // Returns an onProgress callback that streams the tool-input JSON into the Phase 2
   // output box (and the V1 JSON tab) live, so the operator can watch it being written.
@@ -1252,9 +1718,39 @@ Generate the V1 article structure now by calling submit_v1_article. Do not respo
     };
   }
 
+  // ─── PHASE 2 RUNNER (one Claude tool-use call; returns parsed V1 or a parse-error marker) ──
+  // Captures stopReason so the orchestrator can spot F3 truncation.
+  async function runPhase2(akey, feedback, f2hint, label){
+    setPhase(2, 'active', label === 'Phase 2' ? 'Streaming' : 'Retrying');
+    document.getElementById('sb2').classList.add('open');
+    document.getElementById('c2').classList.remove('closed');
+    document.getElementById('o2').textContent = `⏳ ${label} — connecting to Claude…`;
+    switchTab('v1json');
+    const t = Date.now();
+    const result = await callClaude({
+      systemBlocks: buildPhase2SystemBlocks(),
+      userText: buildPhase2UserText(feedback, f2hint),
+      tools: [V1_TOOL],
+      toolChoice: { type:'tool', name:'submit_v1_article' },
+      akey,
+      onProgress: makePhase2Progress(label),
+      timeoutMs: 300000
+    });
+    logCacheCall(2, result.usage);
+    const elapsed = ((Date.now()-t)/1000).toFixed(1);
+    if(!result.toolCalls.length){
+      return { parseError: 'no tool call returned', rawText: result.textOutput, elapsed, stopReason: result.stopReason };
+    }
+    const input = result.toolCalls[0].input;
+    if(input.__parse_error){
+      return { parseError: input.__parse_error, rawFragment: input.__raw, elapsed, stopReason: result.stopReason };
+    }
+    return { v1: input, elapsed, stopReason: result.stopReason };
+  }
+
   // ─── PIPELINE ──────────────────────────────────────────────
   async function startPipeline(){
-    if(running){ log('Pipeline already running.', 'warn'); return; }
+    if(running){ log('A run is already in progress.', 'warn'); return; }
     const akey = document.getElementById('keyAnthropic').value.trim();
     const gkey = document.getElementById('keyGemini').value.trim();
     const dkey = document.getElementById('keyDrive').value.trim();
@@ -1273,32 +1769,44 @@ Generate the V1 article structure now by calling submit_v1_article. Do not respo
     S.topic = topic;
     S.tokens = { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 };
     S.cacheLog = [];
-    S.research = null; S.v1 = null; S.htmlStub = '';
+    S.research = null; S.v1 = null; S.v1Frozen = false; S.validation = null; S.htmlStub = ''; S.cta43BWarned = false;
     updateCost(); renderCacheLog();
     document.getElementById('cacheVerdict').textContent = '—';
     setCacheBtnsDisabled(true);
+    clearRunEscalations();
+    pipelineHalted = false;
+    ['1','2','3','4','6'].forEach(n => { setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
 
     running = true;
     document.getElementById('runBtn').disabled = true;
     document.getElementById('stopBtn').style.display = 'flex';
     startTimer();
 
+    const mode = getClientMode(S.client.name);
+
     try {
       // ── Load docs + sheet ─────────────────────────────────
       setG('Loading 4.3A / 4.3B / 4.4 + sheet row...', true);
-      log(`Run started — client: ${S.client.name}, topic: "${S.topic}"`);
+      log(`Run started — client: ${S.client.name} [${mode}], topic: "${S.topic}"`);
       if(!globals.folder43A || !globals.folder44){
         setAdminOpen(true);
         throw new Error('Universal globals missing folder43A or folder44. The "⚙ Operator Setup" panel is now open above — paste the 4.3A and 4.4 folder IDs and click Save Globals. (Note: localStorage is per-origin — if you saved them from V3.1 at a different URL, V4 cannot see them.)');
       }
       if(!S.client.folder43B || !S.client.sheet42) throw new Error(`Client "${S.client.name}" missing folder43B or sheet42 — fix in Client Manager.`);
 
-      const [doc43A, doc43B, doc44, sheetCsv] = await Promise.all([
-        fetchFile(globals.folder43A, dkey),
-        fetchFile(S.client.folder43B, dkey),
-        fetchFile(globals.folder44, dkey),
-        fetchSheet(S.client.sheet42, dkey)
-      ]);
+      let docs;
+      try {
+        docs = await Promise.all([
+          fetchFile(globals.folder43A, dkey),
+          fetchFile(S.client.folder43B, dkey),
+          fetchFile(globals.folder44, dkey),
+          fetchSheet(S.client.sheet42, dkey)
+        ]);
+      } catch(e){
+        if(e.f4){ escalateRed('F4', `${e.label||'Drive'} unavailable after retries — cannot load project docs. Check provider status / file IDs. (${e.message})`); return; }
+        throw e;
+      }
+      const [doc43A, doc43B, doc44, sheetCsv] = docs;
       S.docs = { doc43A, doc43B, doc44 };
       const row = findRow(sheetCsv, S.topic);
       if(!row) throw new Error(`Topic not found in sheet — check exact match. Topic: "${S.topic}"`);
@@ -1306,91 +1814,160 @@ Generate the V1 article structure now by calling submit_v1_article. Do not respo
       S.sheetRowCols = row.cells;
       log(`Docs loaded — 4.3A:${doc43A.length}b, 4.3B:${doc43B.length}b, 4.4:${doc44.length}b, sheet row matched.`, 'ok');
 
-      // ── PHASE 1: Gemini research + thesis ────────────────
+      // ── PHASE 1: Gemini research + thesis — F1 retry loop ─
       setG('Phase 1 — Gemini research + clientSpecificThesis...', true);
       setPhase(1, 'active', 'Running');
+      document.getElementById('sb1').classList.add('open'); document.getElementById('c1').classList.remove('closed');
       const t1 = Date.now();
-      const phase1Raw = await callGemini(buildPhase1Prompt(), gkey, { json: true, maxTokens: 16384 });
-      let phase1Json;
-      try { phase1Json = tolerantParseJSON(phase1Raw); }
-      catch(e){
-        log(`Phase 1 JSON parse failed: ${e.message}`, 'err');
-        document.getElementById('o1').textContent = phase1Raw.slice(0, 4000);
-        throw new Error(`Phase 1 JSON parse failed: ${e.message}`);
-      }
-      // Light shape validation (full F1 retry logic ships in Milestone 2)
-      if(!phase1Json.clientSpecificThesis?.thesisStatement){
-        throw new Error('Phase 1 missing clientSpecificThesis.thesisStatement (F1 escalation deferred to M2).');
-      }
-      if(!Array.isArray(phase1Json.sources) || !phase1Json.sources.length){
-        throw new Error('Phase 1 sources empty (F1 escalation deferred to M2).');
+      let phase1Json = null;
+      for(let attempt = 0; attempt <= 2; attempt++){
+        if(attempt > 0){ warnYellow('F1', `Phase 1 returned shallow/garbage research (attempt ${attempt}/3) — retrying in 10s.`); setG('Phase 1 research was shallow — retrying in 10s…', true); await sleep(10000); setG('Phase 1 — retrying Gemini research…', true); }
+        let raw;
+        try { raw = await callGemini(buildPhase1Prompt(), gkey, { json: true, maxTokens: 16384 }); }
+        catch(e){ if(e.f4){ escalateRed('F4', `Gemini API unavailable after retries during Phase 1. (${e.message})`); return; } document.getElementById('o1').textContent = `Phase 1 call error: ${e.message}`; phase1Json = null; if(attempt === 2){ escalateRed('F1', `Phase 1 research call failed after retries: ${e.message}`); return; } continue; }
+        let parsed = null;
+        try { parsed = tolerantParseJSON(raw); } catch(e){ parsed = null; }
+        // F1 trigger: empty sources OR missing clientSpecificThesis OR missing factClaims
+        const ok = parsed && Array.isArray(parsed.sources) && parsed.sources.length > 0
+                 && parsed.clientSpecificThesis && parsed.clientSpecificThesis.thesisStatement
+                 && Array.isArray(parsed.factClaims) && parsed.factClaims.length > 0;
+        if(ok){ phase1Json = parsed; break; }
+        document.getElementById('o1').textContent = (raw || '(empty response)').slice(0, 4000);
+        if(attempt === 2){ escalateRed('F1', 'Research failed after 2 retries — empty sources, missing thesis, or missing factClaims. Topic may be too narrow or a Gemini API issue.'); return; }
       }
       S.research = phase1Json;
       const elapsed1 = ((Date.now()-t1)/1000).toFixed(1);
       document.getElementById('o1').textContent = JSON.stringify(phase1Json, null, 2).slice(0, 4000);
-      document.getElementById('m1').textContent = `Done in ${elapsed1}s — ${phase1Json.sources.length} sources, ${phase1Json.faqSeeds?.length||0} faqSeeds, ${phase1Json.factClaims?.length||0} factClaims. Thesis: "${phase1Json.clientSpecificThesis.thesisStatement.slice(0,120)}..."`;
+      document.getElementById('m1').textContent = `Done in ${elapsed1}s — ${phase1Json.sources.length} sources, ${phase1Json.faqSeeds?.length||0} faqSeeds, ${phase1Json.factClaims.length} factClaims. Thesis: "${phase1Json.clientSpecificThesis.thesisStatement.slice(0,120)}…"`;
       document.getElementById('researchPre').textContent = JSON.stringify(phase1Json, null, 2);
       setPhase(1, 'done', `Done ${elapsed1}s`);
-      log(`Phase 1 complete: ${phase1Json.sources.length} sources, thesis present.`, 'ok');
+      log(`Phase 1 complete: ${phase1Json.sources.length} sources, ${phase1Json.factClaims.length} factClaims, thesis present.`, 'ok');
 
-      // ── PHASE 2: Claude V1 via Tool Use, with caching ────
-      setG('Phase 2 — Claude V1 via Tool Use (caching context)... watch the V1 JSON tab', true);
-      setPhase(2, 'active', 'Streaming');
-      document.getElementById('sb2').classList.add('open');
-      document.getElementById('c2').classList.remove('closed');
-      document.getElementById('o2').textContent = '⏳ Connecting to Claude…';
-      switchTab('v1json');
-      const t2 = Date.now();
-      const result = await callClaude({
-        systemBlocks: buildPhase2SystemBlocks(),
-        userText: buildPhase2UserText(),
-        tools: [V1_TOOL],
-        toolChoice: { type:'tool', name:'submit_v1_article' },
-        akey,
-        onProgress: makePhase2Progress('Phase 2'),
-        timeoutMs: 300000
-      });
-      logCacheCall(2, result.usage);
-      if(!result.toolCalls.length){
-        throw new Error(`Phase 2: Claude returned no tool call. Text output: ${result.textOutput.slice(0,400)}`);
-      }
-      const v1raw = result.toolCalls[0].input;
-      if(v1raw.__parse_error){
-        throw new Error(`Phase 2 tool input failed to parse: ${v1raw.__parse_error}. Raw fragment: ${v1raw.__raw}`);
-      }
-      const v1 = assignIds(v1raw);
-      S.v1 = v1;
-      const elapsed2 = ((Date.now()-t2)/1000).toFixed(1);
-      const summary = `sections:${v1.sections?.length||0}  faq:${v1.faq?.length||0}  tables:${countTables(v1)}  links:${countLinks(v1)}  imagePrompts:${countImages(v1)}`;
-      document.getElementById('o2').textContent = JSON.stringify(v1, null, 2).slice(0, 4000);
-      document.getElementById('m2').textContent = `Done in ${elapsed2}s — ${summary}. Thesis: "${v1.thesis?.statement?.slice(0,100)||'(missing)'}..."`;
-      document.getElementById('v1Pre').textContent = JSON.stringify(v1, null, 2);
-      setPhase(2, 'done', `Done ${elapsed2}s`);
-      log(`Phase 2 complete — ${summary}`, 'ok');
+      // ── PHASE 2 ↔ PHASE 3: generate → validate, up to 2 retries with feedback ──
+      let v1 = null;
+      let feedback = '';      // validation problems → fed back into Phase 2
+      let f2hint = false;     // raw-JSON nudge after a parse failure
+      let lastValidation = null;
+      for(let attempt = 0; attempt <= 2; attempt++){
+        // —— Phase 2 ——
+        setG(attempt === 0 ? 'Phase 2 — Claude V1 via Tool Use (cached context)…' : `Phase 2 — regenerating V1 with validation feedback (retry ${attempt}/2)…`, true);
+        const label = attempt === 0 ? 'Phase 2' : `Phase 2 retry ${attempt}`;
+        let p2;
+        try { p2 = await runPhase2(akey, feedback, f2hint, label); }
+        catch(e){
+          if(e.f4){ escalateRed('F4', `Claude/proxy unavailable after retries during Phase 2. (${e.message})`); return; }
+          // Network/abort/stream errors → surface
+          throw e;
+        }
+        // F2: unparseable output
+        if(p2.parseError){
+          if(attempt < 2){ warnYellow('F2', `Phase 2 returned unparseable output (${p2.parseError}). Retrying with a raw-JSON-only instruction.`); f2hint = true; feedback = ''; continue; }
+          escalateRed('F2', `Claude returned unparseable JSON for Phase 2 after 2 retries. ${p2.parseError}. ${p2.rawFragment ? 'Fragment: ' + p2.rawFragment.slice(0,200) : ''}`); return;
+        }
+        f2hint = false;
+        // F3: truncation
+        if(p2.stopReason === 'max_tokens'){
+          warnYellow('F3', `Phase 2 response hit the token limit (stop_reason=max_tokens). Recovered the partial JSON via the tolerant parser; Phase 3 will catch any structural shortfall. Full continuation-merge ships with Phase 5 (Milestone 4).`);
+        }
+        v1 = assignIds(p2.v1);
+        S.v1 = v1;
+        const summary = `sections:${v1.sections?.length||0}  faq:${v1.faq?.length||0}  tables:${countTables(v1)}  links:${countLinks(v1)}  images:${countImages(v1)}`;
+        document.getElementById('o2').textContent = JSON.stringify(v1, null, 2).slice(0, 4000);
+        document.getElementById('m2').textContent = `${label}: V1 in ${p2.elapsed}s — ${summary}. Thesis: "${v1.thesis?.statement?.slice(0,90)||'(missing)'}…"`;
+        document.getElementById('v1Pre').textContent = JSON.stringify(v1, null, 2);
+        setPhase(2, 'done', `V1 ${p2.elapsed}s`);
+        log(`Phase 2 ${attempt>0?'(retry '+attempt+') ':''}complete — ${summary}`, 'ok');
 
-      // ── PHASE 6 STUB ─────────────────────────────────────
-      // Visible transition beat so a VA sees Phase 6 actually run, not flash green.
-      // Badge is amber 'STUB', not green — this is a Milestone 1 placeholder, not a real assembly.
+        // —— TEST INJECTION (M2 verification only — Operator Setup → Test injection) ——
+        const inject = document.getElementById('testInjection')?.value || 'off';
+        if((inject === 'escalate') || (inject === 'recover' && attempt === 0)){
+          if(Array.isArray(v1.sections) && v1.sections.length > 3){
+            v1.sections = v1.sections.slice(0, 3);
+            log(`🧪 TEST INJECTION: dropped sections past index 2 — V1 now has ${v1.sections.length} sections (below the ≥4 minimum). Phase 3A should catch this.`, 'warn');
+            document.getElementById('v1Pre').textContent = JSON.stringify(v1, null, 2);
+          }
+        }
+
+        // —— Phase 3A (JS structural) ——
+        setG('Phase 3A — JS structural validation…', true);
+        setPhase(3, 'active', 'Validating 3A');
+        document.getElementById('sb3').classList.add('open'); document.getElementById('c3').classList.remove('closed');
+        const v3a = validateV1Structure(v1, S.research, S.docs.doc43B);
+
+        // —— Phase 3B (Gemini semantic) ——
+        setG('Phase 3B — Gemini semantic validation (claims vs research brief + thesis anchor)…', true);
+        setPhase(3, 'active', 'Validating 3B');
+        const v3b = await validateV1Semantic(v1, S.research, gkey);
+        if(pipelineHalted) return; // F19 RED inside validateV1Semantic
+        const structuralFails = v3a.structuralFails;
+        const semanticFails = v3b.semanticFails || [];
+        const passed = structuralFails.length === 0 && semanticFails.length === 0;
+        lastValidation = { structuralFails, semanticFails, passed };
+        S.validation = lastValidation;
+        renderPhase3(structuralFails, semanticFails, attempt, passed);
+        document.getElementById('m3').textContent = `Attempt ${attempt+1}: 3A=${structuralFails.length} structural fail(s), 3B=${semanticFails.length} semantic fail(s) → ${passed ? 'PASS' : 'FAIL'}`;
+
+        if(passed){
+          setPhase(3, 'done', 'PASS ✓');
+          log(`Phase 3 PASS on attempt ${attempt+1}.`, 'ok');
+          break;
+        }
+        // FAIL
+        if(attempt < 2){
+          setPhase(3, 'active', `Fail → retry ${attempt+1}`);
+          feedback = formatValidationFeedback(structuralFails, semanticFails);
+          log(`Phase 3 found ${structuralFails.length + semanticFails.length} issue(s) — looping to Phase 2 with feedback (retry ${attempt+1}/2).`, 'warn');
+          continue;
+        }
+        // exhausted → Checkpoint 1 RED
+        setPhase(3, 'error', 'Failed × 3');
+        escalateRed('CHK1', `V1 failed validation after 2 retries (Checkpoint 1). ${structuralFails.length} structural + ${semanticFails.length} semantic problem(s) unresolved — manual operator review required. See Phase 3 card for the list.`);
+        return;
+      }
+      if(pipelineHalted || !v1) return;
+
+      // ── PHASE 4: FREEZE ──────────────────────────────────
+      setG('Phase 4 — freezing V1 (Object.freeze, recursive)…', true);
+      setPhase(4, 'active', 'Freezing');
+      document.getElementById('sb4').classList.add('open'); document.getElementById('c4').classList.remove('closed');
+      await sleep(250);
+      deepFreeze(v1);
+      S.v1Frozen = true;
+      const artifactKey = saveV1Artifact(S.client.name, v1);
+      document.getElementById('o4').textContent =
+        `V1 frozen — Object.frozen=${Object.isFrozen(v1)} (recursive).\n` +
+        `Structural minimums met: sections=${v1.sections.length}, faq=${v1.faq.length}, tables=${countTables(v1)}, images=${countImages(v1)}.\n` +
+        `Thesis: "${v1.thesis?.statement || '(none)'}"\n` +
+        (artifactKey ? `Snapshot saved to localStorage key: ${artifactKey}` : 'Snapshot save failed (see YELLOW F16).') +
+        `\nBones are immutable from here. Phases 5 / 5.5 (Milestones 3–4) may only rewrite prose against assigned IDs — they physically cannot move the structure.`;
+      document.getElementById('m4').textContent = `V1 frozen + snapshotted. ${artifactKey ? 'Recoverable from localStorage.' : ''}`;
+      setPhase(4, 'done', 'Frozen 🔒');
+      log(`Phase 4 — V1 frozen. ${artifactKey ? 'Artifact: ' + artifactKey : ''}`, 'ok');
+
+      // ── PHASE 6 STUB (operates on the frozen V1) ─────────
       setPhase(6, 'active', 'Assembling');
-      document.getElementById('sb6').classList.add('open');
-      document.getElementById('c6').classList.remove('closed');
-      document.getElementById('o6').textContent = '⏳ Building M1 stub HTML…';
-      await sleep(450);
+      document.getElementById('sb6').classList.add('open'); document.getElementById('c6').classList.remove('closed');
+      document.getElementById('o6').textContent = '⏳ Building the M2 stub HTML from the frozen V1…';
+      await sleep(400);
       S.htmlStub = buildPhase6Stub(v1);
       document.getElementById('o6').textContent = S.htmlStub;
-      document.getElementById('m6').textContent = `M1 STUB only — ${S.htmlStub.length}b. Real Phase 6 assembly (sections, FAQ, schema, ToC, byline) ships in Milestone 5.`;
+      document.getElementById('m6').textContent = `STILL A STUB — ${S.htmlStub.length}b. Real Phase 6 assembly (sections, FAQ, schema, ToC, byline) ships in Milestone 5.`;
       document.getElementById('htmlPre').textContent = S.htmlStub;
-      setPhase(6, 'stubdone', 'M1 STUB ✓');
+      setPhase(6, 'stubdone', 'STUB ✓');
 
-      setG(`✓ Phases 1–2 complete (Phase 6 = M1 stub). First-run cache verdict: ${S.cacheLog[0]?.verdict || '—'}. Go to the Cache Stats tab and click "↻ Verify Cache" to confirm a HIT on the second call.`);
+      // ── Calibration counter (informational only — never auto-promotes) ──
+      if(mode === 'calibration'){ incrementCalibratedCount(S.client.name); renderModeUI(); }
+
+      const cacheVerdict = S.cacheLog[0]?.verdict || '—';
+      setG(`✓ Phases 1–4 complete — V1 validated & frozen. Mode: ${mode}${mode==='calibration' ? ` (now ${getCalibratedCount(S.client.name)} calibrated)` : ''}. Cache: ${cacheVerdict}. Phase 5 = Milestone 3; Phase 6 = stub. Use "↻ Verify Cache" on the Cache Stats tab to confirm a HIT.`);
       setCacheBtnsDisabled(false);
-      switchTab('cache');
+      switchTab('v1json');
     } catch(err){
       console.error(err);
       log(`PIPELINE ERROR: ${err.message}`, 'err');
       setG(`Error: ${err.message}`, false, true);
-      // Mark active phase as error
-      ['1','2','6'].forEach(n => {
+      if(err.f4 && !pipelineHalted) escalateRed('F4', `${err.label||'An API'} unavailable after retries. ${err.message}`);
+      ['1','2','3','4','6'].forEach(n => {
         const card = document.getElementById('phase'+n);
         if(card?.classList.contains('active')) setPhase(n, 'error', 'Error');
       });
@@ -1399,6 +1976,7 @@ Generate the V1 article structure now by calling submit_v1_article. Do not respo
       stopTimer();
       document.getElementById('runBtn').disabled = false;
       document.getElementById('stopBtn').style.display = 'none';
+      if(S.research && S.docs.doc43A) setCacheBtnsDisabled(false);
     }
   }
 
