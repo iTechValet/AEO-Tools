@@ -79,7 +79,8 @@
   .phase-card.error .phase-num { color:var(--red); }
   .phase-info { flex:1; }
   .phase-title { font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:1.5px; color:var(--blue); margin-bottom:1px; }
-  .phase-desc { font-size:12px; color:var(--faint); }
+  .phase-desc { font-size:12px; color:var(--faint); display:none; }      /* Item 1: collapsed by default — the ▼ toggle reveals it */
+  .phase-card.desc-open .phase-desc { display:block; margin-top:4px; }
   .phase-right { display:flex; align-items:center; gap:7px; }
   .pbadge { font-family:'Bebas Neue',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:1px; padding:3px 8px; border-radius:4px; white-space:nowrap; }
   .b-waiting { background:#ececec; color:var(--faint); }
@@ -91,6 +92,8 @@
   .schev.closed { transform:rotate(-90deg); }
   .phase-body { display:none; padding:0 14px 12px 14px; font-size:12px; color:var(--blue); }
   .phase-body.open { display:block; }
+  .phase-body-toolbar { display:flex; align-items:center; gap:8px; padding:6px 0 6px 0; }
+  .phase-body-label { flex:1; font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1.5px; color:var(--blue); opacity:0.5; }
   .phase-out { background:#fff; border:1px solid var(--border); border-radius:6px; padding:10px 12px; max-height:400px; overflow:auto; font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.55; white-space:pre-wrap; word-break:break-word; }
   .phase-out:empty:before { content:'(no output yet)'; color:var(--faint); font-style:italic; }
   .phase-meta { font-size:11px; color:var(--muted); margin-top:6px; }
@@ -255,7 +258,7 @@
 <div class="top-bar">
   <div style="flex:1;">
     <h1>iTech Valet <span>AEO V4.0</span><span class="ver-badge">M2</span><span class="build-stamp" id="buildStamp">build …</span></h1>
-    <p class="subtitle">Phase 1 (research+thesis) → Phase 2A (structure frame) → frame validation → [M3.5: fire image gen, bound to the frame attempt_id] → Phase 2B (data hydration relay, table rows cite factClaims) → Phase 3 dual validation → surgical fixes (node-level, never a full regen) → Phase 4 freeze → Phase 5 voice draft (section-level relay race) → Phase 6 stub (hard-stops on image URLs). Error recovery F1–F4 + F13/F16/F19. Calibration/Production modes.</p>
+    <p class="subtitle">Phase 1 (research+thesis) → Phase 2 (V1 frame → frame validation → [M3.5: fire image gen, bound to the frame attempt_id] → hydration relay, table rows cite factClaims) → Phase 3 dual validation + surgical fixes (node-level, never a full regen) → Phase 4 freeze → Phase 5 voice draft (section-level relay race) → Phase 6 forensic critique + quality checks (M4 stub) → Phase 7 final assembly (still a stub; hard-stops on image URLs). Error recovery F1–F4 + F13/F16/F19. Calibration/Production modes.</p>
   </div>
   <div style="text-align:right;">
     <div class="cp-label" style="opacity:.55;">Client Mode</div>
@@ -424,11 +427,12 @@
         <div class="phase-num">1</div>
         <div class="phase-info">
           <div class="phase-title">Phase 1 — Gemini Research + Thesis</div>
-          <div class="phase-desc">JSON brief: sources, anchorTextTargets, faqSeeds, factClaims, semanticAnchor, clientSpecificThesis</div>
+          <div class="phase-desc">JSON brief: sources, anchorTextTargets, faqSeeds, factClaims, semanticAnchor, clientSpecificThesis. F1 retry loop (up to 3 attempts) on shallow/garbage research.</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b1">Waiting</div><span class="schev closed" id="c1">▼</span></div>
       </div>
       <div class="phase-body" id="sb1">
+        <div class="phase-body-toolbar"><span class="phase-body-label">Phase 1 panel — all attempts</span><button class="btn-copy-pane" onclick="copyPhasePanel(1, this)" title="Copy this panel's full contents">⎘ Copy</button></div>
         <div class="phase-out" id="o1"></div>
         <div class="phase-meta" id="m1"></div>
       </div>
@@ -438,13 +442,14 @@
       <div class="phase-header" onclick="togglePhase(2)">
         <div class="phase-num">2</div>
         <div class="phase-info">
-          <div class="phase-title">Phase 2 — V1 in TWO passes: 2A Structure Frame → 2B Data Hydration</div>
-          <div class="phase-desc">2A (submit_v1_frame): structural skeleton + NARRATIVE SPINE — H2/H3 headings + empty paragraph slots, table HEADERS (no data), FAQ QUESTIONS + empty answer slots, link anchors mapped to the research brief, image slots, CTA placement, checklist, thesis, and a narrative_spine (core_thesis, callback_setup, section_transitions keyed by heading text, 3-5 voice_reminders). No prose, no numbers. JS validates the frame, then 2B — SEQUENTIAL HYDRATION ("the Relay Race", section-level — ~20-25 calls): one hydrate_content_block call for the Direct Answer, ONE per H2 section (batching ALL that section's + its H3s' paragraph ids), one isolated call per table, one per FAQ answer, one for the CTA hook — in article order, each carrying the spine + a rolling draft of everything written so far; the tool returns a `nodes` array (one object per requested id) and JS stitches each into a clone of the locked frame by targetId. Table rows = { cells, sourceReferenceId } citing a Phase 1 factClaim; unsupported rows dropped, never invented. The frozen frame is never mutated; structure physically cannot drift. Phase 3 failures are repaired by surgical micro-calls (submit_v1_corrections) that touch only the failing nodes — the V1 is never regenerated. The cached master-context block (4.3A/4.3B/4.4 + research + thesis) is replayed on every relay call.</div>
+          <div class="phase-title">Phase 2 — V1 Frame + Hydration</div>
+          <div class="phase-desc">FRAME pass (submit_v1_frame): structural skeleton + NARRATIVE SPINE — H2/H3 headings + empty paragraph slots, table HEADERS (no data), FAQ QUESTIONS + empty answer slots, link anchors mapped to the research brief, image slots, CTA placement, checklist, thesis, and a narrative_spine (core_thesis, callback_setup, section_transitions keyed by heading text, 3-5 voice_reminders). No prose, no numbers. JS validates the frame (retries on failure — all attempts kept in this panel), THEN the HYDRATION pass — SEQUENTIAL HYDRATION ("the Relay Race", section-level — ~20-25 calls): one hydrate_content_block call for the Direct Answer, ONE per H2 section (batching ALL that section's + its H3s' paragraph ids), one isolated call per table, one per FAQ answer, one for the CTA hook — in article order, each carrying the spine + a rolling draft of everything written so far; the tool returns a `nodes` array (one object per requested id) and JS stitches each into a clone of the locked frame by targetId. Table rows = { cells, sourceReferenceId } citing a Phase 1 factClaim; unsupported rows dropped, never invented. The frozen frame is never mutated; structure physically cannot drift. Phase 3 failures are repaired by surgical micro-calls (submit_v1_corrections) that touch only the failing nodes — the V1 is never regenerated. The cached master-context block (4.3A/4.3B/4.4 + research + thesis) is replayed on every relay call.</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b2">Waiting</div><span class="schev closed" id="c2">▼</span></div>
       </div>
       <div class="phase-body" id="sb2">
-        <div class="relay-strip" id="relayStrip2" title="Phase 2B relay blocks — green = done, blue = in flight, orange = warning/retry, red = failed, grey = pending"></div>
+        <div class="phase-body-toolbar"><span class="phase-body-label">Phase 2 panel — all attempts</span><button class="btn-copy-pane" onclick="copyPhasePanel(2, this)" title="Copy this panel's full contents">⎘ Copy</button></div>
+        <div class="relay-strip" id="relayStrip2" title="Phase 2 hydration relay blocks — green = done, blue = in flight, orange = warning/retry, red = failed, grey = pending"></div>
         <div class="phase-out" id="o2"></div>
         <div class="phase-meta" id="m2"></div>
       </div>
@@ -455,11 +460,12 @@
         <div class="phase-num">3</div>
         <div class="phase-info">
           <div class="phase-title">Phase 3 — Dual Validation</div>
-          <div class="phase-desc">3A: JS structural checks (sections≥4, FAQ≥5, tables≥3 each non-empty, images≥H2, ≥1 paragraph per section/H3, link↔research match, internal-link domain, DA 200–300 words, CTA URL, checklist fields, thesis present+referenced — AND every table row carries a sourceReferenceId pointing at a real Phase 1 factClaim, with cells aligned to headers). A 3A fail skips the Gemini call. 3B: Gemini semantic (claims align w/ research + anchors clientSpecificThesis). Any fail → a surgical micro-call patches just the named nodes (max 2 rounds → Checkpoint 1).</div>
+          <div class="phase-desc">3A: JS structural checks (sections≥4, FAQ≥5, tables≥3 each non-empty, images≥H2, ≥1 paragraph per section/H3, link↔research match, internal-link domain, DA 200–300 words, CTA URL, checklist fields, thesis present+referenced — AND every table row carries a sourceReferenceId pointing at a real Phase 1 factClaim, with cells aligned to headers). A 3A fail skips the Gemini call. 3B: Gemini semantic (claims align w/ research + anchors clientSpecificThesis). Any fail → a surgical micro-call patches just the named nodes (max 2 rounds → Checkpoint 1). Every validation round is kept in this panel.</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b3">Waiting</div><span class="schev closed" id="c3">▼</span></div>
       </div>
       <div class="phase-body" id="sb3">
+        <div class="phase-body-toolbar"><span class="phase-body-label">Phase 3 panel — all rounds</span><button class="btn-copy-pane" onclick="copyPhasePanel(3, this)" title="Copy this panel's full contents">⎘ Copy</button></div>
         <div class="phase-out" id="o3" style="white-space:pre-wrap;"></div>
         <div class="phase-meta" id="m3"></div>
       </div>
@@ -470,11 +476,12 @@
         <div class="phase-num">4</div>
         <div class="phase-info">
           <div class="phase-title">Phase 4 — V1 Freeze</div>
-          <div class="phase-desc">Object.freeze recursively on V1 JSON. Snapshot saved to localStorage (artifact recovery). Bones immutable from here — downstream phases cannot drift the structure.</div>
+          <div class="phase-desc">Object.freeze recursively on V1 JSON. Snapshot saved to localStorage (F16 artifact recovery — includes pasted image URLs). Bones immutable from here — downstream phases cannot drift the structure.</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b4">Waiting</div><span class="schev closed" id="c4">▼</span></div>
       </div>
       <div class="phase-body" id="sb4">
+        <div class="phase-body-toolbar"><span class="phase-body-label">Phase 4 panel</span><button class="btn-copy-pane" onclick="copyPhasePanel(4, this)" title="Copy this panel's full contents">⎘ Copy</button></div>
         <div class="phase-out" id="o4" style="white-space:pre-wrap;"></div>
         <div class="phase-meta" id="m4"></div>
       </div>
@@ -485,44 +492,70 @@
         <div class="phase-num">5</div>
         <div class="phase-info">
           <div class="phase-title">Phase 5 — Voice Draft (Option E, section-level relay race)</div>
-          <div class="phase-desc">Claude re-voices the frozen V1's PROSE nodes (Direct Answer, body paragraphs, FAQ answers, CTA hook) as a SECTION-LEVEL RELAY RACE — same pattern as Phase 2B: one revoice_content_block call for the Direct Answer (which also returns the voice_architecture: core conviction, friction setup, callback phrase, pacing strategy, thesis reinforcement), ONE call per H2 section (batching ALL that section's + its H3s' paragraph ids), one call for ALL FAQ answers, one for the CTA hook — in article order, each carrying the FULL rolling V2 draft + the current V1 prose for those nodes. (No per-table call — table data is frozen and disallowed for re-voicing per §5.2/5.3.) The cached master-context block is the SAME one Phase 2 uses (Phase 5 reads it); the voice rules / AI-Tell kill list / intent layer / optional gold-standard exemplars / the "your tone anchor is always 4.3A/4.3B — never the rolling draft" rule ride in a second uncached system block. Each call returns a `nodes` array (one object per requested id, each with data_anchors_to_preserve + a pacing_directive [short punch / standard expansion / list extraction] + transition_logic + the rewrite). JS validates every targetId against the allowed prose-node ids (5.2/5.3), drops orphans/disallowed (F13), and merges the kept rewrites onto a deep clone of V1 → V2. Per-block F2/F3/F6/F13/F14 retry handling (un-re-voiced nodes keep their V1 prose); zero usable rewrites across the whole relay → RED escalate before Phase 6. The frozen V1 bones are never touched. Forensic critique (5.5) + the 6 voice quality checks (5.6) = Milestone 4.</div>
+          <div class="phase-desc">Claude re-voices the frozen V1's PROSE nodes (Direct Answer, body paragraphs, FAQ answers, CTA hook) as a SECTION-LEVEL RELAY RACE — same pattern as Phase 2's hydration relay: one revoice_content_block call for the Direct Answer (which also returns the voice_architecture: core conviction, friction setup, callback phrase, pacing strategy, thesis reinforcement), ONE call per H2 section (batching ALL that section's + its H3s' paragraph ids), one call for ALL FAQ answers, one for the CTA hook — in article order, each carrying the FULL rolling V2 draft + the current V1 prose for those nodes. (No per-table call — table data is frozen and disallowed for re-voicing per §5.2/5.3.) The cached master-context block is the SAME one Phase 2 uses (Phase 5 reads it); the voice rules / AI-Tell kill list / intent layer / optional gold-standard exemplars / the "your tone anchor is always 4.3A/4.3B — never the rolling draft" rule ride in a second uncached system block. Each call returns a `nodes` array (one object per requested id, each with data_anchors_to_preserve + a pacing_directive [short punch / standard expansion / list extraction] + transition_logic + the rewrite). JS validates every targetId against the allowed prose-node ids (5.2/5.3), drops orphans/disallowed (F13), and merges the kept rewrites onto a deep clone of V1 → V2. Per-block F2/F3/F6/F13/F14 retry handling (un-re-voiced nodes keep their V1 prose); zero usable rewrites across the whole relay → RED escalate before Phase 7 (assembly). The frozen V1 bones are never touched. Forensic critique = Phase 6; the 6 voice quality checks = Milestone 4.</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b5">Waiting</div><span class="schev closed" id="c5">▼</span></div>
       </div>
       <div class="phase-body" id="sb5">
+        <div class="phase-body-toolbar"><span class="phase-body-label">Phase 5 panel — all blocks</span><button class="btn-copy-pane" onclick="copyPhasePanel(5, this)" title="Copy this panel's full contents">⎘ Copy</button></div>
         <div class="relay-strip" id="relayStrip5" title="Phase 5 voice relay blocks — green = done, blue = in flight, orange = warning/retry, red = failed, grey = pending"></div>
         <div class="phase-out" id="o5"></div>
         <div class="phase-meta" id="m5"></div>
       </div>
     </div>
 
-    <div class="phase-card stub" id="phase55">
-      <div class="phase-header" onclick="togglePhase(55)">
-        <div class="phase-num">5.5</div>
-        <div class="phase-info">
-          <div class="phase-title">Phase 5.5 — Forensic Critique + JS quality checks</div>
-          <div class="phase-desc">Not implemented yet — Milestone 4</div>
-        </div>
-        <div class="phase-right"><div class="pbadge b-stub" id="b55">M4</div><span class="schev closed" id="c55">▼</span></div>
-      </div>
-      <div class="phase-body" id="sb55"><div class="phase-out" id="o55">Pending Milestone 4.</div></div>
-    </div>
-
-    <div class="phase-card" id="phase6">
+    <div class="phase-card stub" id="phase6">
       <div class="phase-header" onclick="togglePhase(6)">
         <div class="phase-num">6</div>
         <div class="phase-info">
-          <div class="phase-title">Phase 6 — Final Assembly (still a stub)</div>
-          <div class="phase-desc">Runs after Phase 5 — but HARD-STOPS until every generated image (M3.5) has been uploaded to WordPress and its media URL pasted + validated in the Image panel below the preview (image_urls.length must equal expected_image_count). M2 still emits the minimal H1 + DA stub HTML. Real assembly (sections, FAQ, schema, ToC, byline, image embeds) = Milestone 5.</div>
+          <div class="phase-title">Phase 6 — Forensic Critique + JS Quality Checks (still a stub)</div>
+          <div class="phase-desc">Not implemented yet — Milestone 4. (Was Phase 5.5.)</div>
         </div>
-        <div class="phase-right"><div class="pbadge b-waiting" id="b6">Waiting</div><span class="schev closed" id="c6">▼</span></div>
+        <div class="phase-right"><div class="pbadge b-stub" id="b6">M4</div><span class="schev closed" id="c6">▼</span></div>
       </div>
       <div class="phase-body" id="sb6">
-        <div class="phase-out" id="o6"></div>
+        <div class="phase-body-toolbar"><span class="phase-body-label">Phase 6 panel</span><button class="btn-copy-pane" onclick="copyPhasePanel(6, this)" title="Copy this panel's full contents">⎘ Copy</button></div>
+        <div class="phase-out" id="o6">Pending Milestone 4.</div>
         <div class="phase-meta" id="m6"></div>
       </div>
     </div>
 
+    <div class="phase-card" id="phase7">
+      <div class="phase-header" onclick="togglePhase(7)">
+        <div class="phase-num">7</div>
+        <div class="phase-info">
+          <div class="phase-title">Phase 7 — Final Assembly (still a stub)</div>
+          <div class="phase-desc">Runs after Phase 5 — but HARD-STOPS until every generated image (M3.5) has been uploaded to WordPress and its media URL pasted + validated in the Image panel (left column, below the phase cards): image_urls.length must equal expected_image_count. Currently emits the minimal H1 + DA stub HTML. Real assembly (sections, FAQ, schema, ToC, byline, image embeds) = Milestone 5. (Was Phase 6.)</div>
+        </div>
+        <div class="phase-right"><div class="pbadge b-waiting" id="b7">Waiting</div><span class="schev closed" id="c7">▼</span></div>
+      </div>
+      <div class="phase-body" id="sb7">
+        <div class="phase-body-toolbar"><span class="phase-body-label">Phase 7 panel</span><button class="btn-copy-pane" onclick="copyPhasePanel(7, this)" title="Copy this panel's full contents">⎘ Copy</button></div>
+        <div class="phase-out" id="o7"></div>
+        <div class="phase-meta" id="m7"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- IMAGE PANEL (M3.5) — LEFT COLUMN, BELOW the phase cards (Item 3). The right panel is tabs only.
+       Image generation fires the moment the Phase 2 frame validates and runs in the background through
+       Phases 2-hydration..5. Phase 7 (assembly) hard-stops until every generated image's WordPress URL
+       is pasted + validated here. -->
+  <div class="image-panel" id="imagePanel" style="margin-top:14px;">
+    <div class="img-panel-head">
+      <div class="img-panel-title">Images <span style="font-size:10px;letter-spacing:1px;color:var(--faint);">(M3.5)</span></div>
+      <span class="img-fail-indicator" id="imgFailIndicator" style="display:none;"></span>
+      <div class="img-panel-badge" id="imgBadge">Waiting for the Phase 2 frame…</div>
+    </div>
+    <div class="img-grid" id="imgGrid">
+      <div style="padding:18px;text-align:center;color:var(--faint);font-size:11px;line-height:1.6;">Images generate here automatically the moment the Phase 2 structure frame passes validation — they render in the background alongside Phases 2–5. Upload each to WordPress, paste the media URL into the card, and Phase 7 unblocks.</div>
+    </div>
+    <div class="img-assemble-row">
+      <button class="btn-assemble" id="imgValidateBtn" onclick="validateImages()" disabled>Validate Images</button>
+      <button class="btn-assemble" id="imgDlAllBtn" onclick="downloadAllImages()" disabled style="background:var(--blue);font-size:14px;">↓ All Images</button>
+      <div class="img-assemble-hint" id="imgHint">No images yet — they appear after the Phase 2 frame validates.</div>
+    </div>
   </div>
 </div>
 
@@ -530,9 +563,11 @@
   <div class="preview-panel">
     <div class="ptabs">
       <div class="ptab active" onclick="switchTab('runlog')">Run Log</div>
-      <div class="ptab" onclick="switchTab('research')">Research Brief</div>
-      <div class="ptab" onclick="switchTab('v1json')">V1 JSON</div>
       <div class="ptab" onclick="switchTab('cache')">Cache Stats</div>
+      <div class="ptab" onclick="switchTab('meta')">Metadata</div>
+      <div class="ptab" onclick="switchTab('da')">Direct Answer</div>
+      <div class="ptab" onclick="switchTab('v2')">V2 Article</div>
+      <div class="ptab" onclick="switchTab('schema')">Schema</div>
       <div class="ptab" onclick="switchTab('html')">HTML Stub</div>
     </div>
     <div class="pane-toolbar">
@@ -542,24 +577,16 @@
 
     <div class="ppane active" id="pane-runlog">
       <div class="legend-box">
-        <strong>What to look for:</strong> First Phase 2 call (2A) → <code>cache_creation_input_tokens &gt; 0</code>, <code>cache_read_input_tokens = 0</code> (verdict <strong style="color:var(--green);">CREATED</strong> — the shared context block is being written). Every later call (2B, the surgical fix, and "↻ Verify Cache") within ~5 min → <code>cache_read_input_tokens &gt; 0</code> (verdict <strong style="color:var(--green);">YES</strong> — same context block replayed). The "↻ Verify Cache" button in the Cache Stats tab re-runs Phase 2A to prove the round trip.
+        <strong>What to look for:</strong> First Phase 2 frame call → <code>cache_creation_input_tokens &gt; 0</code>, <code>cache_read_input_tokens = 0</code> (verdict <strong style="color:var(--green);">CREATED</strong> — the shared context block is being written). Every later call (the hydration relay, the surgical fix, and "↻ Verify Cache") within ~5 min → <code>cache_read_input_tokens &gt; 0</code> (verdict <strong style="color:var(--green);">YES</strong> — same context block replayed). The "↻ Verify Cache" button in the Cache Stats tab re-runs the Phase 2 frame call to prove the round trip.
       </div>
-      <div class="runlog" id="runlogBody"><div class="line info"><span class="ts">—</span>V4.0 M1 ready.</div></div>
-    </div>
-
-    <div class="ppane" id="pane-research">
-      <pre id="researchPre">Phase 1 output appears here.</pre>
-    </div>
-
-    <div class="ppane" id="pane-v1json">
-      <pre id="v1Pre">Phase 2A shows the structure FRAME here; after Phase 2B it shows the merged V1 (frame + hydration). JS assigns ids (section_, h3_, table_, link_, img_, faq_ from 2A; da_, para_, ans_ from the 2B merge). Table rows are { cells, sourceReferenceId } — each citing a Phase 1 factClaim.</pre>
+      <div class="runlog" id="runlogBody"><div class="line info"><span class="ts">—</span>V4.0 ready.</div></div>
     </div>
 
     <div class="ppane" id="pane-cache">
       <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px; padding:12px 14px; background:#eef3f8; border:1px solid var(--border); border-radius:8px;">
-        <button class="btn-cache" id="cacheBtnPanel" onclick="repeatPhase2()" disabled style="background:var(--blue);">↻ Verify Cache — re-run Phase 2A</button>
+        <button class="btn-cache" id="cacheBtnPanel" onclick="repeatPhase2()" disabled style="background:var(--blue);">↻ Verify Cache — re-run the Phase 2 frame</button>
         <div style="font-size:11px; color:var(--muted); line-height:1.5;">
-          Re-runs Phase 2A with the identical cached context block (the same block 2A / 2B / surgical-fix all share). Within ~5 min of a completed run, the result row below should read <strong style="color:var(--green);">YES</strong> with <code>cache_read &gt; 0</code>. Enabled only after ⚡ Run completes. Streams live in the V1 JSON tab — it is working even if the result takes 30–90s.
+          Re-runs the Phase 2 frame call with the identical cached context block (the same block the frame / hydration relay / surgical-fix all share). Within ~5 min of a completed run, the result row below should read <strong style="color:var(--green);">YES</strong> with <code>cache_read &gt; 0</code>. Enabled only after ⚡ Run completes. Streams live in the Phase 2 card — it is working even if the result takes 30–90s.
         </div>
       </div>
       <div class="cache-grid">
@@ -585,32 +612,28 @@
       </div>
       <div id="cacheLogRows"></div>
       <div style="margin-top:14px; padding:10px 12px; background:#eef9ee; border:1px solid #c8e6c9; border-radius:6px; font-size:11px; color:#1b5e20;">
-        <strong>Milestone 1 cache verification passes when:</strong> ⚡ Run produces row 1 with cache_creation &gt; 0 (verdict <strong style="color:var(--green);">CREATED</strong> — context being written), then ↻ Verify Cache within 5 min produces row 2 with cache_read &gt; 0 (verdict <strong style="color:var(--green);">YES</strong> — context replayed from cache). Both numbers visible = caching is wired correctly.
+        <strong>Cache verification passes when:</strong> ⚡ Run produces row 1 with cache_creation &gt; 0 (verdict <strong style="color:var(--green);">CREATED</strong> — context being written), then ↻ Verify Cache within 5 min produces a row with cache_read &gt; 0 (verdict <strong style="color:var(--green);">YES</strong> — context replayed from cache). Both numbers visible = caching is wired correctly.
       </div>
     </div>
 
-    <div class="ppane" id="pane-html">
-      <pre id="htmlPre">Phase 6 stub output appears here.</pre>
+    <div class="ppane" id="pane-meta">
+      <pre id="metaPre">Metadata (the 7 SEO/URL checklist fields + thesis + intent layer) appears here after the Phase 2 frame, and is refreshed after Phase 5.</pre>
     </div>
-  </div>
 
-  <!-- IMAGE PANEL (M3.5) — sits BELOW the preview pane; the Run Log above stays visible.
-       Image generation fires the moment the Phase 2A frame validates and runs in the background
-       through Phases 2B–5. Phase 6 (assembly) hard-stops until every generated image's WordPress
-       URL is pasted + validated here. -->
-  <div class="image-panel" id="imagePanel" style="margin-top:16px;">
-    <div class="img-panel-head">
-      <div class="img-panel-title">Images <span style="font-size:10px;letter-spacing:1px;color:var(--faint);">(M3.5)</span></div>
-      <span class="img-fail-indicator" id="imgFailIndicator" style="display:none;"></span>
-      <div class="img-panel-badge" id="imgBadge">Waiting for the Phase 2A frame…</div>
+    <div class="ppane" id="pane-da">
+      <pre id="daPre">The Direct Answer prose appears here after the Phase 2 hydration relay, and is re-voiced after Phase 5.</pre>
     </div>
-    <div class="img-grid" id="imgGrid">
-      <div style="padding:18px;text-align:center;color:var(--faint);font-size:11px;line-height:1.6;">Images generate here automatically the moment the Phase 2A structure frame passes validation — they render alongside Phases 2B–5. Upload each to WordPress, paste the media URL into the card, and Phase 6 unblocks.</div>
+
+    <div class="ppane" id="pane-v2">
+      <pre id="v2Pre">The V2 article (a readable rendering — H1, Direct Answer, sections, tables, FAQ, CTA) appears here after Phase 5. During Phase 2 it shows the V1 article-in-progress (the structured JSON, streaming as it is written).</pre>
     </div>
-    <div class="img-assemble-row">
-      <button class="btn-assemble" id="imgValidateBtn" onclick="validateImages()" disabled>Validate Images</button>
-      <button class="btn-assemble" id="imgDlAllBtn" onclick="downloadAllImages()" disabled style="background:var(--blue);font-size:14px;">↓ All Images</button>
-      <div class="img-assemble-hint" id="imgHint">No images yet — they appear after the Phase 2A frame validates.</div>
+
+    <div class="ppane" id="pane-schema">
+      <pre id="schemaPre">A basic Article + FAQPage JSON-LD stub (built from the metadata + Direct Answer + FAQ + featured image URL) appears here after Phase 5. The full schema graph is generated in Milestone 5.</pre>
+    </div>
+
+    <div class="ppane" id="pane-html">
+      <pre id="htmlPre">The Phase 7 (Final Assembly) stub HTML appears here.</pre>
     </div>
   </div>
 </div>
@@ -672,7 +695,7 @@
     intentLayer: '',          // Phase 5 — resolved from the 4.2 sheet row's Intent Layer column (F11 → Indirect)
     voiceExemplars: '',       // Phase 5 — intent-matched gold-standard exemplar text (or '' if none — optional)
     v2: null,                 // Phase 5 voice draft — deep clone of V1 with prose rewrites + voiceArchitecture (5.5 will modify further)
-    htmlStub: '',             // Phase 6 stub output
+    htmlStub: '',             // Phase 7 (Final Assembly) stub output
     tokens: { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 },
     cacheLog: [],             // [{phase, callIndex, cacheCreate, cacheRead, input, output, verdict, ts}]
     escalationsRed: [],       // per-run RED escalations [{code, msg, ts}]
@@ -684,7 +707,8 @@
     imageUrls: {},            // idx → WordPress media URL (pasted by the VA)
     imageAttemptId: '',       // 'frame_v1_attempt1' (++on retry) — the frame the current image queue belongs to
     imageArtifactKey: '',     // localStorage key of the F16 V1 artifact (so pasted URLs can be folded into it)
-    expectedImageCount: 0     // Phase 6 hard stop: needs imagesValidated && imageUrls.length === expectedImageCount
+    expectedImageCount: 0,    // Phase 7 hard stop: needs imagesValidated && imageUrls.length === expectedImageCount
+    phaseBuf: {}              // Item 4: per-phase output buffer (n → accumulated text) so retries APPEND, never overwrite
   };
   let yellowWarnings = [];    // rolling, persisted to localStorage, capped at 10
   let running = false;
@@ -692,7 +716,7 @@
   let timerStart=0, timerInterval=null;
   // ── M3.5 image-queue control ──
   let imagesValidated = false;       // VA has pasted + validated every image URL
-  let _phase6Resolve = null;         // resolves the Phase 6 hard-stop await once images are validated
+  let _phase6Resolve = null;         // resolves the Phase 7 (assembly) hard-stop await once images are validated
   let _activeImgAbort = null;        // AbortController for the in-flight image fetch (so flushQueue can kill it)
   // ── relay-strip state (per-block status chips for Phase 2B + Phase 5) ──
   let _relayStates = {};             // stripId → [{label, state}] where state ∈ pending|active|done|warn|fail
@@ -832,13 +856,17 @@
     if(_activeImgAbort){ try { _activeImgAbort.abort(new Error('Client changed.')); } catch(_){} _activeImgAbort=null; }
     S.imagePrompts=[]; S.imageData={}; S.imageUrls={}; S.imageAttemptId=''; S.imageArtifactKey=''; S.expectedImageCount=0; imagesValidated=false; _phase6Resolve=null;
     resetImagePanel(); clearRelayStrip('relayStrip2'); clearRelayStrip('relayStrip5');
+    S.phaseBuf = {};
     updateCost(); renderCacheLog(); renderModeUI();
-    ['1','2','3','4','5','6'].forEach(n=>{ setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
-    document.getElementById('researchPre').textContent='Phase 1 output appears here.';
-    document.getElementById('v1Pre').textContent='Phase 2A frame / Phase 2B-merged V1 appears here.';
+    // Phases 1,2,3,4,5,7 reset to "Waiting"; Phase 6 (the M4 forensic-critique stub) keeps its "M4" badge + placeholder text.
+    ['1','2','3','4','5','7'].forEach(n=>{ setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
     document.getElementById('o3').textContent='';
     document.getElementById('o4').textContent='';
-    document.getElementById('htmlPre').textContent='Phase 6 stub output appears here.';
+    { const e=document.getElementById('metaPre'); if(e) e.textContent='Metadata (the 7 SEO/URL checklist fields + thesis + intent layer) appears here after the Phase 2 frame, and is refreshed after Phase 5.'; }
+    { const e=document.getElementById('daPre'); if(e) e.textContent='The Direct Answer prose appears here after the Phase 2 hydration relay, and is re-voiced after Phase 5.'; }
+    { const e=document.getElementById('v2Pre'); if(e) e.textContent='The V2 article appears here after Phase 5. During Phase 2 it shows the V1 article-in-progress (the structured JSON, streaming).'; }
+    { const e=document.getElementById('schemaPre'); if(e) e.textContent='A basic Article + FAQPage JSON-LD stub appears here after Phase 5. The full schema graph = Milestone 5.'; }
+    document.getElementById('htmlPre').textContent='The Phase 7 (Final Assembly) stub HTML appears here.';
     setCacheBtnsDisabled(true);
     { const cv = document.getElementById('cacheVerdict'); cv.textContent = '—'; cv.className = 'stat-value accent'; }
     setG(S.client ? `Client: ${S.client.name} [${getClientMode(S.client.name)}]. Ready.` : 'Ready. Select client, paste topic, hit Run.');
@@ -861,13 +889,17 @@
     badge.textContent = label || status;
   }
   const sleep = ms => new Promise(res=>setTimeout(res, ms));
+  // Item 1: the ▼ arrow expands BOTH the phase body (output panel) AND the grey description text,
+  // which is collapsed by default (.phase-desc display:none; .phase-card.desc-open .phase-desc display:block).
   function togglePhase(n){
     const body = document.getElementById('sb'+n);
     const chev = document.getElementById('c'+n);
+    const card = document.getElementById('phase'+n);
     if(!body) return;
     const open = body.classList.contains('open');
     body.classList.toggle('open', !open);
     if(chev) chev.classList.toggle('closed', open);
+    if(card) card.classList.toggle('desc-open', !open);
   }
   function setG(text, active=false, error=false){
     const el = document.getElementById('gstatus');
@@ -906,27 +938,39 @@
     stack.appendChild(t);
     setTimeout(() => { t.style.transition = 'opacity .4s'; t.style.opacity = '0'; setTimeout(() => { if(t.parentNode) t.parentNode.removeChild(t); }, 420); }, 5200);
   }
-  const PANE_LABELS = { runlog:'Run Log', research:'Research Brief', v1json:'V1 JSON', cache:'Cache Stats', html:'HTML Stub' };
+  // Right-panel tabs (Item 2). Order MUST match the DOM order of .ptab divs:
+  // Run Log | Cache Stats | Metadata | Direct Answer | V2 Article | Schema | HTML Stub.
+  const PANE_LABELS = { runlog:'Run Log', cache:'Cache Stats', meta:'Metadata', da:'Direct Answer', v2:'V2 Article', schema:'Schema', html:'HTML Stub' };
   function switchTab(name){
     document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
     document.querySelectorAll('.ppane').forEach(p=>p.classList.remove('active'));
-    const tabs = ['runlog','research','v1json','cache','html'];
+    const tabs = ['runlog','cache','meta','da','v2','schema','html'];
     const idx = tabs.indexOf(name);
     if(idx>=0){
       document.querySelectorAll('.ptab')[idx].classList.add('active');
-      document.getElementById('pane-'+name).classList.add('active');
+      const pane = document.getElementById('pane-'+name); if(pane) pane.classList.add('active');
       const lbl = document.getElementById('paneLabel'); if(lbl && PANE_LABELS[name]) lbl.textContent = PANE_LABELS[name];
     }
   }
-  // Copy the active right-panel tab's contents to the clipboard (V3.1 copyActivePane pattern).
+  // Shared clipboard helper — copies `text`, flashes the given button.
+  function _copyToClipboard(text, btn){
+    if(!text){ alert('Nothing to copy here yet.'); return; }
+    const flash = () => { if(!btn) return; const o = btn.textContent; btn.textContent = '✓ Copied'; setTimeout(()=>{ btn.textContent = o; }, 1500); };
+    const fallback = () => { try { const ta = document.createElement('textarea'); ta.value = text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); flash(); } catch(_){ alert('Copy failed — select the text manually.'); } };
+    if(navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(flash).catch(fallback);
+    else fallback();
+  }
+  // Copy the active right-panel tab's contents to the clipboard.
   function copyActivePane(){
     const active = document.querySelector('.ppane.active');
     let text = '';
     if(active){
-      if(active.id === 'pane-runlog')        text = (document.getElementById('runlogBody')?.innerText || '').trim();
-      else if(active.id === 'pane-research')  text = (document.getElementById('researchPre')?.textContent || '').trim();
-      else if(active.id === 'pane-v1json')    text = (document.getElementById('v1Pre')?.textContent || '').trim();
-      else if(active.id === 'pane-html')      text = (document.getElementById('htmlPre')?.textContent || '').trim();
+      if(active.id === 'pane-runlog')      text = (document.getElementById('runlogBody')?.innerText || '').trim();
+      else if(active.id === 'pane-meta')   text = (document.getElementById('metaPre')?.textContent || '').trim();
+      else if(active.id === 'pane-da')     text = (document.getElementById('daPre')?.textContent || '').trim();
+      else if(active.id === 'pane-v2')     text = (document.getElementById('v2Pre')?.textContent || '').trim();
+      else if(active.id === 'pane-schema') text = (document.getElementById('schemaPre')?.textContent || '').trim();
+      else if(active.id === 'pane-html')   text = (document.getElementById('htmlPre')?.textContent || '').trim();
       else if(active.id === 'pane-cache'){
         const g = id => (document.getElementById(id)?.textContent || '—');
         const lines = [
@@ -942,12 +986,97 @@
         text = lines.join('\n');
       }
     }
-    if(!text){ alert('Nothing to copy on this tab yet.'); return; }
-    const btn = document.getElementById('btnCopyPane');
-    const flash = () => { if(!btn) return; const o = btn.textContent; btn.textContent = '✓ Copied'; setTimeout(()=>{ btn.textContent = o; }, 1500); };
-    const fallback = () => { try { const ta = document.createElement('textarea'); ta.value = text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); flash(); } catch(_){ alert('Copy failed — select the text manually.'); } };
-    if(navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(flash).catch(fallback);
-    else fallback();
+    _copyToClipboard(text, document.getElementById('btnCopyPane'));
+  }
+  // Copy a whole phase card's expandable content (output + meta) — Item 5. `btn` flashes ✓ Copied.
+  function copyPhasePanel(n, btn){
+    const o = document.getElementById('o'+n), m = document.getElementById('m'+n);
+    const text = [ (o?.textContent || '').trim(), (m?.textContent || '').trim() ].filter(Boolean).join('\n\n────────────\n');
+    if(!text){ alert('This phase panel is empty.'); return; }
+    _copyToClipboard(text, btn);
+  }
+
+  // Item 4 — write to a phase output panel. opts.append=true APPENDS the text below whatever's there
+  // (with an "=== Attempt N ===" / "=== Round N ===" header) instead of overwriting; opts.attempt
+  // / opts.heading control the divider label. Default (no opts) replaces — for single-shot writes.
+  function pOut(n, text, opts){
+    const el = document.getElementById('o'+n); if(!el) return;
+    opts = opts || {};
+    if(opts.append){
+      const hdr = opts.heading ? `=== ${opts.heading} ===\n` : (opts.attempt ? `=== Attempt ${opts.attempt} ===\n` : (S.phaseBuf[n] ? '─'.repeat(40)+'\n' : ''));
+      S.phaseBuf[n] = (S.phaseBuf[n] ? S.phaseBuf[n] + '\n\n\n' : '') + hdr + String(text==null?'':text);
+    } else {
+      S.phaseBuf[n] = String(text==null?'':text);
+    }
+    el.textContent = S.phaseBuf[n];
+    el.scrollTop = el.scrollHeight;
+  }
+
+  // ─── RIGHT-PANEL CONTENT BUILDERS (Metadata / Direct Answer / V2 Article / Schema tabs) ──
+  function buildMetaText(obj){
+    if(!obj || typeof obj !== 'object') return '(no metadata yet — appears after the Phase 2 frame)';
+    const c = obj.checklist || {};
+    return [
+      'metaTitle:       ' + (c.metaTitle || '—'),
+      'h1:              ' + (c.h1 || '—'),
+      'permalink:       ' + (c.permalink || '—'),
+      'fullUrl:         ' + (c.fullUrl || '—'),
+      'metaDescription: ' + (c.metaDescription || '—'),
+      'keywords:        ' + (c.keywords || '—'),
+      'category:        ' + (c.category || '—'),
+      '',
+      'thesis:          ' + ((obj.thesis && obj.thesis.statement) || '—'),
+      'intentLayer:     ' + (obj.intentLayer || S.intentLayer || '—')
+    ].join('\n');
+  }
+  // A readable rendering of the (V2 if present, else V1) article: H1, Direct Answer, sections (H2 + paras + H3 + paras + tables), FAQ, CTA.
+  function formatArticleText(obj){
+    if(!obj || typeof obj !== 'object') return '(no article yet)';
+    const out = [];
+    const para = p => { if(!p || typeof p !== 'object') return; const li = Array.isArray(p.listItems) ? p.listItems : []; const t = String(p.prose||'').trim(); if(li.length) out.push(li.map(x=>'- '+x).join('\n')); else if(t) out.push(t); };
+    out.push('# ' + ((obj.checklist && (obj.checklist.h1 || obj.checklist.metaTitle)) || '(untitled)'));
+    if(obj.thesis && obj.thesis.statement) out.push('_Thesis: ' + obj.thesis.statement + '_');
+    out.push('\n## (Direct Answer)\n' + (String((obj.directAnswer && obj.directAnswer.prose) || '').trim() || '(not written yet)'));
+    _secs(obj).forEach(sec => {
+      if(!sec || typeof sec !== 'object') return;
+      out.push('\n## ' + (sec.h2 || ''));
+      toArray(sec.paragraphs).forEach(para);
+      toArray(sec.h3sections).forEach(h3 => { if(!h3 || typeof h3 !== 'object') return; out.push('\n### ' + (h3.h3 || '')); toArray(h3.paragraphs).forEach(para); });
+      toArray(sec.tables).forEach(tb => { if(!tb || typeof tb !== 'object') return; const hdr = Array.isArray(tb.headers) ? tb.headers : []; if(hdr.length){ out.push('\n| ' + hdr.join(' | ') + ' |'); out.push('| ' + hdr.map(()=>'---').join(' | ') + ' |'); } toArray(tb.rows).forEach(r => { const cells = Array.isArray(r && r.cells) ? r.cells : (Array.isArray(r) ? r : []); out.push('| ' + cells.join(' | ') + ' |' + (r && r.sourceReferenceId ? `   <!-- ${r.sourceReferenceId} -->` : '')); }); });
+    });
+    if(Array.isArray(obj.faq) && obj.faq.length){ out.push('\n## FAQ'); toArray(obj.faq).forEach(f => { if(!f || typeof f !== 'object') return; out.push('\n**' + (f.question || '') + '**'); out.push(String((f.answer && f.answer.prose) || '').trim() || '(not written yet)'); }); }
+    if(obj.cta && typeof obj.cta === 'object'){ out.push('\n## CTA'); const hp = String(obj.cta.hookProse||'').trim(); if(hp) out.push(hp); out.push(`[${obj.cta.anchorText||''}](${obj.cta.url||''})`); }
+    return out.join('\n');
+  }
+  // A stub Article + FAQPage JSON-LD built from the metadata + Direct Answer + FAQ + featured image URL. Full graph = M5.
+  function buildSchemaStub(obj){
+    if(!obj || typeof obj !== 'object') return '(no schema yet — generated after Phase 5)';
+    const c = obj.checklist || {};
+    const featImg = (S.imageUrls && Object.keys(S.imageUrls).length) ? (S.imageUrls[getFeatured()] || '') : '';
+    const schema = {
+      '@context': 'https://schema.org',
+      '@type': 'Article',
+      headline: c.h1 || c.metaTitle || '',
+      description: c.metaDescription || '',
+      url: c.fullUrl || '',
+      keywords: c.keywords || '',
+      articleSection: c.category || '',
+      image: featImg || undefined,
+      mainEntity: (Array.isArray(obj.faq) && obj.faq.length) ? {
+        '@type': 'FAQPage',
+        mainEntity: toArray(obj.faq).filter(f => f && f.question).map(f => ({ '@type':'Question', name: f.question, acceptedAnswer: { '@type':'Answer', text: String((f.answer && f.answer.prose) || '') } }))
+      } : undefined
+    };
+    return '<!-- M5 will generate the full schema graph. This is a stub built from the metadata + FAQ + featured image. -->\n<script type="application/ld+json">\n' + JSON.stringify(schema, null, 2) + '\n<\/script>';
+  }
+  // Repopulate the Metadata / Direct Answer / V2 Article / Schema tabs from the current article object.
+  function refreshRightPanels(){
+    const obj = S.v2 || S.v1;
+    if(!obj) return;
+    const meta = document.getElementById('metaPre'); if(meta) meta.textContent = buildMetaText(obj);
+    const da   = document.getElementById('daPre');   if(da)   da.textContent   = String((obj.directAnswer && obj.directAnswer.prose) || '').trim() || '(Direct Answer not written yet)';
+    const v2   = document.getElementById('v2Pre');   if(v2)   v2.textContent   = formatArticleText(obj);
+    const sc   = document.getElementById('schemaPre'); if(sc) sc.textContent = buildSchemaStub(obj);
   }
   function log(msg, level='info'){
     const body = document.getElementById('runlogBody');
@@ -1357,7 +1486,7 @@ SHEET ROW (pipe-delimited): ${S.sheetRow}`;
 
   // ── PHASE 2A — STRUCTURE FRAME + NARRATIVE SPINE ──
   function buildPhase2ASystem(){
-    const instr = `PHASE 2A — STRUCTURE FRAME + NARRATIVE SPINE. Call submit_v1_frame with the article's structural skeleton AND its narrative spine. NO body prose. NO statistics. NO numerical claims. NO table data rows. NO FAQ answers. NO Direct Answer prose. (All of that is written in Phase 2B — one content block at a time, section by section, guided by the spine you write here.)
+    const instr = `PHASE 2A — STRUCTURE FRAME + NARRATIVE SPINE. Call submit_v1_frame with the article's structural skeleton AND its narrative spine. NO body prose. NO statistics. NO numerical claims. NO table data rows. NO FAQ answers. NO Direct Answer prose. (All of that is written in Phase 2 — one content block at a time, section by section, guided by the spine you write here.)
 
 Produce:
 - checklist: the 7 SEO/URL fields — metaTitle, h1, permalink, fullUrl, metaDescription, keywords, category.
@@ -1615,7 +1744,7 @@ CRITICAL: You MUST use the hydrate_content_block tool and return a "nodes" array
     const queue = buildSectionLevelQueue(hydratedFrame, spine);
     const total = queue.length;
     const totalReqIds = queue.reduce((n,j)=>n+((j.requiredIds&&j.requiredIds.length)||0), 0);
-    log(`Phase 2B — sequential hydration ("relay race", section-level): ${total} content block(s) / ${totalReqIds} node(s) to write in order, each with rolling context.`, 'info');
+    log(`Phase 2 — sequential hydration ("relay race", section-level): ${total} content block(s) / ${totalReqIds} node(s) to write in order, each with rolling context.`, 'info');
     initRelayStrip('relayStrip2', queue);             // per-block status chips (Item 4: green = done OK)
     const masterCtx = buildPhase2ContextBlock();      // cached master context (same content as every Phase 2 call)
     const instrBlock = buildHydrateInstrBlock();      // small uncached "one block at a time" framing
@@ -1625,10 +1754,10 @@ CRITICAL: You MUST use the hydrate_content_block tool and return a "nodes" array
       const reqIds = job.requiredIds || [];
       const reqSet = new Set(reqIds.map(String));
       const isTable = job.type === 'table';
-      setPhase(2, 'active', `2B ${i+1}/${total}`);
+      setPhase(2, 'active', `Hydrate ${i+1}/${total}`);
       setRelayChip('relayStrip2', i, 'active');
-      setG(`Phase 2B — sequential hydration: block ${i+1}/${total} (${job.label || job.type})…`, true);
-      log(`Phase 2B — hydrating node ${i+1} of ${total} (${job.label || job.type}; ${reqIds.length} id${reqIds.length===1?'':'s'})…`, 'info');
+      setG(`Phase 2 — hydration relay: block ${i+1}/${total} (${job.label || job.type})…`, true);
+      log(`Phase 2 — hydrating node ${i+1} of ${total} (${job.label || job.type}; ${reqIds.length} id${reqIds.length===1?'':'s'})…`, 'info');
       let nodes = null, f6f = '', missingIds = [], hadWarn = false;
       for(let attempt = 0; attempt < 2; attempt++){
         let retryNote = '';
@@ -1643,31 +1772,31 @@ CRITICAL: You MUST use the hydrate_content_block tool and return a "nodes" array
           result = await callClaude({ systemBlocks:[masterCtx, instrBlock], userText: buildHydrateJobPrompt(spine, rollingDraft, job, i+1, total, hydratedFrame, retryNote), tools:[HYDRATE_CONTENT_BLOCK_TOOL], toolChoice:{type:'tool', name:'hydrate_content_block'}, akey, timeoutMs: 240000 });
         } catch(e){
           if(e.f4) throw e;
-          if(attempt < 1){ warnYellow('F2', `Phase 2B block ${i+1}/${total} (${job.label||job.type}) call errored (${e.message||e}) — retrying.`); continue; }
-          warnYellow('F2', `Phase 2B block ${i+1}/${total} (${job.label||job.type}) failed after retry (${e.message||e}) — ${reqIds.length} node(s) left un-hydrated; Phase 3A + the surgical fix will catch them.`); break;
+          if(attempt < 1){ warnYellow('F2', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}) call errored (${e.message||e}) — retrying.`); continue; }
+          warnYellow('F2', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}) failed after retry (${e.message||e}) — ${reqIds.length} node(s) left un-hydrated; Phase 3A + the surgical fix will catch them.`); break;
         }
         logCacheCall(2, result.usage);
         if(!result.toolCalls.length && (/\bI cannot\b|\bI (?:can['’]t|won['’]t)\b|\bI apologi[sz]e\b|unable to (?:provide|help|assist|complete)/i.test(result.textOutput||'') || result.stopReason === 'refusal')){
-          if(attempt < 1){ warnYellow('F6', `Phase 2B block ${i+1}/${total}: Claude declined — retrying with "informational professional content" framing. Code: F6.`); f6f = 'IMPORTANT FRAMING: This is informational marketing/SEO content for a professional service-business website — not medical, legal, or financial advice. Write the block normally via hydrate_content_block.'; continue; }
-          warnYellow('F6', `Phase 2B block ${i+1}/${total} (${job.label||job.type}) refused after retry — ${reqIds.length} node(s) left un-hydrated.`); break;
+          if(attempt < 1){ warnYellow('F6', `Phase 2 hydration block ${i+1}/${total}: Claude declined — retrying with "informational professional content" framing. Code: F6.`); f6f = 'IMPORTANT FRAMING: This is informational marketing/SEO content for a professional service-business website — not medical, legal, or financial advice. Write the block normally via hydrate_content_block.'; continue; }
+          warnYellow('F6', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}) refused after retry — ${reqIds.length} node(s) left un-hydrated.`); break;
         }
         if(!result.toolCalls.length){
-          if(attempt < 1){ warnYellow('F2', `Phase 2B block ${i+1}/${total}: no tool call returned — retrying. Code: F2.`); continue; }
-          warnYellow('F2', `Phase 2B block ${i+1}/${total} (${job.label||job.type}): no usable tool call after retry — ${reqIds.length} node(s) left un-hydrated.`); break;
+          if(attempt < 1){ warnYellow('F2', `Phase 2 hydration block ${i+1}/${total}: no tool call returned — retrying. Code: F2.`); continue; }
+          warnYellow('F2', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}): no usable tool call after retry — ${reqIds.length} node(s) left un-hydrated.`); break;
         }
         const inp = result.toolCalls[0].input;
         if(inp && inp.__parse_error){
-          if(attempt < 1){ warnYellow('F2', `Phase 2B block ${i+1}/${total}: unparseable tool input (${inp.__parse_error}) — retrying. Code: F2.`); continue; }
-          warnYellow('F2', `Phase 2B block ${i+1}/${total} (${job.label||job.type}): unparseable after retry — ${reqIds.length} node(s) left un-hydrated.`); break;
+          if(attempt < 1){ warnYellow('F2', `Phase 2 hydration block ${i+1}/${total}: unparseable tool input (${inp.__parse_error}) — retrying. Code: F2.`); continue; }
+          warnYellow('F2', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}): unparseable after retry — ${reqIds.length} node(s) left un-hydrated.`); break;
         }
-        if(result.stopReason === 'max_tokens'){ hadWarn = true; warnYellow('F3', `Phase 2B block ${i+1}/${total} (${job.label||job.type}) hit the token limit — using the partial content recovered; Phase 3A will flag anything too short. Code: F3.`); }
+        if(result.stopReason === 'max_tokens'){ hadWarn = true; warnYellow('F3', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}) hit the token limit — using the partial content recovered; Phase 3A will flag anything too short. Code: F3.`); }
         const got = toArray(inp.nodes).filter(n => n && typeof n === 'object' && n.targetId);
         if(got.length === 0){
-          if(attempt < 1){ warnYellow('F2', `Phase 2B block ${i+1}/${total}: empty "nodes" array — retrying.`); continue; }
-          warnYellow('F2', `Phase 2B block ${i+1}/${total} (${job.label||job.type}): empty "nodes" after retry — ${reqIds.length} node(s) left un-hydrated.`); break;
+          if(attempt < 1){ warnYellow('F2', `Phase 2 hydration block ${i+1}/${total}: empty "nodes" array — retrying.`); continue; }
+          warnYellow('F2', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}): empty "nodes" after retry — ${reqIds.length} node(s) left un-hydrated.`); break;
         }
         const missing = reqIds.filter(id => !got.some(n => String(n.targetId) === String(id)));
-        if(missing.length && attempt < 1){ warnYellow('F14', `Phase 2B block ${i+1}/${total} (${job.label||job.type}): response was missing ${missing.length} of ${reqIds.length} required node(s) — retrying for the full set. Code: F14.`); missingIds = missing; f6f = ''; continue; }
+        if(missing.length && attempt < 1){ warnYellow('F14', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}): response was missing ${missing.length} of ${reqIds.length} required node(s) — retrying for the full set. Code: F14.`); missingIds = missing; f6f = ''; continue; }
         nodes = got; break;
       }
       // process whatever we got (may be partial after retries)
@@ -1675,19 +1804,20 @@ CRITICAL: You MUST use the hydrate_content_block tool and return a "nodes" array
       let covered = 0;
       for(const node of nodes){
         const ok = stitchNode(hydratedFrame, { targetId: node.targetId, prose: node.prose, rows: node.rows });
-        if(!ok){ hadWarn = true; warnYellow('F13', `Phase 2B block ${i+1}/${total}: returned targetId "${node.targetId}" which isn't in the frame — ignored. Code: F13.`); continue; }
+        if(!ok){ hadWarn = true; warnYellow('F13', `Phase 2 hydration block ${i+1}/${total}: returned targetId "${node.targetId}" which isn't in the frame — ignored. Code: F13.`); continue; }
         if(reqSet.has(String(node.targetId))) covered++;
         if(typeof node.prose === 'string' && node.prose.trim()) rollingDraft += `\n\n\n${node.prose.trim()}`;
         else if(Array.isArray(node.rows) && node.rows.length) rollingDraft += `\n\n\n[Table inserted — ${node.targetId}, ${node.rows.length} row(s)]`;
       }
       const uncovered = reqIds.length - covered;
-      if(uncovered > 0){ failedIds += uncovered; hadWarn = true; warnYellow('F14', `Phase 2B block ${i+1}/${total} (${job.label||job.type}): ${uncovered} of ${reqIds.length} required node(s) not returned — left un-hydrated; Phase 3A + the surgical fix will catch them. Code: F14.`); }
+      if(uncovered > 0){ failedIds += uncovered; hadWarn = true; warnYellow('F14', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}): ${uncovered} of ${reqIds.length} required node(s) not returned — left un-hydrated; Phase 3A + the surgical fix will catch them. Code: F14.`); }
       setRelayChip('relayStrip2', i, hadWarn ? 'warn' : 'done');   // green only when the block landed cleanly (Item 4)
-      const o2 = document.getElementById('o2'); if(o2){ o2.textContent = `Phase 2B relay (section-level) — ${i+1}/${total} block(s) done (last: ${job.label||job.type})${failedIds?`; ${failedIds} node(s) left un-hydrated so far`:''}\n\n` + JSON.stringify(hydratedFrame, null, 2).slice(0, 4000); o2.scrollTop = 0; }
-      const v1Pre = document.getElementById('v1Pre'); if(v1Pre) v1Pre.textContent = JSON.stringify(hydratedFrame, null, 2);
-      const m2 = document.getElementById('m2'); if(m2) m2.textContent = `Phase 2B relay — ${i+1}/${total} block(s) done${failedIds?`, ${failedIds} node(s) un-hydrated`:''}.`;
+      // Per-block: live JSON in the V2 Article tab + progress line in the Phase 2 meta. The Phase 2
+      // panel (#o2) is written once at the end by the orchestrator (so the Frame attempts above stay).
+      const v2Pre = document.getElementById('v2Pre'); if(v2Pre) v2Pre.textContent = JSON.stringify(hydratedFrame, null, 2);
+      const m2 = document.getElementById('m2'); if(m2) m2.textContent = `Phase 2 hydration relay — ${i+1}/${total} block(s) done (last: ${job.label||job.type})${failedIds?`, ${failedIds} node(s) un-hydrated`:''}.`;
     }
-    if(failedIds) warnYellow('F2', `Phase 2B sequential hydration: ${failedIds} of ${totalReqIds} node(s) left un-hydrated after retries — Phase 3A will flag them and the surgical fix will patch them (or CHK1 if it can't). Code: F2.`);
+    if(failedIds) warnYellow('F2', `Phase 2 hydration relay: ${failedIds} of ${totalReqIds} node(s) left un-hydrated after retries — Phase 3A will flag them and the surgical fix will patch them (or CHK1 if it can't). Code: F2.`);
     return hydratedFrame;
   }
 
@@ -1900,7 +2030,7 @@ CRITICAL: You MUST use the hydrate_content_block tool and return a "nodes" array
     try { localStorage.setItem(YELLOW_KEY, JSON.stringify(yellowWarnings)); } catch(_){}
   }
   // YELLOW warnings are run-scoped: cleared on page load, on a new run start, and when an
-  // article finishes (Phase 6 / final docs). RED escalations are NOT affected by this.
+  // article finishes (Phase 7 / final docs). RED escalations are NOT affected by this.
   function clearYellowWarnings(){ yellowWarnings = []; saveYellowWarnings(); renderEscalationPanel(); }
   function clearRunEscalations(){ S.escalationsRed = []; renderEscalationPanel(); }
   function setEscOpen(open){
@@ -2288,11 +2418,11 @@ Output the JSON now.`;
   // ─── PHASE 3 RESULT RENDERING ──────────────────────────────
   // injectedThisAttempt: true when the M2 test-injection dropped a section this attempt —
   // so a section_count failure is unmistakably attributed to the test, not to Claude.
+  // Each validation round is APPENDED to the Phase 3 panel (Item 4) — never overwritten.
   function renderPhase3(structuralFails, semanticFails, attemptN, passed, injectedThisAttempt){
-    const o3 = document.getElementById('o3');
     const lines = [];
-    const which = attemptN === 0 ? 'initial generation' : `retry ${attemptN} of 2`;
-    lines.push(`Validation — attempt ${attemptN + 1} of 3 (${which}) — ${passed ? 'PASS ✓' : 'FAIL ✗'}${injectedThisAttempt ? '   [🧪 test injection active this attempt]' : ''}`);
+    const which = attemptN === 0 ? 'initial validation' : `after surgical fix ${attemptN} of 2`;
+    lines.push(`Validation ${which} — ${passed ? 'PASS ✓' : 'FAIL ✗'}${injectedThisAttempt ? '   [🧪 test injection active this attempt]' : ''}`);
     lines.push('');
     lines.push(`3A · JS STRUCTURAL — ${structuralFails.length ? structuralFails.length + ' fail(s):' : 'all checks pass'}`);
     structuralFails.forEach(f => {
@@ -2302,7 +2432,7 @@ Output the JSON now.`;
     lines.push('');
     lines.push(`3B · GEMINI SEMANTIC — ${semanticFails.length ? semanticFails.length + ' fail(s):' : 'aligned with research brief + thesis anchored'}`);
     semanticFails.forEach(f => lines.push(`  • [${f.targetId || '?'}] ${f.issue}${f.suggestedRevision ? '  → '+f.suggestedRevision : ''}`));
-    o3.textContent = lines.join('\n');
+    pOut(3, lines.join('\n'), { append: true, heading: `Round ${attemptN + 1} of 3` });
   }
   function formatValidationFeedback(structuralFails, semanticFails, research){
     const parts = [];
@@ -2352,8 +2482,8 @@ Output the JSON now.`;
       if(o2){ o2.textContent = head + preamble + (chars>2500 ? '…(showing last 2500 chars)…\n' : '') + tail; o2.scrollTop = o2.scrollHeight; }
       const m2 = document.getElementById('m2');
       if(m2) m2.textContent = `${label} in progress — ${outputTokens||0} tokens, ${chars.toLocaleString()} chars so far…`;
-      const v1Pre = document.getElementById('v1Pre');
-      if(v1Pre){ v1Pre.textContent = (textOutput?('[preamble]\n'+textOutput+'\n\n'):'') + (toolJson||''); v1Pre.scrollTop = v1Pre.scrollHeight; }
+      const v2Pre = document.getElementById('v2Pre');
+      if(v2Pre){ v2Pre.textContent = (textOutput?('[preamble]\n'+textOutput+'\n\n'):'') + (toolJson||''); v2Pre.scrollTop = v2Pre.scrollHeight; }
     };
   }
 
@@ -2363,7 +2493,7 @@ Output the JSON now.`;
   async function runClaudeTool({ systemBlocks, userText, tool, label, cardLabel, akey }){
     setPhase(2, 'active', cardLabel || label);
     // Phase cards stay collapsed during the run (the VA expands them on demand); the Run Log
-    // tab stays active. The streaming output still updates o2 / v1Pre behind the scenes.
+    // tab stays active. The streaming output still updates o2 / v2Pre behind the scenes.
     document.getElementById('o2').textContent = `⏳ ${label} — connecting to Claude…`;
     const t = Date.now();
     const result = await callClaude({
@@ -2382,7 +2512,7 @@ Output the JSON now.`;
     return { input, elapsed, stopReason: result.stopReason };
   }
   async function runPhase2A(akey, feedback, f2hint, label){
-    const r = await runClaudeTool({ systemBlocks: buildPhase2ASystem(), userText: buildPhase2AUserText(feedback, f2hint), tool: V1_FRAME_TOOL, label, cardLabel: feedback ? '2A retry' : '2A frame', akey });
+    const r = await runClaudeTool({ systemBlocks: buildPhase2ASystem(), userText: buildPhase2AUserText(feedback, f2hint), tool: V1_FRAME_TOOL, label, cardLabel: feedback ? 'Frame retry' : 'Frame', akey });
     if(r.parseError) return r;
     return { frame: r.input, elapsed: r.elapsed, stopReason: r.stopReason };
   }
@@ -2627,7 +2757,7 @@ Output the JSON now.`;
   // — "don't let the rolling draft drift your tone; reset to 4.3A/4.3B every section" — is verbatim
   // in that block. Error handling mirrors Phase 2B (F2/F3/F6/F13/F14, per-block 2-attempt retry,
   // un-re-voiced nodes keep their V1 prose); if the whole relay yields zero usable rewrites it RED-
-  // escalates before Phase 6. JS validates every targetId against the allowed prose-node registry
+  // escalates before Phase 7 (assembly). JS validates every targetId against the allowed prose-node registry
   // (5.2/5.3), drops orphans/disallowed (F13), and merges the kept rewrites onto a deep clone of V1
   // → S.v2. The frozen V1 bones are never touched. Phase 5.5 (forensic critique) = Milestone 4.
   // ═══════════════════════════════════════════════════════════
@@ -2990,6 +3120,7 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     imagesValidated = false; _phase6Resolve = null;
     resetImagePanel();
     clearRelayStrip('relayStrip2'); clearRelayStrip('relayStrip5');
+    S.phaseBuf = {};
     _idCounter = 0; // ids are unique per run; reset once here, not per assignIds() call
     updateCost(); renderCacheLog();
     { const cv = document.getElementById('cacheVerdict'); cv.textContent = '—'; cv.className = 'stat-value accent'; }
@@ -2997,9 +3128,16 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     clearYellowWarnings();   // YELLOW warnings reset at the start of every run (RED behavior unchanged)
     clearRunEscalations();   // clears this run's RED list + re-renders the panel (now empty of both)
     pipelineHalted = false;
-    ['1','2','3','4','5','6'].forEach(n => { setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
-    // Phase cards collapse, Run Log is the active tab — both stay that way until Phase 6 finishes.
-    ['1','2','3','4','5','55','6'].forEach(n => { const sb=document.getElementById('sb'+n), c=document.getElementById('c'+n); if(sb) sb.classList.remove('open'); if(c) c.classList.add('closed'); });
+    // Phases 1,2,3,4,5,7 reset to "Waiting"; Phase 6 (the M4 forensic-critique stub) keeps its "M4" badge + "Pending Milestone 4." text.
+    ['1','2','3','4','5','7'].forEach(n => { setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
+    document.getElementById('o3').textContent=''; document.getElementById('o4').textContent='';
+    { const e=document.getElementById('metaPre'); if(e) e.textContent='Metadata appears here after the Phase 2 frame, and is refreshed after Phase 5.'; }
+    { const e=document.getElementById('daPre'); if(e) e.textContent='The Direct Answer prose appears here after the Phase 2 hydration relay, and is re-voiced after Phase 5.'; }
+    { const e=document.getElementById('v2Pre'); if(e) e.textContent='The V2 article appears here after Phase 5. During Phase 2 it shows the V1 article-in-progress (the structured JSON, streaming).'; }
+    { const e=document.getElementById('schemaPre'); if(e) e.textContent='A basic Article + FAQPage JSON-LD stub appears here after Phase 5. The full schema graph = Milestone 5.'; }
+    document.getElementById('htmlPre').textContent='The Phase 7 (Final Assembly) stub HTML appears here.';
+    // Phase cards collapse + descriptions collapse, Run Log is the active tab — until Phase 7 finishes.
+    ['1','2','3','4','5','6','7'].forEach(n => { const sb=document.getElementById('sb'+n), c=document.getElementById('c'+n), card=document.getElementById('phase'+n); if(sb) sb.classList.remove('open'); if(c) c.classList.add('closed'); if(card) card.classList.remove('desc-open'); });
     switchTab('runlog');
 
     running = true;
@@ -3039,32 +3177,32 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
       S.sheetRowCols = row.cells;
       log(`Docs loaded — 4.3A:${doc43A.length}b, 4.3B:${doc43B.length}b, 4.4:${doc44.length}b, sheet row matched.`, 'ok');
 
-      // ── PHASE 1: Gemini research + thesis — F1 retry loop ─
+      // ── PHASE 1: Gemini research + thesis — F1 retry loop (each attempt appended to the panel, never overwritten) ─
       setG('Phase 1 — Gemini research + clientSpecificThesis...', true);
       setPhase(1, 'active', 'Running');
       const t1 = Date.now();
       let phase1Json = null;
       for(let attempt = 0; attempt <= 2; attempt++){
         if(attempt > 0){ warnYellow('F1', `Phase 1 returned shallow/garbage research (attempt ${attempt}/3) — retrying in 10s.`); setG('Phase 1 research was shallow — retrying in 10s…', true); await sleep(10000); setG('Phase 1 — retrying Gemini research…', true); }
+        setPhase(1, 'active', `Attempt ${attempt+1}/3`);
         let raw;
         try { raw = await callGemini(buildPhase1Prompt(), gkey, { json: true, maxTokens: 16384 }); }
-        catch(e){ if(e.f4){ escalateRed('F4', `Gemini API unavailable after retries during Phase 1. (${e.message})`); return; } document.getElementById('o1').textContent = `Phase 1 call error: ${e.message}`; phase1Json = null; if(attempt === 2){ escalateRed('F1', `Phase 1 research call failed after retries: ${e.message}`); return; } continue; }
+        catch(e){ if(e.f4){ escalateRed('F4', `Gemini API unavailable after retries during Phase 1. (${e.message})`); return; } pOut(1, `Gemini call error: ${e.message}`, { append: true, attempt: attempt+1 }); phase1Json = null; if(attempt === 2){ escalateRed('F1', `Phase 1 research call failed after retries: ${e.message}`); return; } continue; }
         let parsed = null;
         try { parsed = tolerantParseJSON(raw); } catch(e){ parsed = null; }
         // F1 trigger: empty sources OR missing clientSpecificThesis OR missing factClaims
         const ok = parsed && Array.isArray(parsed.sources) && parsed.sources.length > 0
                  && parsed.clientSpecificThesis && parsed.clientSpecificThesis.thesisStatement
                  && Array.isArray(parsed.factClaims) && parsed.factClaims.length > 0;
-        if(ok){ phase1Json = parsed; break; }
-        document.getElementById('o1').textContent = (raw || '(empty response)').slice(0, 4000);
+        if(ok){ pOut(1, `SUCCESS — ${parsed.sources.length} sources, ${parsed.faqSeeds?.length||0} faqSeeds, ${parsed.factClaims.length} factClaims, thesis present.`, { append: true, attempt: attempt+1 }); phase1Json = parsed; break; }
+        pOut(1, `Validation FAILED — research was missing sources / clientSpecificThesis / factClaims. Raw response (first 4000 chars):\n${(raw || '(empty response)').slice(0, 4000)}`, { append: true, attempt: attempt+1 });
         if(attempt === 2){ escalateRed('F1', 'Research failed after 2 retries — empty sources, missing thesis, or missing factClaims. Topic may be too narrow or a Gemini API issue.'); return; }
       }
       S.research = phase1Json;
-      assignFactClaimIds(S.research); // JS stamps factClaim_01… so Phase 2B's table rows can cite them
+      assignFactClaimIds(S.research); // JS stamps factClaim_01… so the Phase 2 hydration relay's table rows can cite them
       const elapsed1 = ((Date.now()-t1)/1000).toFixed(1);
-      document.getElementById('o1').textContent = JSON.stringify(phase1Json, null, 2).slice(0, 4000);
+      pOut(1, JSON.stringify(phase1Json, null, 2), { append: true, heading: 'Phase 1 — final research brief (factClaim ids stamped)' });
       document.getElementById('m1').textContent = `Done in ${elapsed1}s — ${phase1Json.sources.length} sources, ${phase1Json.faqSeeds?.length||0} faqSeeds, ${phase1Json.factClaims.length} factClaims (ids: ${phase1Json.factClaims.map(fc=>fc.id).filter(Boolean).slice(0,3).join(', ')}${phase1Json.factClaims.length>3?'…':''}). Thesis: "${phase1Json.clientSpecificThesis.thesisStatement.slice(0,120)}…"`;
-      document.getElementById('researchPre').textContent = JSON.stringify(phase1Json, null, 2);
       setPhase(1, 'done', `Done ${elapsed1}s`);
       log(`Phase 1 complete: ${phase1Json.sources.length} sources, ${phase1Json.factClaims.length} factClaims (id-stamped), thesis present.`, 'ok');
 
@@ -3079,23 +3217,25 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
       // ════════════════════════════════════════════════════════
       const inject = document.getElementById('testInjection')?.value || 'off';
 
-      // ── PHASE 2A — STRUCTURE FRAME (small retry loop on frame-validation failure) ──
-      setPhase(2, 'active', '2A frame');
+      // ── PHASE 2 — FRAME PASS (small retry loop on frame-validation failure; every attempt kept in the panel) ──
+      setPhase(2, 'active', 'Frame');
       let frame = null, frameFeedback = '', frameF2hint = false;
       for(let fa = 0; fa <= 2; fa++){
-        setG(fa === 0 ? 'Phase 2A — Claude STRUCTURE FRAME (headings, table headers, FAQ questions, link anchors, image slots, CTA) via Tool Use (cached context)…' : `Phase 2A — regenerating the frame with validation feedback (retry ${fa}/2)…`, true);
+        setPhase(2, 'active', fa === 0 ? 'Frame' : `Frame retry ${fa}`);
+        setG(fa === 0 ? 'Phase 2 — Claude STRUCTURE FRAME (headings, table headers, FAQ questions, link anchors, image slots, CTA) via Tool Use (cached context)…' : `Phase 2 — regenerating the frame with validation feedback (retry ${fa}/2)…`, true);
         let p2a;
-        try { p2a = await runPhase2A(akey, frameFeedback, frameF2hint, fa === 0 ? 'Phase 2A' : `Phase 2A retry ${fa}`); }
-        catch(e){ if(e.f4){ escalateRed('F4', `Claude/proxy unavailable during Phase 2A. (${e.message})`); return; } throw e; }
+        try { p2a = await runPhase2A(akey, frameFeedback, frameF2hint, fa === 0 ? 'Phase 2 (frame)' : `Phase 2 frame retry ${fa}`); }
+        catch(e){ if(e.f4){ escalateRed('F4', `Claude/proxy unavailable during the Phase 2 frame call. (${e.message})`); return; } throw e; }
         if(p2a.parseError){
-          if(fa < 2){ warnYellow('F2', `Phase 2A returned unparseable output (${p2a.parseError}). Retrying with a raw-JSON-only instruction.`); frameF2hint = true; frameFeedback = ''; continue; }
-          escalateRed('F2', `Claude returned unparseable JSON for Phase 2A after 2 retries. ${p2a.parseError}.`); return;
+          pOut(2, `FRAME CALL — unparseable output (${p2a.parseError}). ${fa < 2 ? 'Retrying with a raw-JSON-only instruction.' : 'Out of retries.'}`, { append: true, attempt: fa+1 });
+          if(fa < 2){ warnYellow('F2', `Phase 2 frame returned unparseable output (${p2a.parseError}). Retrying with a raw-JSON-only instruction.`); frameF2hint = true; frameFeedback = ''; continue; }
+          escalateRed('F2', `Claude returned unparseable JSON for the Phase 2 frame after 2 retries. ${p2a.parseError}.`); return;
         }
         frameF2hint = false;
         frame = assignIds(p2a.frame);   // stamp section_/h3_/table_/link_/img_/faq_/cta_/thesis ids on the frame
         S.frame = frame; S.v1 = frame;  // the in-progress article object (mutated in place from here on)
 
-        // —— TEST INJECTION (M2 verification only) — drop a section from the FRAME ——
+        // —— TEST INJECTION (verification only) — drop a section from the FRAME ——
         // 'recover' fires ONLY on the first frame attempt; 'escalate' fires every attempt.
         let injectedThisAttempt = false;
         if((inject === 'escalate') || (inject === 'recover' && fa === 0)){
@@ -3109,44 +3249,45 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
         }
 
         const fsum = `sections:${frame.sections?.length||0}  faq:${frame.faq?.length||0}  tables:${countTables(frame)}  links:${countLinks(frame)}  images:${countImages(frame)}`;
-        document.getElementById('o2').textContent = '── STRUCTURE FRAME (Phase 2A) ──\n' + JSON.stringify(frame, null, 2).slice(0, 4000);
-        document.getElementById('v1Pre').textContent = JSON.stringify(frame, null, 2);
-        log(`Phase 2A ${fa>0?'(retry '+fa+') ':''}— frame in ${p2a.elapsed}s — ${fsum}`, 'ok');
+        document.getElementById('v2Pre').textContent = JSON.stringify(frame, null, 2); // V2 Article tab shows the frame-in-progress
+        const _mp = document.getElementById('metaPre'); if(_mp) _mp.textContent = buildMetaText(frame); // Metadata tab populates from the frame's checklist
+        log(`Phase 2 frame ${fa>0?'(retry '+fa+') ':''}— in ${p2a.elapsed}s — ${fsum}`, 'ok');
 
         // —— JS FRAME VALIDATION (structural minimums only — no DA / prose / table rows yet) ——
-        setG('Phase 2A — validating the frame (JS structural)…', true);
+        setG('Phase 2 — validating the frame (JS structural)…', true);
         const fv = validateV1Structure(frame, S.research, S.docs.doc43B, { frameOnly: true });
+        const _valTxt = fv.passed ? 'PASS ✓' : `FAIL ✗ — ${fv.structuralFails.map(f=>f.check+(f.id&&f.id!==f.check?'['+f.id+']':'')+` (expected ${f.expected}, got ${f.actual})`).join('; ')}`;
+        pOut(2, `── STRUCTURE FRAME (frame pass) ──\n${fsum}\nThesis: "${(frame.thesis?.statement||'(missing)').slice(0,140)}"\n\nFrame validation: ${_valTxt}${injectedThisAttempt?'   [🧪 test injection active this attempt]':''}\n\n${JSON.stringify(frame, null, 2).slice(0, 6000)}${JSON.stringify(frame,null,2).length>6000?'\n…(truncated — full frame is in the V2 Article tab while it builds)…':''}`, { append: true, attempt: fa+1 });
         if(fv.passed){
-          document.getElementById('m2').textContent = `Frame OK (${p2a.elapsed}s) — ${fsum}. Thesis: "${(frame.thesis?.statement||'(missing)').slice(0,90)}…"`;
+          document.getElementById('m2').textContent = `Frame OK (${p2a.elapsed}s, attempt ${fa+1}) — ${fsum}. Thesis: "${(frame.thesis?.statement||'(missing)').slice(0,90)}…"`;
           log(`Frame validation PASS on attempt ${fa+1}.`, 'ok');
-          // ── M3.5 — IMAGE GENERATION fires HERE (the moment the 2A frame validates), NOT after
+          // ── M3.5 — IMAGE GENERATION fires HERE (the moment the Phase 2 frame validates), NOT after
           //    Phase 4. Each frame attempt gets a unique attempt_id (frame_v1_attempt1, ++ on retry);
           //    the image queue is bound to it. If this frame is later discarded, flushQueue() kills it.
           S.imageAttemptId = 'frame_v1_attempt' + (fa + 1);
-          log(`M3.5 — starting the image queue for ${S.imageAttemptId}: ${countImages(frame)} image slot(s) — generating in the background while Phases 2B–5 run.`, 'info');
+          log(`M3.5 — starting the image queue for ${S.imageAttemptId}: ${countImages(frame)} image slot(s) — generating in the background while Phases 2–5 run.`, 'info');
           try { startImageQueue(frame, gkey); } catch(e){ warnYellow('F16', `M3.5 — image queue failed to start: ${e.message||e}. Images can still be pasted manually.`); }
           break;
         }
         log(`Frame validation: ${fv.structuralFails.length} problem(s) — ${fv.structuralFails.map(f=>f.check).join(', ')}.`, 'warn');
-        document.getElementById('m2').textContent = `Frame validation FAILED — ${fv.structuralFails.length} problem(s)${injectedThisAttempt?'  [🧪 test injection active]':''}: ${fv.structuralFails.map(f=>f.check+(f.id&&f.id!==f.check?'['+f.id+']':'')).join(', ')}`;
+        document.getElementById('m2').textContent = `Frame validation FAILED (attempt ${fa+1}) — ${fv.structuralFails.length} problem(s)${injectedThisAttempt?'  [🧪 test injection active]':''}: ${fv.structuralFails.map(f=>f.check+(f.id&&f.id!==f.check?'['+f.id+']':'')).join(', ')}`;
         if(fa < 2){ frameFeedback = formatFrameFeedback(fv.structuralFails, S.research); continue; }
         setPhase(2, 'error', 'Frame ✗×3');
-        escalateRed('CHK1', `Phase 2A structure frame failed validation after 2 retries (Checkpoint 1). Unresolved: ${fv.structuralFails.map(f=>f.check).join(', ')}. Manual operator review required.`);
+        escalateRed('CHK1', `Phase 2 structure frame failed validation after 2 retries (Checkpoint 1). Unresolved: ${fv.structuralFails.map(f=>f.check).join(', ')}. Manual operator review required.`);
         return;
       }
       if(pipelineHalted || !frame) return;
 
-      // ── PHASE 2B — SEQUENTIAL HYDRATION ("the Relay Race") — Milestone 2.6 ──
+      // ── PHASE 2 — HYDRATION PASS ("the Relay Race", section-level) ──
       //    One focused Claude call per prose/table node, in article order, each carrying the
       //    narrative spine + a rolling draft of everything written so far. JS stitches each node
       //    into a clone of the locked frame by targetId (the frame itself is never mutated).
-      //    This permanently replaces the monolithic single-call hydration (output-token fatigue).
-      setG('Phase 2B — sequential hydration (the "relay race", section-level: one content block at a time, with rolling context)…', true);
-      setPhase(2, 'active', '2B relay');
+      setG('Phase 2 — hydration relay (one content block at a time, with rolling context)…', true);
+      setPhase(2, 'active', 'Hydration');
       const _t2b = Date.now();
       let v1;
       try { v1 = await executePhase2B(frame, akey); }
-      catch(e){ if(e.f4){ escalateRed('F4', `Claude/proxy unavailable during Phase 2B sequential hydration. (${e.message})`); return; } throw e; }
+      catch(e){ if(e.f4){ escalateRed('F4', `Claude/proxy unavailable during the Phase 2 hydration relay. (${e.message})`); return; } throw e; }
       if(pipelineHalted || !v1) return;
       assignIds(v1);                                 // assign-if-missing — backfill any node id not already set (no-op if all are)
       S.v1 = v1;
@@ -3154,11 +3295,12 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
       const rowCount  = toArray(v1.sections).reduce((n,s)=>n+toArray(s.tables).reduce((m,t)=>m+(Array.isArray(t.rows)?t.rows.length:0),0),0);
       const paraCount = toArray(v1.sections).reduce((n,s)=>n+(Array.isArray(s.paragraphs)?s.paragraphs.filter(p=>p&&String(p.prose||'').trim()).length:0)+toArray(s.h3sections).reduce((m,h)=>m+(Array.isArray(h.paragraphs)?h.paragraphs.filter(p=>p&&String(p.prose||'').trim()).length:0),0),0);
       const sm = `sections:${v1.sections?.length||0}  hydrated paras:${paraCount}  faq:${v1.faq?.length||0}  table rows:${rowCount}  tables:${countTables(v1)}  images:${countImages(v1)}`;
-      document.getElementById('o2').textContent = '── V1 (frame + Phase 2B sequential hydration) ──\n' + JSON.stringify(v1, null, 2).slice(0, 4000);
-      document.getElementById('v1Pre').textContent = JSON.stringify(v1, null, 2);
+      pOut(2, `── V1 (frame + Phase 2 hydration relay) ──\n${sm}\nDA: ${(v1.directAnswer?.prose||'').trim().split(/\s+/).filter(Boolean).length} words.\n\n${JSON.stringify(v1, null, 2).slice(0, 8000)}${JSON.stringify(v1,null,2).length>8000?'\n…(truncated — full V1 is in the V2 Article tab)…':''}`, { append: true, heading: 'Hydration relay — merged V1' });
+      document.getElementById('v2Pre').textContent = JSON.stringify(v1, null, 2);
       document.getElementById('m2').textContent = `V1 hydrated in ${_e2b}s via the relay race — ${sm}. DA: ${(v1.directAnswer?.prose||'').trim().split(/\s+/).filter(Boolean).length} words.`;
       setPhase(2, 'done', `V1 ${_e2b}s`);
-      log(`Phase 2B complete (sequential hydration, ${_e2b}s) — ${sm}.`, 'ok');
+      refreshRightPanels();   // Metadata / Direct Answer / V2 Article / Schema tabs now reflect the hydrated V1
+      log(`Phase 2 hydration relay complete (${_e2b}s) — ${sm}.`, 'ok');
 
       // ── PHASE 3 (3A structural + 3B Gemini semantic) + SURGICAL RETRY (max 2 rounds; never regenerates the V1) ──
       let lastValidation = null;
@@ -3185,7 +3327,7 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
         renderPhase3(structuralFails, semanticFails, attempt, passed, false);
         document.getElementById('m3').textContent = `Attempt ${attempt+1} of 3 (${attempt===0?'initial validation':'after surgical fix '+attempt+'/2'}): 3A=${structuralFails.length} structural fail(s), 3B=${v3a.passed ? (semanticFails.length+' semantic fail(s)') : 'skipped (3A failed)'} → ${passed?'PASS':'FAIL'}`;
 
-        if(passed){ setPhase(3, 'done', 'PASS ✓'); log(`Phase 3 PASS on attempt ${attempt+1}.`, 'ok'); break; }
+        if(passed){ setPhase(3, 'done', 'PASS ✓'); refreshRightPanels(); log(`Phase 3 PASS on attempt ${attempt+1}.`, 'ok'); break; }
 
         if(attempt >= 2){
           setPhase(3, 'error', 'Failed × 3');
@@ -3227,8 +3369,9 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
           if(orphaned > 0 && orphaned >= applied) warnYellow('F13', `Surgical fix returned ${orphaned} correction(s) that didn't map to a valid node/field (vs ${applied} that did) — re-validating; if this exhausts retries it's CHK1.`);
         }
         S.v1 = v1;
-        document.getElementById('o2').textContent = `── V1 (after surgical fix ${attempt+1}) ──\n` + JSON.stringify(v1, null, 2).slice(0, 4000);
-        document.getElementById('v1Pre').textContent = JSON.stringify(v1, null, 2);
+        pOut(2, `── V1 after surgical fix round ${attempt+1} ──\n${JSON.stringify(v1, null, 2).slice(0, 8000)}${JSON.stringify(v1,null,2).length>8000?'\n…(truncated — full V1 is in the V2 Article tab)…':''}`, { append: true, heading: `Surgical fix round ${attempt+1}` });
+        document.getElementById('v2Pre').textContent = JSON.stringify(v1, null, 2);
+        refreshRightPanels();
         // loop → re-validate
       }
       if(pipelineHalted || !v1) return;
@@ -3273,12 +3416,12 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
       // The relay walks the article one content block at a time (1× DA → 1× per H2 section batching all its
       // + its H3s' paragraph ids → 1× for ALL FAQ answers → 1× CTA hook), carrying the full rolling V2 draft.
       // F2/F3/F6/F13/F14 per-block handling lives in executePhase5; if zero usable rewrites come back across
-      // every block, it returns redFail → we RED-escalate here, BEFORE Phase 6.
+      // every block, it returns redFail → we RED-escalate here, BEFORE Phase 7 (assembly).
       let p5res;
       try { p5res = await executePhase5(v1, akey, S.intentLayer, exemplarText, voiceReg); }
       catch(e){ if(e.f4){ escalateRed('F4', `Claude/proxy unavailable during Phase 5. (${e.message})`); return; } throw e; }
       if(pipelineHalted) return;
-      if(p5res.redFail){ setPhase(5, 'error', 'Voice ✗'); escalateRed(p5res.redCode || 'F14', `${p5res.redFail} Manual operator review required — assembly (Phase 6) will not run.`); return; }
+      if(p5res.redFail){ setPhase(5, 'error', 'Voice ✗'); escalateRed(p5res.redCode || 'F14', `${p5res.redFail} Manual operator review required — assembly (Phase 7) will not run.`); return; }
       const { v2, applied } = p5res;
       S.v2 = v2;
       const va = p5res.voiceArchitecture || {};
@@ -3299,37 +3442,38 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
         `── full V2 JSON ──\n` + JSON.stringify(v2, null, 2).slice(0, 6000);
       document.getElementById('m5').textContent = `Voiced in ${p5res.elapsed}s via the section-level relay — ${applied} rewrite(s) applied. callback phrase: "${(va.callback_phrase||'').slice(0,55)}"`;
       setPhase(5, 'done', `Voiced ${p5res.elapsed}s`);
+      refreshRightPanels();   // Metadata / Direct Answer / V2 Article / Schema tabs now reflect the V2
       log(`Phase 5 complete (section-level relay, ${p5res.elapsed}s) — ${applied} prose rewrites applied${p5res.failedBlocks?`; ${p5res.failedBlocks} block(s) failed (those nodes keep their V1 prose)`:''}; voice_architecture ${va.core_conviction?'present':'absent'}.`, p5res.failedBlocks?'warn':'ok');
 
-      // ── M3.5 HARD STOP — Phase 6 (assembly) cannot run until every generated image has been
-      //    uploaded to WordPress and its URL pasted + validated in the Image panel (below the
-      //    preview pane): image_urls.length must equal expected_image_count. The pipeline parks
-      //    here; validateImages() in the Image panel releases it. ──
+      // ── M3.5 HARD STOP — Phase 7 (Final Assembly) cannot run until every generated image has been
+      //    uploaded to WordPress and its URL pasted + validated in the Image panel (left column,
+      //    below the phase cards): image_urls.length must equal expected_image_count. The pipeline
+      //    parks here; validateImages() in the Image panel releases it. ──
       if(S.expectedImageCount > 0 && !(imagesValidated && Object.keys(S.imageUrls).length >= S.expectedImageCount)){
-        setPhase(6, 'waiting', 'Awaiting images');
-        document.getElementById('o6').textContent = `⏸ WAITING — Phase 6 (final assembly) is on hold until all ${S.expectedImageCount} generated image(s) are uploaded to WordPress and their media URLs are pasted + validated in the Image panel (below the preview pane). ${Object.keys(S.imageUrls).length}/${S.expectedImageCount} entered so far.`;
-        document.getElementById('m6').textContent = `Blocked — waiting on ${S.expectedImageCount} image URL(s).`;
-        setG(`⏸ Phase 6 blocked — paste all ${S.expectedImageCount} image URL(s) in the Image panel below the preview; they auto-validate, then assembly continues.`, true);
-        log(`Phase 6 hard stop — parked until all ${S.expectedImageCount} image URL(s) are validated in the Image panel.`, 'warn');
+        setPhase(7, 'waiting', 'Awaiting images');
+        document.getElementById('o7').textContent = `⏸ WAITING — Phase 7 (Final Assembly) is on hold until all ${S.expectedImageCount} generated image(s) are uploaded to WordPress and their media URLs are pasted + validated in the Image panel (left column, below the phase cards). ${Object.keys(S.imageUrls).length}/${S.expectedImageCount} entered so far.`;
+        document.getElementById('m7').textContent = `Blocked — waiting on ${S.expectedImageCount} image URL(s).`;
+        setG(`⏸ Phase 7 blocked — paste all ${S.expectedImageCount} image URL(s) in the Image panel (left column, below the phase cards); they auto-validate, then assembly continues.`, true);
+        log(`Phase 7 hard stop — parked until all ${S.expectedImageCount} image URL(s) are validated in the Image panel.`, 'warn');
         await new Promise(res => { _phase6Resolve = res; });
         if(pipelineHalted || !running) return; // operator stop / new run while parked
-        log('Phase 6 hard stop cleared — all image URLs validated. Continuing to assembly.', 'ok');
+        log('Phase 7 hard stop cleared — all image URLs validated. Continuing to assembly.', 'ok');
       } else if(S.expectedImageCount === 0){
         imagesValidated = true; // no image slots in this frame — nothing to gate on
       }
 
-      // ── PHASE 6 STUB (operates on the Phase 5 V2 voice draft — no V1 fallback; if Phase 5 ──
+      // ── PHASE 7 STUB (operates on the Phase 5 V2 voice draft — no V1 fallback; if Phase 5 ──
       //    had failed, the pipeline would already have RED-escalated and returned before here) ──
-      setPhase(6, 'active', 'Assembling');
-      document.getElementById('o6').textContent = '⏳ Building the M2 stub HTML from the V2 voice draft…';
+      setPhase(7, 'active', 'Assembling');
+      document.getElementById('o7').textContent = '⏳ Building the stub HTML from the V2 voice draft…';
       await sleep(400);
-      S.htmlStub = buildPhase6Stub(S.v2);
-      document.getElementById('o6').textContent = S.htmlStub;
-      document.getElementById('m6').textContent = `STILL A STUB — ${S.htmlStub.length}b${S.expectedImageCount?`. Images: ${Object.keys(S.imageUrls).length}/${S.expectedImageCount} URL(s), featured = image ${getFeatured()+1}`:' (no image slots)'}. Real Phase 6 assembly (sections, FAQ, schema, ToC, byline, image embeds) ships in Milestone 5.`;
-      document.getElementById('htmlPre').textContent = S.htmlStub + (S.expectedImageCount ? `\n\n<!-- M3.5 — image URLs Phase 6 will embed (featured + inline) -->\n${(S.imagePrompts||[]).map((p,i)=>`Image ${i+1}${i===getFeatured()?' [FEATURED]':''} — alt: "${p.alt||''}" — url: ${S.imageUrls[i]||'(not set)'}`).join('\n')}` : '');
+      S.htmlStub = buildPhase7Stub(S.v2);
+      document.getElementById('o7').textContent = S.htmlStub;
+      document.getElementById('m7').textContent = `STILL A STUB — ${S.htmlStub.length}b${S.expectedImageCount?`. Images: ${Object.keys(S.imageUrls).length}/${S.expectedImageCount} URL(s), featured = image ${getFeatured()+1}`:' (no image slots)'}. Real Phase 7 assembly (sections, FAQ, schema, ToC, byline, image embeds) ships in Milestone 5.`;
+      document.getElementById('htmlPre').textContent = S.htmlStub + (S.expectedImageCount ? `\n\n<!-- M3.5 — image URLs Phase 7 will embed (featured + inline) -->\n${(S.imagePrompts||[]).map((p,i)=>`Image ${i+1}${i===getFeatured()?' [FEATURED]':''} — alt: "${p.alt||''}" — url: ${S.imageUrls[i]||'(not set)'}`).join('\n')}` : '');
       updateArtifactImageUrls();
-      setPhase(6, 'stubdone', 'STUB ✓');
-      // Phase 6 complete (final HTML produced) is the ONLY phase that auto-switches the tab.
+      setPhase(7, 'stubdone', 'STUB ✓');
+      // Phase 7 complete (final HTML produced) is the ONLY phase that auto-switches the tab.
       switchTab('html');
       clearYellowWarnings();   // article finished / final docs produced → YELLOW list resets (RED escalations unaffected)
 
@@ -3338,14 +3482,14 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
 
       const cacheVerdict = S.cacheLog[0]?.verdict || '—';
       const _p5applied = toArray(S.v2 && S.v2.sections).reduce((n,s)=>n+toArray(s.paragraphs).filter(p=>p.transitionLogic!==undefined).length+toArray(s.h3sections).reduce((m,h)=>m+toArray(h.paragraphs).filter(p=>p.transitionLogic!==undefined).length,0),0) + (S.v2&&S.v2.directAnswer&&S.v2.directAnswer.transitionLogic!==undefined?1:0) + (S.v2&&S.v2.cta&&S.v2.cta.transitionLogic!==undefined?1:0) + toArray(S.v2&&S.v2.faq).filter(f=>f.answer&&f.answer.transitionLogic!==undefined).length;
-      setG(`✓ Phases 1–5 complete — V1 frozen, V2 voice draft done (${_p5applied} prose rewrite(s), intent: ${S.intentLayer||'?'}). Mode: ${mode}${mode==='calibration' ? ` (now ${getCalibratedCount(S.client.name)} calibrated)` : ''}. Cache: ${cacheVerdict}. Voice quality checks + forensic critique (5.5/5.6) = Milestone 4; real Phase 6 assembly = Milestone 5. Use "↻ Verify Cache" on the Cache Stats tab to confirm a YES.`);
+      setG(`✓ Phases 1–5 complete — V1 frozen, V2 voice draft done (${_p5applied} prose rewrite(s), intent: ${S.intentLayer||'?'}). Mode: ${mode}${mode==='calibration' ? ` (now ${getCalibratedCount(S.client.name)} calibrated)` : ''}. Cache: ${cacheVerdict}. Forensic critique (Phase 6) + voice quality checks = Milestone 4; real Phase 7 assembly = Milestone 5. Use "↻ Verify Cache" on the Cache Stats tab to confirm a YES.`);
       setCacheBtnsDisabled(false);
     } catch(err){
       console.error(err);
       log(`PIPELINE ERROR: ${err.message}`, 'err');
       setG(`Error: ${err.message}`, false, true);
       if(err.f4 && !pipelineHalted) escalateRed('F4', `${err.label||'An API'} unavailable after retries. ${err.message}`);
-      ['1','2','3','4','5','6'].forEach(n => {
+      ['1','2','3','4','5','7'].forEach(n => {
         const card = document.getElementById('phase'+n);
         if(card?.classList.contains('active')) setPhase(n, 'error', 'Error');
       });
@@ -3374,10 +3518,10 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     document.getElementById('runBtn').disabled = true;
     setCacheBtnsDisabled(true);
     document.getElementById('stopBtn').style.display = 'flex';
-    setG('Cache verification — re-running Phase 2A with the same cached context. Watch it stream in the V1 JSON tab.', true);
+    setG('Cache verification — re-running the Phase 2 frame call with the same cached context. Watch it stream in the V2 Article tab.', true);
     setPhase(2, 'active', 'Cache test');
-    document.getElementById('o2').textContent = '⏳ Connecting to Claude (cache verification — re-running Phase 2A)…';
-    switchTab('v1json'); // operator-initiated cache check: jump to the V1 JSON tab to watch it stream
+    document.getElementById('o2').textContent = '⏳ Connecting to Claude (cache verification — re-running the Phase 2 frame call)…';
+    switchTab('v2'); // operator-initiated cache check: jump to the V2 Article tab to watch the frame stream
     startTimer();
     const t = Date.now();
     try {
@@ -3400,7 +3544,7 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
         const fb = result.toolCalls[0].input;
         document.getElementById('o2').textContent = '── (cache-test frame — not used by the pipeline) ──\n' + JSON.stringify(fb, null, 2).slice(0, 4000);
       }
-      document.getElementById('m2').textContent = `Cache test (re-ran Phase 2A) done in ${elapsed}s — cache_read=${result.usage.cacheRead}, cache_creation=${result.usage.cacheCreate} → ${verdict}`;
+      document.getElementById('m2').textContent = `Cache test (re-ran the Phase 2 frame call) done in ${elapsed}s — cache_read=${result.usage.cacheRead}, cache_creation=${result.usage.cacheCreate} → ${verdict}`;
       log(`Cache verification verdict: ${verdict} (cache_read=${result.usage.cacheRead}, cache_creation=${result.usage.cacheCreate})`, isHit ? 'ok' : 'warn');
       setG(isHit
         ? `✓ CACHE READ CONFIRMED — verdict YES. cache_read_input_tokens=${result.usage.cacheRead}, cache_creation_input_tokens=${result.usage.cacheCreate}. Caching verification complete.`
@@ -3425,7 +3569,7 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     if(_activeClaudeAbort){ try { _activeClaudeAbort.abort(new Error('Stopped by operator.')); } catch(_){} }
     if(_activeImgAbort){ try { _activeImgAbort.abort(new Error('Stopped by operator.')); } catch(_){} _activeImgAbort = null; }
     running = false;
-    // if the pipeline is parked on the Phase 6 image hard stop, release it so the run can unwind cleanly
+    // if the pipeline is parked on the Phase 7 image hard stop, release it so the run can unwind cleanly
     if(_phase6Resolve){ const r = _phase6Resolve; _phase6Resolve = null; r(); }
     setG('Stop requested — call aborted.', false, true);
     stopTimer();
@@ -3446,7 +3590,7 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
   // stamped img_ ids), the queue fires the moment the Phase 2A FRAME validates (not after Phase 4)
   // and runs in the background through Phases 2B–5, and it is BOUND to the active frame attempt_id
   // (frame_v1_attempt1, ++ on retry). If that frame is invalidated, flushQueue() kills the pending
-  // calls, wipes the URL fields, and toasts. Phase 6 (assembly) hard-stops until every image URL
+  // calls, wipes the URL fields, and toasts. Phase 7 (assembly) hard-stops until every image URL
   // is pasted + validated. Pasted URLs are folded into the F16 localStorage artifact.
   // ═══════════════════════════════════════════════════════════
 
@@ -3472,10 +3616,10 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
   // Reset the image panel to its "nothing yet" state (start of a run, or after a flush with no new frame).
   function resetImagePanel(){
     const grid = document.getElementById('imgGrid');
-    if(grid) grid.innerHTML = `<div style="padding:18px;text-align:center;color:var(--faint);font-size:11px;line-height:1.6;">Images generate here automatically the moment the Phase 2A structure frame passes validation — they render alongside Phases 2B–5. Upload each to WordPress, paste the media URL into the card, and Phase 6 unblocks.</div>`;
-    const badge = document.getElementById('imgBadge'); if(badge){ badge.textContent = 'Waiting for the Phase 2A frame…'; badge.className = 'img-panel-badge'; }
+    if(grid) grid.innerHTML = `<div style="padding:18px;text-align:center;color:var(--faint);font-size:11px;line-height:1.6;">Images generate here automatically the moment the Phase 2 structure frame passes validation — they render in the background alongside Phases 2–5. Upload each to WordPress, paste the media URL into the card, and Phase 7 unblocks.</div>`;
+    const badge = document.getElementById('imgBadge'); if(badge){ badge.textContent = 'Waiting for the Phase 2 frame…'; badge.className = 'img-panel-badge'; }
     const vb = document.getElementById('imgValidateBtn'); if(vb){ vb.textContent = 'Validate Images'; vb.classList.remove('ready'); vb.disabled = true; vb.onclick = validateImages; }
-    const hint = document.getElementById('imgHint'); if(hint) hint.textContent = 'No images yet — they appear after the Phase 2A frame validates.';
+    const hint = document.getElementById('imgHint'); if(hint) hint.textContent = 'No images yet — they appear after the Phase 2 frame validates.';
     const fi = document.getElementById('imgFailIndicator'); if(fi){ fi.style.display = 'none'; fi.textContent = ''; }
     updateImageUIState();
   }
@@ -3491,8 +3635,8 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     imagesValidated = false;
     const badge = document.getElementById('imgBadge'); if(badge){ badge.textContent = `${prompts.length} image${prompts.length===1?'':'s'} · ${S.imageAttemptId||'frame'}`; badge.className = 'img-panel-badge'; }
     const vb = document.getElementById('imgValidateBtn'); if(vb){ vb.textContent = 'Validate Images'; vb.classList.remove('ready'); vb.disabled = (prompts.length===0 ? false : true); vb.onclick = validateImages; }
-    const hint = document.getElementById('imgHint'); if(hint) hint.textContent = prompts.length ? `Generating ${prompts.length} image${prompts.length===1?'':'s'} — upload each to WordPress and paste the URL.` : 'This frame has no image slots — Validate to skip the Phase 6 image gate.';
-    if(prompts.length === 0){ resetImagePanel(); const b=document.getElementById('imgBadge'); if(b) b.textContent='0 images'; const h=document.getElementById('imgHint'); if(h) h.textContent='This frame has no image slots — Validate to clear the Phase 6 gate.'; const v=document.getElementById('imgValidateBtn'); if(v){ v.disabled=false; } return; }
+    const hint = document.getElementById('imgHint'); if(hint) hint.textContent = prompts.length ? `Generating ${prompts.length} image${prompts.length===1?'':'s'} — upload each to WordPress and paste the URL.` : 'This frame has no image slots — Validate to skip the Phase 7 image gate.';
+    if(prompts.length === 0){ resetImagePanel(); const b=document.getElementById('imgBadge'); if(b) b.textContent='0 images'; const h=document.getElementById('imgHint'); if(h) h.textContent='This frame has no image slots — Validate to clear the Phase 7 gate.'; const v=document.getElementById('imgValidateBtn'); if(v){ v.disabled=false; } return; }
     buildImgGrid(prompts);
     updateImageUIState();
     if(!gkey){ log('M3.5 — image queue not started: Gemini API key missing. Paste images manually or re-run with a key.', 'warn'); document.querySelectorAll('.sbadge').forEach(b=>{ b.className='sbadge b-error'; b.textContent='No key'; }); return; }
@@ -3593,7 +3737,7 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     const badge = document.getElementById('imgBadge');
     if(failed > 0){ if(badge){ badge.textContent = `${prompts.length-failed}/${prompts.length} generated · ${failed} failed`; badge.className = 'img-panel-badge'; } log(`M3.5 — image generation done: ${prompts.length-failed}/${prompts.length} ok, ${failed} failed (use Regenerate on the failed cards).`, 'warn'); }
     else { if(badge){ badge.textContent = `${prompts.length}/${prompts.length} generated`; badge.className = 'img-panel-badge'; } log(`M3.5 — all ${prompts.length} image(s) generated.`, 'ok'); }
-    const hint2 = document.getElementById('imgHint'); if(hint2) hint2.textContent = 'Upload each image to WordPress, paste its media URL above — Phase 6 unblocks when all are in.';
+    const hint2 = document.getElementById('imgHint'); if(hint2) hint2.textContent = 'Upload each image to WordPress, paste its media URL above — Phase 7 unblocks when all are in.';
     updateImageUIState();
     checkUrls();
   }
@@ -3721,7 +3865,7 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     const btn = document.getElementById('imgValidateBtn');
     const hint = document.getElementById('imgHint');
     if(imagesValidated) return;
-    if(total === 0){ if(btn) btn.disabled = false; if(hint) hint.textContent = 'No images for this frame — click Validate to clear the Phase 6 gate.'; return; }
+    if(total === 0){ if(btn) btn.disabled = false; if(hint) hint.textContent = 'No images for this frame — click Validate to clear the Phase 7 gate.'; return; }
     let filled = 0;
     for(let i=0;i<total;i++){
       const inp = document.getElementById(`iurl${i}`);
@@ -3736,7 +3880,7 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
       setTimeout(()=>{ if(!imagesValidated) validateImages(); }, 300);
     } else {
       if(btn) btn.disabled = true;
-      if(hint) hint.textContent = `${filled}/${total} image URL${total===1?'':'s'} entered — paste the rest to unblock Phase 6.`;
+      if(hint) hint.textContent = `${filled}/${total} image URL${total===1?'':'s'} entered — paste the rest to unblock Phase 7.`;
     }
   }
   function validateImages(){
@@ -3752,10 +3896,10 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     imagesValidated = true;
     const btn = document.getElementById('imgValidateBtn');
     if(btn){ btn.textContent = 'Images Ready ✓'; btn.classList.add('ready'); btn.disabled = true; btn.onclick = null; }
-    if(hint) hint.textContent = _phase6Resolve ? 'All images validated — continuing to Phase 6 assembly…' : 'All images validated ✓';
+    if(hint) hint.textContent = _phase6Resolve ? 'All images validated — continuing to Phase 7 assembly…' : 'All images validated ✓';
     updateArtifactImageUrls();
     log(`M3.5 — image URLs validated (${Object.keys(S.imageUrls).length}/${S.expectedImageCount}). Featured: image ${getFeatured()+1}.`, 'ok');
-    // release the Phase 6 hard stop if the pipeline is parked on it
+    // release the Phase 7 hard stop if the pipeline is parked on it
     if(_phase6Resolve){ const r = _phase6Resolve; _phase6Resolve = null; r(); }
   }
   function downloadAllImages(){
@@ -3798,22 +3942,22 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     } catch(_){ /* quota / serialization — non-fatal */ }
   }
 
-  // ─── PHASE 6 STUB ──────────────────────────────────────────
-  // Minimal "Hello World" assembly per spec. Full Phase 6 = Milestone 5.
-  function buildPhase6Stub(v1){
+  // ─── PHASE 7 STUB (Final Assembly) ─────────────────────────
+  // Minimal "Hello World" assembly per spec. Full Phase 7 assembly = Milestone 5.
+  function buildPhase7Stub(v1){
     const h1 = escapeHtml(v1.checklist?.h1 || 'Untitled');
     const da = escapeHtml(v1.directAnswer?.prose || '(no direct answer)');
     const thesis = escapeHtml(v1.thesis?.statement || '(no thesis)');
     const secs = _secs(v1).filter(s => s && typeof s === 'object');
     const faqArr = Array.isArray(v1.faq) ? v1.faq : toArray(v1.faq);
     const sectionList = secs.map((s,i)=>`  <li>${escapeHtml(s.h2||'')} <span style="color:#888;">(${(Array.isArray(s.paragraphs)?s.paragraphs.length:0)} paragraphs, ${(Array.isArray(s.tables)?s.tables.length:0)} tables, ${(Array.isArray(s.imagePrompts)?s.imagePrompts.length:0)} images)</span></li>`).join('\n');
-    return `<!-- Phase 6 STUB — Milestone 1. Full assembly in M5. -->
+    return `<!-- Phase 7 (Final Assembly) STUB. Full assembly in M5. -->
 <div class="article-wrap">
   <h1>${h1}</h1>
   <div class="direct-answer"><p>${da}</p></div>
   <p style="font-style:italic; color:#063a6c;">Thesis: ${thesis}</p>
   <div style="background:#fff8e6; border:1px dashed #d4a418; padding:12px; margin:16px 0;">
-    <strong>STUB NOTICE:</strong> Phase 6 is a Milestone 1 stub. Real assembly (sections, FAQ, schema, ToC, byline, etc.) ships in Milestone 5.
+    <strong>STUB NOTICE:</strong> Phase 7 (Final Assembly) is still a stub. Real assembly (sections, FAQ, schema, ToC, byline, image embeds, etc.) ships in Milestone 5.
   </div>
   <h2>Section index (${secs.length})</h2>
   <ul>
