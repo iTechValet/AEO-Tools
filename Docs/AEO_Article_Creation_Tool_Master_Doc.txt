@@ -1,13 +1,16 @@
 AEO ARTICLE CREATION PIPELINE — MASTER REFERENCE DOC
-Last Updated: May 11, 2026 | Post-Chat-19 build session | V3.1 (production) | V4.0 (BUILD UNDERWAY — Milestone 2 shipped)
+Last Updated: May 11, 2026 | Post-Chat-19 build session | V3.1 (production) | V4.0 (BUILD UNDERWAY — M1 + M2 + M2.5 two-pass Phase 2 shipped)
 ================================================
 
 ⚠️ V4.0 ARCHITECTURAL REBUILD — BUILD IN PROGRESS (Claude Code)
 End of Chat 19: Three Gemini Pro consultations concluded with full sign-off.
 The spec is now being executed by Claude Code against aeo_v4.html. As of
-May 11, 2026: Milestones 1 and 2 are BUILT. Milestone 1 cache verification
-confirmed (cache HIT on the second Phase 2 call). See "V4.0 BUILD STATUS"
-section below for the milestone-by-milestone state and the known M2 bug.
+May 11, 2026: Milestones 1 and 2 are BUILT, plus M2.5 — Phase 2 rebuilt into
+TWO PASSES (2A structure frame → JS frame validation → 2B data hydration → JS
+merge), with provenance-tagged table data (every row cites a Phase 1 factClaim)
+and SURGICAL retries (the V1 is never regenerated wholesale). Operator live
+test against a real iTV topic pending before Milestone 3. See "V4.0 BUILD
+STATUS" section below for the milestone-by-milestone state.
 
 Spec includes (full detail in AEO_V4_Build_Plan.txt):
 - 7-phase architecture (Research → V1 → Validation → Freeze → Voice Draft →
@@ -106,19 +109,27 @@ MILESTONE 1 — SKELETON + PHASE 1-2 WITH CACHING — ✅ BUILT & VERIFIED
   HIT confirmed on the second call (cache_read > 0, cache_creation = 0).
   Milestone 1 cache verification = PASS.
 
-MILESTONE 2 — VALIDATION + FREEZE + ERROR RECOVERY FOUNDATION — ✅ BUILT, ⚠️ PARTIALLY TESTED
+MILESTONE 2 — VALIDATION + FREEZE + ERROR RECOVERY FOUNDATION — ✅ BUILT
+(Note: the Phase 2 / Phase 3 details below were superseded by the M2.5
+two-pass rebuild — see the MILESTONE 2.5 entry. What's recorded here is the
+M2-as-shipped state. The 3A check list, the retry mechanism, and the
+test-injection target all changed in M2.5.)
 - Phase 3A: JS structural validation (validateV1Structure) — sections≥4,
   FAQ≥5, tables≥3, images≥H2 count, DA 200-300 words, thesis present +
   referenced in DA/section 1, checklist fields non-empty, link discipline
   (fabricated INTERNAL link = hard FAIL; extra EXTERNAL citation = YELLOW),
-  internal-link-domain check, CTA URL vs 4.3B Conversion Primary CTA URL.
+  internal-link-domain check, CTA URL vs 4.3B Primary CTA destination.
+  [M2.5 added: every table row cites a valid Phase 1 factClaim id, cells
+  align with headers, no empty tables, ≥1 paragraph per section/H3.]
 - Phase 3B: Gemini semantic validation (validateV1Semantic) — one job:
   claims align with research brief AND thesis is anchored. Returns
   semanticFails array. F19 RED on garbage/empty after one retry (article
-  unsafe to publish without semantic validation).
-- Phase 2 ↔ Phase 3 retry loop: generate → validate → on FAIL, loop back to
-  Phase 2 with structured feedback, max 2 retries → then CHK1 RED escalation
-  (manual operator review). NO mid-pipeline review buttons.
+  unsafe to publish without semantic validation). [M2.5: skipped when 3A
+  fails — no point semantically validating a structurally-broken article.]
+- Phase 3 retry loop (M2 version, since replaced): generate full V1 →
+  validate → on FAIL loop back to Phase 2 regenerating the WHOLE V1, max 2
+  retries → CHK1. [M2.5 replaced this with a SURGICAL micro-call that
+  patches only the failing nodes — the V1 is never regenerated.]
 - Phase 4: recursive Object.freeze on V1 JSON + F16 artifact auto-save to
   localStorage (aeo_v4_artifact_v1_{client}_{ts}, 7-day auto-purge).
 - Phase 6: STILL A STUB (minimal H1 + DA + section index + CTA HTML, badged
@@ -145,15 +156,78 @@ MILESTONE 2 — VALIDATION + FREEZE + ERROR RECOVERY FOUNDATION — ✅ BUILT, �
 
   TESTED: test injection ran, Phase 3 caught the section_count failure and
   triggered the retry loop correctly. RED escalation path reached on the
-  "escalate" setting.
+  "escalate" setting. The "recover attempt-1-only" bug (it kept re-firing, so
+  the pipeline needed 3 attempts not 2) was FIXED in M2.5 when the loop was
+  rewritten — the injection now targets the 2A FRAME and is a true no-op on
+  attempts after the first.
 
-  ⚠️ KNOWN M2 BUG (FIX PENDING — DO BEFORE M3): the "recover" test injection
-  ("attempt 1 only") did NOT clear on attempt 2 — it kept firing, so the
-  pipeline needed 3 attempts to pass instead of the intended 2. The
-  injection should fire on attempt 0 only and the "recover" branch on
-  attempt > 0 should be a true no-op (it currently re-drops the section).
-  This is a test-harness bug, not a pipeline-logic bug, but it must be
-  fixed before M2 can be called clean.
+────────────────────────────────────────────────────────────
+MILESTONE 2.5 — PHASE 2 REBUILD: TWO-PASS (2A FRAME → 2B HYDRATION) — ✅ BUILT, ⏳ LIVE TEST PENDING
+(Architectural correction, May 11, 2026. The single-pass Phase 2 made Claude
+do structure + prose + fact retrieval at once → hallucinated numbers in
+tables; Gemini caught them in 3B and the old retry loop made it worse by
+regenerating the whole article. V3.1 had the right pattern — Step 3 structure,
+Step 4 JS validate, Step 5 fill prose. M2.5 restores it and adds a surgical
+third pass. Full spec is in AEO_V4_Build_Plan.txt "PHASE 2" section.)
+
+- PRE-STEP (JS): factClaim_01, factClaim_02, … stamped onto S.research.factClaims
+  after Phase 1 (Phase 1's Gemini prompt unchanged — post-parse JS step).
+- PHASE 2A — STRUCTURE FRAME (Claude → submit_v1_frame): the skeleton ONLY —
+  checklist, thesis statement, H2/H3 headings, table HEADERS (no rows), FAQ
+  QUESTIONS (no answers), link anchors mapped to research anchorTextTargets,
+  image slots, CTA placement. No prose, no numbers. JS assigns section_/h3_/
+  table_/link_/img_/faq_/cta_/thesis ids.
+- JS FRAME VALIDATION (between 2A and 2B): the "frameOnly" mode of
+  validateV1Structure — structural minimums + link discipline + checklist +
+  CTA-url + thesis-present, skipping DA/prose/row checks. Fail → re-run 2A
+  with feedback, max 2 → else CHK1.
+- PHASE 2B — DATA HYDRATION (Claude → submit_v1_hydration): given the validated
+  frame + the factClaim menu, returns prose + FAQ answers + table data rows
+  keyed by frame node id. Table rows are { cells, sourceReferenceId } — each
+  citing a Phase 1 factClaim; a row with no supporting factClaim is DROPPED,
+  not invented.
+- JS MERGE (mergeHydration): JS — not Claude — splices the hydration into the
+  frame by id, creating the da_/para_/ans_ nodes. The merge mutates the frame
+  in place → the frame IS the V1. Claude physically cannot move the bones, so
+  there's no "did Claude change a heading?" failure mode. Orphan ids dropped
+  (F13 YELLOW).
+- TABLE-ROW SCHEMA MIGRATED: rows: [["a","b"], …] → rows: [{ cells:["a","b"],
+  sourceReferenceId:"factClaim_NN" }, …]. normalizeV1Shape coerces any legacy/
+  malformed shape so old data never crashes the pipeline.
+- PHASE 3A — NEW CHECKS: every table row carries a sourceReferenceId pointing
+  at a real Phase 1 factClaim id; cells align with headers; no empty tables;
+  ≥1 non-empty paragraph per section and per H3. A missing sourceReferenceId
+  is an immediate structural fail — the Gemini call is skipped that round.
+- PHASE 3 RETRY = SURGICAL: on any 3A/3B fail, JS turns each failing node into
+  a fix packet ({targetId, problem, context, node}) and makes ONE micro-call
+  (Claude → submit_v1_corrections) returning replacements for ONLY those nodes
+  (newProse / newRows / newStatement / newAnchorText+newUrl / newValue). JS
+  applies them in place by id and re-validates. The full V1 is never
+  regenerated. Max 2 surgical rounds → CHK1. (A non-node-level fail — e.g. a
+  count failure, which can only mean the frame regressed — escalates CHK1
+  rather than spinning the surgical loop.)
+- CACHING: ONE shared cached context block (4.3A+4.3B+4.4+research-with-ids+
+  thesis+topic+sheet row) byte-identical across 2A, 2B, and the surgical fix
+  — 2A writes the cache, 2B + fix read it. "↻ Verify Cache" re-runs 2A.
+- TESTED (JS, unit): factClaim id assignment; assignIds on a 2A-shaped frame;
+  frame validation (passes a good frame, catches a 3-section drop); mergeHydration
+  (creates da_/para_/ans_ nodes, table rows become {cells,sourceReferenceId},
+  cta hookProse set); full validateV1Structure (passes a clean V1, flags a
+  bad/missing sourceReferenceId); buildFixPackets + applyCorrections (packets
+  built for table+DA, corrections applied, V1 then passes). Script parses; no
+  dangling refs to the removed single-pass symbols.
+- ⏳ NOT YET DONE: operator live test against a real iTV topic — pending before
+  starting Milestone 3. Anchor-text validation calibration (tuning the
+  internal-fabrication-hard-FAIL / extra-external-YELLOW split against real
+  runs) is still on the list. If the new F14 "non-array coerced" YELLOW or the
+  surgical loop starts firing routinely in real runs, the Tool Use schemas /
+  truncated-JSON recovery (deferred to M4) are the real levers.
+- RELATED CHANGE (same session): the Phase 3A CTA-url check now ADAPTS to the
+  client's 4.3B labelling — extract43BCtaUrl() reads a "Conversion Primary CTA
+  URL" / "Primary CTA URL" field on a line, OR a "Destination:" line under a
+  "Primary CTA" heading. Clients are never asked to rename a 4.3B field to
+  match the tool — the tool adapts to the doc.
+────────────────────────────────────────────────────────────
 
 WHAT'S NOT BUILT YET:
 - Phase 5 (Voice Draft, Option E unified CoT) — stub card, "M3".
@@ -165,17 +239,20 @@ WHAT'S NOT BUILT YET:
   testing harness (M5/M6).
 
 NEXT STEPS (in order):
-1. M2 FIX: (a) the test-injection "attempt 1 only" bug above; (b) anchor-text
-   validation calibration — tune validateV1Structure's link-discipline rules
-   against real iTV runs (the current internal-fabrication-hard-FAIL /
-   extra-external-YELLOW split is a first calibration; adjust as real V1s
-   show what's noise vs. real risk).
-2. M3: Phase 5 voice draft via Tool Use (Option E schema —
-   voice_architecture + per-rewrite transition_logic + data_anchors_to_preserve
-   + pacing_directive). BLOCKED on the operator producing voice_exemplars.txt
-   for iTV first (see OPERATOR PREREQUISITE above) — exemplars are the single
-   highest-leverage voice lever and M3's exit criteria depend on them.
-3. M4 onward per the build plan (AEO_V4_Build_Plan.txt → BUILD ORDER).
+1. LIVE TEST the M2.5 two-pass Phase 2 against a real iTV topic — 2A frame →
+   frame validation → 2B hydration → merge → Phase 3 (incl. the new table-row
+   factClaim checks) → surgical fix on any fail. Confirm: no number in any V1
+   table that isn't traceable to a factClaim; the surgical loop converges;
+   the cache HITs on 2B + the fix call.
+2. Anchor-text validation calibration — tune validateV1Structure's link-
+   discipline rules against the real runs (the internal-fabrication-hard-FAIL /
+   extra-external-YELLOW split is a first calibration).
+3. M3: Phase 5 voice draft via Tool Use (Option E schema — voice_architecture
+   + per-rewrite transition_logic + data_anchors_to_preserve + pacing_directive).
+   BLOCKED on the operator producing voice_exemplars.txt for iTV first (see
+   OPERATOR PREREQUISITE above) — exemplars are the single highest-leverage
+   voice lever and M3's exit criteria depend on them.
+4. M4 onward per the build plan (AEO_V4_Build_Plan.txt → BUILD ORDER).
 
 V4.0 ARCHITECTURAL LOCKS (so far — will be consolidated when V4.0 ships):
   V4-1. JS owns structure; Claude owns prose; Gemini owns research + semantic
@@ -204,7 +281,19 @@ V4.0 ARCHITECTURAL LOCKS (so far — will be consolidated when V4.0 ships):
   V4-8. Client-agnostic from day one — every feature reads client data from
         existing sources (aeo_clients config, 4.3B, 4.2 sheet incl. INTENT_LAYER).
         Must run identically on iTV, Brighton Gold, Bushido, MV with zero
-        per-client tool changes.
+        per-client tool changes. The TOOL ADAPTS TO THE DOC, never the reverse —
+        e.g. the CTA-url check reads whatever shape 4.3B uses ("Primary CTA"
+        section's "Destination:" line, or a "…CTA URL" field); clients are
+        never asked to rename a 4.3B field to match the tool.
+  V4-9. PHASE 2 IS TWO PASSES, NEVER ONE. 2A builds the structure frame only
+        (no prose, no numbers); JS validates it; 2B fills prose + data rows
+        against the frozen frame; JS merges by id. Every table data point must
+        cite a Phase 1 factClaim id (sourceReferenceId) — rows with no
+        supporting fact are dropped, not invented. Validation failures are
+        repaired by SURGICAL micro-calls that touch only the failing nodes;
+        the V1 is never regenerated wholesale. (Collapsing 2A+2B into one call
+        is the mistake V4.0's first build made — it made Claude hallucinate
+        numbers. Do not re-collapse it.)
 
 ================================================
 
@@ -823,34 +912,39 @@ KNOWN BUGS — UNRESOLVED
 
 NEXT SESSION PRIORITIES
 -----------------------
-0. ⚠️ V4.0 REBUILD IS THE PRIORITY — AND IT'S UNDERWAY. M1 and M2 are BUILT
-   in AEO-Article-Creation/aeo_v4.html (see "V4.0 BUILD STATUS" section above
-   for the full state). M1 cache verification confirmed (cache HIT on the
-   second Phase 2 call). M2 (Phase 3 dual validation, Phase 4 freeze, Phase
-   2↔3 retry loop, Escalation Panel, Calibration/Production modes, F1–F4) is
-   built and the retry/escalation paths were exercised via test injection.
-   Build plan: AEO_V4_Build_Plan.txt — still the spec for everything past M2.
+0. ⚠️ V4.0 REBUILD IS THE PRIORITY — AND IT'S UNDERWAY. M1, M2, and M2.5 are
+   BUILT in AEO-Article-Creation/aeo_v4.html (see "V4.0 BUILD STATUS" section
+   above for the full state). M1 cache verification confirmed. M2 = Phase 3 dual
+   validation, Phase 4 freeze, Escalation Panel, Calibration/Production modes,
+   F1–F4. M2.5 = Phase 2 rebuilt into TWO PASSES (2A structure frame → JS frame
+   validation → 2B data hydration → JS merge), provenance-tagged table data
+   (every row cites a Phase 1 factClaim), SURGICAL retries (never a full V1
+   regen). Build plan: AEO_V4_Build_Plan.txt — the spec, now describing the
+   two-pass Phase 2.
 
    IMMEDIATE NEXT STEPS:
-   a) M2 FIX — (1) test-injection "attempt 1 only" bug: the "recover" injection
-      keeps firing on attempt 2, so the pipeline takes 3 attempts instead of 2.
-      The "recover" branch on attempt > 0 must be a true no-op. (2) anchor-text
-      validation calibration — tune validateV1Structure's link-discipline rules
-      against real iTV runs.
-   b) M3 — Phase 5 voice draft via Tool Use (Option E schema). BLOCKED on the
+   a) LIVE TEST the M2.5 two-pass Phase 2 against a real iTV topic — 2A frame →
+      frame validation → 2B hydration → merge → Phase 3 (incl. table-row
+      factClaim checks) → surgical fix on any fail. Confirm: no untraceable
+      number in any V1 table; the surgical loop converges; the cache HITs on 2B
+      + the fix call.
+   b) Anchor-text validation calibration — tune validateV1Structure's link-
+      discipline rules against the real runs.
+   c) M3 — Phase 5 voice draft via Tool Use (Option E schema). BLOCKED on the
       operator producing voice_exemplars.txt for iTV first (OPERATOR PREREQUISITE
       section above) — exemplars are required for M3's exit criteria.
-   c) M4 → M7 per the build plan's BUILD ORDER.
+   d) M4 → M7 per the build plan's BUILD ORDER.
 
-   Milestone map (build plan is authoritative — note the build plan now has
-   7 milestones; M4 = Forensic Critique + JS quality checks, M5 = Assembly):
-   M1: Skeleton + Phase 1-2 with prompt caching ............ ✅ BUILT & VERIFIED
-   M2: Phase 3 dual validation + Phase 4 freeze + F1–F4 .... ✅ BUILT, ⚠️ fix pending
-   M3: Phase 5 voice draft via Tool Use (Option E) ......... ⏭ NEXT (needs exemplars)
-   M4: Phase 5.5 forensic critique + 6 JS quality checks ... pending
-   M5: Phase 6 final assembly .............................. pending (Phase 6 is a stub now)
-   M6: Side-by-side testing V3.1 vs V4.0 + UI polish ....... pending
-   M7: V4.0 ships, V3.1 deprecated, docs updated .......... pending
+   Milestone map (build plan is authoritative — it has 7 milestones plus an
+   inserted M2.5; M4 = Forensic Critique + JS quality checks, M5 = Assembly):
+   M1:   Skeleton + Phase 1-2 with prompt caching ............ ✅ BUILT & VERIFIED
+   M2:   Phase 3 dual validation + Phase 4 freeze + F1–F4 .... ✅ BUILT
+   M2.5: Phase 2 rebuilt two-pass (2A frame → 2B hydration) .. ✅ BUILT, ⏳ live test pending
+   M3:   Phase 5 voice draft via Tool Use (Option E) ......... ⏭ NEXT (needs exemplars + live test of M2.5)
+   M4:   Phase 5.5 forensic critique + 6 JS quality checks ... pending
+   M5:   Phase 6 final assembly .............................. pending (Phase 6 is a stub now)
+   M6:   Side-by-side testing V3.1 vs V4.0 + UI polish ....... pending
+   M7:   V4.0 ships, V3.1 deprecated, docs updated ........... pending
 
    Build target: AEO-Article-Creation/aeo_v4.html (parallel file). Do NOT modify
    aeo_article_creation.html during V4.0 build. V3.1 remains production until
@@ -1031,6 +1125,61 @@ Confirmed costs: ~$1.33-1.58 per article + ~$0.05-0.10 VCI.
 
 CHANGE LOG
 ----------
+May 11, 2026 (post-Chat-19 build session — Claude Code, continued): V4.0 PHASE 2 REBUILT — TWO-PASS (M2.5).
+
+  Architectural correction (operator-directed), not a patch. The single-pass
+  Phase 2 had Claude doing structure + prose + fact retrieval in one Tool Use
+  call → it hallucinated numbers in tables; Gemini caught them in 3B and the
+  old retry loop compounded it by regenerating the whole article. V3.1 had the
+  right pattern (Step 3 structure → Step 4 JS validate → Step 5 fill prose);
+  M2.5 restores it in JSON form and adds a surgical third pass.
+
+  - factClaim_NN ids stamped onto S.research.factClaims after Phase 1 (Phase 1's
+    Gemini prompt unchanged — JS post-parse step).
+  - PHASE 2A — submit_v1_frame: structure skeleton only (checklist, thesis
+    statement, H2/H3, table HEADERS, FAQ QUESTIONS, link anchors↔research,
+    image slots, CTA placement). No prose, no numbers. JS assigns the frame ids.
+  - JS FRAME VALIDATION between 2A and 2B (validateV1Structure(…,{frameOnly:true}))
+    — structural minimums + link discipline + checklist + CTA-url + thesis.
+    Fail → re-run 2A with feedback, max 2 → CHK1.
+  - PHASE 2B — submit_v1_hydration: fills paragraph prose + FAQ answers + table
+    data rows keyed by frame node id. Table rows are {cells, sourceReferenceId}
+    — each citing a Phase 1 factClaim; unsupported rows DROPPED, never invented.
+  - JS MERGE (mergeHydration): JS — not Claude — splices the hydration into the
+    frame by id, creating the da_/para_/ans_ nodes; the merge mutates the frame
+    in place → the frame IS the V1. Claude can't move the bones; no "did Claude
+    change a heading?" check needed. Orphan ids dropped (F13 YELLOW).
+  - TABLE-ROW SCHEMA: rows: [[…]] → rows: [{cells, sourceReferenceId}].
+    normalizeV1Shape coerces legacy/malformed shapes (incl. the M2.5-session
+    array-safety hardening — non-array-where-array-expected → coerced + F14 YELLOW).
+  - PHASE 3A — new checks: every table row cites a valid factClaim id; cells
+    align with headers; no empty tables; ≥1 paragraph per section/H3. A 3A fail
+    SKIPS the Gemini call that round.
+  - PHASE 3 RETRY = SURGICAL: buildFixPackets() → ONE submit_v1_corrections
+    micro-call patching only the failing nodes (newProse/newRows/newStatement/
+    newAnchorText+newUrl/newValue) → applyCorrections() splices by id →
+    re-validate. V1 never regenerated. Max 2 rounds → CHK1. Non-node-level fails
+    (count failures = frame regression) escalate CHK1 instead of looping.
+  - CACHING: one shared cached context block byte-identical across 2A / 2B /
+    surgical-fix — 2A writes the cache, the rest read it. "↻ Verify Cache" now
+    re-runs Phase 2A. M1 cache verification still applies.
+  - The M2 "recover" test-injection bug (kept re-firing → 3 attempts not 2) is
+    fixed — the injection now targets the 2A frame and is a true no-op after the
+    first attempt.
+  - RELATED (same session): Phase 3A CTA-url check now ADAPTS to the client's
+    4.3B labelling — extract43BCtaUrl() reads a "…CTA URL" line OR a
+    "Destination:" line under a "Primary CTA" heading. The tool adapts to the
+    doc; clients never rename 4.3B fields. (V4-8 lock.)
+  - New architectural lock: V4-9 (Phase 2 is two passes, never one;
+    provenance-tagged table data; surgical retries — never a full regen).
+  - Tested in Node (DOM-stubbed): factClaim ids, assignIds on a frame, frame
+    validation (good frame passes, 3-section drop caught), mergeHydration, full
+    validateV1Structure (clean V1 passes, bad/missing sourceReferenceId flagged),
+    buildFixPackets + applyCorrections. Script parses; no dangling refs to the
+    removed single-pass symbols (submit_v1_article / buildPhase2SystemBlocks /
+    buildPhase2UserText / V1_TOOL / runPhase2). Operator live test against a
+    real iTV topic pending before Milestone 3.
+
 May 11, 2026 (post-Chat-19 build session — Claude Code): V4.0 MILESTONES 1 & 2 BUILT.
 
   Repo reorganized: GitHub repo renamed AEO-Tools → iTV-Tools; files moved into

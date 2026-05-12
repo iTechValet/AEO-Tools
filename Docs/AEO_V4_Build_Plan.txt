@@ -40,15 +40,28 @@ This is the structural engineering. We're building the bones of the article.
   thesis this client owns
 - WHERE everything lives — section structure, headings, FAQ questions,
   internal/external links, tables, image placements, CTA
-- VALIDATION — every piece checked deterministically by JavaScript and
-  semantically by Gemini before locking
+- BUILD IN TWO PASSES (Phase 2):
+  • 2A — STRUCTURE FRAME: Claude builds ONLY the skeleton — headings, table
+    headers (no data), FAQ questions (no answers), link anchors, image slots,
+    CTA placement. No prose. No numbers. (This is exactly what V3.1's Step 3
+    did — and exactly what V4.0's first build got wrong by collapsing it into
+    one call, which made Claude hallucinate numbers in tables.)
+  • JS validates the frame.
+  • 2B — DATA HYDRATION: Claude fills prose, FAQ answers, and table data rows
+    into the locked frame. Every table row must cite a Phase 1 factClaim by id;
+    a row with no supporting fact is dropped, not invented. JS does the merge,
+    so Claude can't move the bones.
+- VALIDATION — every piece checked deterministically by JavaScript (including
+  "does every table row trace to a real research fact?") and semantically by
+  Gemini before locking. Failures are repaired by a SURGICAL micro-call that
+  touches only the broken nodes — the article is never regenerated wholesale.
 - FREEZE — once the bones are right, they are mathematically immutable.
   Nothing downstream can move a heading, change an anchor text, or drop
   a link. This was the biggest failure of V3.x — the bones kept moving.
 
 By end of Half One, we have a fully-structured article in JSON form. Every
-fact is correct. Every link points where it should. Every section is in
-the right place. The skeleton is locked.
+fact is correct and provenance-tagged. Every link points where it should.
+Every section is in the right place. The skeleton is locked.
 
 But the prose at this stage is functional, not great. It's AI writing
 correct content. It's not Lamborghini yet.
@@ -165,56 +178,138 @@ PHASE 1: RESEARCH + CLIENT-SPECIFIC THESIS (Gemini call, ~30s)
     }
   }
 
-PHASE 2: V1 GENERATION (Claude call, ~60-90s)
-- Cached: full project context + research brief + thesis
-- Tool Use schema enforces V1 JSON shape
-- Hard constraint: article MUST anchor around clientSpecificThesis
-- Returns V1 as STRUCTURED JSON OBJECT:
+PHASE 2: V1 — TWO PASSES (2A STRUCTURE FRAME → 2B DATA HYDRATION)
+─────────────────────────────────────────────────────────────────
+WHY TWO PASSES (architectural correction, post-M2 — May 11, 2026):
+A single Phase 2 call asked Claude to do structure + prose + fact retrieval
+simultaneously. That produced hallucinated numbers in tables; Gemini caught
+them in 3B and the retry loop made it worse by regenerating the WHOLE article.
+V3.1 had this right: Step 3 = structure only (no prose, no data), Step 4 = JS
+validate, Step 5 = fill prose against the locked structure. V4.0 restores that
+split — and goes further: a third, surgical pass repairs only the failing
+nodes instead of regenerating the V1.
+
+The cached context block (4.3A + 4.3B + 4.4 + research-brief-with-factClaim-ids
++ thesis + topic + sheet row) is byte-identical across 2A, 2B, and the surgical
+fix call — so 2A writes the prompt cache and 2B + the fix call read it.
+
+PRE-STEP (JS, after Phase 1): JS stamps factClaim_01, factClaim_02, … onto
+S.research.factClaims so Phase 2B's table rows can cite them by id. (Phase 1's
+Gemini prompt is unchanged — this is a post-parse JS step, same principle as
+"JS assigns all ids".)
+
+PHASE 2A — STRUCTURE FRAME (Claude call, ~30-45s, Tool Use: submit_v1_frame)
+- Claude's ONLY job: the structural skeleton. NO body prose. NO paragraphs.
+  NO statistics. NO numerical claims. NO table data rows. NO FAQ answers.
+  NO Direct Answer prose.
+- Produces:
   {
     checklist: { metaTitle, h1, permalink, fullUrl, metaDescription, keywords, category },
-    directAnswer: { id: "da_xxxx", prose: "200-300 word DA" },
-    thesis: { id: "thesis_xxxx", statement: "from Phase 1" },
+    thesis: { statement: "one sentence, mirroring clientSpecificThesis" },
     sections: [
       {
-        id: "section_xxxx",
         h2: "...",
-        paragraphs: [{ id: "para_xxxx", prose: "..." }, ...],
-        h3sections: [{ id: "h3_xxxx", h3: "...", paragraphs: [...] }],
-        links: [{ id: "link_xxxx", anchorText: "...", url: "...", placementHint: "..." }],
-        tables: [{ id: "table_xxxx", headers: [...], rows: [[...]] }],
-        imagePrompts: [{ id: "img_xxxx", prompt: "...", alt: "..." }]
+        h3sections: [{ h3: "..." }],
+        links: [{ anchorText, url, placementHint }],     // prefer research anchorTextTargets; never invent internal links
+        tables: [{ headers: [...] }],                     // HEADERS ONLY — no rows
+        imagePrompts: [{ prompt, alt }]                   // placement slots
       }
     ],
-    faq: [{ id: "faq_xxxx", question: "...", answer: { id: "ans_xxxx", prose: "..." } }],
-    cta: { id: "cta_xxxx", hookProse: "...", anchorText: "...", url: "..." }
+    faq: [{ question: "..." }],                           // QUESTIONS ONLY — no answers
+    cta: { anchorText, url, placementHint }               // url == 4.3B Primary CTA destination
   }
-- JS assigns unique IDs post-parse (NOT Claude's job)
-- Hard structural minimums: sections >= 4, FAQs >= 5, tables >= 3,
-  image prompts >= H2 count
+- JS assigns ids post-parse: section_*, h3_*, table_*, link_*, img_*, faq_*,
+  cta_*, thesis_*. (da_*, para_*, ans_* don't exist yet — those nodes are
+  created at the 2B merge.)
+- Hard structural minimums (frame stage): sections >= 4, FAQs >= 5, tables >= 3
+  (headers non-empty), image prompts >= H2 count.
 
-PHASE 3: DUAL VALIDATION
+JS FRAME VALIDATION (deterministic, instant, free — runs BETWEEN 2A and 2B)
+  Runs the structural-minimums + link-discipline + checklist + CTA-url + thesis-
+  present checks against the frame (the "frameOnly" mode of the Phase 3A
+  validator — skips DA/prose/table-row checks since those don't exist yet).
+  Fail → re-run Phase 2A with feedback, max 2 retries → else Checkpoint 1.
+
+PHASE 2B — DATA HYDRATION (Claude call, ~60-90s, Tool Use: submit_v1_hydration)
+- Gets: the cached context + the VALIDATED frame (as JSON, with ids) + the
+  factClaim menu (factClaim_NN: claim/source/data).
+- Claude's ONLY job: ADD prose, table data rows, and FAQ answers — keyed by the
+  frame's node ids. Claude may NOT add, remove, rename, or reorder any heading,
+  table, table header, FAQ question, link, or image. The frame is the contract.
+- Returns hydration keyed by frame id:
+  {
+    directAnswerProse: "200-300 words, references the thesis",
+    ctaHookProse: "the prose just before the CTA link",
+    sections: [{ sectionId, paragraphs: ["prose", ...],
+                 h3sections: [{ h3Id, paragraphs: ["prose", ...] }],
+                 tables: [{ tableId, rows: [{ cells: ["..."], sourceReferenceId: "factClaim_NN" }, ...] }] }],
+    faq: [{ faqId, answerProse: "..." }]
+  }
+- TABLE ROWS — CRITICAL: each row is { cells, sourceReferenceId }. cells align
+  with the table's headers (same count, same order). sourceReferenceId MUST be
+  the id of a factClaim from the Phase 1 brief that genuinely supports that row.
+  If no factClaim supports a row, the row is DROPPED — never invented. A table
+  whose topic has no supporting factClaims comes back with an empty rows array.
+
+JS MERGE (mergeHydration — JS, not Claude)
+  JS splices the hydration into the frame keyed by id: creates the paragraph /
+  answer / directAnswer nodes (assigning para_* / ans_* / da_* ids), sets table
+  .rows, sets the CTA hookProse. Orphan ids (hydration referencing a node not
+  in the frame) are dropped with an F13 YELLOW. The merge MUTATES the frame in
+  place — the frame object IS the V1 from here on. Because JS owns the merge,
+  Claude physically cannot move the bones; there is no "did Claude change a
+  heading?" failure mode to check for.
+
+(Why the schema changed: table rows went from rows: [[...]] to
+rows: [{ cells:[...], sourceReferenceId:"factClaim_NN" }] so every data point
+is provenance-checkable. normalizeV1Shape coerces any legacy/malformed shape
+into the new one so old data never crashes the pipeline.)
+
+
+PHASE 3: DUAL VALIDATION (runs on the merged V1)
 
 3A: JS STRUCTURAL VALIDATION (deterministic, instant, free)
   Checks:
-  - Section count >= 4
-  - FAQ count >= 5
-  - Table count >= 3
-  - Image prompts >= H2 count
-  - Every anchorText in links matches an entry in anchorTextTargets
-  - Every internal link URL is on client's domain
+  - Section count >= 4 ; every section has a non-empty h2
+  - FAQ count >= 5 ; every FAQ has a non-empty question and an answer
+  - Table count >= 3 ; every table has non-empty headers AND >= 1 data row
+  - Image prompts >= H2 count ; each has non-empty prompt + alt
+  - Every section (and every H3) has >= 1 non-empty paragraph
+  - Every link's anchorText or URL matches an entry in anchorTextTargets;
+    a fabricated INTERNAL link is a hard fail (broken-link risk); an extra
+    EXTERNAL citation is a YELLOW, not blocking
+  - Every internal link URL is on the client's domain
   - Direct Answer word count 200-300
-  - CTA anchor URL matches 4.3B Conversion Primary CTA URL
-  - Schema-ready data complete
+  - CTA url matches the 4.3B Primary CTA destination (the tool adapts to the
+    client's labelling — see "Conversion Primary CTA URL" / "Primary CTA URL"
+    field, or a "Destination:" line under a "Primary CTA" heading; clients
+    never rename fields to suit the tool)
+  - Checklist core fields all non-empty
   - THESIS PRESENT and referenced in DA or first section
-  Output: { passed, structuralFails: [{ id, expected, actual }] }
+  - NEW: every table ROW carries a sourceReferenceId, and it points at a real
+    Phase 1 factClaim id; cells align with the table's headers. A missing
+    sourceReferenceId is an immediate structural fail — no Gemini call needed.
+  Output: { passed, structuralFails: [{ check, id, expected, actual }] }
 
-3B: GEMINI SEMANTIC VALIDATION (1 call, cached)
+  If 3A fails, Phase 3B (the Gemini call) is SKIPPED that round — no point
+  semantically validating a structurally-broken article.
+
+3B: GEMINI SEMANTIC VALIDATION (1 call, cached) — only when 3A is clean
   ONE job only: Do the article's claims align with the research brief, AND
   does the article anchor around the clientSpecificThesis?
   Returns: { semanticFails: [{ targetId, issue, suggestedRevision }] }
 
-If 3A or 3B fails: loop to Phase 2 with feedback, max 2 retries.
-After retry exhaustion: Checkpoint 1 (VA accepts or restarts).
+RETRY = SURGICAL, NEVER A FULL REGEN (max 2 rounds → Checkpoint 1)
+  On any Phase 3 fail, JS turns each failing node into a fix packet
+  ({ targetId, problem, context, node }) and makes ONE micro-call (Tool Use:
+  submit_v1_corrections) that returns replacements for ONLY those nodes
+  (newProse for da_/para_/ans_; newRows for table_; newStatement for thesis_;
+  newAnchorText+newUrl for link_/cta_; newValue for a checklist.<field>).
+  JS applies the corrections in place by id and re-validates. The full V1 is
+  never regenerated. (If a fail isn't node-level — e.g. a count failure, which
+  can only mean the frame regressed — the pipeline escalates Checkpoint 1
+  rather than spinning the surgical loop.)
+  After 2 surgical rounds still failing → Checkpoint 1 (operator review).
 
 PHASE 4: V1 FREEZE
 - JS calls Object.freeze() recursively on V1 JSON
@@ -665,9 +760,14 @@ Architectural principles preserved:
 
 Companion documents to update for V4.0:
 - 4.3A V3.2 -> V3.3 (add Typographic Rhythm + Conjunction Mandate)
-- 4.4 V10.2 -> V11.0 (major rewrite — prompts become Tool Use schemas,
-  drop validation FAIL format, drop structural coordinates)
-- 4.3B Master Prompt — add Voice Exemplar fields (filenames + intent mapping)
+- 4.4 V10.2 -> V11.0 (major rewrite — prompts become Tool Use schemas: Phase 1
+  research, Phase 2A frame, Phase 2B hydration, the surgical-correction schema,
+  Phase 3B semantic, Phase 5 voice draft, Phase 5.5 critique; drop the
+  validation FAIL format and structural coordinates entirely)
+- 4.3B Master Prompt — add Voice Exemplar fields (filenames + intent mapping).
+  Note: the tool ADAPTS to 4.3B's existing CTA labelling (it reads a "Primary
+  CTA" section's "Destination:" line, or a "Conversion Primary CTA URL" field)
+  — clients are never asked to rename a 4.3B field to match the tool.
 - 4.2 Sheet schema — add INTENT_LAYER column
 
 
@@ -678,7 +778,7 @@ BUILD ORDER — MILESTONE-BASED (CLAUDE CODE)
 Build V4.0 as parallel file: aeo_v4.html
 Keep V3.1 (aeo_article_creation.html) untouched as production fallback.
 
-MILESTONE 1: SKELETON + PHASE 1-2 WITH CACHING (1 session)
+MILESTONE 1: SKELETON + PHASE 1-2 WITH CACHING (1 session) — ✅ BUILT & VERIFIED
 Goals:
 - New file aeo_v4.html with clean UI: 7 phase cards
 - Phase 1 implemented: research + client-specific thesis
@@ -690,7 +790,7 @@ Exit criteria:
 - Thesis appears in output
 - Cache hits visible in API response logs
 
-MILESTONE 2: VALIDATION + FREEZE + ERROR RECOVERY FOUNDATION (1 session)
+MILESTONE 2: VALIDATION + FREEZE + ERROR RECOVERY FOUNDATION (1 session) — ✅ BUILT
 Goals:
 - Phase 3A (JS structural) + Phase 3B (Gemini semantic) implemented
 - Phase 4 (Object.freeze) implemented
@@ -704,6 +804,34 @@ Exit criteria:
 - V1 with bad fact (Gemini-caught) routes to retry, then passes or RED escalates
 - Calibration mode tracks article count correctly per client
 - Escalation Panel shows F-codes correctly when triggered
+
+MILESTONE 2.5: PHASE 2 REBUILD — TWO-PASS (architectural correction) — ✅ BUILT, ⏳ live test pending
+(Inserted after M2 when the single-pass Phase 2 was found to hallucinate numbers
+in tables — structure + prose + fact retrieval in one call. See the rewritten
+"PHASE 2" section above for the spec.)
+Goals:
+- Phase 2A (submit_v1_frame) — structure skeleton only, no prose/data
+- JS frame validation between 2A and 2B (frameOnly mode of the 3A validator);
+  small retry loop on frame failure (max 2 → Checkpoint 1)
+- Phase 2B (submit_v1_hydration) — prose + FAQ answers + table data rows keyed
+  by frame ids; rows are { cells, sourceReferenceId }; unsupported rows dropped
+- JS mergeHydration — splices 2B into the frame by id (Claude can't move bones)
+- factClaim_NN ids stamped onto the Phase 1 brief post-parse
+- Phase 3A: new checks — every table row cites a valid factClaim id, cells
+  align with headers, no empty tables, >= 1 paragraph per section/H3; a 3A
+  fail skips the Gemini call
+- Surgical retry (submit_v1_corrections) — micro-call patches only the failing
+  nodes; the full V1 is never regenerated; max 2 rounds → Checkpoint 1
+- Table-row schema migrated rows: [[...]] → rows: [{cells, sourceReferenceId}];
+  normalizeV1Shape coerces legacy/malformed shapes
+- M2 test-injection "recover" bug fixed in passing (the loop was rewritten)
+Exit criteria:
+- 2A produces a clean frame; frame validation catches a dropped section and
+  retries 2A; 2B hydrates it; merged V1 passes Phase 3
+- A row with a bad/missing sourceReferenceId is caught by 3A and surgically fixed
+- Side-by-side: V4.0 tables contain no number that isn't traceable to a factClaim
+Status: built and unit-tested; operator live test against a real iTV topic
+pending before continuing to Milestone 3.
 
 MILESTONE 3: VOICE DRAFT — OPTION E (1 session) — CRITICAL
 Goals:

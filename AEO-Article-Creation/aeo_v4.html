@@ -183,7 +183,7 @@
 <div class="top-bar">
   <div style="flex:1;">
     <h1>iTech Valet <span>AEO V4.0</span><span class="ver-badge">M2</span><span class="build-stamp" id="buildStamp">build …</span></h1>
-    <p class="subtitle">Phase 1 (research+thesis) → Phase 2 (V1 Tool Use, cached) → Phase 3 dual validation → Phase 4 freeze → Phase 6 stub. Error recovery F1–F4. Calibration/Production modes.</p>
+    <p class="subtitle">Phase 1 (research+thesis) → Phase 2A (structure frame) → frame validation → Phase 2B (data hydration, table rows cite factClaims) → Phase 3 dual validation → surgical fixes (node-level, never a full regen) → Phase 4 freeze → Phase 6 stub. Error recovery F1–F4 + F13/F19. Calibration/Production modes.</p>
   </div>
   <div style="text-align:right;">
     <div class="cp-label" style="opacity:.55;">Client Mode</div>
@@ -366,8 +366,8 @@
       <div class="phase-header" onclick="togglePhase(2)">
         <div class="phase-num">2</div>
         <div class="phase-info">
-          <div class="phase-title">Phase 2 — Claude V1 (Tool Use, cached context)</div>
-          <div class="phase-desc">Returns V1 JSON via submit_v1_article tool. JS assigns IDs post-parse. Cache breakpoint at end of system context. Re-invoked with feedback if Phase 3 fails (max 2 retries).</div>
+          <div class="phase-title">Phase 2 — V1 in TWO passes: 2A Structure Frame → 2B Data Hydration</div>
+          <div class="phase-desc">2A (submit_v1_frame): structural skeleton only — H2/H3 headings, table HEADERS (no data), FAQ QUESTIONS (no answers), link anchors mapped to the research brief, image slots, CTA placement, checklist, thesis. No prose, no numbers. JS validates the frame, then 2B (submit_v1_hydration): paragraph prose, FAQ answers, and table DATA ROWS — every row { cells, sourceReferenceId } citing a Phase 1 factClaim; rows with no supporting factClaim are dropped, not invented. JS merges 2B into the frame keyed by node id, so structure physically cannot drift. Phase 3 failures are repaired by surgical micro-calls (submit_v1_corrections) that touch only the failing nodes — the V1 is never regenerated. Shared cached context across 2A / 2B / fix.</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b2">Waiting</div><span class="schev closed" id="c2">▼</span></div>
       </div>
@@ -382,7 +382,7 @@
         <div class="phase-num">3</div>
         <div class="phase-info">
           <div class="phase-title">Phase 3 — Dual Validation</div>
-          <div class="phase-desc">3A: JS structural checks (sections≥4, FAQ≥5, tables≥3, images≥H2, link↔research match, internal-link domain, DA 200–300 words, CTA URL, schema, thesis present+referenced). 3B: Gemini semantic (claims align w/ research + anchors clientSpecificThesis).</div>
+          <div class="phase-desc">3A: JS structural checks (sections≥4, FAQ≥5, tables≥3 each non-empty, images≥H2, ≥1 paragraph per section/H3, link↔research match, internal-link domain, DA 200–300 words, CTA URL, checklist fields, thesis present+referenced — AND every table row carries a sourceReferenceId pointing at a real Phase 1 factClaim, with cells aligned to headers). A 3A fail skips the Gemini call. 3B: Gemini semantic (claims align w/ research + anchors clientSpecificThesis). Any fail → a surgical micro-call patches just the named nodes (max 2 rounds → Checkpoint 1).</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b3">Waiting</div><span class="schev closed" id="c3">▼</span></div>
       </div>
@@ -461,7 +461,7 @@
 
     <div class="ppane active" id="pane-runlog">
       <div class="legend-box">
-        <strong>What to look for:</strong> First Phase 2 call → <code>cache_creation_input_tokens &gt; 0</code>, <code>cache_read_input_tokens = 0</code> (cache MISS — context being written). Second Phase 2 call within ~5 min → <code>cache_read_input_tokens &gt; 0</code> (cache HIT). The "↻ Verify Cache" button in the Cache Stats tab proves the round trip.
+        <strong>What to look for:</strong> First Phase 2 call (2A) → <code>cache_creation_input_tokens &gt; 0</code>, <code>cache_read_input_tokens = 0</code> (cache MISS — the shared context block is being written). Every later call (2B, the surgical fix, and "↻ Verify Cache") within ~5 min → <code>cache_read_input_tokens &gt; 0</code> (cache HIT — same context block replayed). The "↻ Verify Cache" button in the Cache Stats tab re-runs Phase 2A to prove the round trip.
       </div>
       <div class="runlog" id="runlogBody"><div class="line info"><span class="ts">—</span>V4.0 M1 ready.</div></div>
     </div>
@@ -471,14 +471,14 @@
     </div>
 
     <div class="ppane" id="pane-v1json">
-      <pre id="v1Pre">Phase 2 output appears here. JS assigns IDs (da_, thesis_, section_, para_, h3_, link_, table_, img_, faq_, ans_, cta_) post-parse.</pre>
+      <pre id="v1Pre">Phase 2A shows the structure FRAME here; after Phase 2B it shows the merged V1 (frame + hydration). JS assigns ids (section_, h3_, table_, link_, img_, faq_ from 2A; da_, para_, ans_ from the 2B merge). Table rows are { cells, sourceReferenceId } — each citing a Phase 1 factClaim.</pre>
     </div>
 
     <div class="ppane" id="pane-cache">
       <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px; padding:12px 14px; background:#eef3f8; border:1px solid var(--border); border-radius:8px;">
-        <button class="btn-cache" id="cacheBtnPanel" onclick="repeatPhase2()" disabled style="background:var(--blue);">↻ Verify Cache — re-run Phase 2</button>
+        <button class="btn-cache" id="cacheBtnPanel" onclick="repeatPhase2()" disabled style="background:var(--blue);">↻ Verify Cache — re-run Phase 2A</button>
         <div style="font-size:11px; color:var(--muted); line-height:1.5;">
-          Re-runs Phase 2 with the identical cached context. Within ~5 min of a completed run, the result row below should read <strong style="color:var(--green);">HIT</strong> with <code>cache_read &gt; 0</code>. Enabled only after ⚡ Run Phase 1+2 completes. Streams live in the V1 JSON tab — it is working even if the result takes 30–90s.
+          Re-runs Phase 2A with the identical cached context block (the same block 2A / 2B / surgical-fix all share). Within ~5 min of a completed run, the result row below should read <strong style="color:var(--green);">HIT</strong> with <code>cache_read &gt; 0</code>. Enabled only after ⚡ Run completes. Streams live in the V1 JSON tab — it is working even if the result takes 30–90s.
         </div>
       </div>
       <div class="cache-grid">
@@ -560,8 +560,9 @@
     docs: { doc43A:'', doc43B:'', doc44:'' },
     sheetRow: '',
     sheetRowCols: {},
-    research: null,           // Phase 1 JSON
-    v1: null,                 // Phase 2 JSON (with JS-assigned IDs)
+    research: null,           // Phase 1 JSON (factClaims id-stamped post-parse)
+    frame: null,              // Phase 2A structure frame (becomes v1 after the 2B merge — same object)
+    v1: null,                 // Phase 2 JSON (frame + 2B hydration, with JS-assigned IDs)
     v1Frozen: false,          // Phase 4
     validation: null,         // { structuralFails:[], semanticFails:[], passed:bool }
     htmlStub: '',             // Phase 6 stub output
@@ -706,12 +707,12 @@
     const sel = document.getElementById('clientSelect');
     const clients = JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');
     S.client = sel.value !== '' ? clients[parseInt(sel.value)] : null;
-    S.research=null; S.v1=null; S.v1Frozen=false; S.validation=null; S.htmlStub=''; S.docs={doc43A:'',doc43B:'',doc44:''};
+    S.research=null; S.frame=null; S.v1=null; S.v1Frozen=false; S.validation=null; S.htmlStub=''; S.docs={doc43A:'',doc43B:'',doc44:''};
     S.sheetRow=''; S.sheetRowCols={}; S.cta43BWarned=false; S._extraLinksWarned=false; S.tokens={gi:0,go:0,ci:0,co:0,cacheRead:0,cacheCreate:0}; S.cacheLog=[];
     updateCost(); renderCacheLog(); renderModeUI();
     ['1','2','3','4','6'].forEach(n=>{ setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
     document.getElementById('researchPre').textContent='Phase 1 output appears here.';
-    document.getElementById('v1Pre').textContent='Phase 2 output appears here.';
+    document.getElementById('v1Pre').textContent='Phase 2A frame / Phase 2B-merged V1 appears here.';
     document.getElementById('o3').textContent='';
     document.getElementById('o4').textContent='';
     document.getElementById('htmlPre').textContent='Phase 6 stub output appears here.';
@@ -1117,26 +1118,35 @@ ${S.docs.doc44}
 Output the JSON now.`;
   }
 
-  function buildPhase2SystemBlocks(){
-    // Single big cached block: voice rules + client identity + prompt reference + research + thesis.
-    // Per Anthropic prompt caching: cache_control on the last content block in `system` marks
-    // the caching boundary. Everything in the system array up to and including that block is cached.
-    const ctx = `You are an AEO article generator. Your sole job in Phase 2 of the V4.0 pipeline is to call the submit_v1_article tool with a complete V1 article structure as JSON. Do NOT respond in plain text. Always invoke submit_v1_article.
+  // ─── factClaim IDs (JS, post-Phase-1 — V4-2 lock: JS assigns ALL ids) ──
+  // Phase 2B's table rows must each cite a factClaim by id. Phase 1's prompt is unchanged;
+  // JS stamps factClaim_01, factClaim_02, … onto S.research.factClaims after the brief parses.
+  function assignFactClaimIds(research){
+    if(!research || !Array.isArray(research.factClaims)) return research;
+    research.factClaims.forEach((fc, i) => { if(fc && typeof fc === 'object') fc.id = `factClaim_${String(i + 1).padStart(2, '0')}`; });
+    return research;
+  }
+  function validFactClaimIds(){
+    const set = new Set();
+    (S.research?.factClaims || []).forEach(fc => { if(fc && fc.id) set.add(String(fc.id)); });
+    return set;
+  }
+  function factClaimMenu(){
+    return (S.research?.factClaims || []).map(fc => {
+      const dp = Array.isArray(fc.dataPoints) && fc.dataPoints.length ? ` | data: ${fc.dataPoints.join('; ')}` : '';
+      return `  • ${fc.id || '(no id)'}: ${String(fc.claim||'').trim()}${fc.source ? ` | source: ${fc.source}` : ''}${dp}`;
+    }).join('\n') || '  (no factClaims in the research brief)';
+  }
 
-ARCHITECTURAL PRINCIPLE: JS owns structure. You own prose and content. Phase 4 will Object.freeze your output and downstream phases (5, 5.5) cannot touch the structure — only rewrite prose targeting IDs that JS will assign. Ship it correct on the first call.
+  // ─── PHASE 2 SHARED CACHED CONTEXT ─────────────────────────
+  // ONE big block, byte-identical across Phase 2A, 2B, the surgical-correction call, and the
+  // "↻ Verify Cache" run, so the prompt cache is written once and read by the rest. The
+  // cache_control breakpoint sits on this block. Phase-specific instructions go in a second,
+  // uncached system block (small — caching it would only fragment the prefix).
+  function buildPhase2ContextBlock(){
+    const ctx = `You are working on an AEO (Answer Engine Optimization) article in the V4.0 TWO-PASS pipeline.
 
-HARD CONSTRAINTS for V1:
-- sections: at least 4 H2 sections
-- faq: at least 5 FAQ entries
-- tables: at least 3 tables across all sections combined (distributed however makes sense for the topic)
-- imagePrompts: at least 1 per H2 section (every section MUST have an imagePrompts array with >= 1 entry)
-- directAnswer.prose: 200-300 words
-- thesis.statement: must mirror the clientSpecificThesis from the research brief — the article's spine
-- Direct Answer must reference or align with the clientSpecificThesis
-- Links: strongly prefer the links from anchorTextTargets in the research brief — copy those URLs exactly. You may add a small number of additional reputable external citations if genuinely needed, but never invent internal links.
-- Every internal link URL must be on the client's domain (extract from 4.3B and sheet row)
-- CTA url must match 4.3B Conversion Primary CTA URL
-- DO NOT include id fields in your output — JS assigns IDs post-parse. Each addressable object will receive da_*, thesis_*, section_*, para_*, h3_*, link_*, table_*, img_*, faq_*, ans_*, cta_*.
+ARCHITECTURAL PRINCIPLE: JS owns structure. You own prose and content. In Phase 2A you build the structural frame; once JS validates it, that frame is the contract. Phase 2B and any correction pass ADD prose / table data / FAQ answers against the frame's node ids — they never add, remove, rename, or reorder a heading, table, table header, FAQ question, link, or image. Phase 4 then Object.freezes the result. Never fabricate statistics or numbers — every data point must trace to a factClaim in the research brief below.
 
 PROJECT CONTEXT — UNIVERSAL VOICE RULES (4.3A):
 ${S.docs.doc43A}
@@ -1147,141 +1157,162 @@ ${S.docs.doc43B}
 PROJECT CONTEXT — PROMPT REFERENCE (4.4):
 ${S.docs.doc44}
 
-PHASE 1 RESEARCH BRIEF (sources, thesis, fact claims):
+PHASE 1 RESEARCH BRIEF (sources, anchorTextTargets, faqSeeds, factClaims [each carries an id like factClaim_03 — cite these in table rows], semanticAnchor, clientSpecificThesis):
 ${JSON.stringify(S.research, null, 2)}
 
 CLIENT-SPECIFIC THESIS (the article's spine — anchor everything around this):
 ${S.research?.clientSpecificThesis?.thesisStatement || '(missing — escalate F1)'}
 
-Wait for the user message containing the per-article topic and sheet row, then immediately call submit_v1_article with the complete V1 JSON.`;
-
-    // Single block with cache_control. Total tokens depend on doc sizes (~30-100k typical).
-    return [{ type: 'text', text: ctx, cache_control: { type: 'ephemeral' } }];
+TOPIC: ${S.topic}
+SHEET ROW (pipe-delimited): ${S.sheetRow}`;
+    return { type: 'text', text: ctx, cache_control: { type: 'ephemeral' } };
   }
 
-  // feedback: validation problems from Phase 3 (empty on first attempt). f2hint: F2 raw-JSON nudge.
-  function buildPhase2UserText(feedback, f2hint){
-    let t = `TOPIC: ${S.topic}\n\nSHEET ROW: ${S.sheetRow}\n\nGenerate the V1 article structure now by calling submit_v1_article. Do not respond with text — always invoke the tool.`;
+  // ── PHASE 2A — STRUCTURE FRAME ──
+  function buildPhase2ASystem(){
+    const instr = `PHASE 2A — STRUCTURE FRAME. Call submit_v1_frame with the article's structural skeleton ONLY. NO body prose. NO paragraphs. NO statistics. NO numerical claims. NO table data rows. NO FAQ answers. NO Direct Answer prose. (All of that comes in Phase 2B.)
+
+Produce:
+- checklist: the 7 SEO/URL fields — metaTitle, h1, permalink, fullUrl, metaDescription, keywords, category.
+- thesis.statement: one sentence, mirroring the clientSpecificThesis from the research brief — the article's spine.
+- sections: at least 4 H2 sections. Each section = { h2, h3sections?[{h3}], links[{anchorText,url,placementHint}], tables[{headers}], imagePrompts[{prompt,alt}] }. Headings/subheadings only — do NOT include a paragraphs array.
+- tables: at least 3 tables across all sections combined. For each table provide ONLY the headers array — leave the data rows to Phase 2B. Choose table topics the research brief's factClaims can actually back with data.
+- imagePrompts: at least 1 per H2 section. prompt + alt text only (this is placement).
+- links: prefer the research brief's anchorTextTargets — copy those anchorText + url pairs exactly. NEVER invent an internal link (a page on the client's own domain that isn't in the brief). A small number of additional reputable EXTERNAL citations is OK if genuinely needed. placementHint = which paragraph (by description) the link belongs to.
+- faq: at least 5 entries. The QUESTION text only — no answers.
+- cta: { anchorText, url, placementHint }. The url MUST match the 4.3B Primary CTA destination (the "Destination:" line under the "Primary CTA" section, or a "Conversion Primary CTA URL" / "Primary CTA URL" field). placementHint = where in the article the CTA sits.
+
+Do NOT include id fields — JS assigns them. Always invoke submit_v1_frame; never respond in plain text.`;
+    return [ buildPhase2ContextBlock(), { type:'text', text: instr } ];
+  }
+  function buildPhase2AUserText(feedback, f2hint){
+    let t = `Build the STRUCTURE FRAME now by calling submit_v1_frame. Headings, table headers (no data), FAQ questions (no answers), link anchors, image slots, CTA placement — no body prose, no statistics.`;
     if(feedback && feedback.trim()){
-      t += `\n\n─────────────────────────────────────────\nYOUR PREVIOUS V1 ATTEMPT FAILED VALIDATION. Fix every problem below and resubmit the FULL V1 via submit_v1_article:\n${feedback}\n─────────────────────────────────────────`;
+      t += `\n\n─────────────────────────────────────────\nYOUR PREVIOUS FRAME FAILED VALIDATION. Fix every problem below and resubmit the FULL frame via submit_v1_frame:\n${feedback}\n─────────────────────────────────────────`;
     }
     if(f2hint){
-      t += `\n\nNOTE: a previous attempt produced output that could not be parsed. Call submit_v1_article with clean structured JSON only — no code fences, no preamble inside string values, no commentary.`;
+      t += `\n\nNOTE: a previous attempt produced output that could not be parsed. Call submit_v1_frame with clean structured JSON only — no code fences, no preamble inside string values, no commentary.`;
     }
     return t;
   }
-
-  // ─── V1 TOOL SCHEMA ────────────────────────────────────────
-  const V1_TOOL = {
-    name: 'submit_v1_article',
-    description: 'Submit the V1 article structure as a complete JSON object. This is the only valid response in Phase 2. JS will assign unique IDs to every addressable object after parsing — do not include id fields.',
+  const V1_FRAME_TOOL = {
+    name: 'submit_v1_frame',
+    description: 'Submit the V1 STRUCTURE FRAME — headings, table headers (no data), FAQ questions (no answers), link anchors, image slots, CTA placement, checklist, thesis statement. No body prose. JS assigns ids; do not include id fields.',
     input_schema: {
-      type: 'object',
-      required: ['checklist','directAnswer','thesis','sections','faq','cta'],
-      additionalProperties: false,
+      type:'object', required:['checklist','thesis','sections','faq','cta'], additionalProperties:false,
       properties: {
-        checklist: {
-          type: 'object',
-          required: ['metaTitle','h1','permalink','fullUrl','metaDescription','keywords','category'],
-          additionalProperties: false,
+        checklist: { type:'object', required:['metaTitle','h1','permalink','fullUrl','metaDescription','keywords','category'], additionalProperties:false,
+          properties: { metaTitle:{type:'string'}, h1:{type:'string'}, permalink:{type:'string'}, fullUrl:{type:'string'}, metaDescription:{type:'string'}, keywords:{type:'string'}, category:{type:'string'} } },
+        thesis: { type:'object', required:['statement'], additionalProperties:false,
+          properties: { statement:{ type:'string', description:'One-sentence spine. Mirror Phase 1 clientSpecificThesis.thesisStatement.' } } },
+        sections: { type:'array', minItems:4, items: {
+          type:'object', required:['h2','imagePrompts'], additionalProperties:false,
           properties: {
-            metaTitle: { type:'string' },
-            h1: { type:'string' },
-            permalink: { type:'string' },
-            fullUrl: { type:'string' },
-            metaDescription: { type:'string' },
-            keywords: { type:'string' },
-            category: { type:'string' }
+            h2: { type:'string' },
+            h3sections: { type:'array', items:{ type:'object', required:['h3'], additionalProperties:false, properties:{ h3:{type:'string'} } } },
+            links: { type:'array', items:{ type:'object', required:['anchorText','url','placementHint'], additionalProperties:false,
+              properties:{ anchorText:{type:'string'}, url:{type:'string'}, placementHint:{type:'string'} } } },
+            tables: { type:'array', items:{ type:'object', required:['headers'], additionalProperties:false,
+              properties:{ headers:{ type:'array', items:{type:'string'}, description:'Column headers only — no data rows here.' } } } },
+            imagePrompts: { type:'array', minItems:1, items:{ type:'object', required:['prompt','alt'], additionalProperties:false,
+              properties:{ prompt:{type:'string'}, alt:{type:'string'} } } }
           }
-        },
-        directAnswer: {
-          type:'object', required:['prose'], additionalProperties:false,
-          properties: { prose: { type:'string', description:'200-300 words. Plain prose. No headings, no links, no images.' } }
-        },
-        thesis: {
-          type:'object', required:['statement'], additionalProperties:false,
-          properties: { statement: { type:'string', description:'One-sentence spine of the article. Mirror Phase 1 clientSpecificThesis.thesisStatement.' } }
-        },
-        sections: {
-          type:'array', minItems: 4,
-          items: {
-            type:'object', required:['h2','paragraphs','imagePrompts'], additionalProperties:false,
-            properties: {
-              h2: { type:'string' },
-              paragraphs: {
-                type:'array', minItems: 1,
-                items: { type:'object', required:['prose'], additionalProperties:false,
-                         properties: { prose: { type:'string' } } }
-              },
-              h3sections: {
-                type:'array',
-                items: {
-                  type:'object', required:['h3','paragraphs'], additionalProperties:false,
-                  properties: {
-                    h3: { type:'string' },
-                    paragraphs: {
-                      type:'array', minItems: 1,
-                      items: { type:'object', required:['prose'], additionalProperties:false,
-                               properties: { prose: { type:'string' } } }
-                    }
-                  }
-                }
-              },
-              links: {
-                type:'array',
-                items: {
-                  type:'object', required:['anchorText','url','placementHint'], additionalProperties:false,
-                  properties: {
-                    anchorText: { type:'string' },
-                    url: { type:'string' },
-                    placementHint: { type:'string', description:'Which paragraph (by description) this link belongs to.' }
-                  }
-                }
-              },
-              tables: {
-                type:'array',
-                items: {
-                  type:'object', required:['headers','rows'], additionalProperties:false,
-                  properties: {
-                    headers: { type:'array', items:{ type:'string' } },
-                    rows: { type:'array', items:{ type:'array', items:{ type:'string' } } }
-                  }
-                }
-              },
-              imagePrompts: {
-                type:'array', minItems: 1,
-                items: {
-                  type:'object', required:['prompt','alt'], additionalProperties:false,
-                  properties: {
-                    prompt: { type:'string' },
-                    alt: { type:'string' }
-                  }
-                }
-              }
-            }
-          }
-        },
-        faq: {
-          type:'array', minItems: 5,
-          items: {
-            type:'object', required:['question','answer'], additionalProperties:false,
-            properties: {
-              question: { type:'string' },
-              answer: {
-                type:'object', required:['prose'], additionalProperties:false,
-                properties: { prose: { type:'string' } }
-              }
-            }
-          }
-        },
-        cta: {
-          type:'object', required:['hookProse','anchorText','url'], additionalProperties:false,
+        }},
+        faq: { type:'array', minItems:5, items:{ type:'object', required:['question'], additionalProperties:false, properties:{ question:{type:'string'} } } },
+        cta: { type:'object', required:['anchorText','url','placementHint'], additionalProperties:false,
+          properties:{ anchorText:{type:'string'}, url:{type:'string'}, placementHint:{type:'string'} } }
+      }
+    }
+  };
+
+  // ── PHASE 2B — DATA HYDRATION ──
+  function buildPhase2BSystem(){
+    const instr = `PHASE 2B — DATA HYDRATION. Call submit_v1_hydration to fill the VALIDATED structure frame (given in the user message) with prose and data, keyed by the frame's node ids. You may ADD prose, table data rows, and FAQ answers ONLY. You may NOT add, remove, rename, or reorder any heading (h2/h3), table, table header, FAQ question, link, or image — the frame's structure is locked and JS will reject anything that isn't keyed to an existing frame id.
+
+Produce (every node referenced by the id it carries in the frame):
+- directAnswerProse: 200-300 words. Plain prose, no headings/links/images. Must reference / align with the clientSpecificThesis.
+- For each section (by sectionId): "paragraphs" = an array of body-prose strings (one string per paragraph; write as many as the section needs; at least 1). For each h3 in that section (by h3Id): "paragraphs" = an array of prose strings (at least 1). For each table in that section (by tableId): "rows" — see TABLE ROWS below.
+- For each FAQ (by faqId): answerProse = the answer, in prose.
+- ctaHookProse: the prose immediately before the CTA link.
+
+TABLE ROWS — CRITICAL: each row is { "cells": ["…", "…"], "sourceReferenceId": "factClaim_NN" }. cells must align with that table's headers (same count, same order). sourceReferenceId MUST be the id of a factClaim from the Phase 1 research brief that genuinely supports the data point in that row. If NO factClaim supports a row, DROP the row — do NOT invent data, statistics, or numbers. A table may end up with fewer rows than ideal; that is correct behavior. A table whose topic has no supporting factClaims should come back with an empty rows array — better empty than fabricated.
+
+Always invoke submit_v1_hydration; never respond in plain text.`;
+    return [ buildPhase2ContextBlock(), { type:'text', text: instr } ];
+  }
+  function buildPhase2BUserText(frame, f2hint){
+    let t = `Hydrate this VALIDATED STRUCTURE FRAME. Do NOT change any heading, table header, FAQ question, link, or image — only ADD prose, table data rows, and FAQ answers, keyed by the ids below. Call submit_v1_hydration.
+
+FRAME (JSON):
+${JSON.stringify(frame, null, 2)}
+
+AVAILABLE factClaim IDS (cite exactly one per table row; drop any row you cannot support):
+${factClaimMenu()}`;
+    if(f2hint){
+      t += `\n\nNOTE: a previous attempt produced output that could not be parsed. Call submit_v1_hydration with clean structured JSON only — no code fences, no preamble inside string values, no commentary.`;
+    }
+    return t;
+  }
+  const V1_HYDRATION_TOOL = {
+    name: 'submit_v1_hydration',
+    description: 'Fill the locked V1 structure frame with prose and data, keyed by the frame node ids. Adds paragraph prose, table data rows (each citing a Phase 1 factClaim), and FAQ answers only — never changes structure.',
+    input_schema: {
+      type:'object', required:['directAnswerProse','ctaHookProse','sections','faq'], additionalProperties:false,
+      properties: {
+        directAnswerProse: { type:'string', description:'200-300 words. Plain prose. References the clientSpecificThesis.' },
+        ctaHookProse: { type:'string', description:'The prose immediately before the CTA link.' },
+        sections: { type:'array', items: {
+          type:'object', required:['sectionId','paragraphs'], additionalProperties:false,
           properties: {
-            hookProse: { type:'string' },
-            anchorText: { type:'string' },
-            url: { type:'string' }
+            sectionId: { type:'string', description:'Must match a section id from the frame.' },
+            paragraphs: { type:'array', minItems:1, items:{ type:'string' }, description:'Body prose for this H2, one string per paragraph.' },
+            h3sections: { type:'array', items:{ type:'object', required:['h3Id','paragraphs'], additionalProperties:false,
+              properties:{ h3Id:{type:'string'}, paragraphs:{ type:'array', minItems:1, items:{type:'string'} } } } },
+            tables: { type:'array', items:{ type:'object', required:['tableId','rows'], additionalProperties:false,
+              properties:{ tableId:{type:'string'}, rows:{ type:'array', items:{ type:'object', required:['cells','sourceReferenceId'], additionalProperties:false,
+                properties:{ cells:{ type:'array', items:{type:'string'} }, sourceReferenceId:{ type:'string', description:'id of a supporting factClaim from the Phase 1 brief; drop the row if none supports it' } } } } } } }
           }
-        }
+        }},
+        faq: { type:'array', items:{ type:'object', required:['faqId','answerProse'], additionalProperties:false,
+          properties:{ faqId:{type:'string'}, answerProse:{type:'string'} } } }
+      }
+    }
+  };
+
+  // ── SURGICAL CORRECTION (replaces ONLY the failing nodes — never regenerates the V1) ──
+  function buildSurgicalFixSystem(){
+    const instr = `SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY the nodes listed in the user message — nothing else. Do NOT change structure (no heading/table/FAQ/link changes). For each correction keep the role the node plays and preserve transitions to neighbouring paragraphs where relevant. For a table_* node return replacement rows — each row { cells, sourceReferenceId } citing a real factClaim from the Phase 1 brief; drop rows you cannot support rather than inventing data. For a checklist.<field> target return newValue. Always invoke submit_v1_corrections; never respond in plain text.`;
+    return [ buildPhase2ContextBlock(), { type:'text', text: instr } ];
+  }
+  // ctx packets describe each failing node + its problem + a little surrounding context.
+  function buildSurgicalFixUserText(packets){
+    const blocks = packets.map(p => {
+      const lines = [`─ targetId: ${p.targetId}`, `  Problem: ${p.problem}`];
+      if(p.context) lines.push(`  Context: ${p.context}`);
+      lines.push(`  Current node: ${JSON.stringify(p.node)}`);
+      return lines.join('\n');
+    });
+    return `The following V1 nodes failed validation. Return a corrected version of EACH (and nothing else) via submit_v1_corrections — match the targetId of each problem.\n\n${blocks.join('\n\n')}\n\nAVAILABLE factClaim IDS (for any table_* fix; drop rows you cannot support):\n${factClaimMenu()}`;
+  }
+  const V1_FIX_TOOL = {
+    name: 'submit_v1_corrections',
+    description: 'Submit surgical replacements for ONLY the V1 nodes that failed validation. One entry per failing node; do not touch anything else; do not change structure.',
+    input_schema: {
+      type:'object', required:['corrections'], additionalProperties:false,
+      properties: {
+        corrections: { type:'array', items: {
+          type:'object', required:['targetId'], additionalProperties:false,
+          properties: {
+            targetId: { type:'string', description:'id of the failing node: da_*, para_*, ans_*, table_*, link_*, cta_*, thesis_*, or "checklist.<field>".' },
+            newProse: { type:'string', description:'Replacement prose — use for da_*, para_*, ans_*, and (as the CTA hook) cta_*.' },
+            newStatement: { type:'string', description:'Replacement thesis statement — use only for thesis_*.' },
+            newRows: { type:'array', description:'Replacement table rows — use only for table_*.', items:{ type:'object', required:['cells','sourceReferenceId'], additionalProperties:false,
+              properties:{ cells:{ type:'array', items:{type:'string'} }, sourceReferenceId:{type:'string'} } } },
+            newAnchorText: { type:'string', description:'Replacement anchor text — use for link_* (with newUrl) or cta_*.' },
+            newUrl: { type:'string', description:'Replacement URL — use for link_* or cta_*.' },
+            newValue: { type:'string', description:'Replacement value — use only when targetId is "checklist.<field>".' }
+          }
+        }}
       }
     }
   };
@@ -1302,6 +1333,13 @@ Wait for the user message containing the per-article topic and sheet row, then i
     }
     return [];
   }
+  // Table rows in V4.0 are { cells:[string,…], sourceReferenceId:"factClaim_NN" }.
+  // Coerce legacy / malformed shapes (array-of-arrays, lone object, scalar) into that shape.
+  function normalizeRow(r){
+    if(Array.isArray(r)) return { cells: r.map(c => String(c == null ? '' : c)), sourceReferenceId: '' };
+    if(r && typeof r === 'object') return { cells: toArray(r.cells).map(c => String(c == null ? '' : c)), sourceReferenceId: String(r.sourceReferenceId || '').trim() };
+    return { cells: [String(r == null ? '' : r)], sourceReferenceId: '' };
+  }
   function normalizeV1Shape(v1){
     if(!v1 || typeof v1 !== 'object') return v1;
     let coerced = false;
@@ -1311,22 +1349,25 @@ Wait for the user message containing the per-article topic and sheet row, then i
       return toArray(x);
     };
     v1.sections = arr(v1.sections).map(sec => {
-      if(!sec || typeof sec !== 'object'){ coerced = true; return { h2: String(sec == null ? '' : sec), paragraphs: [], imagePrompts: [] }; }
+      if(!sec || typeof sec !== 'object'){ coerced = true; return { h2: String(sec == null ? '' : sec), paragraphs: [], imagePrompts: [], links: [], tables: [], h3sections: [] }; }
       sec.paragraphs   = arr(sec.paragraphs);
       sec.h3sections   = arr(sec.h3sections).map(h3s => { if(h3s && typeof h3s === 'object') h3s.paragraphs = arr(h3s.paragraphs); return h3s; });
       sec.links        = arr(sec.links);
-      sec.tables       = arr(sec.tables).map(t => { if(t && typeof t === 'object'){ t.headers = arr(t.headers); t.rows = arr(t.rows).map(r => arr(r)); } return t; });
+      sec.tables       = arr(sec.tables).map(t => { if(t && typeof t === 'object'){ t.headers = arr(t.headers).map(h => String(h == null ? '' : h)); t.rows = arr(t.rows).map(normalizeRow); } return t; });
       sec.imagePrompts = arr(sec.imagePrompts);
       return sec;
     });
     v1.faq = arr(v1.faq).map(f => { if(f && typeof f === 'object' && f.answer && typeof f.answer !== 'object') f.answer = { prose: String(f.answer) }; return f; });
     if(coerced){
-      try { warnYellow('F14', 'Phase 2 returned a non-array where the V1 schema expects an array (sections / faq / paragraphs / links / tables / imagePrompts). JS coerced it to an array before validation — watch the V1 JSON tab; if this recurs the Tool Use schema or the tolerant parser needs attention.'); } catch(_){}
+      try { warnYellow('F14', 'A V1/frame structure came back with a non-array where the schema expects an array (sections / faq / paragraphs / links / tables / table rows / imagePrompts). JS coerced it before validation — watch the V1 JSON tab; if this recurs the Tool Use schema or the tolerant parser needs attention.'); } catch(_){}
     }
     return v1;
   }
 
-  // ─── ID ASSIGNMENT (JS, post-parse — Build Plan: "JS assigns unique IDs (NOT Claude's job)") ──
+  // ─── ID ASSIGNMENT (JS — V4-2 lock: "JS assigns ALL ids; Claude never writes id fields") ──
+  // Counter is reset once per pipeline run (in startPipeline / repeatPhase2), not per call,
+  // so assignIds can be invoked on the 2A frame and then again on the merged V1 without
+  // re-stamping ids that already exist (assign-if-missing).
   let _idCounter = 0;
   function genId(prefix){
     _idCounter += 1;
@@ -1334,33 +1375,34 @@ Wait for the user message containing the per-article topic and sheet row, then i
     return `${prefix}_${rand}${_idCounter.toString(36)}`;
   }
   function assignIds(v1){
-    _idCounter = 0;
+    if(!v1 || typeof v1 !== 'object') return v1;
     normalizeV1Shape(v1); // belt-and-suspenders — guarantees the arrays below are real arrays
-    if(v1.directAnswer) v1.directAnswer.id = genId('da');
-    if(v1.thesis) v1.thesis.id = genId('thesis');
+    const id = (o, p) => { if(o && typeof o === 'object' && !o.id) o.id = genId(p); };
+    id(v1.directAnswer, 'da');
+    id(v1.thesis, 'thesis');
     if(Array.isArray(v1.sections)){
       v1.sections.forEach(sec => {
         if(!sec || typeof sec !== 'object') return;
-        sec.id = genId('section');
-        toArray(sec.paragraphs).forEach(p => { if(p && typeof p === 'object') p.id = genId('para'); });
+        id(sec, 'section');
+        toArray(sec.paragraphs).forEach(p => id(p, 'para'));
         toArray(sec.h3sections).forEach(h3s => {
           if(!h3s || typeof h3s !== 'object') return;
-          h3s.id = genId('h3');
-          toArray(h3s.paragraphs).forEach(p => { if(p && typeof p === 'object') p.id = genId('para'); });
+          id(h3s, 'h3');
+          toArray(h3s.paragraphs).forEach(p => id(p, 'para'));
         });
-        toArray(sec.links).forEach(l => { if(l && typeof l === 'object') l.id = genId('link'); });
-        toArray(sec.tables).forEach(t => { if(t && typeof t === 'object') t.id = genId('table'); });
-        toArray(sec.imagePrompts).forEach(im => { if(im && typeof im === 'object') im.id = genId('img'); });
+        toArray(sec.links).forEach(l => id(l, 'link'));
+        toArray(sec.tables).forEach(t => id(t, 'table'));
+        toArray(sec.imagePrompts).forEach(im => id(im, 'img'));
       });
     }
     if(Array.isArray(v1.faq)){
       v1.faq.forEach(f => {
         if(!f || typeof f !== 'object') return;
-        f.id = genId('faq');
-        if(f.answer && typeof f.answer === 'object') f.answer.id = genId('ans');
+        id(f, 'faq');
+        if(f.answer && typeof f.answer === 'object') id(f.answer, 'ans');
       });
     }
-    if(v1.cta) v1.cta.id = genId('cta');
+    id(v1.cta, 'cta');
     return v1;
   }
 
@@ -1606,9 +1648,59 @@ Wait for the user message containing the per-article topic and sheet row, then i
     return m ? m[1].trim() : '';
   }
 
+  // Pull a URL or a leading relative path out of a free-text value. Returns '' if neither.
+  function pullUrlOrPath(s){
+    if(!s) return '';
+    const t = String(s).trim();
+    const url = t.match(/https?:\/\/[^\s)>\]"'`]+/i);
+    if(url) return url[0].replace(/[.,;:]+$/, '');
+    const path = t.match(/(?:^|\s)(\/[A-Za-z0-9\-_~%.]+(?:\/[A-Za-z0-9\-_~%.]*)*\/?)/);
+    if(path) return path[1];
+    return '';
+  }
+
+  // 4.3B CTA destination URL — layouts vary by client and the tool ADAPTS to the doc;
+  // clients never rename fields to suit the tool. Known shapes:
+  //   • "Conversion Primary CTA URL: https://…"               (value on the same line)
+  //   • "Primary CTA URL — https://…"                          (same line, dash sep)
+  //   • a "Primary CTA" heading/label, then a "Destination: https://…" line below it
+  //   • "Primary CTA … Destination: /contact"                  (Destination on the CTA line)
+  // Strategy: same-line label patterns first, then anchor on "Primary CTA" and scan the
+  // next ~20 lines for a "Destination:" line, pulling the URL or relative path out of it.
+  function extract43BCtaUrl(doc43B){
+    if(!doc43B) return '';
+    // 1) Explicit same-line labels (legacy + variants)
+    const direct = extract43BField(doc43B, 'Conversion Primary CTA URL')
+                || extract43BField(doc43B, 'Primary CTA URL')
+                || extract43BField(doc43B, 'Conversion Primary CTA Destination')
+                || extract43BField(doc43B, 'Primary CTA Destination');
+    if(direct){ const u = pullUrlOrPath(direct); if(u) return u; }
+    // 2) "Primary CTA" anchor → following "Destination:" line (within a ~20-line window)
+    const lines = doc43B.split(/\r?\n/);
+    for(let i = 0; i < lines.length; i++){
+      if(!/primary\s*cta/i.test(lines[i])) continue;
+      // Destination on the same line as "Primary CTA"?
+      const same = lines[i].match(/destination\s*[:—-]\s*(.+)/i);
+      if(same){ const u = pullUrlOrPath(same[1]); if(u) return u; }
+      // Otherwise scan the next lines for the first "Destination:" line
+      for(let j = i + 1; j < Math.min(lines.length, i + 21); j++){
+        const m = lines[j].match(/destination\s*[:—-]\s*(.+)/i);
+        if(m){ const u = pullUrlOrPath(m[1]); if(u) return u; }
+      }
+    }
+    // 3) Last resort: a standalone "Destination:" line anywhere with a URL on it
+    const anyDest = doc43B.match(/destination\s*[:—-]\s*(.+)/i);
+    if(anyDest){ const u = pullUrlOrPath(anyDest[1]); if(u) return u; }
+    return '';
+  }
+
   // ─── PHASE 3A: JS STRUCTURAL VALIDATION ────────────────────
   // Pure(ish) — reads S.research / S.docs.doc43B / S.v1 via the params passed.
-  function validateV1Structure(v1, research, doc43B){
+  // opts.frameOnly = true → validate a Phase 2A frame (no DA prose, no paragraphs, no table
+  // rows yet): run only the checks that apply to the skeleton (counts, headings, link
+  // discipline, checklist fields, CTA url, thesis present). Used between 2A and 2B.
+  function validateV1Structure(v1, research, doc43B, opts){
+    const frameOnly = !!(opts && opts.frameOnly);
     const fails = [];
     const F = (check, expected, actual, id) => fails.push({ check, expected, actual: String(actual), id: id || check });
 
@@ -1619,7 +1711,10 @@ Wait for the user message containing the per-article topic and sheet row, then i
     const secTables = s => Array.isArray(s.tables) ? s.tables : toArray(s.tables);
     const secImages = s => Array.isArray(s.imagePrompts) ? s.imagePrompts : toArray(s.imagePrompts);
     const secLinks  = s => Array.isArray(s.links) ? s.links : toArray(s.links);
-    const totalTables = sections.reduce((n,s)=>n+secTables(s).length,0);
+    const secParas  = s => Array.isArray(s.paragraphs) ? s.paragraphs : toArray(s.paragraphs);
+    const allTables = [];
+    sections.forEach(s => secTables(s).forEach(t => { if(t && typeof t === 'object') allTables.push(t); }));
+    const totalTables = allTables.length;
     const totalImages = sections.reduce((n,s)=>n+secImages(s).length,0);
     const h2Count = sections.length;
 
@@ -1627,16 +1722,46 @@ Wait for the user message containing the per-article topic and sheet row, then i
     if(faq.length < 5) F('faq_count', '>= 5', faq.length);
     if(totalTables < 3) F('table_count', '>= 3 (across all sections)', totalTables);
     if(totalImages < h2Count) F('image_prompt_count', `>= H2 count (${h2Count})`, totalImages);
+    sections.forEach(s => { if(!String(s.h2||'').trim()) F('section_h2_empty', 'every section has non-empty h2', '(empty)', s.id); });
+    faq.forEach(f => { if(!String(f.question||'').trim()) F('faq_question_empty', 'every FAQ has a non-empty question', '(empty)', f.id); });
+    allTables.forEach(t => { if(!(Array.isArray(t.headers) && t.headers.length && t.headers.every(h => String(h||'').trim()))) F('table_headers_empty', 'every table has non-empty headers', JSON.stringify(t.headers||[]), t.id); });
+    sections.forEach(s => secImages(s).forEach(im => { if(!im || !String(im.prompt||'').trim() || !String(im.alt||'').trim()) F('image_prompt_incomplete', 'each image has non-empty prompt + alt', JSON.stringify(im||{}), im && im.id); }));
 
-    // Direct Answer 200-300 words
-    const daWords = (v1.directAnswer?.prose || '').trim().split(/\s+/).filter(Boolean).length;
-    if(daWords < 200 || daWords > 300) F('direct_answer_word_count', '200–300 words', daWords, v1.directAnswer?.id);
+    if(!frameOnly){
+      // Direct Answer 200-300 words
+      const daWords = (v1.directAnswer?.prose || '').trim().split(/\s+/).filter(Boolean).length;
+      if(daWords < 200 || daWords > 300) F('direct_answer_word_count', '200–300 words', daWords, v1.directAnswer?.id);
+      // Every section (and h3) must have at least one non-empty paragraph
+      sections.forEach(s => {
+        const ps = secParas(s).filter(p => p && String(p.prose||'').trim());
+        if(ps.length < 1) F('section_paragraphs_empty', 'each section has >= 1 non-empty paragraph', ps.length, s.id);
+        toArray(s.h3sections).forEach(h => {
+          if(!h || typeof h !== 'object') return;
+          const hp = toArray(h.paragraphs).filter(p => p && String(p.prose||'').trim());
+          if(hp.length < 1) F('h3_paragraphs_empty', 'each H3 has >= 1 non-empty paragraph', hp.length, h.id);
+        });
+      });
+      // Table data: non-empty, every row cites a real factClaim, cells align with headers
+      const validFacts = validFactClaimIds();
+      allTables.forEach(t => {
+        const rows = Array.isArray(t.rows) ? t.rows : toArray(t.rows);
+        const headerCount = Array.isArray(t.headers) ? t.headers.length : 0;
+        if(rows.length < 1) F('table_empty', 'each table has >= 1 data row (drop the table topic in 2A if no factClaim supports it)', 0, t.id);
+        rows.forEach((r, i) => {
+          const ref = String(r && r.sourceReferenceId || '').trim();
+          if(!ref) F('table_row_source_missing', 'every table row has a sourceReferenceId citing a Phase 1 factClaim', `row ${i+1} has none`, t.id);
+          else if(validFacts.size && !validFacts.has(ref)) F('table_row_source_invalid', `sourceReferenceId must be one of: ${[...validFacts].join(', ') || '(none)'}`, `row ${i+1} cites "${ref}"`, t.id);
+          const cells = Array.isArray(r && r.cells) ? r.cells : toArray(r && r.cells);
+          if(headerCount && cells.length !== headerCount) F('table_row_shape', `each row has ${headerCount} cells (matching headers)`, `row ${i+1} has ${cells.length}`, t.id);
+        });
+      });
+    }
 
-    // Thesis present and referenced in DA or first section
+    // Thesis present (always) and referenced in DA / section 1 (only once we have prose)
     const thesisStmt = (v1.thesis?.statement || '').trim();
     if(!thesisStmt){
       F('thesis_present', 'non-empty thesis.statement', '(empty)', v1.thesis?.id);
-    } else {
+    } else if(!frameOnly){
       const refText = ((v1.directAnswer?.prose||'') + ' ' + (sections[0] ? JSON.stringify(sections[0]) : '')).toLowerCase();
       const contentWords = thesisStmt.toLowerCase().match(/\b[a-z][a-z'-]{4,}\b/g) || [];
       const uniq = [...new Set(contentWords)];
@@ -1686,16 +1811,18 @@ Wait for the user message containing the per-article topic and sheet row, then i
       warnYellow('P3A', `V1 has ${extraExternal.length} external link(s) not in the research brief's anchorTextTargets (allowed — extra citations, not blocking): ${extraExternal.slice(0,8).join('; ')}${extraExternal.length>8?' …':''}`);
     }
 
-    // CTA url matches 4.3B Conversion Primary CTA URL (if extractable)
+    // CTA url matches the 4.3B Primary CTA destination (if extractable). The tool adapts to
+    // however the client's 4.3B labels it — see extract43BCtaUrl(); we never make a client
+    // rename fields to match the tool.
     const ctaUrl = (v1.cta?.url || '').trim();
-    const expectedCta = extract43BField(doc43B, 'Conversion Primary CTA URL') || extract43BField(doc43B, 'Primary CTA URL') || extract43BField(doc43B, 'Conversion Primary CTA');
+    const expectedCta = extract43BCtaUrl(doc43B);
     if(expectedCta){
-      // Compare loosely (ignore trailing slash, protocol)
-      const norm = u => u.replace(/^https?:\/\//i,'').replace(/\/$/,'').toLowerCase();
-      if(norm(ctaUrl) !== norm(expectedCta)) F('cta_url_match', `CTA url == 4.3B Conversion Primary CTA URL (${expectedCta})`, ctaUrl, v1.cta?.id);
+      // Compare loosely (ignore protocol, leading www., trailing slashes, case)
+      const norm = u => (u||'').replace(/^https?:\/\//i,'').replace(/^www\./i,'').replace(/\/+$/,'').toLowerCase();
+      if(norm(ctaUrl) !== norm(expectedCta)) F('cta_url_match', `CTA url == 4.3B Primary CTA destination (${expectedCta})`, ctaUrl, v1.cta?.id);
     } else if(!S.cta43BWarned){
       S.cta43BWarned = true;
-      warnYellow('P3A', 'Could not parse "Conversion Primary CTA URL" from 4.3B — CTA URL match check skipped this run. Verify 4.3B has that field labeled clearly.');
+      warnYellow('P3A', 'Could not find a Primary CTA destination URL in 4.3B — looked for "Conversion Primary CTA URL" / "Primary CTA URL" on a line, and for a "Destination:" line under a "Primary CTA" heading. CTA URL match check skipped this run; verify 4.3B has the CTA destination written as a URL somewhere recognizable.');
     }
     if(!ctaUrl) F('cta_url_present', 'cta.url non-empty', '(empty)', v1.cta?.id);
 
@@ -1776,6 +1903,19 @@ Output the JSON now.`;
     }
     return parts.join('\n');
   }
+  // Feedback for a failed Phase 2A frame retry — frame-appropriate (no DA/prose minimums).
+  function formatFrameFeedback(structuralFails, research){
+    const parts = ['HARD STRUCTURAL MINIMUMS FOR THE FRAME (not optional): >= 4 H2 sections, >= 5 FAQ questions, >= 3 tables across all sections combined (headers only — no data rows), >= 1 imagePrompt per H2 section, a CTA whose url matches the 4.3B Primary CTA destination, and all 7 checklist fields filled. NO body prose, NO statistics — that comes in Phase 2B.'];
+    if(structuralFails.length){
+      parts.push('PROBLEMS IN YOUR LAST FRAME:');
+      structuralFails.forEach(f => parts.push(`- ${f.check}${f.id && f.id !== f.check ? ' ('+f.id+')' : ''}: expected ${f.expected}, you produced ${f.actual}. Fix this.`));
+      if(structuralFails.some(f => f.check === 'internal_link_not_in_research') && Array.isArray(research?.anchorTextTargets) && research.anchorTextTargets.length){
+        parts.push('You used an internal link not in the research brief. Use ONLY these (anchorText → url) — copy URLs exactly; never invent a page on the client domain:');
+        research.anchorTextTargets.forEach(t => parts.push(`  • "${t.anchorText}" → ${t.url}${t.type ? ' ['+t.type+']' : ''}`));
+      }
+    }
+    return parts.join('\n');
+  }
 
   // ─── PHASE 2 STREAMING DISPLAY ─────────────────────────────
   // Returns an onProgress callback that streams the tool-input JSON into the Phase 2
@@ -1799,34 +1939,197 @@ Output the JSON now.`;
     };
   }
 
-  // ─── PHASE 2 RUNNER (one Claude tool-use call; returns parsed V1 or a parse-error marker) ──
-  // Captures stopReason so the orchestrator can spot F3 truncation.
-  async function runPhase2(akey, feedback, f2hint, label){
-    setPhase(2, 'active', label === 'Phase 2' ? 'Streaming' : 'Retrying');
+  // ─── PHASE 2 RUNNERS (two passes + a surgical correction call) ──
+  // Each makes ONE Claude tool-use call. Returns the parsed tool input, or a parse-error
+  // marker, plus elapsed + stopReason so the orchestrator can spot F2 / F3.
+  async function runClaudeTool({ systemBlocks, userText, tool, label, cardLabel, akey }){
+    setPhase(2, 'active', cardLabel || label);
     document.getElementById('sb2').classList.add('open');
     document.getElementById('c2').classList.remove('closed');
     document.getElementById('o2').textContent = `⏳ ${label} — connecting to Claude…`;
     switchTab('v1json');
     const t = Date.now();
     const result = await callClaude({
-      systemBlocks: buildPhase2SystemBlocks(),
-      userText: buildPhase2UserText(feedback, f2hint),
-      tools: [V1_TOOL],
-      toolChoice: { type:'tool', name:'submit_v1_article' },
+      systemBlocks, userText,
+      tools: [tool],
+      toolChoice: { type:'tool', name: tool.name },
       akey,
       onProgress: makePhase2Progress(label),
       timeoutMs: 300000
     });
     logCacheCall(2, result.usage);
     const elapsed = ((Date.now()-t)/1000).toFixed(1);
-    if(!result.toolCalls.length){
-      return { parseError: 'no tool call returned', rawText: result.textOutput, elapsed, stopReason: result.stopReason };
-    }
+    if(!result.toolCalls.length) return { parseError:'no tool call returned', rawText: result.textOutput, elapsed, stopReason: result.stopReason };
     const input = result.toolCalls[0].input;
-    if(input.__parse_error){
-      return { parseError: input.__parse_error, rawFragment: input.__raw, elapsed, stopReason: result.stopReason };
-    }
-    return { v1: input, elapsed, stopReason: result.stopReason };
+    if(input && input.__parse_error) return { parseError: input.__parse_error, rawFragment: input.__raw, elapsed, stopReason: result.stopReason };
+    return { input, elapsed, stopReason: result.stopReason };
+  }
+  async function runPhase2A(akey, feedback, f2hint, label){
+    const r = await runClaudeTool({ systemBlocks: buildPhase2ASystem(), userText: buildPhase2AUserText(feedback, f2hint), tool: V1_FRAME_TOOL, label, cardLabel: feedback ? '2A retry' : '2A frame', akey });
+    if(r.parseError) return r;
+    return { frame: r.input, elapsed: r.elapsed, stopReason: r.stopReason };
+  }
+  async function runPhase2B(akey, frame, f2hint, label){
+    const r = await runClaudeTool({ systemBlocks: buildPhase2BSystem(), userText: buildPhase2BUserText(frame, f2hint), tool: V1_HYDRATION_TOOL, label, cardLabel: '2B hydrate', akey });
+    if(r.parseError) return r;
+    return { hydration: r.input, elapsed: r.elapsed, stopReason: r.stopReason };
+  }
+  async function runSurgicalFix(akey, packets, label){
+    const r = await runClaudeTool({ systemBlocks: buildSurgicalFixSystem(), userText: buildSurgicalFixUserText(packets), tool: V1_FIX_TOOL, label, cardLabel: 'surgical fix', akey });
+    if(r.parseError) return r;
+    return { corrections: Array.isArray(r.input?.corrections) ? r.input.corrections : [], elapsed: r.elapsed, stopReason: r.stopReason };
+  }
+
+  // ─── MERGE 2B HYDRATION INTO THE 2A FRAME ──────────────────
+  // The frame is the structural contract. Hydration adds prose / table rows / FAQ answers
+  // keyed by frame node ids — JS does the merge so Claude physically cannot move the bones.
+  // Mutates `frame` in place and returns it (it becomes the V1).
+  function mergeHydration(frame, hyd){
+    if(!frame || typeof frame !== 'object') return frame;
+    hyd = (hyd && typeof hyd === 'object') ? hyd : {};
+    frame.directAnswer = { id: genId('da'), prose: typeof hyd.directAnswerProse === 'string' ? hyd.directAnswerProse.trim() : '' };
+    if(frame.cta && typeof frame.cta === 'object') frame.cta.hookProse = typeof hyd.ctaHookProse === 'string' ? hyd.ctaHookProse.trim() : (frame.cta.hookProse || '');
+    // index frame nodes by id
+    const secById = {}, h3ById = {}, tableById = {}, faqById = {};
+    toArray(frame.sections).forEach(sec => {
+      if(!sec || typeof sec !== 'object') return;
+      if(sec.id) secById[sec.id] = sec;
+      toArray(sec.h3sections).forEach(h => { if(h && h.id) h3ById[h.id] = h; });
+      toArray(sec.tables).forEach(t => { if(t && t.id) tableById[t.id] = t; });
+    });
+    toArray(frame.faq).forEach(f => { if(f && f.id) faqById[f.id] = f; });
+    const mkParas = arr => toArray(arr).filter(s => typeof s === 'string' && s.trim()).map(s => ({ id: genId('para'), prose: s.trim() }));
+    let orphans = 0;
+    toArray(hyd.sections).forEach(hs => {
+      const sec = secById[hs && hs.sectionId];
+      if(!sec){ orphans++; return; }
+      sec.paragraphs = mkParas(hs.paragraphs);
+      toArray(hs.h3sections).forEach(hh => {
+        const h3 = h3ById[hh && hh.h3Id];
+        if(!h3){ orphans++; return; }
+        h3.paragraphs = mkParas(hh.paragraphs);
+      });
+      toArray(hs.tables).forEach(ht => {
+        const tbl = tableById[ht && ht.tableId];
+        if(!tbl){ orphans++; return; }
+        tbl.rows = toArray(ht.rows).filter(r => r && typeof r === 'object').map(normalizeRow);
+      });
+    });
+    toArray(hyd.faq).forEach(hf => {
+      const f = faqById[hf && hf.faqId];
+      if(!f){ orphans++; return; }
+      f.answer = { id: genId('ans'), prose: typeof hf.answerProse === 'string' ? hf.answerProse.trim() : '' };
+    });
+    // any frame node 2B didn't hydrate gets a safe empty default so downstream code never chokes
+    toArray(frame.sections).forEach(sec => {
+      if(!sec || typeof sec !== 'object') return;
+      if(!Array.isArray(sec.paragraphs)) sec.paragraphs = [];
+      toArray(sec.h3sections).forEach(h => { if(h && typeof h === 'object' && !Array.isArray(h.paragraphs)) h.paragraphs = []; });
+      toArray(sec.tables).forEach(t => { if(t && typeof t === 'object' && !Array.isArray(t.rows)) t.rows = []; });
+    });
+    toArray(frame.faq).forEach(f => { if(f && typeof f === 'object' && (!f.answer || typeof f.answer !== 'object')) f.answer = { id: genId('ans'), prose: '' }; });
+    if(orphans) warnYellow('F13', `Phase 2B hydration referenced ${orphans} node id(s) not present in the frame — ignored. Phase 3 will flag any node left un-hydrated.`);
+    return frame;
+  }
+
+  // ─── BUILD SURGICAL-FIX PACKETS FROM PHASE 3 FAILS ─────────
+  // Maps a validation fail (which carries the offending node's id) to a "fix packet":
+  // { targetId, problem, context, node }. Skips fails with no fixable node (e.g. count
+  // failures — those can only come from a regressed frame and are handled separately).
+  function buildFixPackets(v1, structuralFails, semanticFails){
+    // index every addressable node by id + remember its enclosing section h2 + neighbours
+    const idx = {}; // id → { node, kind, sectionH2, neighbours:[prevProse,nextProse] }
+    toArray(v1.sections).forEach(sec => {
+      if(!sec || typeof sec !== 'object') return;
+      const h2 = String(sec.h2 || '');
+      const ps = toArray(sec.paragraphs);
+      ps.forEach((p, i) => { if(p && p.id) idx[p.id] = { node:p, kind:'para', sectionH2:h2, neighbours:[ps[i-1]?.prose||'', ps[i+1]?.prose||''] }; });
+      toArray(sec.h3sections).forEach(h => {
+        if(!h || typeof h !== 'object') return;
+        const hp = toArray(h.paragraphs);
+        hp.forEach((p,i) => { if(p && p.id) idx[p.id] = { node:p, kind:'para', sectionH2:`${h2} › ${h.h3||''}`, neighbours:[hp[i-1]?.prose||'', hp[i+1]?.prose||''] }; });
+      });
+      toArray(sec.tables).forEach(t => { if(t && t.id) idx[t.id] = { node:t, kind:'table', sectionH2:h2 }; });
+      toArray(sec.links).forEach(l => { if(l && l.id) idx[l.id] = { node:l, kind:'link', sectionH2:h2 }; });
+    });
+    toArray(v1.faq).forEach(f => {
+      if(!f || typeof f !== 'object') return;
+      if(f.id) idx[f.id] = { node:f, kind:'faq', sectionH2:'FAQ' };
+      if(f.answer && f.answer.id) idx[f.answer.id] = { node:f.answer, kind:'ans', sectionH2:`FAQ — Q: ${String(f.question||'')}` };
+    });
+    if(v1.directAnswer && v1.directAnswer.id) idx[v1.directAnswer.id] = { node:v1.directAnswer, kind:'da', sectionH2:'Direct Answer' };
+    if(v1.thesis && v1.thesis.id) idx[v1.thesis.id] = { node:v1.thesis, kind:'thesis', sectionH2:'Thesis' };
+    if(v1.cta && v1.cta.id) idx[v1.cta.id] = { node:v1.cta, kind:'cta', sectionH2:'CTA' };
+
+    const byId = {}; // targetId → { targetId, problems:[], kind, node, context }
+    const add = (id, problem) => {
+      if(!id) return false;
+      if(typeof id === 'string' && id.startsWith('checklist.')){
+        const field = id.slice('checklist.'.length);
+        const k = id; if(!byId[k]) byId[k] = { targetId:id, problems:[], kind:'checklist', node:{ field, current: v1.checklist?.[field] ?? '' }, context:`SEO/metadata field "${field}" in the checklist` };
+        byId[k].problems.push(problem); return true;
+      }
+      const meta = idx[id];
+      if(!meta) return false;
+      if(!byId[id]) byId[id] = { targetId:id, problems:[], kind:meta.kind, node:meta.node, context: meta.kind==='para' ? `Body paragraph in section "${meta.sectionH2}". Prev paragraph: "${(meta.neighbours[0]||'').slice(0,160)}…" | Next paragraph: "${(meta.neighbours[1]||'').slice(0,160)}…"` : meta.kind==='table' ? `Table in section "${meta.sectionH2}" — headers: ${JSON.stringify(meta.node.headers||[])}. Replacement rows must be {cells, sourceReferenceId}; cells aligned to those headers; cite a real factClaim or drop the row.` : meta.kind==='ans' ? `${meta.sectionH2}` : meta.sectionH2 };
+      byId[id].problems.push(problem); return true;
+    };
+    structuralFails.forEach(f => add(f.id, `${f.check}: expected ${f.expected}, got ${f.actual}`));
+    semanticFails.forEach(f => add(f.targetId, `semantic: ${f.issue}${f.suggestedRevision ? ` → ${f.suggestedRevision}` : ''}`));
+
+    const packets = Object.values(byId).map(b => ({ targetId:b.targetId, kind:b.kind, problem:b.problems.join(' ; '), context:b.context, node:b.node }));
+    // structural fails that didn't map to a node (count failures etc.) → can't be surgically fixed
+    const unmappable = structuralFails.filter(f => !(f.id && (idx[f.id] || (typeof f.id==='string' && f.id.startsWith('checklist.'))))).map(f => `${f.check} (${f.id||'no node'})`);
+    return { packets, unmappable };
+  }
+
+  // ─── APPLY SURGICAL CORRECTIONS TO THE V1 (in place) ───────
+  function applyCorrections(v1, corrections){
+    let applied = 0, orphaned = 0;
+    const idx = {};
+    toArray(v1.sections).forEach(sec => {
+      if(!sec || typeof sec !== 'object') return;
+      toArray(sec.paragraphs).forEach(p => { if(p && p.id) idx[p.id] = p; });
+      toArray(sec.h3sections).forEach(h => { if(h && typeof h==='object') toArray(h.paragraphs).forEach(p => { if(p && p.id) idx[p.id] = p; }); });
+      toArray(sec.tables).forEach(t => { if(t && t.id) idx[t.id] = t; });
+      toArray(sec.links).forEach(l => { if(l && l.id) idx[l.id] = l; });
+    });
+    toArray(v1.faq).forEach(f => { if(!f || typeof f!=='object') return; if(f.id) idx[f.id] = f; if(f.answer && f.answer.id) idx[f.answer.id] = f.answer; });
+    if(v1.directAnswer && v1.directAnswer.id) idx[v1.directAnswer.id] = v1.directAnswer;
+    if(v1.thesis && v1.thesis.id) idx[v1.thesis.id] = v1.thesis;
+    if(v1.cta && v1.cta.id) idx[v1.cta.id] = v1.cta;
+
+    toArray(corrections).forEach(c => {
+      if(!c || typeof c !== 'object' || !c.targetId){ orphaned++; return; }
+      const id = String(c.targetId);
+      if(id.startsWith('checklist.')){
+        const field = id.slice('checklist.'.length);
+        if(!v1.checklist || typeof v1.checklist !== 'object'){ orphaned++; return; }
+        if(typeof c.newValue === 'string'){ v1.checklist[field] = c.newValue.trim(); applied++; } else orphaned++;
+        return;
+      }
+      const node = idx[id];
+      if(!node){ orphaned++; return; }
+      if(id.startsWith('table_')){
+        if(Array.isArray(c.newRows)){ node.rows = c.newRows.filter(r => r && typeof r === 'object').map(normalizeRow); applied++; } else orphaned++;
+      } else if(id.startsWith('link_')){
+        let did = false;
+        if(typeof c.newAnchorText === 'string'){ node.anchorText = c.newAnchorText.trim(); did = true; }
+        if(typeof c.newUrl === 'string'){ node.url = c.newUrl.trim(); did = true; }
+        if(did) applied++; else orphaned++;
+      } else if(id.startsWith('cta_')){
+        let did = false;
+        if(typeof c.newUrl === 'string'){ node.url = c.newUrl.trim(); did = true; }
+        if(typeof c.newAnchorText === 'string'){ node.anchorText = c.newAnchorText.trim(); did = true; }
+        if(typeof c.newProse === 'string'){ node.hookProse = c.newProse.trim(); did = true; }
+        if(did) applied++; else orphaned++;
+      } else if(id.startsWith('thesis_')){
+        if(typeof (c.newStatement || c.newProse) === 'string'){ node.statement = String(c.newStatement || c.newProse).trim(); applied++; } else orphaned++;
+      } else if(id.startsWith('da_') || id.startsWith('para_') || id.startsWith('ans_')){
+        if(typeof c.newProse === 'string'){ node.prose = c.newProse.trim(); applied++; } else orphaned++;
+      } else orphaned++;
+    });
+    return { applied, orphaned };
   }
 
   // ─── PIPELINE ──────────────────────────────────────────────
@@ -1850,7 +2153,8 @@ Output the JSON now.`;
     S.topic = topic;
     S.tokens = { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 };
     S.cacheLog = [];
-    S.research = null; S.v1 = null; S.v1Frozen = false; S.validation = null; S.htmlStub = ''; S.cta43BWarned = false; S._extraLinksWarned = false;
+    S.research = null; S.frame = null; S.v1 = null; S.v1Frozen = false; S.validation = null; S.htmlStub = ''; S.cta43BWarned = false; S._extraLinksWarned = false;
+    _idCounter = 0; // ids are unique per run; reset once here, not per assignIds() call
     updateCost(); renderCacheLog();
     document.getElementById('cacheVerdict').textContent = '—';
     setCacheBtnsDisabled(true);
@@ -1917,98 +2221,170 @@ Output the JSON now.`;
         if(attempt === 2){ escalateRed('F1', 'Research failed after 2 retries — empty sources, missing thesis, or missing factClaims. Topic may be too narrow or a Gemini API issue.'); return; }
       }
       S.research = phase1Json;
+      assignFactClaimIds(S.research); // JS stamps factClaim_01… so Phase 2B's table rows can cite them
       const elapsed1 = ((Date.now()-t1)/1000).toFixed(1);
       document.getElementById('o1').textContent = JSON.stringify(phase1Json, null, 2).slice(0, 4000);
-      document.getElementById('m1').textContent = `Done in ${elapsed1}s — ${phase1Json.sources.length} sources, ${phase1Json.faqSeeds?.length||0} faqSeeds, ${phase1Json.factClaims.length} factClaims. Thesis: "${phase1Json.clientSpecificThesis.thesisStatement.slice(0,120)}…"`;
+      document.getElementById('m1').textContent = `Done in ${elapsed1}s — ${phase1Json.sources.length} sources, ${phase1Json.faqSeeds?.length||0} faqSeeds, ${phase1Json.factClaims.length} factClaims (ids: ${phase1Json.factClaims.map(fc=>fc.id).filter(Boolean).slice(0,3).join(', ')}${phase1Json.factClaims.length>3?'…':''}). Thesis: "${phase1Json.clientSpecificThesis.thesisStatement.slice(0,120)}…"`;
       document.getElementById('researchPre').textContent = JSON.stringify(phase1Json, null, 2);
       setPhase(1, 'done', `Done ${elapsed1}s`);
-      log(`Phase 1 complete: ${phase1Json.sources.length} sources, ${phase1Json.factClaims.length} factClaims, thesis present.`, 'ok');
+      log(`Phase 1 complete: ${phase1Json.sources.length} sources, ${phase1Json.factClaims.length} factClaims (id-stamped), thesis present.`, 'ok');
 
-      // ── PHASE 2 ↔ PHASE 3: generate → validate, up to 2 retries with feedback ──
+      // ════════════════════════════════════════════════════════
+      // PHASE 2 — TWO-PASS. 2A STRUCTURE FRAME → JS frame validation → 2B DATA HYDRATION → JS merge.
+      // Then PHASE 3 (3A structural — incl. every table row cites a Phase 1 factClaim; 3B Gemini
+      // semantic, run only when 3A is clean). Phase 3 failures are fixed by SURGICAL micro-calls
+      // that touch ONLY the failing nodes — the full V1 is never regenerated. Max 2 rounds → CHK1.
+      // ════════════════════════════════════════════════════════
+      const inject = document.getElementById('testInjection')?.value || 'off';
+
+      // ── PHASE 2A — STRUCTURE FRAME (small retry loop on frame-validation failure) ──
+      setPhase(2, 'active', '2A frame');
+      document.getElementById('sb2').classList.add('open'); document.getElementById('c2').classList.remove('closed');
+      let frame = null, frameFeedback = '', frameF2hint = false;
+      for(let fa = 0; fa <= 2; fa++){
+        setG(fa === 0 ? 'Phase 2A — Claude STRUCTURE FRAME (headings, table headers, FAQ questions, link anchors, image slots, CTA) via Tool Use (cached context)…' : `Phase 2A — regenerating the frame with validation feedback (retry ${fa}/2)…`, true);
+        let p2a;
+        try { p2a = await runPhase2A(akey, frameFeedback, frameF2hint, fa === 0 ? 'Phase 2A' : `Phase 2A retry ${fa}`); }
+        catch(e){ if(e.f4){ escalateRed('F4', `Claude/proxy unavailable during Phase 2A. (${e.message})`); return; } throw e; }
+        if(p2a.parseError){
+          if(fa < 2){ warnYellow('F2', `Phase 2A returned unparseable output (${p2a.parseError}). Retrying with a raw-JSON-only instruction.`); frameF2hint = true; frameFeedback = ''; continue; }
+          escalateRed('F2', `Claude returned unparseable JSON for Phase 2A after 2 retries. ${p2a.parseError}.`); return;
+        }
+        frameF2hint = false;
+        frame = assignIds(p2a.frame);   // stamp section_/h3_/table_/link_/img_/faq_/cta_/thesis ids on the frame
+        S.frame = frame; S.v1 = frame;  // the in-progress article object (mutated in place from here on)
+
+        // —— TEST INJECTION (M2 verification only) — drop a section from the FRAME ——
+        // 'recover' fires ONLY on the first frame attempt; 'escalate' fires every attempt.
+        let injectedThisAttempt = false;
+        if((inject === 'escalate') || (inject === 'recover' && fa === 0)){
+          if(Array.isArray(frame.sections) && frame.sections.length > 3){
+            frame.sections = frame.sections.slice(0, 3);
+            injectedThisAttempt = true;
+            log(`🧪 TEST INJECTION (mode=${inject}, frame attempt ${fa+1}): dropped sections past index 2 — frame now has ${frame.sections.length} (below the ≥4 minimum). Frame validation should catch this${inject==='recover' ? ' — and it will NOT fire again on the next attempt' : ''}.`, 'warn');
+          }
+        } else if(inject === 'recover' && fa > 0){
+          log(`🧪 TEST INJECTION (mode=recover): no-op on frame attempt ${fa+1} — by design it only fires on attempt 1. Any frame failure now came from Claude, not the test.`, 'info');
+        }
+
+        const fsum = `sections:${frame.sections?.length||0}  faq:${frame.faq?.length||0}  tables:${countTables(frame)}  links:${countLinks(frame)}  images:${countImages(frame)}`;
+        document.getElementById('o2').textContent = '── STRUCTURE FRAME (Phase 2A) ──\n' + JSON.stringify(frame, null, 2).slice(0, 4000);
+        document.getElementById('v1Pre').textContent = JSON.stringify(frame, null, 2);
+        log(`Phase 2A ${fa>0?'(retry '+fa+') ':''}— frame in ${p2a.elapsed}s — ${fsum}`, 'ok');
+
+        // —— JS FRAME VALIDATION (structural minimums only — no DA / prose / table rows yet) ——
+        setG('Phase 2A — validating the frame (JS structural)…', true);
+        const fv = validateV1Structure(frame, S.research, S.docs.doc43B, { frameOnly: true });
+        if(fv.passed){
+          document.getElementById('m2').textContent = `Frame OK (${p2a.elapsed}s) — ${fsum}. Thesis: "${(frame.thesis?.statement||'(missing)').slice(0,90)}…"`;
+          log(`Frame validation PASS on attempt ${fa+1}.`, 'ok');
+          break;
+        }
+        log(`Frame validation: ${fv.structuralFails.length} problem(s) — ${fv.structuralFails.map(f=>f.check).join(', ')}.`, 'warn');
+        document.getElementById('m2').textContent = `Frame validation FAILED — ${fv.structuralFails.length} problem(s)${injectedThisAttempt?'  [🧪 test injection active]':''}: ${fv.structuralFails.map(f=>f.check+(f.id&&f.id!==f.check?'['+f.id+']':'')).join(', ')}`;
+        if(fa < 2){ frameFeedback = formatFrameFeedback(fv.structuralFails, S.research); continue; }
+        setPhase(2, 'error', 'Frame ✗×3');
+        escalateRed('CHK1', `Phase 2A structure frame failed validation after 2 retries (Checkpoint 1). Unresolved: ${fv.structuralFails.map(f=>f.check).join(', ')}. Manual operator review required.`);
+        return;
+      }
+      if(pipelineHalted || !frame) return;
+
+      // ── PHASE 2B — DATA HYDRATION (one call; F2 retries up to 2x; data failures are surfaced by Phase 3, not retried here) ──
+      setG('Phase 2B — Claude DATA HYDRATION (paragraph prose, table data rows citing factClaims, FAQ answers) into the locked frame…', true);
+      setPhase(2, 'active', '2B hydrate');
       let v1 = null;
-      let feedback = '';      // validation problems → fed back into Phase 2
-      let f2hint = false;     // raw-JSON nudge after a parse failure
+      {
+        let p2b = null, bF2hint = false;
+        for(let ba = 0; ba <= 2; ba++){
+          try { p2b = await runPhase2B(akey, frame, bF2hint, ba === 0 ? 'Phase 2B' : `Phase 2B retry ${ba}`); }
+          catch(e){ if(e.f4){ escalateRed('F4', `Claude/proxy unavailable during Phase 2B. (${e.message})`); return; } throw e; }
+          if(p2b.parseError){
+            if(ba < 2){ warnYellow('F2', `Phase 2B returned unparseable output (${p2b.parseError}). Retrying with a raw-JSON-only instruction.`); bF2hint = true; continue; }
+            escalateRed('F2', `Claude returned unparseable JSON for Phase 2B after 2 retries. ${p2b.parseError}.`); return;
+          }
+          break;
+        }
+        if(p2b.stopReason === 'max_tokens'){
+          warnYellow('F3', `Phase 2B hydration hit the token limit (stop_reason=max_tokens). Recovered the partial JSON via the tolerant parser; Phase 3 will flag any node left un-hydrated. Full continuation-merge ships in a later milestone.`);
+        }
+        v1 = mergeHydration(frame, p2b.hydration);   // mutates `frame` in place → it becomes the V1
+        assignIds(v1);                               // assign-if-missing — backfill any node id not already set
+        S.v1 = v1;
+        const rowCount = (v1.sections||[]).reduce((n,s)=>n+(toArray(s.tables).reduce((m,t)=>m+(Array.isArray(t.rows)?t.rows.length:0),0)),0);
+        const paraCount = (v1.sections||[]).reduce((n,s)=>n+(Array.isArray(s.paragraphs)?s.paragraphs.length:0)+toArray(s.h3sections).reduce((m,h)=>m+(Array.isArray(h.paragraphs)?h.paragraphs.length:0),0),0);
+        const sm = `sections:${v1.sections?.length||0}  paras:${paraCount}  faq:${v1.faq?.length||0}  table rows:${rowCount}  tables:${countTables(v1)}  images:${countImages(v1)}`;
+        document.getElementById('o2').textContent = '── V1 (frame + Phase 2B hydration) ──\n' + JSON.stringify(v1, null, 2).slice(0, 4000);
+        document.getElementById('v1Pre').textContent = JSON.stringify(v1, null, 2);
+        document.getElementById('m2').textContent = `V1 hydrated (${p2b.elapsed}s) — ${sm}. DA: ${(v1.directAnswer?.prose||'').trim().split(/\s+/).filter(Boolean).length} words.`;
+        setPhase(2, 'done', `V1 ${p2b.elapsed}s`);
+        log(`Phase 2B complete — ${sm}.`, 'ok');
+      }
+
+      // ── PHASE 3 (3A structural + 3B Gemini semantic) + SURGICAL RETRY (max 2 rounds; never regenerates the V1) ──
       let lastValidation = null;
       for(let attempt = 0; attempt <= 2; attempt++){
-        // —— Phase 2 ——
-        setG(attempt === 0 ? 'Phase 2 — Claude V1 via Tool Use (cached context)…' : `Phase 2 — regenerating V1 with validation feedback (retry ${attempt}/2)…`, true);
-        const label = attempt === 0 ? 'Phase 2' : `Phase 2 retry ${attempt}`;
-        let p2;
-        try { p2 = await runPhase2(akey, feedback, f2hint, label); }
-        catch(e){
-          if(e.f4){ escalateRed('F4', `Claude/proxy unavailable after retries during Phase 2. (${e.message})`); return; }
-          // Network/abort/stream errors → surface
-          throw e;
-        }
-        // F2: unparseable output
-        if(p2.parseError){
-          if(attempt < 2){ warnYellow('F2', `Phase 2 returned unparseable output (${p2.parseError}). Retrying with a raw-JSON-only instruction.`); f2hint = true; feedback = ''; continue; }
-          escalateRed('F2', `Claude returned unparseable JSON for Phase 2 after 2 retries. ${p2.parseError}. ${p2.rawFragment ? 'Fragment: ' + p2.rawFragment.slice(0,200) : ''}`); return;
-        }
-        f2hint = false;
-        // F3: truncation
-        if(p2.stopReason === 'max_tokens'){
-          warnYellow('F3', `Phase 2 response hit the token limit (stop_reason=max_tokens). Recovered the partial JSON via the tolerant parser; Phase 3 will catch any structural shortfall. Full continuation-merge ships with Phase 5 (Milestone 4).`);
-        }
-        v1 = assignIds(p2.v1);
-        S.v1 = v1;
-        const summary = `sections:${v1.sections?.length||0}  faq:${v1.faq?.length||0}  tables:${countTables(v1)}  links:${countLinks(v1)}  images:${countImages(v1)}`;
-        document.getElementById('o2').textContent = JSON.stringify(v1, null, 2).slice(0, 4000);
-        document.getElementById('m2').textContent = `${label}: V1 in ${p2.elapsed}s — ${summary}. Thesis: "${v1.thesis?.statement?.slice(0,90)||'(missing)'}…"`;
-        document.getElementById('v1Pre').textContent = JSON.stringify(v1, null, 2);
-        setPhase(2, 'done', `V1 ${p2.elapsed}s`);
-        log(`Phase 2 ${attempt>0?'(retry '+attempt+') ':''}complete — ${summary}`, 'ok');
-
-        // —— TEST INJECTION (M2 verification only — Operator Setup → Test injection) ——
-        // 'recover' fires ONLY on attempt 0 (the first iteration). 'escalate' fires every attempt.
-        const inject = document.getElementById('testInjection')?.value || 'off';
-        let injectedThisAttempt = false;
-        if((inject === 'escalate') || (inject === 'recover' && attempt === 0)){
-          if(Array.isArray(v1.sections) && v1.sections.length > 3){
-            v1.sections = v1.sections.slice(0, 3);
-            injectedThisAttempt = true;
-            log(`🧪 TEST INJECTION (mode=${inject}, attempt ${attempt+1}): dropped sections past index 2 — V1 now has ${v1.sections.length} sections (below the ≥4 minimum). Phase 3A should catch this. ${inject==='recover' ? 'This will NOT fire again on the next attempt.' : ''}`, 'warn');
-            document.getElementById('v1Pre').textContent = JSON.stringify(v1, null, 2);
-          }
-        } else if(inject === 'recover' && attempt > 0){
-          log(`🧪 TEST INJECTION (mode=recover): NOT firing on attempt ${attempt+1} — by design it only fires on attempt 1. If Phase 3 still reports a section_count failure now, that came from Claude, not the test.`, 'info');
-        }
-
-        // —— Phase 3A (JS structural) ——
-        setG('Phase 3A — JS structural validation…', true);
+        // 3A structural
+        setG('Phase 3A — JS structural validation (incl. every table row cites a Phase 1 factClaim)…', true);
         setPhase(3, 'active', 'Validating 3A');
         document.getElementById('sb3').classList.add('open'); document.getElementById('c3').classList.remove('closed');
         const v3a = validateV1Structure(v1, S.research, S.docs.doc43B);
-
-        // —— Phase 3B (Gemini semantic) ——
-        setG('Phase 3B — Gemini semantic validation (claims vs research brief + thesis anchor)…', true);
-        setPhase(3, 'active', 'Validating 3B');
-        const v3b = await validateV1Semantic(v1, S.research, gkey);
-        if(pipelineHalted) return; // F19 RED inside validateV1Semantic
+        let semanticFails = [];
+        if(v3a.passed){
+          // 3B semantic — only when the structure is clean (skip the Gemini call otherwise, per spec)
+          setG('Phase 3B — Gemini semantic validation (claims vs research brief + thesis anchor)…', true);
+          setPhase(3, 'active', 'Validating 3B');
+          const v3b = await validateV1Semantic(v1, S.research, gkey);
+          if(pipelineHalted) return; // F19 RED inside validateV1Semantic
+          semanticFails = v3b.semanticFails || [];
+        } else {
+          log(`Phase 3A found ${v3a.structuralFails.length} structural problem(s) — skipping the Gemini semantic call this round (per spec).`, 'warn');
+        }
         const structuralFails = v3a.structuralFails;
-        const semanticFails = v3b.semanticFails || [];
         const passed = structuralFails.length === 0 && semanticFails.length === 0;
         lastValidation = { structuralFails, semanticFails, passed };
         S.validation = lastValidation;
-        renderPhase3(structuralFails, semanticFails, attempt, passed, injectedThisAttempt);
-        document.getElementById('m3').textContent = `Attempt ${attempt+1} of 3 (${attempt===0?'initial':'retry '+attempt+'/2'}): 3A=${structuralFails.length} structural fail(s), 3B=${semanticFails.length} semantic fail(s) → ${passed ? 'PASS' : 'FAIL'}`;
+        renderPhase3(structuralFails, semanticFails, attempt, passed, false);
+        document.getElementById('m3').textContent = `Attempt ${attempt+1} of 3 (${attempt===0?'initial validation':'after surgical fix '+attempt+'/2'}): 3A=${structuralFails.length} structural fail(s), 3B=${v3a.passed ? (semanticFails.length+' semantic fail(s)') : 'skipped (3A failed)'} → ${passed?'PASS':'FAIL'}`;
 
-        if(passed){
-          setPhase(3, 'done', 'PASS ✓');
-          log(`Phase 3 PASS on attempt ${attempt+1}.`, 'ok');
-          break;
+        if(passed){ setPhase(3, 'done', 'PASS ✓'); log(`Phase 3 PASS on attempt ${attempt+1}.`, 'ok'); break; }
+
+        if(attempt >= 2){
+          setPhase(3, 'error', 'Failed × 3');
+          escalateRed('CHK1', `V1 failed validation after 2 surgical retries (Checkpoint 1). Unresolved: ${structuralFails.length} structural + ${semanticFails.length} semantic. See the Phase 3 card. Manual operator review required.`);
+          return;
         }
-        // FAIL
-        if(attempt < 2){
-          setPhase(3, 'active', `Fail → retry ${attempt+1}`);
-          feedback = formatValidationFeedback(structuralFails, semanticFails, S.research);
-          log(`Phase 3 found ${structuralFails.length + semanticFails.length} issue(s) — looping to Phase 2 with feedback (retry ${attempt+1}/2).`, 'warn');
-          continue;
+
+        // —— SURGICAL FIX: build packets for the failing nodes ONLY, one micro-call, apply in place ——
+        const { packets, unmappable } = buildFixPackets(v1, structuralFails, semanticFails);
+        if(unmappable.length){
+          // count failures etc. aren't node-level — that means the frame regressed; bail rather than spin
+          setPhase(3, 'error', 'Frame regression');
+          escalateRed('CHK1', `Phase 3 surfaced structural problems that aren't node-level and can't be surgically fixed (${unmappable.join(', ')}) — the frame would need rebuilding. Manual operator review required. Code: CHK1`);
+          return;
         }
-        // exhausted → Checkpoint 1 RED
-        setPhase(3, 'error', 'Failed × 3');
-        escalateRed('CHK1', `V1 failed validation after 2 retries (Checkpoint 1). ${structuralFails.length} structural + ${semanticFails.length} semantic problem(s) unresolved — manual operator review required. See Phase 3 card for the list.`);
-        return;
+        if(!packets.length){
+          setPhase(3, 'error', 'No fixable node');
+          escalateRed('CHK1', `Phase 3 failed but produced no addressable node to fix — likely a Gemini targetId that doesn't exist in the V1. Manual operator review required.`);
+          return;
+        }
+        setPhase(3, 'active', `Fail → surgical fix ${attempt+1}`);
+        setG(`Phase 3 found ${structuralFails.length + semanticFails.length} issue(s) in ${packets.length} node(s) — running a surgical micro-call to fix ONLY those (round ${attempt+1}/2)…`, true);
+        log(`Surgical fix round ${attempt+1}: ${packets.length} node(s) — ${packets.map(p=>p.targetId).join(', ')}.`, 'warn');
+        let fix;
+        try { fix = await runSurgicalFix(akey, packets, `Surgical fix ${attempt+1}`); }
+        catch(e){ if(e.f4){ escalateRed('F4', `Claude/proxy unavailable during the surgical fix call. (${e.message})`); return; } throw e; }
+        if(fix.parseError){
+          warnYellow('F2', `Surgical fix call returned unparseable output (${fix.parseError}) — that round produced no corrections; re-validating.`);
+        } else {
+          const { applied, orphaned } = applyCorrections(v1, fix.corrections);
+          assignIds(v1); // backfill ids on any node whose contents were just rewritten (rows etc.)
+          log(`Surgical fix applied: ${applied} correction(s)${orphaned?`, ${orphaned} ignored (bad targetId or missing field)`:''}.`, applied?'ok':'warn');
+          if(orphaned > 0 && orphaned >= applied) warnYellow('F13', `Surgical fix returned ${orphaned} correction(s) that didn't map to a valid node/field (vs ${applied} that did) — re-validating; if this exhausts retries it's CHK1.`);
+        }
+        S.v1 = v1;
+        document.getElementById('o2').textContent = `── V1 (after surgical fix ${attempt+1}) ──\n` + JSON.stringify(v1, null, 2).slice(0, 4000);
+        document.getElementById('v1Pre').textContent = JSON.stringify(v1, null, 2);
+        // loop → re-validate
       }
       if(pipelineHalted || !v1) return;
 
@@ -2020,9 +2396,11 @@ Output the JSON now.`;
       deepFreeze(v1);
       S.v1Frozen = true;
       const artifactKey = saveV1Artifact(S.client.name, v1);
+      const _rowCount = (v1.sections||[]).reduce((n,s)=>n+(toArray(s.tables).reduce((m,t)=>m+(Array.isArray(t.rows)?t.rows.length:0),0)),0);
+      const _daWords = (v1.directAnswer?.prose||'').trim().split(/\s+/).filter(Boolean).length;
       document.getElementById('o4').textContent =
-        `V1 frozen — Object.frozen=${Object.isFrozen(v1)} (recursive).\n` +
-        `Structural minimums met: sections=${v1.sections.length}, faq=${v1.faq.length}, tables=${countTables(v1)}, images=${countImages(v1)}.\n` +
+        `V1 frozen — Object.frozen=${Object.isFrozen(v1)} (recursive). Built two-pass: 2A frame → 2B hydration → JS merge.\n` +
+        `Structural minimums met: sections=${v1.sections.length}, faq=${v1.faq.length}, tables=${countTables(v1)} (rows=${_rowCount}, each row citing a Phase 1 factClaim), images=${countImages(v1)}, DA=${_daWords} words.\n` +
         `Thesis: "${v1.thesis?.statement || '(none)'}"\n` +
         (artifactKey ? `Snapshot saved to localStorage key: ${artifactKey}` : 'Snapshot save failed (see YELLOW F16).') +
         `\nBones are immutable from here. Phases 5 / 5.5 (Milestones 3–4) may only rewrite prose against assigned IDs — they physically cannot move the structure.`;
@@ -2066,10 +2444,10 @@ Output the JSON now.`;
     }
   }
 
-  // Cache verification: re-run Phase 2 with the same context. If the first run wrote the
-  // cache and we're within the ~5-min TTL, this second run should report cache_read > 0
-  // and cache_creation = 0 → verdict HIT. Streams live so it never looks stalled; aborts
-  // on watchdog timeout so a real hang surfaces as an error instead of hanging forever.
+  // Cache verification: re-run Phase 2A with the SAME cached context block. Both the real
+  // Phase 2A/2B/surgical-fix calls and this one share that block byte-for-byte, so within the
+  // ~5-min TTL this run reports cache_read > 0, cache_creation = 0 → verdict HIT. Streams live
+  // so it never looks stalled; aborts on watchdog timeout so a real hang surfaces as an error.
   function setCacheBtnsDisabled(disabled){
     ['cacheBtn','cacheBtnPanel'].forEach(id=>{ const b=document.getElementById(id); if(b) b.disabled = disabled; });
   }
@@ -2082,20 +2460,20 @@ Output the JSON now.`;
     document.getElementById('runBtn').disabled = true;
     setCacheBtnsDisabled(true);
     document.getElementById('stopBtn').style.display = 'flex';
-    setG('Cache verification — re-running Phase 2 with the same context. Watch it stream in the V1 JSON tab.', true);
+    setG('Cache verification — re-running Phase 2A with the same cached context. Watch it stream in the V1 JSON tab.', true);
     setPhase(2, 'active', 'Cache test');
     document.getElementById('sb2').classList.add('open');
     document.getElementById('c2').classList.remove('closed');
-    document.getElementById('o2').textContent = '⏳ Connecting to Claude (cache verification run)…';
+    document.getElementById('o2').textContent = '⏳ Connecting to Claude (cache verification — re-running Phase 2A)…';
     switchTab('v1json');
     startTimer();
     const t = Date.now();
     try {
       const result = await callClaude({
-        systemBlocks: buildPhase2SystemBlocks(),
-        userText: buildPhase2UserText(),
-        tools: [V1_TOOL],
-        toolChoice: { type:'tool', name:'submit_v1_article' },
+        systemBlocks: buildPhase2ASystem(),
+        userText: buildPhase2AUserText(),
+        tools: [V1_FRAME_TOOL],
+        toolChoice: { type:'tool', name:'submit_v1_frame' },
         akey,
         onProgress: makePhase2Progress('Cache test'),
         timeoutMs: 300000
@@ -2105,16 +2483,15 @@ Output the JSON now.`;
       const verdict = S.cacheLog[S.cacheLog.length-1].verdict;
       const isHit = verdict.startsWith('HIT');
       setPhase(2, isHit ? 'done' : 'error', isHit ? `Cache HIT ${elapsed}s` : `Cache ${verdict}`);
-      // Refresh the o2/m2 boxes with the parsed result so it doesn't sit on the streaming view
+      // Refresh the o2/m2 boxes with the parsed frame so it doesn't sit on the streaming view
       if(result.toolCalls.length && !result.toolCalls[0].input.__parse_error){
-        const v1b = assignIds(result.toolCalls[0].input);
-        document.getElementById('o2').textContent = JSON.stringify(v1b, null, 2).slice(0, 4000);
-        document.getElementById('v1Pre').textContent = JSON.stringify(v1b, null, 2);
+        const fb = result.toolCalls[0].input;
+        document.getElementById('o2').textContent = '── (cache-test frame — not used by the pipeline) ──\n' + JSON.stringify(fb, null, 2).slice(0, 4000);
       }
-      document.getElementById('m2').textContent = `Cache test done in ${elapsed}s — cache_read=${result.usage.cacheRead}, cache_creation=${result.usage.cacheCreate} → ${verdict}`;
+      document.getElementById('m2').textContent = `Cache test (re-ran Phase 2A) done in ${elapsed}s — cache_read=${result.usage.cacheRead}, cache_creation=${result.usage.cacheCreate} → ${verdict}`;
       log(`Cache verification verdict: ${verdict} (cache_read=${result.usage.cacheRead}, cache_creation=${result.usage.cacheCreate})`, isHit ? 'ok' : 'warn');
       setG(isHit
-        ? `✓ CACHE HIT CONFIRMED. cache_read_input_tokens=${result.usage.cacheRead}, cache_creation_input_tokens=${result.usage.cacheCreate}. Milestone 1 caching verification complete.`
+        ? `✓ CACHE HIT CONFIRMED. cache_read_input_tokens=${result.usage.cacheRead}, cache_creation_input_tokens=${result.usage.cacheCreate}. Caching verification complete.`
         : `Cache verdict: ${verdict} (cache_read=${result.usage.cacheRead}, cache_creation=${result.usage.cacheCreate}). If >5 min passed since the first run the TTL expired — run ⚡ Run Phase 1+2 again then click ↻ Verify Cache promptly.`, false, !isHit);
       switchTab('cache');
     } catch(err){
