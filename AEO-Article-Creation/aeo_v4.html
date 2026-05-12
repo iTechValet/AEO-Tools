@@ -57,6 +57,7 @@
   .stat-value.green { color:var(--green); }
   .stat-value.accent { color:var(--accent); }
   .stat-value.red { color:var(--red); }
+  .health-dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:currentColor; vertical-align:middle; margin-right:6px; }
   .stat-divider { width:1px; height:32px; background:var(--border); align-self:center; }
 
   .gstatus { font-size:12px; color:var(--accent); min-height:16px; font-weight:400; padding:6px 0 2px; }
@@ -120,7 +121,7 @@
   .cache-log-row { padding:10px 12px; border-bottom:1px solid var(--border); font-size:12px; display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr; gap:8px; align-items:center; }
   .cache-log-row.header { font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1.5px; color:var(--blue); opacity:.6; background:#eef3f8; }
   .cache-log-row .verdict.hit { color:var(--green); font-weight:600; }      /* YES / CREATED */
-  .cache-log-row .verdict.partial { color:var(--orange); font-weight:600; } /* PARTIAL */
+  .cache-log-row .verdict.partial { color:var(--accent); font-weight:600; } /* PARTIAL — expected on every relay call; informational (blue), not a warning */
   .cache-log-row .verdict.miss { color:var(--red); font-weight:600; }       /* MISS */
 
   .runlog { font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.6; }
@@ -348,7 +349,7 @@
       <div class="cp-label">Topic — exact match to sheet</div>
       <input class="cp-input" type="text" id="topicInput" placeholder="Paste topic exactly as it appears in the sheet..." />
     </div>
-    <button class="btn-run" id="runBtn" onclick="startPipeline()">⚡ Run Phase 1+2</button>
+    <button class="btn-run" id="runBtn" onclick="startPipeline()">⚡ Run</button>
     <button class="btn-stop" id="stopBtn" onclick="stopPipeline()">⬛ Stop</button>
   </div>
   <!-- Hidden helper id so legacy references stay valid; the real visible button lives in the Cache Stats tab. -->
@@ -392,8 +393,8 @@
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item">
-        <div class="stat-label">Cache Verdict</div>
-        <div class="stat-value accent" id="cacheVerdict">—</div>
+        <div class="stat-label">Pipeline Health</div>
+        <div class="stat-value green" id="pipelineHealth" title="0 RED escalation(s) · 0 YELLOW warning(s)"><span class="health-dot"></span>HEALTHY</div>
       </div>
     </div>
   </div>
@@ -869,7 +870,6 @@
     { const e=document.getElementById('schemaPre'); if(e) e.textContent='A basic Article + FAQPage JSON-LD stub appears here after Phase 5. The full schema graph = Milestone 5.'; }
     document.getElementById('htmlPre').textContent='The Phase 7 (Final Assembly) stub HTML appears here.';
     setCacheBtnsDisabled(true);
-    { const cv = document.getElementById('cacheVerdict'); cv.textContent = '—'; cv.className = 'stat-value accent'; }
     setG(S.client ? `Client: ${S.client.name} [${getClientMode(S.client.name)}]. Ready.` : 'Ready. Select client, paste topic, hit Run.');
   }
 
@@ -979,7 +979,8 @@
           `Last call — cache_read: ${g('lastRead')}`,
           `Last call — input (uncached): ${g('lastInput')}`,
           `Last call — output: ${g('lastOutput')}`,
-          `Cache verdict: ${g('cacheVerdict')}`,
+          `Most recent cache verdict: ${(S.cacheLog && S.cacheLog.length) ? S.cacheLog[S.cacheLog.length-1].verdict : '—'}`,
+          `Pipeline health: ${((document.getElementById('pipelineHealth')?.textContent) || '').trim() || '—'}`,
           '',
           '# | Phase | Cache Write | Cache Read | Verdict | Time'
         ];
@@ -1954,11 +1955,11 @@ CRITICAL: You MUST use the hydrate_content_block tool and return a "nodes" array
   // Cache verdict names + colours:
   //   YES     = this call READ the cache (cacheRead>0, cacheCreate=0)      → green
   //   CREATED = this call WROTE the cache (cacheRead=0, cacheCreate>0)      → green
-  //   PARTIAL = both read and wrote (cacheRead>0, cacheCreate>0)           → orange
+  //   PARTIAL = both read and wrote (cacheRead>0, cacheCreate>0)           → blue (INFORMATIONAL — this is expected on every relay call, never a warning)
   //   MISS    = no cache read and nothing written (cacheRead=0, write=0)   → red
   function verdictStyle(v){
     if(v === 'YES' || v === 'CREATED') return { statClass:'green', rowClass:'hit', level:'ok' };
-    if(v === 'PARTIAL')                 return { statClass:'orange', rowClass:'partial', level:'warn' };
+    if(v === 'PARTIAL')                 return { statClass:'accent', rowClass:'partial', level:'info' };
     return { statClass:'red', rowClass:'miss', level:'err' }; // MISS (and any unexpected value)
   }
   function logCacheCall(phase, usage){
@@ -1979,10 +1980,7 @@ CRITICAL: You MUST use the hydrate_content_block tool and return a "nodes" array
     document.getElementById('lastRead').textContent = usage.cacheRead.toLocaleString();
     document.getElementById('lastInput').textContent = usage.input.toLocaleString();
     document.getElementById('lastOutput').textContent = usage.output.toLocaleString();
-    const cv = document.getElementById('cacheVerdict');
-    cv.textContent = verdict;
-    cv.className = 'stat-value ' + verdictStyle(verdict).statClass;
-    renderCacheLog();
+    renderCacheLog();   // the per-call verdict lives in the Cache Stats table + the run log (the old header "Cache Verdict" stat was replaced by Pipeline Health)
     log(`Phase ${phase} cache → write:${usage.cacheCreate} read:${usage.cacheRead} input:${usage.input} output:${usage.output} → ${verdict}`,
         verdictStyle(verdict).level);
   }
@@ -2017,12 +2015,15 @@ CRITICAL: You MUST use the hydrate_content_block tool and return a "nodes" array
     renderEscalationPanel();
     setEscOpen(true);
   }
+  // Codes that are informational (no retry, no dropped content) → logged BLUE in the run log, not orange.
+  // (They still count as YELLOW warnings for the rolling list + the Pipeline Health indicator.)
+  const INFO_YELLOW_CODES = new Set(['F11','F12','F16']);
   function warnYellow(code, msg){
     const entry = { code, msg, ts: new Date().toLocaleString() };
     yellowWarnings.unshift(entry);
     if(yellowWarnings.length > 10) yellowWarnings = yellowWarnings.slice(0, 10);
     saveYellowWarnings();
-    log(`YELLOW [${code}]: ${msg}`, 'warn');
+    log(`YELLOW [${code}]: ${msg}`, INFO_YELLOW_CODES.has(code) ? 'info' : 'warn');
     renderEscalationPanel();
   }
   function loadYellowWarnings(){
@@ -2040,9 +2041,24 @@ CRITICAL: You MUST use the hydrate_content_block tool and return a "nodes" array
     document.getElementById('escChev').classList.toggle('closed', !open);
   }
   function toggleEsc(){ setEscOpen(!document.getElementById('escBody').classList.contains('open')); }
+  // Header "Pipeline Health" indicator — green dot + HEALTHY (no REDs, <3 YELLOWs) · orange dot +
+  // WARNINGS (no REDs, ≥3 YELLOWs) · red dot + ERROR (any RED escalation). Re-rendered by
+  // renderEscalationPanel() so it tracks every warnYellow / escalateRed / clear* in real time.
+  function renderPipelineHealth(){
+    const el = document.getElementById('pipelineHealth'); if(!el) return;
+    const reds = (S.escalationsRed || []).length, yels = (yellowWarnings || []).length;
+    let cls, label;
+    if(reds > 0){ cls = 'red'; label = 'ERROR'; }
+    else if(yels >= 3){ cls = 'orange'; label = 'WARNINGS'; }
+    else { cls = 'green'; label = 'HEALTHY'; }
+    el.className = 'stat-value ' + cls;
+    el.innerHTML = '<span class="health-dot"></span>' + label;
+    el.title = `${reds} RED escalation(s) · ${yels} YELLOW warning(s)`;
+  }
   function renderEscalationPanel(){
     const panel = document.getElementById('escPanel');
     const redN = S.escalationsRed.length, yelN = yellowWarnings.length;
+    renderPipelineHealth();   // keep the header health indicator in sync with every change
     document.getElementById('escRedCount').textContent = `${redN} RED`;
     document.getElementById('escRedCount').className = 'esc-count' + (redN ? ' red' : '');
     document.getElementById('escYellowCount').textContent = `${yelN} YELLOW`;
@@ -3480,7 +3496,6 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     S.phaseBuf = {};
     _idCounter = 0; // ids are unique per run; reset once here, not per assignIds() call
     updateCost(); renderCacheLog();
-    { const cv = document.getElementById('cacheVerdict'); cv.textContent = '—'; cv.className = 'stat-value accent'; }
     setCacheBtnsDisabled(true);
     clearYellowWarnings();   // YELLOW warnings reset at the start of every run (RED behavior unchanged)
     clearRunEscalations();   // clears this run's RED list + re-renders the panel (now empty of both)
@@ -3893,7 +3908,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
   }
   async function repeatPhase2(){
     if(running){ log('A run is already in progress.', 'warn'); return; }
-    if(!S.research || !S.docs.doc43A){ alert('Run the full pipeline (⚡ Run Phase 1+2) first — there is no context to re-send yet.'); return; }
+    if(!S.research || !S.docs.doc43A){ alert('Run the full pipeline (⚡ Run) first — there is no context to re-send yet.'); return; }
     const akey = document.getElementById('keyAnthropic').value.trim();
     if(!akey){ alert('Anthropic API key required.'); return; }
     running = true;
@@ -3930,7 +3945,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       log(`Cache verification verdict: ${verdict} (cache_read=${result.usage.cacheRead}, cache_creation=${result.usage.cacheCreate})`, isHit ? 'ok' : 'warn');
       setG(isHit
         ? `✓ CACHE READ CONFIRMED — verdict YES. cache_read_input_tokens=${result.usage.cacheRead}, cache_creation_input_tokens=${result.usage.cacheCreate}. Caching verification complete.`
-        : `Cache verdict: ${verdict} (cache_read=${result.usage.cacheRead}, cache_creation=${result.usage.cacheCreate}). If >5 min passed since the first run the TTL expired — run ⚡ Run Phase 1+2 again then click ↻ Verify Cache promptly.`, false, !isHit);
+        : `Cache verdict: ${verdict} (cache_read=${result.usage.cacheRead}, cache_creation=${result.usage.cacheCreate}). If >5 min passed since the first run the TTL expired — run ⚡ Run again then click ↻ Verify Cache promptly.`, false, !isHit);
       switchTab('cache');
     } catch(err){
       console.error(err);
@@ -4104,16 +4119,38 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     regenImg(idx);
   }
 
+  // 2.5–5s jittered delay before every sequential image API call (spreads the load so we don't hammer the API).
+  function imageJitterWait(){ const jitter = Math.floor(Math.random() * 2500) + 2500; return new Promise(resolve => setTimeout(resolve, jitter)); }
+
   async function genAllImages(prompts, gkey, attemptId){
     let failed = 0;
-    for(let i=0;i<prompts.length;i++){
-      if(attemptId !== S.imageAttemptId){ log('M3.5 — image queue is stale (frame changed); stopping generation.', 'warn'); return; } // flushed / superseded
+    const requeue = []; // indices that hit a capacity / rate-limit / timeout / network failure on attempts 1+2 — retried at the BACK of the queue (attempt 3), after all others finish
+    for(let i = 0; i < prompts.length; i++){
+      if(attemptId !== S.imageAttemptId){ log('M3.5 — image queue is stale (frame changed); stopping generation.', 'info'); return; } // flushed / superseded
       // progress shows in the Image panel (#imgBadge / #imgHint / per-card badges) — the global status line stays with the pipeline phase
       const badge0 = document.getElementById('imgBadge'); if(badge0){ badge0.textContent = `Generating ${i+1}/${prompts.length}… · ${attemptId}`; badge0.className = 'img-panel-badge'; }
       const hint = document.getElementById('imgHint'); if(hint) hint.textContent = `Generating image ${i+1} of ${prompts.length} (background) — upload finished ones to WordPress and paste the URLs as they come in.`;
-      try { await genOneImage(prompts[i].prompt, prompts[i].alt, i, gkey, attemptId); }
+      await imageJitterWait();
+      if(attemptId !== S.imageAttemptId) return;
+      try { await genOneImage(prompts[i].prompt, prompts[i].alt, i, gkey, attemptId, false); }
+      catch(err){
+        if(attemptId !== S.imageAttemptId) return;
+        if(err && err.requeue){
+          requeue.push(i);
+          const b = document.getElementById(`ib${i}`); if(b){ b.className = 'sbadge b-running'; b.textContent = 'Queued for retry…'; }
+          log(`M3.5 — image ${i+1} hit ${err.message || 'a transient failure'} on attempts 1–2 — pushed to the back of the queue for a final retry after the others finish.`, 'info');
+        } else { showImgErr(i, err.message || String(err)); failed++; }
+      }
+    }
+    // —— back-of-queue final pass (attempt 3): one 90s shot each, no further requeue ——
+    if(requeue.length) log(`M3.5 — running the final retry pass for ${requeue.length} requeued image(s).`, 'info');
+    for(const i of requeue){
+      if(attemptId !== S.imageAttemptId) return;
+      const hint = document.getElementById('imgHint'); if(hint) hint.textContent = `Final retry for image ${i+1} (it was queued earlier)…`;
+      await imageJitterWait();
+      if(attemptId !== S.imageAttemptId) return;
+      try { await genOneImage(prompts[i].prompt, prompts[i].alt, i, gkey, attemptId, true); } // finalPass = true → single 90s attempt, no requeue
       catch(err){ if(attemptId !== S.imageAttemptId) return; showImgErr(i, err.message || String(err)); failed++; }
-      if(i < prompts.length-1) await sleep(1500);
     }
     if(attemptId !== S.imageAttemptId) return;
     const badge = document.getElementById('imgBadge');
@@ -4124,15 +4161,24 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     checkUrls();
   }
 
-  async function genOneImage(prompt, alt, idx, gkey, attemptId){
+  // Generate one image. When !finalPass: up to 2 in-line attempts — attempt 1 with a 35s timeout, then
+  // (if it fails) attempt 2 IMMEDIATELY with a 45s timeout. If both fail with a transient error
+  // (capacity 503 / rate-limit 429 / timeout / network), throws Error with .requeue = true so the caller
+  // pushes this index to the back of the queue for a final attempt. A non-transient failure (bad key,
+  // "no image returned", etc.) throws with .requeue = false. When finalPass: ONE 90s attempt, no requeue.
+  async function genOneImage(prompt, alt, idx, gkey, attemptId, finalPass){
     const badge = document.getElementById(`ib${idx}`);
-    const TIMEOUT_MS = 90000, MAX_RETRIES = 3, RETRY_WAIT_MS = 5000;
-    for(let attempt=1; attempt<=MAX_RETRIES; attempt++){
+    const ATTEMPT_TIMEOUTS = finalPass ? [90000] : [35000, 45000]; // attempt 1 → 35s · attempt 2 → 45s (immediate) · final back-of-queue retry → 90s
+    const N = ATTEMPT_TIMEOUTS.length;
+    const setBadge = a => { if(badge){ badge.className = 'sbadge b-running'; badge.textContent = finalPass ? 'Final retry (90s)…' : (a === 0 ? 'Generating…' : 'Retry 2/2 (45s)…'); } };
+    const terminal = (msg, requeue) => Object.assign(new Error(msg), { requeue: requeue });
+    let lastReason = 'generation failed';
+    for(let a = 0; a < N; a++){
       if(attemptId !== S.imageAttemptId) return; // flushed mid-flight
-      if(badge){ badge.className = 'sbadge b-running'; badge.textContent = attempt===1 ? 'Generating…' : `Retrying ${attempt}/${MAX_RETRIES}…`; }
+      setBadge(a);
       const controller = new AbortController();
       _activeImgAbort = controller;
-      const timeoutId = setTimeout(()=>controller.abort(new Error('Image generation timed out')), TIMEOUT_MS);
+      const timeoutId = setTimeout(()=>controller.abort(new Error('Image generation timed out')), ATTEMPT_TIMEOUTS[a]);
       try {
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMG_MODEL}:generateContent?key=${gkey}`, {
           method:'POST', headers:{'Content-Type':'application/json'},
@@ -4142,20 +4188,21 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
         clearTimeout(timeoutId); _activeImgAbort = null;
         if(attemptId !== S.imageAttemptId) return;
         if(res.status === 503 || res.status === 429){
-          const errType = res.status===503 ? 'capacity' : 'rate limit';
-          if(attempt < MAX_RETRIES){ if(badge){ badge.className='sbadge b-running'; badge.textContent=`Retrying — ${errType} (${attempt}/${MAX_RETRIES})`; } await sleep(RETRY_WAIT_MS); continue; }
-          throw new Error(`${errType} error after ${MAX_RETRIES} attempts — click Regenerate.`);
+          lastReason = (res.status === 503 ? 'a capacity error (503)' : 'a rate-limit error (429)');
+          if(a < N - 1) continue;                       // immediate retry — straight to the next (longer-timeout) attempt
+          throw terminal(lastReason, !finalPass);
         }
         const data = await res.json();
         if(data.error){
-          const errMsg = (data.error.message||'').toLowerCase();
-          const isCapacity = errMsg.includes('overload') || errMsg.includes('capacity') || errMsg.includes('quota') || errMsg.includes('rate');
-          if(isCapacity && attempt < MAX_RETRIES){ if(badge){ badge.className='sbadge b-running'; badge.textContent=`Retrying — capacity (${attempt}/${MAX_RETRIES})`; } await sleep(RETRY_WAIT_MS); continue; }
-          throw new Error(data.error.message || 'Image API error');
+          const errMsg = (data.error.message || '').toLowerCase();
+          const isTransient = errMsg.includes('overload') || errMsg.includes('capacity') || errMsg.includes('quota') || errMsg.includes('rate') || errMsg.includes('busy') || errMsg.includes('try again') || errMsg.includes('unavailable');
+          lastReason = data.error.message || 'image API error';
+          if(isTransient && a < N - 1) continue;
+          throw terminal(lastReason, !finalPass && isTransient);   // non-transient (e.g. bad key) → don't requeue, it'd just fail the same way
         }
         const parts = data.candidates?.[0]?.content?.parts || [];
         const imgPart = parts.find(p=>p.inlineData);
-        if(!imgPart) throw new Error('No image returned — check the Gemini API key and quota.');
+        if(!imgPart) throw terminal('No image returned — check the Gemini API key and quota.', false);
         const conv = await toWebP(imgPart.inlineData.data, imgPart.inlineData.mimeType || 'image/png');
         if(attemptId !== S.imageAttemptId) return;
         S.imageData[idx] = conv;
@@ -4175,15 +4222,19 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       } catch(err){
         clearTimeout(timeoutId); _activeImgAbort = null;
         if(attemptId !== S.imageAttemptId) return;
+        if(err && ('requeue' in err)) throw err;        // already one of our terminal errors — propagate as-is
         if(err && err.name === 'AbortError'){
-          if(attempt < MAX_RETRIES){ if(badge){ badge.className='sbadge b-running'; badge.textContent=`Retrying — timeout (${attempt}/${MAX_RETRIES})`; } await sleep(RETRY_WAIT_MS); continue; }
-          throw new Error(`Timed out after ${MAX_RETRIES} attempts (90s each) — click Regenerate.`);
+          lastReason = `timed out (${ATTEMPT_TIMEOUTS[a]/1000}s)`;
+          if(a < N - 1) continue;                       // immediate retry with the longer timeout
+          throw terminal(lastReason, !finalPass);
         }
-        if(attempt === MAX_RETRIES) throw err;
-        if(badge){ badge.className='sbadge b-running'; badge.textContent=`Retrying — error (${attempt}/${MAX_RETRIES})`; }
-        await sleep(RETRY_WAIT_MS);
+        // network / fetch error
+        lastReason = (err && err.message) || String(err) || 'network error';
+        if(a < N - 1) continue;
+        throw terminal(lastReason, !finalPass);
       }
     }
+    throw terminal(lastReason, !finalPass);
   }
 
   function estimateSize(dataUrl){
@@ -4225,7 +4276,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     if(!gkey || !S.imagePrompts[idx]){ alert('Gemini API key required to regenerate.'); return; }
     const rb = document.getElementById(`ir${idx}`); if(rb) rb.disabled = true;
     try {
-      await genOneImage(S.imagePrompts[idx].prompt, S.imagePrompts[idx].alt, idx, gkey, S.imageAttemptId);
+      await genOneImage(S.imagePrompts[idx].prompt, S.imagePrompts[idx].alt, idx, gkey, S.imageAttemptId, true); // manual regen → single 90s attempt, no requeue
       updateImageUIState();
       const total = document.querySelectorAll('.img-card').length || S.imagePrompts.length;
       const ok = Object.keys(S.imageData).length;
