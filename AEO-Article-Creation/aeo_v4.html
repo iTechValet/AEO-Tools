@@ -1241,10 +1241,33 @@ Always invoke submit_v1_hydration; never respond in plain text.`;
     return [ buildPhase2ContextBlock(), { type:'text', text: instr } ];
   }
   function buildPhase2BUserText(frame, f2hint){
-    let t = `Hydrate this VALIDATED STRUCTURE FRAME. Do NOT change any heading, table header, FAQ question, link, or image — only ADD prose, table data rows, and FAQ answers, keyed by the ids below. Call submit_v1_hydration.
+    // Anti-echo: strip empty arrays / empty prose from a CLONE of the frame so Claude never
+    // sees `"paragraphs": []` or `"rows": []` in the input and copies it back. The real frame
+    // object is untouched — mergeHydration still relies on it.
+    const stripEmpties = (v) => {
+      if(Array.isArray(v)) return v.map(stripEmpties);
+      if(v && typeof v === 'object'){
+        const out = {};
+        for(const k of Object.keys(v)){
+          const sv = stripEmpties(v[k]);
+          if(Array.isArray(sv) && sv.length === 0) continue;                  // drop empty arrays (paragraphs:[], rows:[], h3sections:[], links:[], …)
+          if(k === 'prose' && typeof sv === 'string' && !sv.trim()) continue; // drop empty prose
+          out[k] = sv;
+        }
+        return out;
+      }
+      return v;
+    };
+    const leanFrame = stripEmpties(JSON.parse(JSON.stringify(frame)));
+    let t = `CRITICAL HYDRATION RULES:
+1. ANTI-ECHO MANDATE: The frame contains empty arrays. DO NOT echo them back. Your only job is to fill them with newly written content.
+2. NO SKIPPING: Every section and H3 MUST have populated paragraphs. Every FAQ MUST have a written answer.
+3. VERIFICATION: If you return any paragraphs array with 0 items the system will reject your output.
+
+Hydrate this VALIDATED STRUCTURE FRAME. Do NOT change any heading, table header, FAQ question, link, or image — only ADD prose, table data rows, and FAQ answers, keyed by the ids below. Call submit_v1_hydration.
 
 FRAME (JSON):
-${JSON.stringify(frame, null, 2)}
+${JSON.stringify(leanFrame, null, 2)}
 
 AVAILABLE factClaim IDS (cite exactly one per table row; drop any row you cannot support):
 ${factClaimMenu()}`;
@@ -1261,19 +1284,19 @@ ${factClaimMenu()}`;
       properties: {
         directAnswerProse: { type:'string', description:'200-300 words. Plain prose. References the clientSpecificThesis.' },
         ctaHookProse: { type:'string', description:'The prose immediately before the CTA link.' },
-        sections: { type:'array', items: {
+        sections: { type:'array', minItems: 4, description:'CRITICAL: MUST match every section id from the frame. DO NOT return an empty array.', items: {
           type:'object', required:['sectionId','paragraphs'], additionalProperties:false,
           properties: {
             sectionId: { type:'string', description:'Must match a section id from the frame.' },
-            paragraphs: { type:'array', minItems:1, items:{ type:'string' }, description:'Body prose for this H2, one string per paragraph.' },
+            paragraphs: { type:'array', minItems:1, items:{ type:'string' }, description:'CRITICAL: THIS MUST NOT BE EMPTY. Write the prose here. DO NOT echo the empty array from the input frame.' },
             h3sections: { type:'array', items:{ type:'object', required:['h3Id','paragraphs'], additionalProperties:false,
-              properties:{ h3Id:{type:'string'}, paragraphs:{ type:'array', minItems:1, items:{type:'string'} } } } },
+              properties:{ h3Id:{type:'string'}, paragraphs:{ type:'array', minItems:1, items:{type:'string'}, description:'CRITICAL: THIS MUST NOT BE EMPTY. Write the prose here. DO NOT echo the empty array from the input frame.' } } } },
             tables: { type:'array', items:{ type:'object', required:['tableId','rows'], additionalProperties:false,
-              properties:{ tableId:{type:'string'}, rows:{ type:'array', items:{ type:'object', required:['cells','sourceReferenceId'], additionalProperties:false,
+              properties:{ tableId:{type:'string'}, rows:{ type:'array', minItems:1, description:'CRITICAL: Generate at least 1 data row supported by a factClaim. DO NOT return an empty array. Drop the table entirely if no factClaim supports it.', items:{ type:'object', required:['cells','sourceReferenceId'], additionalProperties:false,
                 properties:{ cells:{ type:'array', items:{type:'string'} }, sourceReferenceId:{ type:'string', description:'id of a supporting factClaim from the Phase 1 brief; drop the row if none supports it' } } } } } } }
           }
         }},
-        faq: { type:'array', items:{ type:'object', required:['faqId','answerProse'], additionalProperties:false,
+        faq: { type:'array', minItems: 5, description:'CRITICAL: Every FAQ item MUST have a populated answerProse. DO NOT return an empty array.', items:{ type:'object', required:['faqId','answerProse'], additionalProperties:false,
           properties:{ faqId:{type:'string'}, answerProse:{type:'string'} } } }
       }
     }
@@ -1659,39 +1682,19 @@ ${factClaimMenu()}`;
     return '';
   }
 
-  // 4.3B CTA destination URL — layouts vary by client and the tool ADAPTS to the doc;
-  // clients never rename fields to suit the tool. Known shapes:
-  //   • "Conversion Primary CTA URL: https://…"               (value on the same line)
-  //   • "Primary CTA URL — https://…"                          (same line, dash sep)
-  //   • a "Primary CTA" heading/label, then a "Destination: https://…" line below it
-  //   • "Primary CTA … Destination: /contact"                  (Destination on the CTA line)
-  // Strategy: same-line label patterns first, then anchor on "Primary CTA" and scan the
-  // next ~20 lines for a "Destination:" line, pulling the URL or relative path out of it.
-  function extract43BCtaUrl(doc43B){
-    if(!doc43B) return '';
-    // 1) Explicit same-line labels (legacy + variants)
-    const direct = extract43BField(doc43B, 'Conversion Primary CTA URL')
-                || extract43BField(doc43B, 'Primary CTA URL')
-                || extract43BField(doc43B, 'Conversion Primary CTA Destination')
-                || extract43BField(doc43B, 'Primary CTA Destination');
-    if(direct){ const u = pullUrlOrPath(direct); if(u) return u; }
-    // 2) "Primary CTA" anchor → following "Destination:" line (within a ~20-line window)
-    const lines = doc43B.split(/\r?\n/);
-    for(let i = 0; i < lines.length; i++){
-      if(!/primary\s*cta/i.test(lines[i])) continue;
-      // Destination on the same line as "Primary CTA"?
-      const same = lines[i].match(/destination\s*[:—-]\s*(.+)/i);
-      if(same){ const u = pullUrlOrPath(same[1]); if(u) return u; }
-      // Otherwise scan the next lines for the first "Destination:" line
-      for(let j = i + 1; j < Math.min(lines.length, i + 21); j++){
-        const m = lines[j].match(/destination\s*[:—-]\s*(.+)/i);
-        if(m){ const u = pullUrlOrPath(m[1]); if(u) return u; }
-      }
+  // 4.3B CTA destination URL. The tool ADAPTS to whatever shape 4.3B uses — it looks for
+  // "Primary CTA" and grabs the first http(s) URL within ~150 chars of it (covers a
+  // "Conversion Primary CTA URL: …" / "Primary CTA URL — …" field and a "Destination: …"
+  // line under a "Primary CTA" heading). Clients never rename a 4.3B field to suit the tool.
+  // Returns null if no Primary-CTA URL is found.
+  function extract43BCtaUrl(doc43B) {
+    if (!doc43B || typeof doc43B !== 'string') return null;
+    const regex = /Primary\s+CTA[\s\S]{0,150}?(https?:\/\/[^\s<>"']+)/i;
+    const match = doc43B.match(regex);
+    if (match && match[1]) {
+      return match[1].replace(/[.,;:]$/, '');
     }
-    // 3) Last resort: a standalone "Destination:" line anywhere with a URL on it
-    const anyDest = doc43B.match(/destination\s*[:—-]\s*(.+)/i);
-    if(anyDest){ const u = pullUrlOrPath(anyDest[1]); if(u) return u; }
-    return '';
+    return null;
   }
 
   // ─── PHASE 3A: JS STRUCTURAL VALIDATION ────────────────────
@@ -1822,7 +1825,7 @@ ${factClaimMenu()}`;
       if(norm(ctaUrl) !== norm(expectedCta)) F('cta_url_match', `CTA url == 4.3B Primary CTA destination (${expectedCta})`, ctaUrl, v1.cta?.id);
     } else if(!S.cta43BWarned){
       S.cta43BWarned = true;
-      warnYellow('P3A', 'Could not find a Primary CTA destination URL in 4.3B — looked for "Conversion Primary CTA URL" / "Primary CTA URL" on a line, and for a "Destination:" line under a "Primary CTA" heading. CTA URL match check skipped this run; verify 4.3B has the CTA destination written as a URL somewhere recognizable.');
+      warnYellow('P3A', 'Could not parse Primary CTA URL from 4.3B — CTA URL match check skipped this run.');
     }
     if(!ctaUrl) F('cta_url_present', 'cta.url non-empty', '(empty)', v1.cta?.id);
 
