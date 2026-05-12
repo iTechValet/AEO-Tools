@@ -412,16 +412,19 @@
       </div>
     </div>
 
-    <div class="phase-card stub" id="phase5">
+    <div class="phase-card" id="phase5">
       <div class="phase-header" onclick="togglePhase(5)">
         <div class="phase-num">5</div>
         <div class="phase-info">
           <div class="phase-title">Phase 5 — Voice Draft (Option E unified CoT)</div>
-          <div class="phase-desc">Not implemented yet — Milestone 3</div>
+          <div class="phase-desc">Claude re-voices the frozen V1's PROSE nodes (Direct Answer, body paragraphs, FAQ answers, CTA hook) via submit_voice_draft — voice_architecture first (core conviction, friction setup, callback phrase, pacing strategy, thesis reinforcement), then per-node transition_logic + data_anchors_to_preserve + a pacing_directive (short punch / standard expansion / list extraction) + the rewrite. Intent-matched gold-standard exemplars (optional, from voice_exemplars.txt) + the AI-Tell kill list ride in the cached system prompt. JS validates every targetId against the allowed prose-node ids (5.2/5.3), drops orphans/disallowed (F13), and merges the valid rewrites onto a deep clone of V1 → V2. The frozen V1 bones are never touched. Forensic critique (5.5) + the 6 voice quality checks (5.6) + the retry loop = Milestone 4.</div>
         </div>
-        <div class="phase-right"><div class="pbadge b-stub" id="b5">M3</div><span class="schev closed" id="c5">▼</span></div>
+        <div class="phase-right"><div class="pbadge b-waiting" id="b5">Waiting</div><span class="schev closed" id="c5">▼</span></div>
       </div>
-      <div class="phase-body" id="sb5"><div class="phase-out" id="o5">Pending Milestone 3.</div></div>
+      <div class="phase-body" id="sb5">
+        <div class="phase-out" id="o5"></div>
+        <div class="phase-meta" id="m5"></div>
+      </div>
     </div>
 
     <div class="phase-card stub" id="phase55">
@@ -574,6 +577,9 @@
     v1: null,                 // Phase 2 JSON (frame + 2B hydration, with JS-assigned IDs)
     v1Frozen: false,          // Phase 4
     validation: null,         // { structuralFails:[], semanticFails:[], passed:bool }
+    intentLayer: '',          // Phase 5 — resolved from the 4.2 sheet row's Intent Layer column (F11 → Indirect)
+    voiceExemplars: '',       // Phase 5 — intent-matched gold-standard exemplar text (or '' if none — optional)
+    v2: null,                 // Phase 5 voice draft — deep clone of V1 with prose rewrites + voiceArchitecture (5.5 will modify further)
     htmlStub: '',             // Phase 6 stub output
     tokens: { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 },
     cacheLog: [],             // [{phase, callIndex, cacheCreate, cacheRead, input, output, verdict, ts}]
@@ -716,10 +722,10 @@
     const sel = document.getElementById('clientSelect');
     const clients = JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');
     S.client = sel.value !== '' ? clients[parseInt(sel.value)] : null;
-    S.research=null; S.frame=null; S.v1=null; S.v1Frozen=false; S.validation=null; S.htmlStub=''; S.docs={doc43A:'',doc43B:'',doc44:''};
+    S.research=null; S.frame=null; S.v1=null; S.v1Frozen=false; S.validation=null; S.intentLayer=''; S.voiceExemplars=''; S.v2=null; S.htmlStub=''; S.docs={doc43A:'',doc43B:'',doc44:''};
     S.sheetRow=''; S.sheetRowCols={}; S.cta43BWarned=false; S._extraLinksWarned=false; S.tokens={gi:0,go:0,ci:0,co:0,cacheRead:0,cacheCreate:0}; S.cacheLog=[];
     updateCost(); renderCacheLog(); renderModeUI();
-    ['1','2','3','4','6'].forEach(n=>{ setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
+    ['1','2','3','4','5','6'].forEach(n=>{ setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
     document.getElementById('researchPre').textContent='Phase 1 output appears here.';
     document.getElementById('v1Pre').textContent='Phase 2A frame / Phase 2B-merged V1 appears here.';
     document.getElementById('o3').textContent='';
@@ -2191,6 +2197,317 @@ Output the JSON now.`;
     return { applied, orphaned };
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // PHASE 5 — VOICE DRAFT (Option E Unified Chain-of-Thought)   [Milestone 3]
+  // Claude re-voices the PROSE nodes of the frozen V1 in the client's voice. It is forced to
+  // emit a voice_architecture FIRST (core conviction / friction setup / callback phrase /
+  // pacing strategy / thesis reinforcement), then — per prose node — transition_logic +
+  // data_anchors_to_preserve + a pacing_directive + the rewrite, all in ONE continuous JSON
+  // (Option E — defeats Token Myopia). JS validates every targetId against the allowed prose
+  // nodes (5.2/5.3), drops orphans/disallowed (F13), and merges the valid rewrites onto a deep
+  // clone of V1 → S.v2. The frozen V1 bones are never touched. Phase 5.5 (forensic critique) +
+  // the 6 JS voice-quality checks (5.6) + the retry loop are Milestone 4.
+  // ═══════════════════════════════════════════════════════════
+
+  // AI-TELL KILL LIST — banned in voice prose. Universal across clients; the 4.3B Terminology
+  // Lock terms (inside doc43B, which is in the Phase 5 system prompt) are the per-client layer
+  // on top. Baked into the Phase 5 (and later 5.5) system prompt; the 5.6 regex scan (M4) will
+  // also use it. Editable by the operator; grows as new AI-tells surface in production.
+  const AI_TELL_KILL_LIST = {
+    words: ['delve','navigate','landscape','crucial','vital','robust','tapestry','realm','seamless','paramount','moreover','furthermore','leverage','utilize','facilitate','plethora','myriad','intricate','testament','unlock','elevate','beacon','demystify','comprehensive','transformative','bustling'],
+    phrases: ["in today's digital age","at the end of the day","in the realm of","navigate the landscape","delve into","a robust solution","comprehensive guide","ever-evolving","game-changer","unlock the power of","it's important to note that","whether you are [X] or [Y]"]
+  };
+  function aiTellListText(){
+    return `Banned single words (must NOT appear in your rewrites): ${AI_TELL_KILL_LIST.words.join(', ')}.\n`
+         + `Banned phrases (must NOT appear in your rewrites): ${AI_TELL_KILL_LIST.phrases.map(p=>`"${p}"`).join(', ')}.\n`
+         + `("comprehensive" / "comprehensive guide" are acceptable in metadata only — never in body prose.)`;
+  }
+
+  // ─── INTENT LAYER (from the 4.2 sheet row; F11 fallback → Indirect) ───
+  const INTENT_FALLBACK = { 'Direct':'Indirect', 'Indirect':'Direct', 'Latent':'Indirect', 'Counter':'Indirect', 'Post-Intent':'Latent' };
+  function canonIntent(s){
+    const r = String(s||'').toLowerCase();
+    if(/post/.test(r)) return 'Post-Intent';
+    if(/counter/.test(r)) return 'Counter';
+    if(/latent/.test(r)) return 'Latent';
+    if(/indirect/.test(r)) return 'Indirect';
+    if(/direct/.test(r)) return 'Direct';
+    return null;
+  }
+  function resolveIntentLayer(){
+    const raw = getSheetCol('Intent Layer') || getSheetCol('INTENT_LAYER') || getSheetCol('Intent') || '';
+    const c = canonIntent(raw);
+    if(c) return c;
+    warnYellow('F11', `Intent Layer missing/unrecognized in the 4.2 sheet row ("${(raw||'(empty)').slice(0,40)}") — defaulted to Indirect. Code: F11. Check the row; 4.1 V4.0 should populate this.`);
+    return 'Indirect';
+  }
+
+  // ─── VOICE EXEMPLARS — fetch voice_exemplars.txt (optional), parse markers, route to intent ───
+  // Markers: "=== DIRECT INTENT EXEMPLAR 1 ===" / "=== INDIRECT INTENT EXEMPLAR 1 ===" / etc.
+  // Returns { text, usedIntent, status, count }. status: 'matched' | 'fallback' | 'anyIntent' | 'none' | 'absent' | 'error'.
+  // Exemplars are OPTIONAL — if there's no folderVoiceExemplars file id on the client, returns 'absent' with no warning.
+  async function loadVoiceExemplars(intentLayer, dkey){
+    const fileId = S.client && S.client.folderVoiceExemplars;
+    if(!fileId) return { text:'', usedIntent:null, status:'absent', count:0 };
+    let raw = '';
+    try {
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { 'x-goog-api-key': dkey } });
+      if(!r.ok){ warnYellow('F12', `Could not fetch voice_exemplars.txt (HTTP ${r.status}) — proceeding with no exemplars (voice rules only). Code: F12.`); return { text:'', usedIntent:null, status:'error', count:0 }; }
+      raw = await r.text();
+    } catch(e){ warnYellow('F12', `Could not fetch voice_exemplars.txt (${e.message||e}) — proceeding with no exemplars. Code: F12.`); return { text:'', usedIntent:null, status:'error', count:0 }; }
+    const re = /^[ \t]*={2,}\s*(DIRECT|INDIRECT|LATENT|COUNTER(?:[ \t-]*INTENT)?|POST(?:[ \t-]*INTENT)?)\s+INTENT\s+EXEMPLAR\s+\d+\s*={2,}[ \t]*$/gim;
+    const marks = []; let m;
+    while((m = re.exec(raw)) !== null) marks.push({ intent: canonIntent(m[1]) || 'Direct', start: m.index, end: re.lastIndex });
+    if(!marks.length){ warnYellow('F12', `voice_exemplars.txt has no recognizable "=== <INTENT> INTENT EXEMPLAR n ===" markers — proceeding with no exemplars. Code: F12.`); return { text:'', usedIntent:null, status:'error', count:0 }; }
+    const byIntent = {};
+    for(let i = 0; i < marks.length; i++){
+      const block = raw.slice(marks[i].end, i + 1 < marks.length ? marks[i + 1].start : raw.length).trim();
+      if(block) (byIntent[marks[i].intent] = byIntent[marks[i].intent] || []).push(block);
+    }
+    let used = intentLayer, status = 'matched';
+    if(!byIntent[used] || !byIntent[used].length){
+      const fb = INTENT_FALLBACK[intentLayer];
+      if(fb && byIntent[fb] && byIntent[fb].length){ used = fb; status = 'fallback'; warnYellow('F12', `No "${intentLayer}" exemplars in voice_exemplars.txt — fell back to "${fb}". Code: F12.`); }
+      else {
+        const anyIntent = Object.keys(byIntent).find(k => byIntent[k] && byIntent[k].length);
+        if(anyIntent){ used = anyIntent; status = 'anyIntent'; warnYellow('F12', `No "${intentLayer}" or fallback "${fb||'—'}" exemplars — using "${anyIntent}" exemplars instead. Code: F12.`); }
+        else return { text:'', usedIntent:null, status:'none', count:0 };
+      }
+    }
+    const blocks = byIntent[used] || [];
+    const text = blocks.map((b, i) => `=== ${used.toUpperCase()} INTENT EXEMPLAR ${i + 1} ===\n${b}`).join('\n\n────────────────────────────────────────\n\n');
+    return { text, usedIntent: used, status, count: blocks.length };
+  }
+
+  // ─── ALLOWED PROSE-NODE REGISTRY (Phase 5.2 allowed / 5.3 disallowed) ───
+  // Allowed targets: directAnswer.id, sections[].paragraphs[].id, sections[].h3sections[].paragraphs[].id,
+  // faq[].answer.id, cta.id (hookProse). DISALLOWED: section/h3/link/table/img ids, thesis.id, faq[].id.
+  function buildVoiceTargetRegistry(v1){
+    const allowed = new Map(); const disallowed = new Set();
+    if(v1.directAnswer && v1.directAnswer.id) allowed.set(v1.directAnswer.id, { kind:'da', label:'Direct Answer prose' });
+    if(v1.thesis && v1.thesis.id) disallowed.add(v1.thesis.id);
+    if(v1.cta && v1.cta.id) allowed.set(v1.cta.id, { kind:'cta', label:'CTA hook prose' });
+    toArray(v1.sections).forEach((sec, si) => {
+      if(!sec || typeof sec !== 'object') return;
+      if(sec.id) disallowed.add(sec.id);
+      const h2 = String(sec.h2 || `Section ${si + 1}`);
+      toArray(sec.paragraphs).forEach((p, pi) => { if(p && p.id) allowed.set(p.id, { kind:'para', label:`section "${h2}" — paragraph ${pi + 1}` }); });
+      toArray(sec.h3sections).forEach(h3 => {
+        if(!h3 || typeof h3 !== 'object') return;
+        if(h3.id) disallowed.add(h3.id);
+        const h3t = String(h3.h3 || '');
+        toArray(h3.paragraphs).forEach((p, pi) => { if(p && p.id) allowed.set(p.id, { kind:'para', label:`section "${h2}" › "${h3t}" — paragraph ${pi + 1}` }); });
+      });
+      toArray(sec.links).forEach(l => { if(l && l.id) disallowed.add(l.id); });
+      toArray(sec.tables).forEach(t => { if(t && t.id) disallowed.add(t.id); });
+      toArray(sec.imagePrompts).forEach(im => { if(im && im.id) disallowed.add(im.id); });
+    });
+    toArray(v1.faq).forEach((f, fi) => {
+      if(!f || typeof f !== 'object') return;
+      if(f.id) disallowed.add(f.id); // the QUESTION text is disallowed; the ANSWER prose is allowed
+      if(f.answer && f.answer.id) allowed.set(f.answer.id, { kind:'ans', label:`FAQ answer #${fi + 1} ("${String(f.question||'').slice(0,55)}")` });
+    });
+    return { allowed, disallowed };
+  }
+  function allowedTargetsListText(reg){
+    const lines = []; reg.allowed.forEach((meta, id) => lines.push(`  • ${id} — ${meta.label}`));
+    return lines.join('\n') || '  (none — V1 has no addressable prose nodes; this should not happen)';
+  }
+
+  // ─── PHASE 5 SYSTEM BLOCKS (cached context + Option-E instructions) ───
+  function buildPhase5SystemBlocks(frozenV1, intentLayer, exemplarText){
+    const t = S.research && S.research.clientSpecificThesis ? S.research.clientSpecificThesis : {};
+    const ctx = `You are the VOICE WRITER for an AEO (Answer Engine Optimization) article in the V4.0 pipeline — Phase 5, the Voice Draft.
+
+ARCHITECTURAL PRINCIPLE: JS owns structure; you own prose. The article's structure is FROZEN — headings (h2/h3), table headers, table rows, FAQ questions, links, anchor texts, URLs, images, the checklist, and the thesis statement are immutable and you cannot touch them. Your ONLY job is to rewrite the PROSE nodes — the Direct Answer, body paragraphs, FAQ answers, and the CTA hook — in the client's voice. You address each prose node by the id JS assigned it.
+
+VOICE TARGET: direct, conversational, strong POV from sentence one, zero hedging — "talking to a skeptical business owner over coffee" energy. Conversational transitions at paragraph starts (But, And, So, Here's the thing, That means, Now, Look). Vary paragraph length; use single-sentence punch paragraphs for impact. Use rhetorical questions to break monotony. Use bullet points for lists of 3+ items — never comma-strings in body prose. Preserve every hard data point and proper noun exactly. Keep the client's proprietary thesis threaded through the piece, not summarized once. NEVER fabricate a fact or number — you only re-voice what is already in the V1.
+
+AI-TELL KILL LIST — these words/phrases mark AI textbook prose; never use them:
+${aiTellListText()}
+Also: never use any term the 4.3B Terminology Lock bans; always use the client's canonical terms from 4.3B.
+
+PROJECT CONTEXT — UNIVERSAL VOICE RULES (4.3A):
+${S.docs.doc43A}
+
+PROJECT CONTEXT — CLIENT IDENTITY / VOICE PLAYBOOK / TONE PLAYBOOK / TERMINOLOGY LOCK (4.3B):
+${S.docs.doc43B}
+
+CLIENT-SPECIFIC THESIS (the spine — manifest this across the article, don't just state it once):
+thesisStatement: ${t.thesisStatement || '(missing)'}
+proprietaryFrame: ${t.proprietaryFrame || '(missing)'}
+competitiveDifferentiator: ${t.competitiveDifferentiator || '(missing)'}
+
+ARTICLE INTENT LAYER: ${intentLayer}
+  (Direct → confident, conversion-aware, slightly aggressive | Indirect → empathetic, diagnostic, educational with conviction | Latent → revelatory, connection-making, surprising | Counter → confrontational, myth-busting, evidence-loaded | Post-Intent → instructional, ongoing-value, community-building)
+
+GOLD-STANDARD VOICE EXEMPLARS (this is the bar — match this voice):
+${exemplarText && exemplarText.trim() ? exemplarText : '(none available for this client/intent — follow the voice rules above)'}
+
+FROZEN V1 ARTICLE (the structure + the prose you are re-voicing — every addressable prose node carries an id):
+${JSON.stringify(frozenV1, null, 2)}`;
+    const instr = `PHASE 5 — VOICE DRAFT (Option E — Unified Chain-of-Thought). Call submit_voice_draft with ONE continuous JSON object:
+
+1) voice_architecture — fill ALL five fields. This is your GLOBAL PLAN; write it FIRST, then execute it in the rewrites:
+   - core_conviction: 1 sentence — the aggressive stance this article takes.
+   - friction_setup: where in the article you agitate the problem.
+   - callback_phrase: a specific punchy phrase you will place in the intro/Direct Answer AND repeat near the conclusion (it bridges the piece).
+   - pacing_strategy: where the tone is rapid-fire vs where it slows down.
+   - thesis_reinforcement: how the clientSpecificThesis manifests across the sections.
+
+2) rewrites — one entry per PROSE NODE you re-voice. Re-voice as many as you can — ideally the Direct Answer, EVERY body paragraph, every FAQ answer, and the CTA hook. For EACH rewrite:
+   - targetId: the id of the prose node (see ALLOWED TARGET IDS in the user message). ONLY Direct-Answer / paragraph / FAQ-answer / CTA-hook ids. NEVER a section/h3/table/link/image id, a heading, an anchor text, a URL, a FAQ question, the thesis statement, or a checklist field — JS will reject those.
+   - data_anchors_to_preserve: every hard fact / number / proper noun from this node's V1 prose that MUST survive verbatim (e.g. "78 broken links", "248-word homepage"). Use an empty array only if the node genuinely has no data.
+   - pacing_directive: exactly one of:
+       "short punch" — a single hard-hitting sentence (put it in newProse)
+       "standard expansion" — a regular 2-3 sentence paragraph (put it in newProse)
+       "list extraction" — this content becomes a bulleted list (put 3-7 items in newListItems, NOT prose)
+   - transition_logic: 1 sentence — how this node connects to the one before it (the connective tissue).
+   - newProse: the rewritten prose. REQUIRED when pacing_directive is "short punch" or "standard expansion"; omit it for "list extraction". Use markdown **bold** for key entities and counter-intuitive punchlines.
+   - newListItems: the list items. REQUIRED when pacing_directive is "list extraction"; omit otherwise. Each item is one short string; JS turns them into <li>s — do not write list markup yourself.
+
+Always invoke submit_voice_draft; never respond in plain text. Never include fields not in the schema. Never fabricate data.`;
+    return [ { type:'text', text: ctx, cache_control: { type:'ephemeral' } }, { type:'text', text: instr } ];
+  }
+  function buildPhase5UserText(reg, extraHints){
+    let t = `Re-voice the frozen V1 now by calling submit_voice_draft.
+
+ALLOWED TARGET IDS — you may rewrite ONLY these (the prose nodes):
+${allowedTargetsListText(reg)}
+
+Do NOT target any other id. Do NOT change any heading, table header, table row, FAQ question, link, anchor text, URL, image, checklist field, or the thesis statement — those are frozen and JS will reject any attempt. voice_architecture is required and all five fields must be filled. Every rewrite needs targetId + data_anchors_to_preserve + pacing_directive + transition_logic, plus newProse (for "short punch" / "standard expansion") or newListItems (for "list extraction").`;
+    if(extraHints && extraHints.trim()) t += `\n\n${extraHints.trim()}`;
+    return t;
+  }
+
+  // ─── PHASE 5 TOOL SCHEMA (Option E — Unified Chain-of-Thought) ───
+  const V1_VOICE_TOOL = {
+    name: 'submit_voice_draft',
+    description: 'Submit the Phase 5 voice draft as ONE JSON object: a voice_architecture (the global plan) followed by a rewrites array (one entry per re-voiced PROSE node — Direct Answer, body paragraphs, FAQ answers, CTA hook only). Never touches structure (headings, tables, FAQ questions, links, images, checklist, thesis).',
+    input_schema: {
+      type:'object', required:['voice_architecture','rewrites'], additionalProperties:false,
+      properties: {
+        voice_architecture: {
+          type:'object', required:['core_conviction','friction_setup','callback_phrase','pacing_strategy','thesis_reinforcement'], additionalProperties:false,
+          properties: {
+            core_conviction: { type:'string', description:'1 sentence — the aggressive stance this article takes.' },
+            friction_setup: { type:'string', description:'Where in the article you agitate the problem.' },
+            callback_phrase: { type:'string', description:'A specific punchy phrase placed in the intro/Direct Answer AND repeated near the conclusion.' },
+            pacing_strategy: { type:'string', description:'Where the tone is rapid-fire vs where it slows down.' },
+            thesis_reinforcement: { type:'string', description:'How the clientSpecificThesis manifests across the sections.' }
+          }
+        },
+        rewrites: {
+          type:'array', minItems:1, items: {
+            type:'object', required:['targetId','data_anchors_to_preserve','pacing_directive','transition_logic'], additionalProperties:false,
+            properties: {
+              targetId: { type:'string', description:'id of a PROSE node only: da_*, para_*, ans_*, or cta_*. Never a section/h3/table/link/image id, heading, anchor, URL, FAQ question, thesis, or checklist field.' },
+              data_anchors_to_preserve: { type:'array', items:{ type:'string' }, description:'Every hard fact/number/proper-noun from this node’s V1 prose that must survive verbatim.' },
+              pacing_directive: { type:'string', enum:['short punch','standard expansion','list extraction'], description:'"short punch"/"standard expansion" → put the result in newProse; "list extraction" → put 3-7 items in newListItems.' },
+              transition_logic: { type:'string', description:'1 sentence — how this node connects to the one before it.' },
+              newProse: { type:'string', description:'The rewritten prose. REQUIRED for "short punch" and "standard expansion"; omit for "list extraction". Markdown **bold** allowed.' },
+              newListItems: { type:'array', items:{ type:'string' }, description:'The list items. REQUIRED for "list extraction"; omit otherwise. One short string per item; no list markup.' }
+            }
+          }
+        }
+      }
+    }
+  };
+
+  // ─── PHASE 5 STREAMING DISPLAY ───
+  function makePhase5Progress(label){
+    let lastPaint = 0;
+    return ({ textOutput, toolJson, outputTokens }) => {
+      const now = Date.now(); if(now - lastPaint < 150) return; lastPaint = now;
+      const chars = (toolJson||'').length;
+      const o5 = document.getElementById('o5');
+      if(o5){ o5.textContent = `⏳ ${label} — streaming live · ${outputTokens||0} output tokens · ${chars.toLocaleString()} JSON chars\n` + '─'.repeat(40) + '\n'
+        + (textOutput ? '[preamble]\n'+textOutput+'\n\n' : '')
+        + (chars>3000 ? '…(showing last 3000 chars)…\n' : '') + (toolJson||'').slice(-3000); o5.scrollTop = o5.scrollHeight; }
+      const m5 = document.getElementById('m5'); if(m5) m5.textContent = `${label} in progress — ${outputTokens||0} tokens, ${chars.toLocaleString()} chars so far…`;
+    };
+  }
+
+  // ─── PHASE 5 RUNNER (one Claude tool-use call; returns parsed voiceDraft or a parse-error marker) ───
+  async function runPhase5(akey, systemBlocks, userText, label, cardLabel){
+    setPhase(5, 'active', cardLabel || label);
+    document.getElementById('o5').textContent = `⏳ ${label} — connecting to Claude…`;
+    const t = Date.now();
+    const result = await callClaude({
+      systemBlocks, userText,
+      tools: [V1_VOICE_TOOL],
+      toolChoice: { type:'tool', name:'submit_voice_draft' },
+      akey,
+      onProgress: makePhase5Progress(label),
+      timeoutMs: 300000
+    });
+    logCacheCall(5, result.usage);
+    const elapsed = ((Date.now()-t)/1000).toFixed(1);
+    if(!result.toolCalls.length) return { parseError:'no tool call returned', rawText: result.textOutput, elapsed, stopReason: result.stopReason };
+    const input = result.toolCalls[0].input;
+    if(input && input.__parse_error) return { parseError: input.__parse_error, rawFragment: input.__raw, elapsed, stopReason: result.stopReason };
+    return { voiceDraft: input, elapsed, stopReason: result.stopReason };
+  }
+
+  // ─── VALIDATE PHASE 5 OUTPUT — shape (F14) + targetIds against the registry (5.2/5.3 → F13) ───
+  function validateVoiceDraft(voiceDraft, reg){
+    const errors = [];
+    const va = voiceDraft && voiceDraft.voice_architecture;
+    if(!va || typeof va !== 'object') errors.push('voice_architecture missing');
+    else ['core_conviction','friction_setup','callback_phrase','pacing_strategy','thesis_reinforcement'].forEach(k => { if(!va[k] || !String(va[k]).trim()) errors.push(`voice_architecture.${k} empty`); });
+    const rewritesRaw = Array.isArray(voiceDraft && voiceDraft.rewrites) ? voiceDraft.rewrites : toArray(voiceDraft && voiceDraft.rewrites);
+    if(!rewritesRaw.length) errors.push('rewrites array empty');
+    const valid = [], orphaned = [], disallowed = [];
+    rewritesRaw.forEach(rw => {
+      if(!rw || typeof rw !== 'object' || !rw.targetId){ orphaned.push('(no targetId)'); return; }
+      const id = String(rw.targetId);
+      if(reg.disallowed.has(id)){ disallowed.push(id); return; }                 // 5.3 — a known structural id
+      if(!reg.allowed.has(id)){ orphaned.push(id); return; }                     // F13 — non-existent id
+      const isList = rw.pacing_directive === 'list extraction';
+      const newProse = typeof rw.newProse === 'string' ? rw.newProse.trim() : '';
+      const newListItems = (Array.isArray(rw.newListItems) ? rw.newListItems : toArray(rw.newListItems)).map(x => String(x==null?'':x).trim()).filter(Boolean);
+      if(isList && !newListItems.length){ orphaned.push(id+' (list extraction with no newListItems)'); return; }
+      if(!isList && !newProse){ orphaned.push(id+' (no newProse)'); return; }
+      valid.push({
+        targetId: id,
+        kind: reg.allowed.get(id).kind,
+        pacingDirective: ['short punch','standard expansion','list extraction'].includes(rw.pacing_directive) ? rw.pacing_directive : 'standard expansion',
+        dataAnchors: (Array.isArray(rw.data_anchors_to_preserve) ? rw.data_anchors_to_preserve : toArray(rw.data_anchors_to_preserve)).map(x => String(x==null?'':x).trim()).filter(Boolean),
+        transitionLogic: typeof rw.transition_logic === 'string' ? rw.transition_logic.trim() : '',
+        newProse: isList ? '' : newProse,
+        newListItems: isList ? newListItems : []
+      });
+    });
+    return { errors, valid, orphaned, disallowed, totalRewrites: rewritesRaw.length };
+  }
+
+  // ─── APPLY PHASE 5 REWRITES → V2 (deep clone of the frozen V1; bones untouched) ───
+  function applyVoiceDraft(frozenV1, voiceArchitecture, validRewrites){
+    const v2 = JSON.parse(JSON.stringify(frozenV1)); // un-frozen plain clone — Phase 5.5 (M4) will modify this further
+    const idx = {};
+    if(v2.directAnswer && v2.directAnswer.id) idx[v2.directAnswer.id] = v2.directAnswer;
+    if(v2.cta && v2.cta.id) idx[v2.cta.id] = v2.cta;
+    toArray(v2.sections).forEach(sec => {
+      if(!sec || typeof sec !== 'object') return;
+      toArray(sec.paragraphs).forEach(p => { if(p && p.id) idx[p.id] = p; });
+      toArray(sec.h3sections).forEach(h3 => { if(h3 && typeof h3 === 'object') toArray(h3.paragraphs).forEach(p => { if(p && p.id) idx[p.id] = p; }); });
+    });
+    toArray(v2.faq).forEach(f => { if(f && typeof f === 'object' && f.answer && f.answer.id) idx[f.answer.id] = f.answer; });
+    let applied = 0;
+    (validRewrites || []).forEach(rw => {
+      const node = idx[rw.targetId]; if(!node) return;
+      node.pacingDirective = rw.pacingDirective;
+      node.dataAnchors = rw.dataAnchors;
+      node.transitionLogic = rw.transitionLogic;
+      if(rw.pacingDirective === 'list extraction'){ node.listItems = rw.newListItems; if(rw.kind === 'cta') node.hookProse = ''; else node.prose = ''; }
+      else { if(rw.kind === 'cta') node.hookProse = rw.newProse; else node.prose = rw.newProse; if('listItems' in node) delete node.listItems; }
+      applied++;
+    });
+    v2.voiceArchitecture = voiceArchitecture || null;
+    v2.intentLayer = S.intentLayer || null;
+    return { v2, applied };
+  }
+
   // ─── PIPELINE ──────────────────────────────────────────────
   async function startPipeline(){
     if(running){ log('A run is already in progress.', 'warn'); return; }
@@ -2212,7 +2529,7 @@ Output the JSON now.`;
     S.topic = topic;
     S.tokens = { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 };
     S.cacheLog = [];
-    S.research = null; S.frame = null; S.v1 = null; S.v1Frozen = false; S.validation = null; S.htmlStub = ''; S.cta43BWarned = false; S._extraLinksWarned = false;
+    S.research = null; S.frame = null; S.v1 = null; S.v1Frozen = false; S.validation = null; S.intentLayer = ''; S.voiceExemplars = ''; S.v2 = null; S.htmlStub = ''; S.cta43BWarned = false; S._extraLinksWarned = false;
     _idCounter = 0; // ids are unique per run; reset once here, not per assignIds() call
     updateCost(); renderCacheLog();
     { const cv = document.getElementById('cacheVerdict'); cv.textContent = '—'; cv.className = 'stat-value accent'; }
@@ -2220,7 +2537,7 @@ Output the JSON now.`;
     clearYellowWarnings();   // YELLOW warnings reset at the start of every run (RED behavior unchanged)
     clearRunEscalations();   // clears this run's RED list + re-renders the panel (now empty of both)
     pipelineHalted = false;
-    ['1','2','3','4','6'].forEach(n => { setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
+    ['1','2','3','4','5','6'].forEach(n => { setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
     // Phase cards collapse, Run Log is the active tab — both stay that way until Phase 6 finishes.
     ['1','2','3','4','5','55','6'].forEach(n => { const sb=document.getElementById('sb'+n), c=document.getElementById('c'+n); if(sb) sb.classList.remove('open'); if(c) c.classList.add('closed'); });
     switchTab('runlog');
@@ -2467,11 +2784,96 @@ Output the JSON now.`;
       setPhase(4, 'done', 'Frozen 🔒');
       log(`Phase 4 — V1 frozen. ${artifactKey ? 'Artifact: ' + artifactKey : ''}`, 'ok');
 
-      // ── PHASE 6 STUB (operates on the frozen V1) ─────────
+      // ── PHASE 5: VOICE DRAFT — OPTION E UNIFIED CHAIN-OF-THOUGHT ──
+      setG('Phase 5 — voice draft (Option E unified CoT)…', true);
+      setPhase(5, 'active', 'Preparing');
+      // (the Phase 5 card stays collapsed during the run, like the others — the VA expands it on demand)
+      // intent layer (F11) + optional intent-matched voice exemplars (F12)
+      S.intentLayer = resolveIntentLayer();
+      let exemplarText = '';
+      try {
+        const ex = await loadVoiceExemplars(S.intentLayer, dkey);
+        exemplarText = ex.text || ''; S.voiceExemplars = exemplarText;
+        if(ex.status === 'matched') log(`Phase 5 — loaded ${ex.count} "${S.intentLayer}" voice exemplar(s).`, 'ok');
+        else if(ex.status === 'fallback' || ex.status === 'anyIntent') log(`Phase 5 — no "${S.intentLayer}" exemplars; using ${ex.count} "${ex.usedIntent}" exemplar(s) instead.`, 'warn');
+        else if(ex.status === 'absent') log(`Phase 5 — no voice_exemplars file configured for this client; proceeding with voice rules only (exemplars are optional).`, 'info');
+        else log(`Phase 5 — no usable voice exemplars; proceeding with voice rules only.`, 'warn');
+      } catch(e){ log(`Phase 5 — exemplar load failed (${e.message||e}); proceeding with voice rules only.`, 'warn'); }
+      const voiceReg = buildVoiceTargetRegistry(v1);
+      const voiceSystem = buildPhase5SystemBlocks(v1, S.intentLayer, exemplarText);
+
+      let voiceDraft = null, f6framing = '';
+      for(let attempt = 0; attempt <= 2; attempt++){
+        const hints = [];
+        if(f6framing) hints.push(f6framing);
+        if(attempt >= 1) hints.push('NOTE: your previous response could not be used (invalid JSON, missing required fields, a disallowed/non-existent targetId, or wrapped in markdown). Return ONLY a clean submit_voice_draft tool call — voice_architecture with all five fields non-empty, and a rewrites array where every targetId is from the ALLOWED list above, each rewrite has data_anchors_to_preserve + pacing_directive + transition_logic, and newProse (short punch / standard expansion) OR newListItems (list extraction). No code fences, no preamble.');
+        const label = attempt === 0 ? 'Phase 5' : `Phase 5 retry ${attempt}`;
+        let p5;
+        try { p5 = await runPhase5(akey, voiceSystem, buildPhase5UserText(voiceReg, hints.join('\n\n')), label, attempt === 0 ? 'Drafting' : 'Retrying'); }
+        catch(e){ if(e.f4){ escalateRed('F4', `Claude/proxy unavailable during Phase 5. (${e.message})`); return; } throw e; }
+
+        // F6 — safety refusal (no tool call + refusal-like text)
+        if(p5.parseError === 'no tool call returned' && (/\bI cannot\b|\bI (?:can['’]t|won['’]t)\b|\bI apologi[sz]e\b|unable to (?:provide|help|assist|complete)/i.test(p5.rawText||'') || p5.stopReason === 'refusal')){
+          if(attempt < 2){ warnYellow('F6', `Phase 5: Claude declined to produce a voice draft — retrying with explicit "informational professional content" framing. Code: F6.`); f6framing = 'IMPORTANT FRAMING: This is informational marketing/SEO content for a professional service-business website — it is NOT medical, legal, or financial advice. Re-voice the article normally and call submit_voice_draft.'; continue; }
+          escalateRed('F6', `Claude's safety filter blocked the Phase 5 voice draft even after retry. Code: F6. Topic may need an operator prompt adjustment.`); return;
+        }
+        // F2 — unparseable output
+        if(p5.parseError){
+          if(attempt < 2){ warnYellow('F2', `Phase 5 returned unparseable output (${p5.parseError}) — retrying with a raw-JSON-only instruction. Code: F2.`); continue; }
+          escalateRed('F2', `Claude returned unparseable JSON for Phase 5 after 2 retries. ${p5.parseError}. Code: F2.`); return;
+        }
+        // F3 — truncation: the tolerant parser already recovered the partial; fewer rewrites is acceptable (un-rewritten paragraphs keep their V1 prose)
+        if(p5.stopReason === 'max_tokens') warnYellow('F3', `Phase 5 response hit the token limit (stop_reason=max_tokens) — using the rewrites recovered so far; un-rewritten paragraphs keep their V1 prose. Code: F3. (Full continuation-merge ships in a later milestone.)`);
+
+        const v = validateVoiceDraft(p5.input, voiceReg);
+        // F14 — required fields missing / shape bad
+        if(v.errors.length){
+          if(attempt < 2){ warnYellow('F14', `Phase 5 output incomplete (${v.errors.join('; ')}) — retrying. Code: F14.`); continue; }
+          escalateRed('F14', `Phase 5 voice draft missing required content after 2 retries: ${v.errors.join('; ')}. Code: F14.`); return;
+        }
+        // F13 — orphaned / disallowed targetIds
+        const bad = v.orphaned.length + v.disallowed.length;
+        if(bad){
+          const detail = `${v.orphaned.length} orphaned + ${v.disallowed.length} disallowed targetId(s)${v.disallowed.length?` (disallowed e.g. ${v.disallowed.slice(0,5).join(', ')})`:''}${v.orphaned.length?` (orphaned e.g. ${v.orphaned.slice(0,5).join(', ')})`:''}`;
+          if((bad / Math.max(1, v.totalRewrites)) > 0.2 || v.valid.length === 0){
+            if(attempt < 2){ warnYellow('F13', `Phase 5: ${detail} — too many invalid (${bad}/${v.totalRewrites}); retrying with the allowed-id list re-emphasized. Code: F13.`); continue; }
+            escalateRed('F13', `Phase 5 returned mostly invalid targetIds (${bad}/${v.totalRewrites} bad) after 2 retries — possible model confusion. Code: F13.`); return;
+          }
+          warnYellow('F13', `Phase 5: ${detail} — dropped; ${v.valid.length} valid rewrite(s) kept. Code: F13.`);
+        }
+        voiceDraft = { voiceArchitecture: p5.input.voice_architecture, validRewrites: v.valid, elapsed: p5.elapsed, totalRewrites: v.totalRewrites, droppedRewrites: bad };
+        break;
+      }
+      if(pipelineHalted || !voiceDraft) return;
+
+      const { v2, applied } = applyVoiceDraft(v1, voiceDraft.voiceArchitecture, voiceDraft.validRewrites);
+      S.v2 = v2;
+      const va = voiceDraft.voiceArchitecture || {};
+      const _wc = txt => String(txt||'').trim().split(/\s+/).filter(Boolean).length;
+      const _bodyWords = _wc(v2.directAnswer?.prose)
+        + toArray(v2.sections).reduce((n,s) => n + toArray(s.paragraphs).reduce((m,p)=>m+_wc(p.prose),0) + toArray(s.h3sections).reduce((m,h)=>m+toArray(h.paragraphs).reduce((k,p)=>k+_wc(p.prose),0),0), 0)
+        + toArray(v2.faq).reduce((n,f)=>n+_wc(f.answer?.prose),0);
+      const _lists = toArray(v2.sections).reduce((n,s) => n + toArray(s.paragraphs).filter(p=>p.pacingDirective==='list extraction').length + toArray(s.h3sections).reduce((m,h)=>m+toArray(h.paragraphs).filter(p=>p.pacingDirective==='list extraction').length,0), 0);
+      document.getElementById('o5').textContent =
+        `VOICE DRAFT (Phase 5 — Option E). Intent layer: ${S.intentLayer}. Exemplars: ${exemplarText.trim() ? 'loaded' : 'none (voice rules only)'}.\n\n` +
+        `voice_architecture:\n` +
+        `  • core_conviction: ${va.core_conviction || '—'}\n` +
+        `  • friction_setup: ${va.friction_setup || '—'}\n` +
+        `  • callback_phrase: ${va.callback_phrase || '—'}\n` +
+        `  • pacing_strategy: ${va.pacing_strategy || '—'}\n` +
+        `  • thesis_reinforcement: ${va.thesis_reinforcement || '—'}\n\n` +
+        `Rewrites: ${applied} prose node(s) re-voiced (of ${voiceDraft.totalRewrites} returned${voiceDraft.droppedRewrites?`; ${voiceDraft.droppedRewrites} dropped as invalid`:''}). ~${_bodyWords} body words, ${_lists} list-extraction block(s). V1 bones untouched.\n\n` +
+        `── full V2 JSON ──\n` + JSON.stringify(v2, null, 2).slice(0, 6000);
+      document.getElementById('m5').textContent = `Voiced in ${voiceDraft.elapsed}s — ${applied} rewrite(s) applied. callback phrase: "${(va.callback_phrase||'').slice(0,55)}"`;
+      setPhase(5, 'done', `Voiced ${voiceDraft.elapsed}s`);
+      log(`Phase 5 complete — ${applied} prose rewrites applied; voice_architecture present (core_conviction: "${(va.core_conviction||'').slice(0,60)}").`, 'ok');
+
+      // ── PHASE 6 STUB (operates on the Phase 5 V2 voice draft — no V1 fallback; if Phase 5 ──
+      //    had failed, the pipeline would already have RED-escalated and returned before here) ──
       setPhase(6, 'active', 'Assembling');
-      document.getElementById('o6').textContent = '⏳ Building the M2 stub HTML from the frozen V1…';
+      document.getElementById('o6').textContent = '⏳ Building the M2 stub HTML from the V2 voice draft…';
       await sleep(400);
-      S.htmlStub = buildPhase6Stub(v1);
+      S.htmlStub = buildPhase6Stub(S.v2);
       document.getElementById('o6').textContent = S.htmlStub;
       document.getElementById('m6').textContent = `STILL A STUB — ${S.htmlStub.length}b. Real Phase 6 assembly (sections, FAQ, schema, ToC, byline) ships in Milestone 5.`;
       document.getElementById('htmlPre').textContent = S.htmlStub;
@@ -2484,14 +2886,15 @@ Output the JSON now.`;
       if(mode === 'calibration'){ incrementCalibratedCount(S.client.name); renderModeUI(); }
 
       const cacheVerdict = S.cacheLog[0]?.verdict || '—';
-      setG(`✓ Phases 1–4 complete — V1 validated & frozen. Mode: ${mode}${mode==='calibration' ? ` (now ${getCalibratedCount(S.client.name)} calibrated)` : ''}. Cache: ${cacheVerdict}. Phase 5 = Milestone 3; Phase 6 = stub. Use "↻ Verify Cache" on the Cache Stats tab to confirm a YES.`);
+      const _p5applied = toArray(S.v2 && S.v2.sections).reduce((n,s)=>n+toArray(s.paragraphs).filter(p=>p.transitionLogic!==undefined).length+toArray(s.h3sections).reduce((m,h)=>m+toArray(h.paragraphs).filter(p=>p.transitionLogic!==undefined).length,0),0) + (S.v2&&S.v2.directAnswer&&S.v2.directAnswer.transitionLogic!==undefined?1:0) + (S.v2&&S.v2.cta&&S.v2.cta.transitionLogic!==undefined?1:0) + toArray(S.v2&&S.v2.faq).filter(f=>f.answer&&f.answer.transitionLogic!==undefined).length;
+      setG(`✓ Phases 1–5 complete — V1 frozen, V2 voice draft done (${_p5applied} prose rewrite(s), intent: ${S.intentLayer||'?'}). Mode: ${mode}${mode==='calibration' ? ` (now ${getCalibratedCount(S.client.name)} calibrated)` : ''}. Cache: ${cacheVerdict}. Voice quality checks + forensic critique (5.5/5.6) = Milestone 4; real Phase 6 assembly = Milestone 5. Use "↻ Verify Cache" on the Cache Stats tab to confirm a YES.`);
       setCacheBtnsDisabled(false);
     } catch(err){
       console.error(err);
       log(`PIPELINE ERROR: ${err.message}`, 'err');
       setG(`Error: ${err.message}`, false, true);
       if(err.f4 && !pipelineHalted) escalateRed('F4', `${err.label||'An API'} unavailable after retries. ${err.message}`);
-      ['1','2','3','4','6'].forEach(n => {
+      ['1','2','3','4','5','6'].forEach(n => {
         const card = document.getElementById('phase'+n);
         if(card?.classList.contains('active')) setPhase(n, 'error', 'Error');
       });
