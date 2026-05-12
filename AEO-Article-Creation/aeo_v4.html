@@ -1382,6 +1382,13 @@ ${factClaimMenu()}`;
     }
   };
 
+  // EVERY Phase 2 call (2A frame, 2B hydration, surgical fix, cache-verify) sends THIS exact
+  // tools array — same objects, same order — and uses tool_choice to force the right one. The
+  // tools list is part of Anthropic's cached prefix (tools → system → messages), so if it
+  // differed call-to-call the byte-identical system context block could never be reused; with
+  // it unified, 2B / the surgical fix / the cache-verify all get genuine cache reads.
+  const ALL_PHASE2_TOOLS = [V1_FRAME_TOOL, V1_HYDRATION_TOOL, V1_FIX_TOOL];
+
   // ─── V1 SHAPE NORMALIZATION (defensive — run BEFORE assignIds / validation) ──
   // Claude (and especially the tolerant parser recovering a truncated/retried tool
   // call) sometimes hands back an object with numeric keys ({"0":{…},"1":{…}}) — or a
@@ -2010,7 +2017,7 @@ Output the JSON now.`;
     const t = Date.now();
     const result = await callClaude({
       systemBlocks, userText,
-      tools: [tool],
+      tools: ALL_PHASE2_TOOLS,                   // unified tools array (cache-prefix stable); tool_choice forces the one we want
       toolChoice: { type:'tool', name: tool.name },
       akey,
       onProgress: makePhase2Progress(label),
@@ -2530,7 +2537,7 @@ Output the JSON now.`;
       const result = await callClaude({
         systemBlocks: buildPhase2ASystem(),
         userText: buildPhase2AUserText(),
-        tools: [V1_FRAME_TOOL],
+        tools: ALL_PHASE2_TOOLS,                 // same unified tools array as the real Phase 2 calls — keeps the cache prefix identical
         toolChoice: { type:'tool', name:'submit_v1_frame' },
         akey,
         onProgress: makePhase2Progress('Cache test'),
