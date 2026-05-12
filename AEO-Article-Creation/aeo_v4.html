@@ -1377,11 +1377,22 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
         });
       });
     });
-    // 3. FAQ answers — one isolated call each
-    toArray(frame.faq).forEach(faq => {
-      if(!faq || typeof faq !== 'object' || !faq.answer || !faq.answer.id) return;
-      queue.push({ type:'faq_answer', label:`FAQ: "${String(faq.question||'').slice(0,40)}"`, requiredIds:[faq.answer.id], contextHints:`Answer this FAQ question: "${String(faq.question||'')}". A tight, direct answer in voice.`, transitionLogic:'' });
-    });
+    // 3. FAQ answers — ONE call for ALL of them (every answer node id batched into requiredIds)
+    {
+      const faqIds = [], faqLines = [];
+      toArray(frame.faq).forEach(faq => {
+        if(!faq || typeof faq !== 'object' || !faq.answer || !faq.answer.id) return;
+        faqIds.push(faq.answer.id);
+        faqLines.push(`  ${faq.answer.id} — answers the question: "${String(faq.question||'')}"`);
+      });
+      if(faqIds.length){
+        queue.push({
+          type:'faq_answer', label:`all ${faqIds.length} FAQ answer${faqIds.length===1?'':'s'}`, requiredIds: faqIds,
+          contextHints: `Write ALL the FAQ answers — one node object per answer id, each matched to its question, in this order:\n${faqLines.join('\n')}\nEach answer: tight, direct, in the client’s voice. Do NOT restate the question text inside the answer. Do NOT write the question or any heading — just the answer prose for each id.`,
+          transitionLogic:''
+        });
+      }
+    }
     // 4. CTA hook
     if(frame.cta && frame.cta.id){
       queue.push({ type:'cta_hook', label:'CTA hook', requiredIds:[frame.cta.id], contextHints:`The hook prose that leads into the CTA link: [${frame.cta.anchorText||''}](${frame.cta.url||''}). 1-3 sentences, in voice, that naturally hands off to that link. The link itself is added by JS — write only the lead-in prose.`, transitionLogic: getTransition(frame.cta.anchorText) });
