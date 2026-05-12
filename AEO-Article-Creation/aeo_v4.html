@@ -590,7 +590,7 @@
     loadClients();
     loadKeys();
     loadGlobals();
-    loadYellowWarnings();
+    clearYellowWarnings();   // refreshing the tool starts a clean slate — no stale YELLOWs from a previous article (RED behavior unchanged)
     purgeOldArtifacts();
     renderEscalationPanel();
     renderModeUI();
@@ -1539,6 +1539,9 @@ ${factClaimMenu()}`;
   function saveYellowWarnings(){
     try { localStorage.setItem(YELLOW_KEY, JSON.stringify(yellowWarnings)); } catch(_){}
   }
+  // YELLOW warnings are run-scoped: cleared on page load, on a new run start, and when an
+  // article finishes (Phase 6 / final docs). RED escalations are NOT affected by this.
+  function clearYellowWarnings(){ yellowWarnings = []; saveYellowWarnings(); renderEscalationPanel(); }
   function clearRunEscalations(){ S.escalationsRed = []; renderEscalationPanel(); }
   function setEscOpen(open){
     document.getElementById('escBody').classList.toggle('open', open);
@@ -2201,8 +2204,8 @@ Output the JSON now.`;
     updateCost(); renderCacheLog();
     document.getElementById('cacheVerdict').textContent = '—';
     setCacheBtnsDisabled(true);
-    yellowWarnings = []; saveYellowWarnings(); // YELLOW warnings reset per run (RED behavior unchanged)
-    clearRunEscalations();                      // clears this run's RED list + re-renders the panel (now empty of both)
+    clearYellowWarnings();   // YELLOW warnings reset at the start of every run (RED behavior unchanged)
+    clearRunEscalations();   // clears this run's RED list + re-renders the panel (now empty of both)
     pipelineHalted = false;
     ['1','2','3','4','6'].forEach(n => { setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
     // Phase cards collapse, Run Log is the active tab — both stay that way until Phase 6 finishes.
@@ -2462,6 +2465,7 @@ Output the JSON now.`;
       setPhase(6, 'stubdone', 'STUB ✓');
       // Phase 6 complete (final HTML produced) is the ONLY phase that auto-switches the tab.
       switchTab('html');
+      clearYellowWarnings();   // article finished / final docs produced → YELLOW list resets (RED escalations unaffected)
 
       // ── Calibration counter (informational only — never auto-promotes) ──
       if(mode === 'calibration'){ incrementCalibratedCount(S.client.name); renderModeUI(); }
