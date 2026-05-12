@@ -99,6 +99,10 @@
   .ptab { flex:1; padding:11px 14px; cursor:pointer; font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1.5px; text-align:center; color:var(--muted); border-right:1px solid var(--border); transition:background .2s,color .2s; }
   .ptab:last-child { border-right:none; }
   .ptab.active { background:#fff; color:var(--blue); border-bottom:2px solid var(--accent); }
+  .pane-toolbar { display:flex; align-items:center; gap:10px; padding:6px 14px; background:#fff; border-bottom:1px solid var(--border); }
+  .pane-toolbar-label { flex:1; font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1.5px; color:var(--blue); opacity:0.55; }
+  .btn-copy-pane { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; padding:3px 11px; font-family:'Bebas Neue',sans-serif; font-size:10px; letter-spacing:1px; cursor:pointer; transition:border-color .2s,color .2s; }
+  .btn-copy-pane:hover { border-color:var(--accent); color:var(--accent); }
   .ppane { display:none; padding:14px 16px; max-height:780px; overflow:auto; }
   .ppane.active { display:block; }
   .ppane pre { background:#fff; border:1px solid var(--border); border-radius:6px; padding:12px; font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.55; white-space:pre-wrap; word-break:break-word; margin:0; max-height:730px; overflow:auto; }
@@ -458,6 +462,10 @@
       <div class="ptab" onclick="switchTab('cache')">Cache Stats</div>
       <div class="ptab" onclick="switchTab('html')">HTML Stub</div>
     </div>
+    <div class="pane-toolbar">
+      <span class="pane-toolbar-label" id="paneLabel">Run Log</span>
+      <button class="btn-copy-pane" id="btnCopyPane" onclick="copyActivePane()" title="Copy this tab's contents to the clipboard">⎘ Copy</button>
+    </div>
 
     <div class="ppane active" id="pane-runlog">
       <div class="legend-box">
@@ -752,6 +760,7 @@
     el.style.fontWeight = error ? '600' : '400';
     el.innerHTML = active ? `<span class="spinner"></span>${text}` : text;
   }
+  const PANE_LABELS = { runlog:'Run Log', research:'Research Brief', v1json:'V1 JSON', cache:'Cache Stats', html:'HTML Stub' };
   function switchTab(name){
     document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
     document.querySelectorAll('.ppane').forEach(p=>p.classList.remove('active'));
@@ -760,7 +769,39 @@
     if(idx>=0){
       document.querySelectorAll('.ptab')[idx].classList.add('active');
       document.getElementById('pane-'+name).classList.add('active');
+      const lbl = document.getElementById('paneLabel'); if(lbl && PANE_LABELS[name]) lbl.textContent = PANE_LABELS[name];
     }
+  }
+  // Copy the active right-panel tab's contents to the clipboard (V3.1 copyActivePane pattern).
+  function copyActivePane(){
+    const active = document.querySelector('.ppane.active');
+    let text = '';
+    if(active){
+      if(active.id === 'pane-runlog')        text = (document.getElementById('runlogBody')?.innerText || '').trim();
+      else if(active.id === 'pane-research')  text = (document.getElementById('researchPre')?.textContent || '').trim();
+      else if(active.id === 'pane-v1json')    text = (document.getElementById('v1Pre')?.textContent || '').trim();
+      else if(active.id === 'pane-html')      text = (document.getElementById('htmlPre')?.textContent || '').trim();
+      else if(active.id === 'pane-cache'){
+        const g = id => (document.getElementById(id)?.textContent || '—');
+        const lines = [
+          `Last call — cache_creation: ${g('lastCreate')}`,
+          `Last call — cache_read: ${g('lastRead')}`,
+          `Last call — input (uncached): ${g('lastInput')}`,
+          `Last call — output: ${g('lastOutput')}`,
+          `Cache verdict: ${g('cacheVerdict')}`,
+          '',
+          '# | Phase | Cache Write | Cache Read | Verdict | Time'
+        ];
+        (S.cacheLog || []).forEach(r => lines.push(`${r.callIndex} | ${r.phase} | ${r.cacheCreate} | ${r.cacheRead} | ${r.verdict} | ${r.ts}`));
+        text = lines.join('\n');
+      }
+    }
+    if(!text){ alert('Nothing to copy on this tab yet.'); return; }
+    const btn = document.getElementById('btnCopyPane');
+    const flash = () => { if(!btn) return; const o = btn.textContent; btn.textContent = '✓ Copied'; setTimeout(()=>{ btn.textContent = o; }, 1500); };
+    const fallback = () => { try { const ta = document.createElement('textarea'); ta.value = text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); flash(); } catch(_){ alert('Copy failed — select the text manually.'); } };
+    if(navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(flash).catch(fallback);
+    else fallback();
   }
   function log(msg, level='info'){
     const body = document.getElementById('runlogBody');
@@ -1947,10 +1988,9 @@ Output the JSON now.`;
   // marker, plus elapsed + stopReason so the orchestrator can spot F2 / F3.
   async function runClaudeTool({ systemBlocks, userText, tool, label, cardLabel, akey }){
     setPhase(2, 'active', cardLabel || label);
-    document.getElementById('sb2').classList.add('open');
-    document.getElementById('c2').classList.remove('closed');
+    // Phase cards stay collapsed during the run (the VA expands them on demand); the Run Log
+    // tab stays active. The streaming output still updates o2 / v1Pre behind the scenes.
     document.getElementById('o2').textContent = `⏳ ${label} — connecting to Claude…`;
-    switchTab('v1json');
     const t = Date.now();
     const result = await callClaude({
       systemBlocks, userText,
@@ -2164,6 +2204,9 @@ Output the JSON now.`;
     clearRunEscalations();
     pipelineHalted = false;
     ['1','2','3','4','6'].forEach(n => { setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
+    // Phase cards collapse, Run Log is the active tab — both stay that way until Phase 6 finishes.
+    ['1','2','3','4','5','55','6'].forEach(n => { const sb=document.getElementById('sb'+n), c=document.getElementById('c'+n); if(sb) sb.classList.remove('open'); if(c) c.classList.add('closed'); });
+    switchTab('runlog');
 
     running = true;
     document.getElementById('runBtn').disabled = true;
@@ -2205,7 +2248,6 @@ Output the JSON now.`;
       // ── PHASE 1: Gemini research + thesis — F1 retry loop ─
       setG('Phase 1 — Gemini research + clientSpecificThesis...', true);
       setPhase(1, 'active', 'Running');
-      document.getElementById('sb1').classList.add('open'); document.getElementById('c1').classList.remove('closed');
       const t1 = Date.now();
       let phase1Json = null;
       for(let attempt = 0; attempt <= 2; attempt++){
@@ -2242,7 +2284,6 @@ Output the JSON now.`;
 
       // ── PHASE 2A — STRUCTURE FRAME (small retry loop on frame-validation failure) ──
       setPhase(2, 'active', '2A frame');
-      document.getElementById('sb2').classList.add('open'); document.getElementById('c2').classList.remove('closed');
       let frame = null, frameFeedback = '', frameF2hint = false;
       for(let fa = 0; fa <= 2; fa++){
         setG(fa === 0 ? 'Phase 2A — Claude STRUCTURE FRAME (headings, table headers, FAQ questions, link anchors, image slots, CTA) via Tool Use (cached context)…' : `Phase 2A — regenerating the frame with validation feedback (retry ${fa}/2)…`, true);
@@ -2329,7 +2370,6 @@ Output the JSON now.`;
         // 3A structural
         setG('Phase 3A — JS structural validation (incl. every table row cites a Phase 1 factClaim)…', true);
         setPhase(3, 'active', 'Validating 3A');
-        document.getElementById('sb3').classList.add('open'); document.getElementById('c3').classList.remove('closed');
         const v3a = validateV1Structure(v1, S.research, S.docs.doc43B);
         let semanticFails = [];
         if(v3a.passed){
@@ -2394,7 +2434,6 @@ Output the JSON now.`;
       // ── PHASE 4: FREEZE ──────────────────────────────────
       setG('Phase 4 — freezing V1 (Object.freeze, recursive)…', true);
       setPhase(4, 'active', 'Freezing');
-      document.getElementById('sb4').classList.add('open'); document.getElementById('c4').classList.remove('closed');
       await sleep(250);
       deepFreeze(v1);
       S.v1Frozen = true;
@@ -2413,7 +2452,6 @@ Output the JSON now.`;
 
       // ── PHASE 6 STUB (operates on the frozen V1) ─────────
       setPhase(6, 'active', 'Assembling');
-      document.getElementById('sb6').classList.add('open'); document.getElementById('c6').classList.remove('closed');
       document.getElementById('o6').textContent = '⏳ Building the M2 stub HTML from the frozen V1…';
       await sleep(400);
       S.htmlStub = buildPhase6Stub(v1);
@@ -2421,6 +2459,8 @@ Output the JSON now.`;
       document.getElementById('m6').textContent = `STILL A STUB — ${S.htmlStub.length}b. Real Phase 6 assembly (sections, FAQ, schema, ToC, byline) ships in Milestone 5.`;
       document.getElementById('htmlPre').textContent = S.htmlStub;
       setPhase(6, 'stubdone', 'STUB ✓');
+      // Phase 6 complete (final HTML produced) is the ONLY phase that auto-switches the tab.
+      switchTab('html');
 
       // ── Calibration counter (informational only — never auto-promotes) ──
       if(mode === 'calibration'){ incrementCalibratedCount(S.client.name); renderModeUI(); }
@@ -2428,7 +2468,6 @@ Output the JSON now.`;
       const cacheVerdict = S.cacheLog[0]?.verdict || '—';
       setG(`✓ Phases 1–4 complete — V1 validated & frozen. Mode: ${mode}${mode==='calibration' ? ` (now ${getCalibratedCount(S.client.name)} calibrated)` : ''}. Cache: ${cacheVerdict}. Phase 5 = Milestone 3; Phase 6 = stub. Use "↻ Verify Cache" on the Cache Stats tab to confirm a HIT.`);
       setCacheBtnsDisabled(false);
-      switchTab('v1json');
     } catch(err){
       console.error(err);
       log(`PIPELINE ERROR: ${err.message}`, 'err');
@@ -2465,10 +2504,8 @@ Output the JSON now.`;
     document.getElementById('stopBtn').style.display = 'flex';
     setG('Cache verification — re-running Phase 2A with the same cached context. Watch it stream in the V1 JSON tab.', true);
     setPhase(2, 'active', 'Cache test');
-    document.getElementById('sb2').classList.add('open');
-    document.getElementById('c2').classList.remove('closed');
     document.getElementById('o2').textContent = '⏳ Connecting to Claude (cache verification — re-running Phase 2A)…';
-    switchTab('v1json');
+    switchTab('v1json'); // operator-initiated cache check: jump to the V1 JSON tab to watch it stream
     startTimer();
     const t = Date.now();
     try {
