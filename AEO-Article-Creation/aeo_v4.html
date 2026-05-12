@@ -504,18 +504,19 @@
       </div>
     </div>
 
-    <div class="phase-card stub" id="phase6">
+    <div class="phase-card" id="phase6">
       <div class="phase-header" onclick="togglePhase(6)">
         <div class="phase-num">6</div>
         <div class="phase-info">
-          <div class="phase-title">Phase 6 — Forensic Critique + JS Quality Checks (still a stub)</div>
-          <div class="phase-desc">Not implemented yet — Milestone 4. (Was Phase 5.5.)</div>
+          <div class="phase-title">Phase 6 — Forensic Critique + JS Quality Checks</div>
+          <div class="phase-desc">A SECTION-LEVEL RELAY RACE over the Phase 5 V2 draft (same pattern as Phase 5): one "ruthless editor" call per H2 section — each carrying the cached master context (read, not rewritten), the verbatim editorial prompt, the section's current prose, and a SLIDING WINDOW (the last paragraph of the previous section + the first paragraph of the next section, from the V2) — then one call for ALL FAQ answers (batched), one for the Direct Answer, one for the CTA hook. The model returns ONLY the flagged + corrected paragraphs (revoice_content_block → `nodes`, same schema as Phase 5; `nodes:[]` when a block is clean); JS merges each block's corrections over V2 → V3 (uncorrected paragraphs keep their Phase 5 prose). After each block, six JS quality checks run: (1) pronoun/noun-start ratio ≤60%, (2) callback verifier — callback_phrase in the top 20% AND bottom 20% of paragraphs [final section only], (3) ≥1 rhetorical question per 500 words, (4) AI-Tell + 4.3B Terminology-Lock regex scan, (5) data-anchor preservation (every listed anchor verbatim in the rewrite), (6) SEMANTIC_ANCHOR phrase present verbatim in the body [final section only]. On a failure the block is retried (max 2) with targeted feedback; after the cap → YELLOW + keep the best prose, continue. Phase 6 never RED-escalates on a quality-check failure. (Was Phase 5.5.)</div>
         </div>
-        <div class="phase-right"><div class="pbadge b-stub" id="b6">M4</div><span class="schev closed" id="c6">▼</span></div>
+        <div class="phase-right"><div class="pbadge b-waiting" id="b6">Waiting</div><span class="schev closed" id="c6">▼</span></div>
       </div>
       <div class="phase-body" id="sb6">
-        <div class="phase-body-toolbar"><span class="phase-body-label">Phase 6 panel</span><button class="btn-copy-pane" onclick="copyPhasePanel(6, this)" title="Copy this panel's full contents">⎘ Copy</button></div>
-        <div class="phase-out" id="o6">Pending Milestone 4.</div>
+        <div class="phase-body-toolbar"><span class="phase-body-label">Phase 6 panel — all blocks</span><button class="btn-copy-pane" onclick="copyPhasePanel(6, this)" title="Copy this panel's full contents">⎘ Copy</button></div>
+        <div class="relay-strip" id="relayStrip6" title="Phase 6 forensic-critique blocks — green = done (QC pass), blue = in flight, orange = warning/retry/QC-cap, red = failed, grey = pending"></div>
+        <div class="phase-out" id="o6"></div>
         <div class="phase-meta" id="m6"></div>
       </div>
     </div>
@@ -525,7 +526,7 @@
         <div class="phase-num">7</div>
         <div class="phase-info">
           <div class="phase-title">Phase 7 — Final Assembly (still a stub)</div>
-          <div class="phase-desc">Runs after Phase 5 — but HARD-STOPS until every generated image (M3.5) has been uploaded to WordPress and its media URL pasted + validated in the Image panel (left column, below the phase cards): image_urls.length must equal expected_image_count. Currently emits the minimal H1 + DA stub HTML. Real assembly (sections, FAQ, schema, ToC, byline, image embeds) = Milestone 5. (Was Phase 6.)</div>
+          <div class="phase-desc">Runs after Phase 6 — but HARD-STOPS until every generated image (M3.5) has been uploaded to WordPress and its media URL pasted + validated in the Image panel (left column, below the phase cards): image_urls.length must equal expected_image_count. Currently emits the minimal H1 + DA stub HTML (from the Phase 6 V3 draft, falling back to the Phase 5 V2). Real assembly (sections, FAQ, schema, ToC, byline, image embeds) = Milestone 5. (Was Phase 6.)</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b7">Waiting</div><span class="schev closed" id="c7">▼</span></div>
       </div>
@@ -617,19 +618,19 @@
     </div>
 
     <div class="ppane" id="pane-meta">
-      <pre id="metaPre">Metadata (the 7 SEO/URL checklist fields + thesis + intent layer) appears here after the Phase 2 frame, and is refreshed after Phase 5.</pre>
+      <pre id="metaPre">Metadata (the 7 SEO/URL checklist fields + thesis + intent layer) appears here after the Phase 2 frame, and is refreshed after Phases 5 & 6.</pre>
     </div>
 
     <div class="ppane" id="pane-da">
-      <pre id="daPre">The Direct Answer prose appears here after the Phase 2 hydration relay, and is re-voiced after Phase 5.</pre>
+      <pre id="daPre">The Direct Answer prose appears here after the Phase 2 hydration relay, and is re-voiced after Phase 5, then forensic-critiqued in Phase 6.</pre>
     </div>
 
     <div class="ppane" id="pane-v2">
-      <pre id="v2Pre">The V2 article (a readable rendering — H1, Direct Answer, sections, tables, FAQ, CTA) appears here after Phase 5. During Phase 2 it shows the V1 article-in-progress (the structured JSON, streaming as it is written).</pre>
+      <pre id="v2Pre">The V2 article (a readable rendering — H1, Direct Answer, sections, tables, FAQ, CTA) appears here after Phases 5–6 (voice draft & forensic critique). During Phase 2 it shows the V1 article-in-progress (the structured JSON, streaming as it is written).</pre>
     </div>
 
     <div class="ppane" id="pane-schema">
-      <pre id="schemaPre">A basic Article + FAQPage JSON-LD stub (built from the metadata + Direct Answer + FAQ + featured image URL) appears here after Phase 5. The full schema graph is generated in Milestone 5.</pre>
+      <pre id="schemaPre">A basic Article + FAQPage JSON-LD stub (built from the metadata + Direct Answer + FAQ + featured image URL) appears here after Phases 5–6. The full schema graph is generated in Milestone 5.</pre>
     </div>
 
     <div class="ppane" id="pane-html">
@@ -694,7 +695,8 @@
     validation: null,         // { structuralFails:[], semanticFails:[], passed:bool }
     intentLayer: '',          // Phase 5 — resolved from the 4.2 sheet row's Intent Layer column (F11 → Indirect)
     voiceExemplars: '',       // Phase 5 — intent-matched gold-standard exemplar text (or '' if none — optional)
-    v2: null,                 // Phase 5 voice draft — deep clone of V1 with prose rewrites + voiceArchitecture (5.5 will modify further)
+    v2: null,                 // Phase 5 voice draft — deep clone of V1 with prose rewrites + voiceArchitecture
+    v3: null,                 // Phase 6 forensic-critique draft — clone of v2 with flagged paragraphs corrected (uncorrected ones keep their Phase 5 prose)
     htmlStub: '',             // Phase 7 (Final Assembly) stub output
     tokens: { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 },
     cacheLog: [],             // [{phase, callIndex, cacheCreate, cacheRead, input, output, verdict, ts}]
@@ -851,20 +853,19 @@
     const sel = document.getElementById('clientSelect');
     const clients = JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');
     S.client = sel.value !== '' ? clients[parseInt(sel.value)] : null;
-    S.research=null; S.frame=null; S.v1=null; S.v1Frozen=false; S.validation=null; S.intentLayer=''; S.voiceExemplars=''; S.v2=null; S.htmlStub=''; S.docs={doc43A:'',doc43B:'',doc44:''};
+    S.research=null; S.frame=null; S.v1=null; S.v1Frozen=false; S.validation=null; S.intentLayer=''; S.voiceExemplars=''; S.v2=null; S.v3=null; S.htmlStub=''; S.docs={doc43A:'',doc43B:'',doc44:''};
     S.sheetRow=''; S.sheetRowCols={}; S.cta43BWarned=false; S._extraLinksWarned=false; S.tokens={gi:0,go:0,ci:0,co:0,cacheRead:0,cacheCreate:0}; S.cacheLog=[];
     if(_activeImgAbort){ try { _activeImgAbort.abort(new Error('Client changed.')); } catch(_){} _activeImgAbort=null; }
     S.imagePrompts=[]; S.imageData={}; S.imageUrls={}; S.imageAttemptId=''; S.imageArtifactKey=''; S.expectedImageCount=0; imagesValidated=false; _phase6Resolve=null;
-    resetImagePanel(); clearRelayStrip('relayStrip2'); clearRelayStrip('relayStrip5');
+    resetImagePanel(); clearRelayStrip('relayStrip2'); clearRelayStrip('relayStrip5'); clearRelayStrip('relayStrip6');
     S.phaseBuf = {};
     updateCost(); renderCacheLog(); renderModeUI();
-    // Phases 1,2,3,4,5,7 reset to "Waiting"; Phase 6 (the M4 forensic-critique stub) keeps its "M4" badge + placeholder text.
-    ['1','2','3','4','5','7'].forEach(n=>{ setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
+    ['1','2','3','4','5','6','7'].forEach(n=>{ setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
     document.getElementById('o3').textContent='';
     document.getElementById('o4').textContent='';
-    { const e=document.getElementById('metaPre'); if(e) e.textContent='Metadata (the 7 SEO/URL checklist fields + thesis + intent layer) appears here after the Phase 2 frame, and is refreshed after Phase 5.'; }
-    { const e=document.getElementById('daPre'); if(e) e.textContent='The Direct Answer prose appears here after the Phase 2 hydration relay, and is re-voiced after Phase 5.'; }
-    { const e=document.getElementById('v2Pre'); if(e) e.textContent='The V2 article appears here after Phase 5. During Phase 2 it shows the V1 article-in-progress (the structured JSON, streaming).'; }
+    { const e=document.getElementById('metaPre'); if(e) e.textContent='Metadata (the 7 SEO/URL checklist fields + thesis + intent layer) appears here after the Phase 2 frame, and is refreshed after Phases 5 & 6.'; }
+    { const e=document.getElementById('daPre'); if(e) e.textContent='The Direct Answer prose appears here after the Phase 2 hydration relay, and is re-voiced after Phase 5, then forensic-critiqued in Phase 6.'; }
+    { const e=document.getElementById('v2Pre'); if(e) e.textContent='The V2 article appears here after Phases 5–6 (voice draft & forensic critique). During Phase 2 it shows the V1 article-in-progress (the structured JSON, streaming).'; }
     { const e=document.getElementById('schemaPre'); if(e) e.textContent='A basic Article + FAQPage JSON-LD stub appears here after Phase 5. The full schema graph = Milestone 5.'; }
     document.getElementById('htmlPre').textContent='The Phase 7 (Final Assembly) stub HTML appears here.';
     setCacheBtnsDisabled(true);
@@ -1069,9 +1070,10 @@
     };
     return '<!-- M5 will generate the full schema graph. This is a stub built from the metadata + FAQ + featured image. -->\n<script type="application/ld+json">\n' + JSON.stringify(schema, null, 2) + '\n<\/script>';
   }
-  // Repopulate the Metadata / Direct Answer / V2 Article / Schema tabs from the current article object.
+  // Repopulate the Metadata / Direct Answer / V2 Article / Schema tabs from the current article object
+  // (the latest of V3 forensic-critique → V2 voice → V1).
   function refreshRightPanels(){
-    const obj = S.v2 || S.v1;
+    const obj = S.v3 || S.v2 || S.v1;
     if(!obj) return;
     const meta = document.getElementById('metaPre'); if(meta) meta.textContent = buildMetaText(obj);
     const da   = document.getElementById('daPre');   if(da)   da.textContent   = String((obj.directAnswer && obj.directAnswer.prose) || '').trim() || '(Direct Answer not written yet)';
@@ -2633,14 +2635,14 @@ Output the JSON now.`;
   // data_anchors_to_preserve + a pacing_directive + the rewrite, all in ONE continuous JSON
   // (Option E — defeats Token Myopia). JS validates every targetId against the allowed prose
   // nodes (5.2/5.3), drops orphans/disallowed (F13), and merges the valid rewrites onto a deep
-  // clone of V1 → S.v2. The frozen V1 bones are never touched. Phase 5.5 (forensic critique) +
-  // the 6 JS voice-quality checks (5.6) + the retry loop are Milestone 4.
+  // clone of V1 → S.v2. The frozen V1 bones are never touched. Phase 6 (forensic critique +
+  // 6 JS quality checks) then runs over the V2 → S.v3.
   // ═══════════════════════════════════════════════════════════
 
   // AI-TELL KILL LIST — banned in voice prose. Universal across clients; the 4.3B Terminology
   // Lock terms (inside doc43B, which is in the Phase 5 system prompt) are the per-client layer
-  // on top. Baked into the Phase 5 (and later 5.5) system prompt; the 5.6 regex scan (M4) will
-  // also use it. Editable by the operator; grows as new AI-tells surface in production.
+  // on top. Baked into the Phase 5 and Phase 6 system prompts; the Phase 6 QC4 regex scan
+  // (scanAITells) also uses it. Editable by the operator; grows as new AI-tells surface in production.
   const AI_TELL_KILL_LIST = {
     words: ['delve','navigate','landscape','crucial','vital','robust','tapestry','realm','seamless','paramount','moreover','furthermore','leverage','utilize','facilitate','plethora','myriad','intricate','testament','unlock','elevate','beacon','demystify','comprehensive','transformative','bustling'],
     phrases: ["in today's digital age","at the end of the day","in the realm of","navigate the landscape","delve into","a robust solution","comprehensive guide","ever-evolving","game-changer","unlock the power of","it's important to note that","whether you are [X] or [Y]"]
@@ -2759,7 +2761,7 @@ Output the JSON now.`;
   // un-re-voiced nodes keep their V1 prose); if the whole relay yields zero usable rewrites it RED-
   // escalates before Phase 7 (assembly). JS validates every targetId against the allowed prose-node registry
   // (5.2/5.3), drops orphans/disallowed (F13), and merges the kept rewrites onto a deep clone of V1
-  // → S.v2. The frozen V1 bones are never touched. Phase 5.5 (forensic critique) = Milestone 4.
+  // → S.v2. The frozen V1 bones are never touched. Phase 6 then forensic-critiques the V2 → S.v3.
   // ═══════════════════════════════════════════════════════════
 
   // The tool used on EVERY Phase 5 relay job — a "nodes" array (one re-voiced object per requested
@@ -3067,7 +3069,7 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
 
   // ─── APPLY PHASE 5 REWRITES → V2 (deep clone of the frozen V1; bones untouched) ───
   function applyVoiceDraft(frozenV1, voiceArchitecture, validRewrites){
-    const v2 = JSON.parse(JSON.stringify(frozenV1)); // un-frozen plain clone — Phase 5.5 (M4) will modify this further
+    const v2 = JSON.parse(JSON.stringify(frozenV1)); // un-frozen plain clone — Phase 6 (forensic critique) will edit this further
     const idx = {};
     if(v2.directAnswer && v2.directAnswer.id) idx[v2.directAnswer.id] = v2.directAnswer;
     if(v2.cta && v2.cta.id) idx[v2.cta.id] = v2.cta;
@@ -3092,6 +3094,361 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     return { v2, applied };
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // PHASE 6 — FORENSIC CRITIQUE + 6 JS QUALITY CHECKS (SECTION-LEVEL RELAY RACE).
+  // Walks the Phase 5 V2 draft one block at a time — ONE call per H2 section (article order, with a
+  // "sliding window": the last paragraph of the previous section + the first paragraph of the next
+  // section, both from the V2), then ONE call for ALL FAQ answers (batched), then ONE for the Direct
+  // Answer, then ONE for the CTA hook. Sequential, never parallel. Each call carries the cached master
+  // context (the SAME block Phase 5 uses — it reads that cache, never rewrites it), the verbatim
+  // "ruthless editor" prompt with the sliding window substituted in, and the block's current prose.
+  // The model returns ONLY the flagged + corrected paragraphs (revoice_content_block → `nodes`, same
+  // schema as Phase 5; `nodes:[]` when a block is clean). JS merges each block's corrections over V2
+  // → V3 (uncorrected paragraphs keep their Phase 5 prose). After each block, six JS quality checks
+  // run; on any failure the block is retried (max 2 retries) with targeted feedback; after the cap is
+  // hit it's a YELLOW (keep the best prose, continue) — Phase 6 NEVER RED-escalates on a QC failure.
+  // ═══════════════════════════════════════════════════════════
+
+  // ── text helpers ──
+  function stripInlineMarkup(s){
+    return String(s || '')
+      .replace(/<[^>]+>/g, ' ')                      // HTML tags
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')       // markdown links → anchor text
+      .replace(/[*_`~]/g, '')                        // emphasis / code / strikethrough markers
+      .replace(/^[\s>#*••\-–—]+/, '')           // leading bullet / heading / quote markers
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  function countWords(s){ return (stripInlineMarkup(s).match(/\S+/g) || []).length; }
+  function countQuestionMarks(s){ return (stripInlineMarkup(s).match(/[?]/g) || []).length; }
+  const _DRY_OPENERS = new Set(['the','a','an','this','these','those','it','its','that','there','ai','seo','search','content','companies','company','businesses','business','organizations','organization','users','customers','clients','websites','website','google','data','technology','many','most','some','marketing','automation','software','platforms','platform','tools','tool','systems','system','people','algorithms','algorithm']);
+  function isDryNounOpener(para){
+    const w0 = (stripInlineMarkup(para).split(/\s+/)[0] || '').toLowerCase().replace(/[^a-z]/g, '');
+    return _DRY_OPENERS.has(w0);
+  }
+  // AI-Tell + 4.3B Terminology-Lock scan. Returns the list of matched terms/phrases (empty = clean).
+  function scanAITells(text, bannedTerms){
+    const hits = [];
+    const t = ' ' + stripInlineMarkup(String(text || '')).toLowerCase() + ' ';
+    const esc = x => String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    AI_TELL_KILL_LIST.words.forEach(w => { if(new RegExp('\\b' + esc(w.toLowerCase()) + '\\b').test(t)) hits.push(w); });
+    AI_TELL_KILL_LIST.phrases.forEach(p => {
+      const lp = p.toLowerCase();
+      if(lp.indexOf('[x]') >= 0 || lp.indexOf('[y]') >= 0){ if(/\bwhether you are\b/.test(t)) hits.push(p); }
+      else if(t.indexOf(lp) >= 0) hits.push(p);
+    });
+    (bannedTerms || []).forEach(bt => { const b = String(bt || '').trim().toLowerCase(); if(b.length >= 3 && t.indexOf(b) >= 0) hits.push(b + ' [4.3B Terminology Lock]'); });
+    return [...new Set(hits)];
+  }
+  // Best-effort: pull explicitly quoted terms from a "Terminology Lock" / "banned words" section of 4.3B.
+  // Conservative by design — if 4.3B doesn't list terms in quotes near such a heading, returns [] (the
+  // universal AI-Tell list still applies regardless). Operators wanting this layer should quote the terms.
+  function extractBannedTerms(doc43B){
+    const txt = String(doc43B || ''); if(!txt) return [];
+    const out = new Set();
+    const headRe = /(terminology lock|banned (?:words?|terms?|phrases?)|words? to avoid|never use these|forbidden (?:words?|terms?)|do not use)/ig;
+    let m;
+    while((m = headRe.exec(txt)) !== null){
+      const slice = txt.slice(m.index, m.index + 1400);
+      // Only treat the section as a banned-terms list if it's clearly about AVOIDANCE — guards against
+      // a "Terminology Lock" heading that actually lists the CANONICAL terms to USE (which we must NOT scan for).
+      if(!/\b(ban|banned|avoid|forbid|forbidden|never use|do not use|don['’]t use|prohibited|outlaw|blacklist)\b/i.test(slice)) continue;
+      let q; const qre = /["“”'‘’«»]([^"“”'‘’«»\n]{3,40})["“”'‘’«»]/g;
+      while((q = qre.exec(slice)) !== null){ out.add(q[1].trim().toLowerCase()); }
+    }
+    return [...out].filter(x => x && x.length >= 3 && x.length <= 40 && /[a-z]/i.test(x)).slice(0, 60);
+  }
+  // Ordered list of every body paragraph's text (DA → sections' paras + h3 paras → FAQ answers → CTA hook).
+  function articleParagraphTexts(obj){
+    const out = [];
+    if(obj && obj.directAnswer) out.push(String(obj.directAnswer.prose || ''));
+    _secs(obj).forEach(sec => {
+      if(!sec || typeof sec !== 'object') return;
+      toArray(sec.paragraphs).forEach(p => out.push(String((p && p.prose) || '')));
+      toArray(sec.h3sections).forEach(h3 => { if(h3) toArray(h3.paragraphs).forEach(p => out.push(String((p && p.prose) || ''))); });
+    });
+    toArray(obj && obj.faq).forEach(f => { if(f && f.answer) out.push(String(f.answer.prose || '')); });
+    if(obj && obj.cta) out.push(String(obj.cta.hookProse || ''));
+    return out.filter(p => p.trim());
+  }
+  function articleBodyText(obj){ return articleParagraphTexts(obj).join('\n\n'); }
+
+  // The 6 JS quality checks. Returns { fails:[{check,code,reason}], passed:bool }. Mutates nothing.
+  function runQualityChecks(opts){
+    const { job, v3, sectionParaNodes, appliedCorrections, isFinalSectionJob, bannedTerms, semanticAnchor } = opts;
+    const fails = [];
+    const paras = (sectionParaNodes || []).map(n => String(n.prose || '')).filter(p => p.trim());
+    const sectionText = paras.join('\n\n');
+    const sectionWords = countWords(sectionText);
+    // 1 — Pronoun/Noun Start Ratio (H2-section blocks with ≥3 paragraphs)
+    if(job.type === 'section' && paras.length >= 3){
+      const dry = paras.filter(isDryNounOpener).length;
+      const ratio = dry / paras.length;
+      if(ratio > 0.6) fails.push({ check:'pronoun_noun_start', code:'QC1', reason:`${Math.round(ratio*100)}% of this section's paragraphs open with a dry subject noun (${dry}/${paras.length}). Rewrite more openers as conversational transitions (But, And, So, Here's the thing, That means, Now, Look…) — target ≤60%.` });
+    }
+    // 3 — Question Mark Density (H2-section blocks with ≥150 words): need ≥1 rhetorical question / 500 words
+    if(job.type === 'section' && sectionWords >= 150){
+      const q = countQuestionMarks(sectionText);
+      if(q * 500 < sectionWords) fails.push({ check:'question_density', code:'QC3', reason:`Only ${q} rhetorical question(s) across ${sectionWords} words — need ≥1 per 500 words (≥${Math.ceil(sectionWords/500)}). Add rhetorical questions to break monotony / introduce friction.` });
+    }
+    // 4 — AI-Tell Scan (every block) — universal kill list + 4.3B Terminology Lock
+    {
+      const hits = scanAITells(sectionText, bannedTerms);
+      if(hits.length) fails.push({ check:'ai_tell_scan', code:'QC4', reason:`AI-Tell / banned-term scan flagged: ${hits.join(', ')}. Remove every one of these from the rewritten prose.` });
+    }
+    // 5 — Data Anchor Preservation (per applied correction)
+    {
+      const missing = [];
+      (appliedCorrections || []).forEach(c => {
+        const prose = (c.pacingDirective === 'list extraction') ? (c.newListItems || []).join(' ') : String(c.newProse || '');
+        (c.dataAnchors || []).forEach(a => { const anc = String(a || '').trim(); if(anc && prose.indexOf(anc) < 0) missing.push(`"${anc}" (in your rewrite of ${c.targetId})`); });
+      });
+      if(missing.length) fails.push({ check:'data_anchor_preservation', code:'QC5', reason:`These data anchors you listed in data_anchors_to_preserve are missing verbatim from your rewrite: ${missing.join('; ')}. Restore each one exactly.` });
+    }
+    // 2 — Callback Verifier (final H2-section block only)
+    if(isFinalSectionJob){
+      const cb = String((v3.voiceArchitecture && v3.voiceArchitecture.callback_phrase) || '').trim();
+      if(cb){
+        const all = articleParagraphTexts(v3), N = all.length;
+        if(N >= 5){
+          const cbl = cb.toLowerCase();
+          const hitIdx = []; all.forEach((p, k) => { if(String(p || '').toLowerCase().indexOf(cbl) >= 0) hitIdx.push(k); });
+          const topHit = hitIdx.some(k => k < N * 0.2), bottomHit = hitIdx.some(k => k >= N * 0.8);
+          if(hitIdx.length === 0) fails.push({ check:'callback_verifier', code:'QC2', reason:`The callback phrase "${cb}" (from voice_architecture) appears NOWHERE in the article body. This section is the conclusion — land the callback phrase verbatim in its closing paragraph (it should also appear once near the top of the article).` });
+          else if(!topHit || !bottomHit) fails.push({ check:'callback_verifier', code:'QC2', reason:`The callback phrase "${cb}" appears at paragraph index/indices [${hitIdx.join(', ')}] of ${N} — but NOT both in the top 20% AND the bottom 20% (both instances are in the same half). This is the conclusion section — place the callback phrase verbatim in its closing paragraph so one instance lands near the article's end.` });
+        }
+      }
+    }
+    // 6 — Semantic Anchor Preservation (final H2-section block only) — exact phrase must appear in the body
+    if(isFinalSectionJob && semanticAnchor){
+      const body = articleBodyText(v3);
+      if(body.toLowerCase().indexOf(String(semanticAnchor).toLowerCase()) < 0){
+        fails.push({ check:'semantic_anchor', code:'QC6', reason:`The SEMANTIC_ANCHOR phrase "${semanticAnchor}" (from the 4.2 sheet row) does NOT appear verbatim anywhere in the article body. Work it into one of this section's paragraphs — exact phrasing.` });
+      }
+    }
+    return { fails, passed: fails.length === 0 };
+  }
+
+  // Phase 6 system block #2 (uncached): the ruthless-editor framing + AI-Tell list. (Block #1 = buildPhase2ContextBlock().)
+  function buildPhase6InstrBlock(){
+    return { type:'text', text: `PHASE 6 — FORENSIC CRITIQUE. You are a RUTHLESS EDITOR doing a final pass over an AEO article whose structure is FROZEN. You only rewrite PROSE paragraphs — the Direct Answer, body paragraphs, FAQ answers, and the CTA hook — each addressed by the JS-assigned id you are given. You CANNOT touch headings, tables, table rows, FAQ questions, links/anchors/URLs, images, the checklist, or the thesis; JS rejects any of those.
+
+For each call you get: (a) the editorial brief in the user message — follow it literally; (b) the current prose of this block's paragraphs, with ids; and (c) for body sections, how the previous section ends and how the next section begins (the "sliding window" — use it to judge whether the section's transitions actually hold).
+
+Return via the revoice_content_block tool a "nodes" array with ONE object per paragraph you FLAGGED AND CORRECTED — { targetId: <the exact id>, data_anchors_to_preserve: [<every hard fact/number/proper-noun in the original paragraph that MUST survive verbatim in your rewrite>], pacing_directive: "short punch" | "standard expansion" | "list extraction", transition_logic: "<one sentence — how this paragraph connects to the one before it>", and newProse (for "short punch"/"standard expansion") OR newListItems (3-7 short strings, for "list extraction"). If a paragraph passes every check, DO NOT return it. If the whole block is clean, return "nodes": []. NEVER return a "voice_architecture" object (it is already set). Never fabricate data; never invent numbers.
+
+AI-TELL KILL LIST — any of these in a paragraph means it MUST be rewritten to remove them:
+${aiTellListText()}
+Also: never use any term the 4.3B Terminology Lock bans; always use the client's canonical terms from 4.3B.` };
+  }
+
+  // Build the Phase 6 relay queue from V3 + the registry. Order: one job per H2 section (article order)
+  // → one job for ALL FAQ answers → one for the Direct Answer → one for the CTA hook. Returns
+  // { queue, lastSectionJobIdx } — lastSectionJobIdx is where the QC2 (callback) + QC6 (semantic anchor)
+  // checks run ("only on the final section").
+  function buildCritiqueQueue(v3, reg){
+    const queue = []; const allowed = reg.allowed;
+    _secs(v3).filter(s => s && typeof s === 'object').forEach((sec, si) => {
+      const h2 = String(sec.h2 || `Section ${si + 1}`);
+      const ids = [];
+      toArray(sec.paragraphs).forEach(p => { if(p && p.id && allowed.has(p.id)) ids.push(p.id); });
+      toArray(sec.h3sections).forEach(h3 => { if(h3) toArray(h3.paragraphs).forEach(p => { if(p && p.id && allowed.has(p.id)) ids.push(p.id); }); });
+      if(ids.length) queue.push({ type:'section', label:`section: "${h2}"`, h2, requiredIds: ids, sectionIdx: si });
+    });
+    const lastSectionJobIdx = queue.length - 1; // queue is all-section-jobs so far
+    { const ids = []; toArray(v3.faq).forEach(f => { if(f && f.answer && f.answer.id && allowed.has(f.answer.id)) ids.push(f.answer.id); }); if(ids.length) queue.push({ type:'faq_answer', label:`all ${ids.length} FAQ answer${ids.length===1?'':'s'}`, requiredIds: ids }); }
+    if(v3.directAnswer && v3.directAnswer.id && allowed.has(v3.directAnswer.id)) queue.push({ type:'directAnswer', label:'Direct Answer', requiredIds:[v3.directAnswer.id] });
+    if(v3.cta && v3.cta.id && allowed.has(v3.cta.id)) queue.push({ type:'cta_hook', label:'CTA hook', requiredIds:[v3.cta.id] });
+    return { queue, lastSectionJobIdx };
+  }
+
+  // The per-block user prompt: the VERBATIM editorial prompt (sliding window substituted) + the block's
+  // current prose (with ids) + the id list + (on retry) the targeted QC feedback.
+  function buildCritiqueJobPrompt(job, blockNodes, prevTail, nextHead, retryNote){
+    const reqIds = job.requiredIds || [];
+    const EDITORIAL = `You are a ruthless editor reviewing this section. Here is how the preceding section ends: ${prevTail}. Here is how the following section begins: ${nextHead}. Assume the previous writer was a lazy corporate PR intern. If a paragraph reads like a textbook, rewrite it as if speaking directly to a skeptical business owner over coffee. Cut adverbs. Kill passive voice. Introduce friction. Flag and rewrite any paragraph that: starts with a dry subject noun, contains hedging language (might, could, perhaps, somewhat), lacks a conversational transition, drops factual data anchors, uses any word from the AI-Tell Kill List, reads as textbook prose, or breaks transition with neighboring paragraphs. Return ONLY the corrected paragraphs. If a paragraph passes all checks, do not return it.`;
+    const proseBlock = blockNodes.map(n => `  ── ${n.id}${n.h3 ? ` (under H3 "${n.h3}")` : ''} — current prose:\n${String(n.prose || '(empty)').split('\n').map(l => '    ' + l).join('\n')}`).join('\n\n');
+    return `${EDITORIAL}
+
+CURRENT BLOCK — ${job.label || job.type}${job.h2 ? ` (H2 "${job.h2}")` : ''}. The paragraph ids you may correct (and only these): [${reqIds.join(', ')}]. Their current prose:
+
+${proseBlock}
+
+Return via the revoice_content_block tool a "nodes" array — ONE object per FLAGGED+CORRECTED paragraph: { targetId (from that id list), data_anchors_to_preserve, pacing_directive ("short punch"|"standard expansion"|"list extraction"), transition_logic, newProse | newListItems }. Return "nodes": [] if every paragraph in this block already passes. Do NOT return a paragraph that already passes. Do NOT touch any id not in that list. Do NOT include a voice_architecture object.${retryNote ? `\n\n${retryNote}` : ''}`;
+  }
+
+  // ─── PHASE 6 STREAMING DISPLAY (per relay block) ───
+  function makeCritiqueJobProgress(label){
+    let lastPaint = 0;
+    return ({ textOutput, toolJson, outputTokens }) => {
+      const now = Date.now(); if(now - lastPaint < 150) return; lastPaint = now;
+      const chars = (toolJson || '').length;
+      const o6 = document.getElementById('o6');
+      if(o6){ o6.textContent = `⏳ ${label} — streaming live · ${outputTokens||0} output tokens · ${chars.toLocaleString()} JSON chars\n` + '─'.repeat(40) + '\n'
+        + (textOutput ? '[preamble]\n'+textOutput+'\n\n' : '')
+        + (chars>3000 ? '…(showing last 3000 chars)…\n' : '') + (toolJson||'').slice(-3000); o6.scrollTop = o6.scrollHeight; }
+      const m6 = document.getElementById('m6'); if(m6) m6.textContent = `${label} — ${outputTokens||0} tokens, ${chars.toLocaleString()} chars so far…`;
+    };
+  }
+
+  // ─── PHASE 6 RELAY LOOP — clone the Phase 5 V2 → V3, walk the critique queue sequentially, run the
+  //     6 quality checks after each block (max 2 retries with targeted feedback; YELLOW + keep-best on
+  //     the cap; never RED on a QC failure), merge each block's corrections into V3. ───
+  async function executePhase6(v2draft, akey, reg, qcCtx){
+    const t0 = Date.now(); qcCtx = qcCtx || {};
+    if(!v2draft || typeof v2draft !== 'object') return { v3: v2draft, correctionCount: 0, blocksProcessed: 0, failedBlocks: 0, qcWarnings: 0, elapsed: '0.0', skipped: 'no V2 draft' };
+    const v3 = JSON.parse(JSON.stringify(v2draft)); // un-frozen clone — Phase 6 mutates this
+    S.v3 = v3;
+    // id → node + id → meta
+    const idx = {}, idMeta = {};
+    if(v3.directAnswer && v3.directAnswer.id){ idx[v3.directAnswer.id] = v3.directAnswer; idMeta[v3.directAnswer.id] = { kind:'da', h3:'' }; }
+    if(v3.cta && v3.cta.id){ idx[v3.cta.id] = v3.cta; idMeta[v3.cta.id] = { kind:'cta', h3:'' }; }
+    _secs(v3).forEach(sec => { if(!sec || typeof sec !== 'object') return;
+      const h2 = String(sec.h2 || '');
+      toArray(sec.paragraphs).forEach(p => { if(p && p.id){ idx[p.id] = p; idMeta[p.id] = { kind:'para', h2, h3:'' }; } });
+      toArray(sec.h3sections).forEach(h3 => { if(h3) toArray(h3.paragraphs).forEach(p => { if(p && p.id){ idx[p.id] = p; idMeta[p.id] = { kind:'para', h2, h3:String(h3.h3 || '') }; } }); });
+    });
+    toArray(v3.faq).forEach(f => { if(f && f.answer && f.answer.id){ idx[f.answer.id] = f.answer; idMeta[f.answer.id] = { kind:'ans', h3:'' }; } });
+    const getProse = id => { const n = idx[id]; if(!n) return ''; return (idMeta[id] && idMeta[id].kind === 'cta') ? String(n.hookProse || '') : String(n.prose || ''); };
+    const setProse = (id, c) => {
+      const n = idx[id]; if(!n) return false;
+      const kind = idMeta[id] ? idMeta[id].kind : 'para';
+      n.pacingDirective = c.pacingDirective; n.dataAnchors = c.dataAnchors; n.transitionLogic = c.transitionLogic;
+      if(c.pacingDirective === 'list extraction'){ n.listItems = c.newListItems; if(kind === 'cta') n.hookProse = ''; else n.prose = ''; }
+      else { if(kind === 'cta') n.hookProse = c.newProse; else n.prose = c.newProse; if('listItems' in n) delete n.listItems; }
+      return true;
+    };
+    // per-section ordered para-id lists (for the sliding window). The sliding window shows the
+    // PHASE 5 V2 prose of the neighbouring sections (read from v2draft, which is never mutated) —
+    // so a section judges its transitions against the V2 text the user specified, not against a
+    // neighbour that may itself have just been re-edited this pass.
+    const v2ProseById = {};
+    if(v2draft.directAnswer && v2draft.directAnswer.id) v2ProseById[v2draft.directAnswer.id] = String(v2draft.directAnswer.prose || '');
+    if(v2draft.cta && v2draft.cta.id) v2ProseById[v2draft.cta.id] = String(v2draft.cta.hookProse || '');
+    _secs(v2draft).forEach(sec => { if(!sec || typeof sec !== 'object') return;
+      toArray(sec.paragraphs).forEach(p => { if(p && p.id) v2ProseById[p.id] = String(p.prose || ''); });
+      toArray(sec.h3sections).forEach(h3 => { if(h3) toArray(h3.paragraphs).forEach(p => { if(p && p.id) v2ProseById[p.id] = String(p.prose || ''); }); });
+    });
+    toArray(v2draft.faq).forEach(f => { if(f && f.answer && f.answer.id) v2ProseById[f.answer.id] = String(f.answer.prose || ''); });
+    const secObjs = _secs(v3).filter(s => s && typeof s === 'object');
+    const secParaIds = secObjs.map(sec => { const ids = []; toArray(sec.paragraphs).forEach(p => { if(p && p.id) ids.push(p.id); }); toArray(sec.h3sections).forEach(h3 => { if(h3) toArray(h3.paragraphs).forEach(p => { if(p && p.id) ids.push(p.id); }); }); return ids; });
+    const lastParaOfSec = si => { const ids = secParaIds[si] || []; for(let k = ids.length - 1; k >= 0; k--){ const tt = String(v2ProseById[ids[k]] || '').trim(); if(tt) return tt; } return ''; };
+    const firstParaOfSec = si => { const ids = secParaIds[si] || []; for(let k = 0; k < ids.length; k++){ const tt = String(v2ProseById[ids[k]] || '').trim(); if(tt) return tt; } return ''; };
+    const secHeading = si => String((secObjs[si] && secObjs[si].h2) || `Section ${si + 1}`);
+
+    const { queue, lastSectionJobIdx } = buildCritiqueQueue(v3, reg);
+    const total = queue.length;
+    if(total === 0){ const elapsed = ((Date.now() - t0) / 1000).toFixed(1); return { v3, correctionCount: 0, blocksProcessed: 0, failedBlocks: 0, qcWarnings: 0, elapsed, skipped: 'no addressable prose nodes' }; }
+
+    log(`Phase 6 — forensic critique relay (section-level): ${total} block(s) to review.`, 'info');
+    initRelayStrip('relayStrip6', queue);
+    const cachedCtx = buildPhase2ContextBlock();   // same cached master block Phase 5 uses → cache HIT (read), not rewrite
+    const instrBlock = buildPhase6InstrBlock();    // uncached: ruthless-editor framing + AI-Tell list
+    let correctionCount = 0, failedBlocks = 0, qcWarnings = 0;
+
+    for(let i = 0; i < total; i++){
+      const job = queue[i];
+      const reqIds = job.requiredIds || [];
+      const reqSet = new Set(reqIds.map(String));
+      const isFinalSectionJob = (lastSectionJobIdx >= 0) ? (i === lastSectionJobIdx) : (i === total - 1);
+      setPhase(6, 'active', `6 ${i+1}/${total}`);
+      setRelayChip('relayStrip6', i, 'active');
+      setG(`Phase 6 — forensic critique: block ${i+1}/${total} (${job.label || job.type})…`, true);
+      log(`Phase 6 — critiquing block ${i+1} of ${total} (${job.label || job.type}; ${reqIds.length} paragraph${reqIds.length===1?'':'s'})…`, 'info');
+      document.getElementById('o6').textContent = `⏳ Phase 6 block ${i+1}/${total} (${job.label||job.type}) — connecting to Claude…`;
+
+      // sliding window
+      let prevTail = '', nextHead = '';
+      if(job.type === 'section'){
+        const si = job.sectionIdx;
+        prevTail = (si > 0) ? (lastParaOfSec(si - 1) || `(section "${secHeading(si-1)}" has no prose)`) : '(this is the FIRST body section — there is no preceding section)';
+        nextHead = (si < secObjs.length - 1) ? (firstParaOfSec(si + 1) || `(section "${secHeading(si+1)}" begins)`) : '(this is the LAST body section — there is no following section)';
+      } else if(job.type === 'directAnswer'){
+        prevTail = '(this is the article opener — there is no preceding section)';
+        nextHead = secObjs.length ? (firstParaOfSec(0) || `(the article continues into section "${secHeading(0)}")`) : '(the article continues into the body)';
+      } else if(job.type === 'cta_hook'){
+        prevTail = secObjs.length ? (lastParaOfSec(secObjs.length - 1) || '(the article body ends just before this)') : '(the article body ends just before this)';
+        nextHead = '(this is the closing CTA — nothing follows it)';
+      } else { // faq_answer batch
+        prevTail = secObjs.length ? (lastParaOfSec(secObjs.length - 1) || '(the article body precedes the FAQ)') : '(the article body precedes the FAQ)';
+        nextHead = (v2draft.cta && v2draft.cta.hookProse) ? String(v2draft.cta.hookProse) : '(the CTA closes the article after the FAQ)';
+      }
+
+      let bestApplied = null, qcFailedThisBlock = false, hadWarn = false, lastFails = [], f6framing = '';
+      const correctedIds = new Set();   // union over attempts — accurate even if a retry only re-touches a subset
+      for(let attempt = 0; attempt <= 2; attempt++){
+        const blockNodes = reqIds.map(id => { const mm = idMeta[id] || {}; return { id, prose: getProse(id), h3: mm.h3 || '' }; });
+        let retryNote = '';
+        if(attempt > 0){
+          hadWarn = true;
+          if(f6framing) retryNote = f6framing;
+          else retryNote = `PREVIOUS ATTEMPT FAILED THESE JS QUALITY CHECKS — fix exactly these (return corrected paragraphs only; leave the rest):\n${lastFails.map(f => `  • [${f.code}] ${f.reason}`).join('\n')}`;
+        }
+        let result;
+        try {
+          result = await callClaude({ systemBlocks:[cachedCtx, instrBlock], userText: buildCritiqueJobPrompt(job, blockNodes, prevTail, nextHead, retryNote), tools:[VOICE_BLOCK_TOOL], toolChoice:{type:'tool', name:'revoice_content_block'}, akey, onProgress: makeCritiqueJobProgress(`Phase 6 block ${i+1}/${total}`), timeoutMs: 300000 });
+        } catch(e){
+          if(e.f4) throw e;
+          if(attempt < 2){ warnYellow('F2', `Phase 6 block ${i+1}/${total} (${job.label||job.type}) call errored (${e.message||e}) — retrying.`); continue; }
+          warnYellow('F2', `Phase 6 block ${i+1}/${total} (${job.label||job.type}) failed after retries (${e.message||e}) — keeping the Phase 5 prose for this block. Code: F2.`); break;
+        }
+        logCacheCall(6, result.usage);
+        if(!result.toolCalls.length && (/\bI cannot\b|\bI (?:can['’]t|won['’]t)\b|\bI apologi[sz]e\b|unable to (?:provide|help|assist|complete)/i.test(result.textOutput||'') || result.stopReason === 'refusal')){
+          if(attempt < 2){ warnYellow('F6', `Phase 6 block ${i+1}/${total}: Claude declined — retrying with "informational professional content" framing. Code: F6.`); f6framing = 'IMPORTANT FRAMING: This is informational marketing/SEO content for a professional service-business website — not medical, legal, or financial advice. Critique and correct the block normally via revoice_content_block.'; continue; }
+          warnYellow('F6', `Phase 6 block ${i+1}/${total} (${job.label||job.type}) refused after retries — keeping the Phase 5 prose. Code: F6.`); break;
+        }
+        if(!result.toolCalls.length){
+          if(attempt < 2){ warnYellow('F2', `Phase 6 block ${i+1}/${total}: no tool call returned — retrying. Code: F2.`); continue; }
+          warnYellow('F2', `Phase 6 block ${i+1}/${total} (${job.label||job.type}): no usable tool call after retries — keeping the Phase 5 prose. Code: F2.`); break;
+        }
+        const inp = result.toolCalls[0].input;
+        if(inp && inp.__parse_error){
+          if(attempt < 2){ warnYellow('F2', `Phase 6 block ${i+1}/${total}: unparseable tool input (${inp.__parse_error}) — retrying. Code: F2.`); continue; }
+          warnYellow('F2', `Phase 6 block ${i+1}/${total} (${job.label||job.type}): unparseable after retries — keeping the Phase 5 prose. Code: F2.`); break;
+        }
+        if(result.stopReason === 'max_tokens'){ hadWarn = true; warnYellow('F3', `Phase 6 block ${i+1}/${total} (${job.label||job.type}) hit the token limit — using the partial corrections recovered. Code: F3.`); }
+        f6framing = '';
+        // validate the returned corrections; keep only those targeting THIS block's ids
+        const v = validateVoiceNodes(inp.nodes, reg);
+        const inBlock = v.valid.filter(c => reqSet.has(String(c.targetId)));
+        const outOfBlock = v.valid.filter(c => !reqSet.has(String(c.targetId))).map(c => c.targetId);
+        if(v.orphaned.length || v.disallowed.length || outOfBlock.length){ hadWarn = true; warnYellow('F13', `Phase 6 block ${i+1}/${total} (${job.label||job.type}): ${v.orphaned.length} orphaned + ${v.disallowed.length} disallowed + ${outOfBlock.length} out-of-block targetId(s) — dropped. Code: F13.`); }
+        // —— APPLY (provisionally) to V3 — overwrites this block's nodes; on a retry the new corrections supersede ——
+        const applied = [];
+        inBlock.forEach(c => { if(setProse(c.targetId, c)){ applied.push(c); correctedIds.add(String(c.targetId)); } });
+        // —— RUN THE 6 JS QUALITY CHECKS ON THE (now-corrected) BLOCK ——
+        const sectionParaNodes = reqIds.map(id => ({ id, prose: getProse(id) }));
+        const qc = runQualityChecks({ job, v3, sectionParaNodes, appliedCorrections: applied, isFinalSectionJob, bannedTerms: qcCtx.bannedTerms, semanticAnchor: qcCtx.semanticAnchor });
+        bestApplied = applied; lastFails = qc.fails;
+        if(qc.passed){
+          log(`Phase 6 block ${i+1}/${total}: ${applied.length} paragraph(s) corrected; all quality checks pass${attempt>0?` (on retry ${attempt})`:''}.`, 'ok');
+          qcFailedThisBlock = false; break;
+        }
+        if(attempt < 2){ warnYellow('F14', `Phase 6 block ${i+1}/${total} (${job.label||job.type}): failed ${qc.fails.length} quality check(s) [${qc.fails.map(f=>f.code).join(', ')}] — retrying with targeted feedback (retry ${attempt+1}/2). Code: F14.`); continue; }
+        // retry cap hit — keep the best prose, continue (never RED on a QC failure)
+        qcFailedThisBlock = true; qcWarnings++;
+        warnYellow('F14', `Phase 6 block ${i+1}/${total} (${job.label||job.type}): still failing ${qc.fails.length} quality check(s) [${qc.fails.map(f=>f.code).join(', ')}] after 2 retries — keeping the best available prose, moving on. Code: F14. (${qc.fails.map(f=>f.code+': '+f.reason).join(' || ')})`);
+        break;
+      }
+      const appliedN = correctedIds.size;
+      correctionCount += appliedN;
+      if(qcFailedThisBlock) failedBlocks++;
+      setRelayChip('relayStrip6', i, (qcFailedThisBlock || hadWarn) ? 'warn' : 'done');
+      const corrLines = (bestApplied || []).map(c => {
+        const txt = (c.pacingDirective === 'list extraction') ? ('• ' + (c.newListItems || []).join('\n  • ')) : String(c.newProse || '');
+        return `  • ${c.targetId} [${c.pacingDirective}]${(c.dataAnchors && c.dataAnchors.length) ? ` — anchors: ${c.dataAnchors.join('; ')}` : ''}\n${txt.split('\n').map(l => '      ' + l).join('\n')}`;
+      }).join('\n\n');
+      const _status = (bestApplied === null) ? ' · ⚠ block could not be reviewed (relay call failed after retries) — Phase 5 prose kept'
+        : qcFailedThisBlock ? ` · STILL FAILING [${lastFails.map(f=>f.code).join(', ')}] after 2 retries — best prose kept`
+        : (lastFails.length === 0 ? ' · all applicable quality checks pass' : '');
+      pOut(6, `${appliedN} paragraph(s) corrected${_status}${lastFails.length ? `\nQuality-check notes: ${lastFails.map(f=>f.code+' — '+f.reason).join('  |  ')}` : ''}\n${corrLines || '  (nothing flagged — block left unchanged)'}`, { append: true, heading: `Block ${i+1}/${total} — ${job.label||job.type}` });
+      document.getElementById('m6').textContent = `Phase 6 relay — ${i+1}/${total} block(s) reviewed; ${correctionCount} paragraph(s) corrected so far${failedBlocks?`, ${failedBlocks} block(s) hit the retry cap`:''}.`;
+      refreshRightPanels();
+    }
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+    return { v3, correctionCount, blocksProcessed: total, failedBlocks, qcWarnings, elapsed };
+  }
+
   // ─── PIPELINE ──────────────────────────────────────────────
   async function startPipeline(){
     if(running){ log('A run is already in progress.', 'warn'); return; }
@@ -3113,13 +3470,13 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     S.topic = topic;
     S.tokens = { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 };
     S.cacheLog = [];
-    S.research = null; S.frame = null; S.v1 = null; S.v1Frozen = false; S.validation = null; S.intentLayer = ''; S.voiceExemplars = ''; S.v2 = null; S.htmlStub = ''; S.cta43BWarned = false; S._extraLinksWarned = false;
+    S.research = null; S.frame = null; S.v1 = null; S.v1Frozen = false; S.validation = null; S.intentLayer = ''; S.voiceExemplars = ''; S.v2 = null; S.v3 = null; S.htmlStub = ''; S.cta43BWarned = false; S._extraLinksWarned = false;
     // M3.5 — image queue: hard-reset and clear the panel for the new run
     if(_activeImgAbort){ try { _activeImgAbort.abort(new Error('New run started.')); } catch(_){} _activeImgAbort = null; }
     S.imagePrompts = []; S.imageData = {}; S.imageUrls = {}; S.imageAttemptId = ''; S.imageArtifactKey = ''; S.expectedImageCount = 0;
     imagesValidated = false; _phase6Resolve = null;
     resetImagePanel();
-    clearRelayStrip('relayStrip2'); clearRelayStrip('relayStrip5');
+    clearRelayStrip('relayStrip2'); clearRelayStrip('relayStrip5'); clearRelayStrip('relayStrip6');
     S.phaseBuf = {};
     _idCounter = 0; // ids are unique per run; reset once here, not per assignIds() call
     updateCost(); renderCacheLog();
@@ -3128,12 +3485,11 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     clearYellowWarnings();   // YELLOW warnings reset at the start of every run (RED behavior unchanged)
     clearRunEscalations();   // clears this run's RED list + re-renders the panel (now empty of both)
     pipelineHalted = false;
-    // Phases 1,2,3,4,5,7 reset to "Waiting"; Phase 6 (the M4 forensic-critique stub) keeps its "M4" badge + "Pending Milestone 4." text.
-    ['1','2','3','4','5','7'].forEach(n => { setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
+    ['1','2','3','4','5','6','7'].forEach(n => { setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
     document.getElementById('o3').textContent=''; document.getElementById('o4').textContent='';
-    { const e=document.getElementById('metaPre'); if(e) e.textContent='Metadata appears here after the Phase 2 frame, and is refreshed after Phase 5.'; }
-    { const e=document.getElementById('daPre'); if(e) e.textContent='The Direct Answer prose appears here after the Phase 2 hydration relay, and is re-voiced after Phase 5.'; }
-    { const e=document.getElementById('v2Pre'); if(e) e.textContent='The V2 article appears here after Phase 5. During Phase 2 it shows the V1 article-in-progress (the structured JSON, streaming).'; }
+    { const e=document.getElementById('metaPre'); if(e) e.textContent='Metadata appears here after the Phase 2 frame, and is refreshed after Phases 5 & 6.'; }
+    { const e=document.getElementById('daPre'); if(e) e.textContent='The Direct Answer prose appears here after the Phase 2 hydration relay, and is re-voiced after Phase 5, then forensic-critiqued in Phase 6.'; }
+    { const e=document.getElementById('v2Pre'); if(e) e.textContent='The V2 article appears here after Phases 5–6 (voice draft & forensic critique). During Phase 2 it shows the V1 article-in-progress (the structured JSON, streaming).'; }
     { const e=document.getElementById('schemaPre'); if(e) e.textContent='A basic Article + FAQPage JSON-LD stub appears here after Phase 5. The full schema graph = Milestone 5.'; }
     document.getElementById('htmlPre').textContent='The Phase 7 (Final Assembly) stub HTML appears here.';
     // Phase cards collapse + descriptions collapse, Run Log is the active tab — until Phase 7 finishes.
@@ -3390,7 +3746,7 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
         `Structural minimums met: sections=${v1.sections.length}, faq=${v1.faq.length}, tables=${countTables(v1)} (rows=${_rowCount}, each row citing a Phase 1 factClaim), images=${countImages(v1)}, DA=${_daWords} words.\n` +
         `Thesis: "${v1.thesis?.statement || '(none)'}"\n` +
         (artifactKey ? `Snapshot saved to localStorage key: ${artifactKey}` : 'Snapshot save failed (see YELLOW F16).') +
-        `\nBones are immutable from here. Phases 5 / 5.5 (Milestones 3–4) may only rewrite prose against assigned IDs — they physically cannot move the structure.`;
+        `\nBones are immutable from here. Phases 5 (voice draft) and 6 (forensic critique) may only rewrite prose against assigned IDs — they physically cannot move the structure.`;
       document.getElementById('m4').textContent = `V1 frozen + snapshotted. ${artifactKey ? 'Recoverable from localStorage.' : ''}`;
       setPhase(4, 'done', 'Frozen 🔒');
       log(`Phase 4 — V1 frozen. ${artifactKey ? 'Artifact: ' + artifactKey : ''}`, 'ok');
@@ -3445,6 +3801,31 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
       refreshRightPanels();   // Metadata / Direct Answer / V2 Article / Schema tabs now reflect the V2
       log(`Phase 5 complete (section-level relay, ${p5res.elapsed}s) — ${applied} prose rewrites applied${p5res.failedBlocks?`; ${p5res.failedBlocks} block(s) failed (those nodes keep their V1 prose)`:''}; voice_architecture ${va.core_conviction?'present':'absent'}.`, p5res.failedBlocks?'warn':'ok');
 
+      // ── PHASE 6: FORENSIC CRITIQUE + 6 JS QUALITY CHECKS (section-level relay race over the Phase 5 V2) ──
+      //    One ruthless-editor call per H2 section (with the sliding window), then one for ALL FAQ answers,
+      //    then one for the Direct Answer, then one for the CTA hook — sequential. After each block the six
+      //    JS quality checks run; on a failure the block is retried (max 2) with targeted feedback; after the
+      //    cap → YELLOW + keep-best, continue. Never RED on a QC failure. Output → S.v3 (corrections merged over V2).
+      setG('Phase 6 — forensic critique (section-level relay race)…', true);
+      setPhase(6, 'active', 'Preparing');
+      clearRelayStrip('relayStrip6');
+      S.v3 = null;
+      const _bannedTerms = extractBannedTerms(S.docs.doc43B);
+      const _semanticAnchor = (getSheetCol('SEMANTIC_ANCHOR') || getSheetCol('Semantic Anchor') || '').trim();
+      if(_bannedTerms.length) log(`Phase 6 — the AI-Tell scan will also block ${_bannedTerms.length} 4.3B Terminology-Lock term(s): ${_bannedTerms.slice(0,8).join(', ')}${_bannedTerms.length>8?'…':''}.`, 'info');
+      if(!_semanticAnchor) log(`Phase 6 — no SEMANTIC_ANCHOR column in the 4.2 sheet row; the semantic-anchor check (QC6) is skipped.`, 'info');
+      let p6res;
+      try { p6res = await executePhase6(S.v2, akey, voiceReg, { bannedTerms: _bannedTerms, semanticAnchor: _semanticAnchor }); }
+      catch(e){ if(e.f4){ escalateRed('F4', `Claude/proxy unavailable during Phase 6 forensic critique. (${e.message})`); return; } throw e; }
+      if(pipelineHalted) return;
+      S.v3 = p6res.v3 || S.v2;
+      document.getElementById('m6').textContent = p6res.skipped
+        ? `Phase 6 skipped — ${p6res.skipped}.`
+        : `Forensic critique done in ${p6res.elapsed}s — ${p6res.correctionCount} paragraph(s) corrected across ${p6res.blocksProcessed} block(s)${p6res.failedBlocks?`; ${p6res.failedBlocks} block(s) still failed a quality check after 2 retries (best prose kept)`:'; all blocks passed the quality checks'}.`;
+      setPhase(6, 'done', p6res.skipped ? 'Skipped' : `Critiqued ${p6res.elapsed}s`);
+      refreshRightPanels();   // V2 Article / Metadata / DA / Schema tabs now reflect the V3 forensic-critique draft
+      log(`Phase 6 complete (forensic critique${p6res.skipped ? ' — skipped: '+p6res.skipped : `, ${p6res.elapsed}s — ${p6res.correctionCount} paragraph correction(s); ${p6res.failedBlocks||0} block(s) hit the retry cap`}).`, p6res.failedBlocks?'warn':'ok');
+
       // ── M3.5 HARD STOP — Phase 7 (Final Assembly) cannot run until every generated image has been
       //    uploaded to WordPress and its URL pasted + validated in the Image panel (left column,
       //    below the phase cards): image_urls.length must equal expected_image_count. The pipeline
@@ -3462,12 +3843,12 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
         imagesValidated = true; // no image slots in this frame — nothing to gate on
       }
 
-      // ── PHASE 7 STUB (operates on the Phase 5 V2 voice draft — no V1 fallback; if Phase 5 ──
-      //    had failed, the pipeline would already have RED-escalated and returned before here) ──
+      // ── PHASE 7 STUB (operates on the Phase 6 V3 forensic-critique draft, falling back to the Phase 5 V2;
+      //    if Phase 5 had failed the pipeline would already have RED-escalated and returned before here) ──
       setPhase(7, 'active', 'Assembling');
-      document.getElementById('o7').textContent = '⏳ Building the stub HTML from the V2 voice draft…';
+      document.getElementById('o7').textContent = '⏳ Building the stub HTML from the V3 (forensic-critiqued) draft…';
       await sleep(400);
-      S.htmlStub = buildPhase7Stub(S.v2);
+      S.htmlStub = buildPhase7Stub(S.v3 || S.v2);
       document.getElementById('o7').textContent = S.htmlStub;
       document.getElementById('m7').textContent = `STILL A STUB — ${S.htmlStub.length}b${S.expectedImageCount?`. Images: ${Object.keys(S.imageUrls).length}/${S.expectedImageCount} URL(s), featured = image ${getFeatured()+1}`:' (no image slots)'}. Real Phase 7 assembly (sections, FAQ, schema, ToC, byline, image embeds) ships in Milestone 5.`;
       document.getElementById('htmlPre').textContent = S.htmlStub + (S.expectedImageCount ? `\n\n<!-- M3.5 — image URLs Phase 7 will embed (featured + inline) -->\n${(S.imagePrompts||[]).map((p,i)=>`Image ${i+1}${i===getFeatured()?' [FEATURED]':''} — alt: "${p.alt||''}" — url: ${S.imageUrls[i]||'(not set)'}`).join('\n')}` : '');
@@ -3482,14 +3863,15 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
 
       const cacheVerdict = S.cacheLog[0]?.verdict || '—';
       const _p5applied = toArray(S.v2 && S.v2.sections).reduce((n,s)=>n+toArray(s.paragraphs).filter(p=>p.transitionLogic!==undefined).length+toArray(s.h3sections).reduce((m,h)=>m+toArray(h.paragraphs).filter(p=>p.transitionLogic!==undefined).length,0),0) + (S.v2&&S.v2.directAnswer&&S.v2.directAnswer.transitionLogic!==undefined?1:0) + (S.v2&&S.v2.cta&&S.v2.cta.transitionLogic!==undefined?1:0) + toArray(S.v2&&S.v2.faq).filter(f=>f.answer&&f.answer.transitionLogic!==undefined).length;
-      setG(`✓ Phases 1–5 complete — V1 frozen, V2 voice draft done (${_p5applied} prose rewrite(s), intent: ${S.intentLayer||'?'}). Mode: ${mode}${mode==='calibration' ? ` (now ${getCalibratedCount(S.client.name)} calibrated)` : ''}. Cache: ${cacheVerdict}. Forensic critique (Phase 6) + voice quality checks = Milestone 4; real Phase 7 assembly = Milestone 5. Use "↻ Verify Cache" on the Cache Stats tab to confirm a YES.`);
+      const _p6corr = (p6res && p6res.correctionCount) || 0;
+      setG(`✓ Phases 1–6 complete — V1 frozen, V2 voiced (${_p5applied} prose rewrite(s)), V3 forensic-critiqued (${_p6corr} paragraph correction(s)${p6res&&p6res.failedBlocks?`, ${p6res.failedBlocks} block(s) hit the QC retry cap`:''}). Intent: ${S.intentLayer||'?'}. Mode: ${mode}${mode==='calibration' ? ` (now ${getCalibratedCount(S.client.name)} calibrated)` : ''}. Cache: ${cacheVerdict}. Real Phase 7 assembly = Milestone 5. Use "↻ Verify Cache" on the Cache Stats tab to confirm a YES.`);
       setCacheBtnsDisabled(false);
     } catch(err){
       console.error(err);
       log(`PIPELINE ERROR: ${err.message}`, 'err');
       setG(`Error: ${err.message}`, false, true);
       if(err.f4 && !pipelineHalted) escalateRed('F4', `${err.label||'An API'} unavailable after retries. ${err.message}`);
-      ['1','2','3','4','5','7'].forEach(n => {
+      ['1','2','3','4','5','6','7'].forEach(n => {
         const card = document.getElementById('phase'+n);
         if(card?.classList.contains('active')) setPhase(n, 'error', 'Error');
       });
