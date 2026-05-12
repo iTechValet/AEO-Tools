@@ -2201,7 +2201,8 @@ Output the JSON now.`;
     updateCost(); renderCacheLog();
     document.getElementById('cacheVerdict').textContent = '—';
     setCacheBtnsDisabled(true);
-    clearRunEscalations();
+    yellowWarnings = []; saveYellowWarnings(); // YELLOW warnings reset per run (RED behavior unchanged)
+    clearRunEscalations();                      // clears this run's RED list + re-renders the panel (now empty of both)
     pipelineHalted = false;
     ['1','2','3','4','6'].forEach(n => { setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
     // Phase cards collapse, Run Log is the active tab — both stay that way until Phase 6 finishes.
