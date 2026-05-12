@@ -1,16 +1,28 @@
-AEO ARTICLE CREATION PIPELINE — MASTER REFERENCE DOC
-Last Updated: May 11, 2026 | Post-Chat-19 build session | V3.1 (production) | V4.0 (BUILD UNDERWAY — M1 + M2 + M2.5 two-pass Phase 2 shipped)
+AEO ARTICLE CREATION PIPELINE — MASTER REFERENCE DOC  (WORKING COPY — full session of May 11, 2026)
+Last Updated: May 11, 2026 (continued — Chat 20 build session) | V3.1 (production) | V4.0 (BUILD UNDERWAY — M1+M2 approved; M2.5 approved; M2.6 built; M3 built; M3.5 queued)
 ================================================
 
 ⚠️ V4.0 ARCHITECTURAL REBUILD — BUILD IN PROGRESS (Claude Code)
 End of Chat 19: Three Gemini Pro consultations concluded with full sign-off.
-The spec is now being executed by Claude Code against aeo_v4.html. As of
-May 11, 2026: Milestones 1 and 2 are BUILT, plus M2.5 — Phase 2 rebuilt into
-TWO PASSES (2A structure frame → JS frame validation → 2B data hydration → JS
-merge), with provenance-tagged table data (every row cites a Phase 1 factClaim)
-and SURGICAL retries (the V1 is never regenerated wholesale). Operator live
-test against a real iTV topic pending before Milestone 3. See "V4.0 BUILD
-STATUS" section below for the milestone-by-milestone state.
+The spec is being executed by Claude Code against aeo_v4.html. As of the end
+of the May 11, 2026 build session:
+  M1   — APPROVED (skeleton + Phase 1-2 with caching; cache HIT verified).
+  M2   — APPROVED (Phase 3 dual validation, Phase 4 freeze, F1-F4, escalation
+         panel, calibration/production modes).
+  M2.5 — APPROVED (Phase 2 split into TWO PASSES: 2A structure frame → JS frame
+         validation → 2B data hydration → JS merge; provenance-tagged table data
+         — every row cites a Phase 1 factClaim; SURGICAL retries — the V1 is
+         never regenerated wholesale).
+  M2.6 — BUILT (Phase 2B rebuilt as the "Relay Race" — Sequential Hydration
+         with Rolling Context, SECTION-LEVEL granularity: buildSectionLevelQueue
+         + HYDRATE_CONTENT_BLOCK_TOOL — ~20-25 calls instead of ~63; Phase 2A
+         frame now also carries a narrative_spine). Operator live test pending.
+  M3   — BUILT (Phase 5 Voice Draft, Option E unified CoT). NOTE: Phase 5 is a
+         single big Option-E call and will fatigue on output tokens the same way
+         the monolithic Phase 2B did — it NEEDS the same Relay-Race rebuild
+         (section-level sequential rewrites) before it's production-ready.
+  M3.5 — QUEUED (image generation — runs in parallel with Phase 5/5.5; not built).
+See "V4.0 BUILD STATUS" section below for the milestone-by-milestone detail.
 
 Spec includes (full detail in AEO_V4_Build_Plan.txt):
 - 7-phase architecture (Research → V1 → Validation → Freeze → Voice Draft →
@@ -228,31 +240,150 @@ third pass. Full spec is in AEO_V4_Build_Plan.txt "PHASE 2" section.)
   "Primary CTA" heading. Clients are never asked to rename a 4.3B field to
   match the tool — the tool adapts to the doc.
 ────────────────────────────────────────────────────────────
+MILESTONE 2.6 — PHASE 2B REBUILD: "THE RELAY RACE" (SEQUENTIAL HYDRATION, SECTION-LEVEL) — ✅ BUILT, ⏳ LIVE TEST PENDING
+(Chat 20, May 11, 2026. The monolithic single-call Phase 2B fatigued on output
+tokens — ~50% failure → heavy retries → ~$2+/article. First M2.6 build went
+per-PARAGRAPH (~63 calls, ~$2, 10+ min) — also too expensive. This is the
+SECTION-LEVEL rebuild: ~20-25 calls. Replaces the monolithic 2B and the
+per-paragraph relay entirely.)
+
+- PHASE 2A change (the only Phase 2A change): the frame output now also includes
+  a narrative_spine — { core_thesis (one-sentence spine), callback_setup (a
+  metaphor/concept to establish early and pay off late — the through-line),
+  section_transitions [{targetId = the EXACT heading text, bridge_logic = one
+  sentence on how to bridge into that section}], voice_reminders [3-5 specific
+  reminders pulled from 4.3A/4.3B] }. The 2A frame also now carries empty
+  paragraph slots ({} per paragraph — Claude decides the count, JS assigns ids),
+  directAnswer:{} and faq[].answer:{} placeholder slots. thesis:{statement} kept
+  (Phase 3A/5/6 read it). buildPhase2ASystem prompt updated. Everything else in
+  the Phase 2A structural frame is unchanged.
+- HYDRATE_CONTENT_BLOCK_TOOL (hydrate_content_block) replaces HYDRATE_NODE_TOOL:
+  flat schema { nodes: [{ targetId (required), prose?, rows?:[{cells, sourceReferenceId}] }] }
+  — "return exactly one object for every targetId requested in the prompt".
+- buildSectionLevelQueue(frame, narrativeSpine) replaces buildHydrationQueue.
+  Job shape: { type, label, requiredIds:[…], contextHints, transitionLogic }.
+  Queue order: 1× directAnswer → for each H2 section: 1× job batching ALL that
+  section's + its H3s' paragraph ids (the contextHints lists which ids go under
+  which heading, in order) + 1× isolated job per table → 1× isolated job per FAQ
+  answer → 1× CTA hook. section_transitions matched by heading text (JS ids don't
+  exist when 2A writes the spine).
+- executePhase2B(lockedFrame, akey): deep-clones the locked frame (never mutates
+  it), belt-and-suspenders node-ensure, builds the section-level queue, walks it
+  SEQUENTIALLY (for-of, not Promise.all). Per job: callClaude with ONLY
+  [HYDRATE_CONTENT_BLOCK_TOOL] + tool_choice + the cached master-context block,
+  userText = narrative spine + the rolling draft (last ~8K chars) + this job's
+  ticket (all its requiredIds) + a CRITICAL "return exactly N nodes for [these
+  ids]". logCacheCall per call. Per-job retry (1 retry) on parse-error /
+  no-tool-call / refusal-with-framing / EMPTY-or-INCOMPLETE-nodes-array (the
+  retry note lists the missing ids). On final failure → YELLOW + those node ids
+  left un-hydrated (Phase 3A + the surgical fix catch them; F4 propagates → RED).
+  Then loop toolData.nodes: stitchNode each into the clone, append each node's
+  prose to the rolling draft, track coverage. Progress: log "Phase 2B —
+  hydrating node N of M (section: <H2 title>; K ids)…" + update the Phase 2 card
+  after each block.
+- stitchNode — UNCHANGED (verbatim from the per-node M2.6 build): recursive;
+  auto-detects table (has headers → set .rows) / CTA (has anchorText+url → set
+  .hookProse) / prose (everything else → set .prose) by node shape; returns
+  false for an id not in the frame.
+- Phase 3A, 3B, the surgical fix, Phase 4 freeze, Phases 5/6 — untouched. The
+  stitched V1 has the same shape Phase 3A validates, plus an inert
+  narrative_spine it ignores.
+- Caching: every relay call sends only [HYDRATE_CONTENT_BLOCK_TOOL] + the cached
+  master block → the FIRST relay call writes the cache (verdict CREATED), the
+  rest read it (verdict YES). (Phase 2A has its own separate cache — different
+  tool — that's fine; the M2.5 "don't unify the tools array" decision stands.)
+- Cost estimate: ~20-25 calls × (~50K cached read after the first + ~3-8K
+  uncached rolling-draft/ticket input + ~500-3000 output) ≈ ~$0.40-0.80 for
+  Phase 2B — vs the monolithic 2B's ~$0.25 nominal but ~$0.40+ average once the
+  ~50% failure-retry loop is counted, and vs the per-paragraph relay's ~$2.
+- Tested (JS, unit — 20 assertions): script parses; HYDRATE_CONTENT_BLOCK_TOOL
+  shape; assignIds on the new 2A-shaped frame; buildSectionLevelQueue order +
+  per-H2-paragraph-id batching (including H3 paras) + transition routing + the
+  structured contextHints; stitchNode (prose / table-row-normalized / CTA-hook /
+  orphan / no-mutation-of-the-locked-frame); buildHydrateJobPrompt lists every
+  required id + the "exactly N" instruction + rows-vs-prose per type; the retry
+  note appends; buildHydrateInstrBlock references the new tool. NOT live-tested
+  against the APIs yet.
+
+────────────────────────────────────────────────────────────
+MILESTONE 3 — PHASE 5 VOICE DRAFT (OPTION E UNIFIED COT) — ✅ BUILT, ⚠️ NEEDS A RELAY-RACE REBUILD BEFORE PRODUCTION
+(Chat 20, May 11, 2026. Built per the build plan's Phase 5 spec — but as a
+SINGLE big Option-E call, which will fatigue on output tokens exactly the way
+the monolithic Phase 2B did. The fix is the same as M2.6: section-level
+sequential voice rewrites with rolling context. Treat the current Phase 5 as a
+working scaffold, not production-ready.)
+
+- Phase 5 re-voices the FROZEN V1's PROSE nodes (Direct Answer, body paragraphs,
+  FAQ answers, CTA hook) via submit_voice_draft (Tool Use, Option-E schema):
+  voice_architecture forced FIRST (core_conviction / friction_setup /
+  callback_phrase / pacing_strategy / thesis_reinforcement), then per prose node
+  transition_logic + data_anchors_to_preserve + a pacing_directive
+  ("short punch" | "standard expansion" | "list extraction") + the rewrite
+  (newProse, or newListItems for list extraction) — all in ONE continuous JSON.
+- JS validates each rewrite's targetId against the allowed prose-node registry
+  (5.2 allowed / 5.3 disallowed — section/h3/link/table/img/thesis/faq-question
+  ids are rejected), drops orphans/disallowed (F13), merges the valid rewrites
+  onto a deep clone of the frozen V1 → S.v2. V1 bones never touched;
+  un-rewritten paragraphs keep their V1 prose. v2.voiceArchitecture +
+  v2.intentLayer attached.
+- AI-Tell kill list constant (26 words + 12 phrases) baked into the Phase 5
+  system prompt. Intent layer resolved from the 4.2 sheet row (F11 → Indirect on
+  miss). Optional intent-matched gold-standard exemplars loaded from
+  voice_exemplars.txt (S.client.folderVoiceExemplars) with the F12 fallback
+  chain — exemplars are OPTIONAL (no warning when there's no file configured).
+- F-codes for the Phase 5 call: F2 (unparseable → raw-JSON retry → RED), F3
+  (max_tokens → YELLOW, use the partial), F6 (refusal → retry with framing →
+  RED), F13 (orphaned/disallowed targetIds → dropped; >20% bad or 0 valid →
+  retry → RED), F14 (missing required content → retry → RED), F4 (call threw →
+  RED). On any retry exhaustion the pipeline RED-escalates and returns BEFORE
+  Phase 6 (the Phase 6 stub now operates on S.v2 — no V1 fallback).
+- Phase 5 has its own cached prefix ([submit_voice_draft]+context) so its cache
+  verdict is CREATED — expected. Phase 5.5 (forensic critique) + the 6 voice
+  quality checks (5.6) + the retry loop are Milestone 4.
+- Tested (JS, unit). NOT live-tested.
+- ⚠️ KNOWN LIMITATION: the single-call Option-E voice draft will hit output-token
+  fatigue on long articles (same root cause as monolithic Phase 2B). REBUILD it
+  the M2.6 way — section-level sequential voice rewrites carrying a rolling V2
+  draft — before treating Phase 5 as production-quality. (Track this as M3's
+  follow-up, ahead of M4.)
+
+────────────────────────────────────────────────────────────
+MILESTONE 3.5 — IMAGE GENERATION — QUEUED (NOT BUILT)
+Per the build plan, image generation runs in parallel with Phase 5/5.5 from the
+imagePrompts the 2A frame already carries (prompt + alt per slot). Not built;
+queued after the Phase 5 relay-race rebuild.
+────────────────────────────────────────────────────────────
 
 WHAT'S NOT BUILT YET:
-- Phase 5 (Voice Draft, Option E unified CoT) — stub card, "M3".
-- Phase 5.5 (Forensic Critique + 6 JS quality checks) — stub card, "M4".
+- Phase 5 RELAY-RACE REBUILD — section-level sequential voice rewrites (the
+  current Phase 5 is a single Option-E call; see M3's known limitation).
+- Phase 5.5 (Forensic Critique) + the 6 JS voice-quality checks (5.6) + their
+  retry loop — "M4".
 - Phase 6 real assembly (sections, FAQ, schema JSON-LD, ToC, byline,
-  typographic rhythm) — "M5".
-- F5 concurrency semaphore, full F3 continuation-merge, gold-standard
-  exemplar loading/routing, AI-Tell kill list enforcement, side-by-side
-  testing harness (M5/M6).
+  typographic rhythm; reads S.v2's pacingDirective/listItems) — "M5".
+- Image generation (M3.5).
+- F5 concurrency semaphore, full F3 continuation-merge, side-by-side testing
+  harness (M5/M6).
+- Operator prerequisite still open: voice_exemplars.txt for iTV (optional but
+  the highest-leverage voice lever).
 
 NEXT STEPS (in order):
-1. LIVE TEST the M2.5 two-pass Phase 2 against a real iTV topic — 2A frame →
-   frame validation → 2B hydration → merge → Phase 3 (incl. the new table-row
-   factClaim checks) → surgical fix on any fail. Confirm: no number in any V1
-   table that isn't traceable to a factClaim; the surgical loop converges;
-   the cache HITs on 2B + the fix call.
-2. Anchor-text validation calibration — tune validateV1Structure's link-
-   discipline rules against the real runs (the internal-fabrication-hard-FAIL /
-   extra-external-YELLOW split is a first calibration).
-3. M3: Phase 5 voice draft via Tool Use (Option E schema — voice_architecture
-   + per-rewrite transition_logic + data_anchors_to_preserve + pacing_directive).
-   BLOCKED on the operator producing voice_exemplars.txt for iTV first (see
-   OPERATOR PREREQUISITE above) — exemplars are the single highest-leverage
-   voice lever and M3's exit criteria depend on them.
-4. M4 onward per the build plan (AEO_V4_Build_Plan.txt → BUILD ORDER).
+1. LIVE TEST the M2.6 section-level Phase 2B against a real iTV topic — 2A frame
+   (+ narrative_spine + empty paragraph slots) → frame validation → 2B relay
+   (DA → per-H2 batch → per-table → per-FAQ → CTA, ~20-25 calls) → Phase 3
+   (table-row factClaim checks) → surgical fix on any fail. Confirm: ~20-25 not
+   ~63 calls; the per-H2 calls return ALL the section's paragraph ids; the cache
+   shows CREATED then a run of YES on the "2B" rows; no untraceable number in any
+   V1 table; the surgical loop converges; wall-clock is reasonable.
+   (M3 — Phase 5 — also needs a live test, but with the known single-call
+   limitation in mind.)
+2. REBUILD Phase 5 the M2.6 way (section-level sequential voice rewrites with a
+   rolling V2 draft) so it doesn't fatigue. Then M3.5 (image generation).
+3. M4 (Phase 5.5 forensic critique + the 6 voice-quality checks + retry loop),
+   M5 (real Phase 6 assembly), M6 (side-by-side V3.1 vs V4.0), M7 (ship) — per
+   the build plan's BUILD ORDER.
+4. Anchor-text validation calibration — tune validateV1Structure's link-
+   discipline rules against the real runs.
 
 V4.0 ARCHITECTURAL LOCKS (so far — will be consolidated when V4.0 ships):
   V4-1. JS owns structure; Claude owns prose; Gemini owns research + semantic
@@ -287,13 +418,28 @@ V4.0 ARCHITECTURAL LOCKS (so far — will be consolidated when V4.0 ships):
         never asked to rename a 4.3B field to match the tool.
   V4-9. PHASE 2 IS TWO PASSES, NEVER ONE. 2A builds the structure frame only
         (no prose, no numbers); JS validates it; 2B fills prose + data rows
-        against the frozen frame; JS merges by id. Every table data point must
-        cite a Phase 1 factClaim id (sourceReferenceId) — rows with no
-        supporting fact are dropped, not invented. Validation failures are
+        against the frozen frame; JS merges/stitches by id. Every table data
+        point must cite a Phase 1 factClaim id (sourceReferenceId) — rows with
+        no supporting fact are dropped, not invented. Validation failures are
         repaired by SURGICAL micro-calls that touch only the failing nodes;
         the V1 is never regenerated wholesale. (Collapsing 2A+2B into one call
         is the mistake V4.0's first build made — it made Claude hallucinate
         numbers. Do not re-collapse it.)
+  V4-10. PHASE 2B IS A SEQUENTIAL "RELAY RACE" AT SECTION GRANULARITY. One call
+        for the Direct Answer, ONE call per H2 section (batching ALL that
+        section's + its H3s' paragraph ids), one isolated call per table, one
+        per FAQ answer, one for the CTA hook — in article order, each carrying a
+        rolling draft of everything written so far + the narrative_spine, via
+        hydrate_content_block (returns a `nodes` array). JS stitches each node
+        into a clone of the locked frame. Do NOT go back to a single monolithic
+        2B call (output-token fatigue, ~50% failure) and do NOT go per-paragraph
+        (~63 calls, ~$2). ~20-25 calls is the target.
+  V4-11. ANY "WRITE THE WHOLE ARTICLE IN ONE CALL" STEP MUST USE THE RELAY-RACE
+        PATTERN. This applies to Phase 5 (voice draft) and Phase 5.5 (forensic
+        critique) too — a single big Option-E / critique call will fatigue on
+        output tokens exactly the way the monolithic Phase 2B did. Phase 5 is
+        currently built as a single call (M3); rebuild it section-level before
+        production. New long-output Claude steps: relay-race them from the start.
 
 ================================================
 
@@ -912,37 +1058,40 @@ KNOWN BUGS — UNRESOLVED
 
 NEXT SESSION PRIORITIES
 -----------------------
-0. ⚠️ V4.0 REBUILD IS THE PRIORITY — AND IT'S UNDERWAY. M1, M2, and M2.5 are
-   BUILT in AEO-Article-Creation/aeo_v4.html (see "V4.0 BUILD STATUS" section
-   above for the full state). M1 cache verification confirmed. M2 = Phase 3 dual
-   validation, Phase 4 freeze, Escalation Panel, Calibration/Production modes,
-   F1–F4. M2.5 = Phase 2 rebuilt into TWO PASSES (2A structure frame → JS frame
-   validation → 2B data hydration → JS merge), provenance-tagged table data
-   (every row cites a Phase 1 factClaim), SURGICAL retries (never a full V1
-   regen). Build plan: AEO_V4_Build_Plan.txt — the spec, now describing the
-   two-pass Phase 2.
+0. ⚠️ V4.0 REBUILD IS THE PRIORITY — AND IT'S UNDERWAY. As of the May 11, 2026
+   build session: M1+M2 APPROVED, M2.5 APPROVED, M2.6 BUILT (Phase 2B "Relay
+   Race" — section-level sequential hydration: buildSectionLevelQueue +
+   HYDRATE_CONTENT_BLOCK_TOOL, ~20-25 calls; Phase 2A frame now also carries a
+   narrative_spine), M3 BUILT (Phase 5 voice draft, Option E — but as a single
+   call; needs the same relay-race rebuild before production), M3.5 QUEUED
+   (image generation). See "V4.0 BUILD STATUS" above for the full state and
+   AEO_V4_Build_Plan.txt for the spec.
 
    IMMEDIATE NEXT STEPS:
-   a) LIVE TEST the M2.5 two-pass Phase 2 against a real iTV topic — 2A frame →
-      frame validation → 2B hydration → merge → Phase 3 (incl. table-row
-      factClaim checks) → surgical fix on any fail. Confirm: no untraceable
-      number in any V1 table; the surgical loop converges; the cache HITs on 2B
-      + the fix call.
-   b) Anchor-text validation calibration — tune validateV1Structure's link-
-      discipline rules against the real runs.
-   c) M3 — Phase 5 voice draft via Tool Use (Option E schema). BLOCKED on the
-      operator producing voice_exemplars.txt for iTV first (OPERATOR PREREQUISITE
-      section above) — exemplars are required for M3's exit criteria.
-   d) M4 → M7 per the build plan's BUILD ORDER.
+   a) LIVE TEST the M2.6 section-level Phase 2B against a real iTV topic — 2A
+      frame (+ narrative_spine + empty paragraph slots) → frame validation → 2B
+      relay (DA → per-H2 batch → per-table → per-FAQ → CTA, ~20-25 calls) →
+      Phase 3 (table-row factClaim checks) → surgical fix on any fail. Confirm
+      ~20-25 not ~63 calls; the per-H2 calls return ALL the section's paragraph
+      ids; the cache shows CREATED then a run of YES; no untraceable number;
+      reasonable wall-clock. (Also live-test M3/Phase 5 — single-call limitation
+      noted.)
+   b) REBUILD Phase 5 the M2.6 way (section-level sequential voice rewrites with
+      a rolling V2 draft) so it doesn't fatigue. Then M3.5 (image generation).
+   c) M4 (Phase 5.5 forensic critique + the 6 voice-quality checks + retry loop),
+      M5 (real Phase 6 assembly), M6 (side-by-side), M7 (ship) — per the build
+      plan's BUILD ORDER.
+   d) Anchor-text validation calibration; voice_exemplars.txt for iTV (optional).
 
-   Milestone map (build plan is authoritative — it has 7 milestones plus an
-   inserted M2.5; M4 = Forensic Critique + JS quality checks, M5 = Assembly):
-   M1:   Skeleton + Phase 1-2 with prompt caching ............ ✅ BUILT & VERIFIED
-   M2:   Phase 3 dual validation + Phase 4 freeze + F1–F4 .... ✅ BUILT
-   M2.5: Phase 2 rebuilt two-pass (2A frame → 2B hydration) .. ✅ BUILT, ⏳ live test pending
-   M3:   Phase 5 voice draft via Tool Use (Option E) ......... ⏭ NEXT (needs exemplars + live test of M2.5)
-   M4:   Phase 5.5 forensic critique + 6 JS quality checks ... pending
-   M5:   Phase 6 final assembly .............................. pending (Phase 6 is a stub now)
+   Milestone map (build plan is authoritative):
+   M1:   Skeleton + Phase 1-2 with prompt caching ............ ✅ APPROVED
+   M2:   Phase 3 dual validation + Phase 4 freeze + F1–F4 .... ✅ APPROVED
+   M2.5: Phase 2 → TWO PASSES (2A frame → 2B hydration) ...... ✅ APPROVED
+   M2.6: Phase 2B → "Relay Race" (section-level) ............. ✅ BUILT, ⏳ live test pending
+   M3:   Phase 5 voice draft (Option E) ..................... ✅ BUILT, ⚠️ needs relay-race rebuild + live test
+   M3.5: Image generation ................................... ⏭ QUEUED (not built)
+   M4:   Phase 5.5 forensic critique + 6 voice-quality checks  pending
+   M5:   Phase 6 real assembly .............................. pending (Phase 6 is a stub now)
    M6:   Side-by-side testing V3.1 vs V4.0 + UI polish ....... pending
    M7:   V4.0 ships, V3.1 deprecated, docs updated ........... pending
 
@@ -1125,6 +1274,47 @@ Confirmed costs: ~$1.33-1.58 per article + ~$0.05-0.10 VCI.
 
 CHANGE LOG
 ----------
+May 11, 2026 (Chat 20 build session — Claude Code): V4.0 — M2.6 (Phase 2B "Relay Race", section-level) + M3 (Phase 5 voice draft) BUILT; M3.5 (image gen) QUEUED.
+
+  M2.6 — Phase 2B rebuilt: monolithic single call (~50% output-token fatigue) →
+  per-paragraph relay (~63 calls, ~$2) → SECTION-LEVEL relay (~20-25 calls).
+  - Phase 2A frame now also produces a narrative_spine (core_thesis,
+    callback_setup, section_transitions keyed by heading text, 3-5
+    voice_reminders) + empty {} paragraph slots + directAnswer:{} + faq[].answer:{}
+    placeholders (JS assigns ids). thesis:{statement} kept (Phase 3A/5/6 read it).
+  - HYDRATE_CONTENT_BLOCK_TOOL (hydrate_content_block — { nodes:[{targetId, prose?,
+    rows?}] }) replaces HYDRATE_NODE_TOOL. buildSectionLevelQueue replaces
+    buildHydrationQueue (jobs have requiredIds[]; order: DA → per-H2 batch (all its
+    + its H3s' paragraph ids) → per-table → per-FAQ-answer → CTA hook).
+    executePhase2B rewritten: sequential walk, per-job retry incl. retry-on-
+    incomplete-coverage, loops toolData.nodes for stitchNode + rolling-draft append,
+    section-level progress logging. stitchNode UNCHANGED. Phase 3/4/5/6 untouched.
+  - New locks V4-10 (Phase 2B is a section-level relay race) and V4-11 (any
+    "write the whole article in one call" step — incl. Phase 5/5.5 — must use the
+    relay-race pattern).
+  - Tested in Node (20 + earlier assertions, all green). NOT live-tested yet —
+    aeo_v4.html for M2.6 is BUILT but NOT YET COMMITTED (held for the operator
+    live test). This Master Doc copy is committed/pushed separately.
+
+  M3 — Phase 5 Voice Draft (Option E unified CoT) built per the build plan: Claude
+  re-voices the frozen V1's prose nodes (DA, paragraphs, FAQ answers, CTA hook) via
+  submit_voice_draft — voice_architecture forced first, then per-node
+  transition_logic + data_anchors_to_preserve + pacing_directive + the rewrite,
+  all in one JSON. JS validates targetIds against the allowed prose-node registry
+  (5.2/5.3), drops orphans/disallowed (F13), merges valid rewrites onto a deep
+  clone of V1 → S.v2. AI-Tell kill list baked into the prompt; intent layer from
+  the 4.2 sheet (F11→Indirect); optional intent-matched exemplars from
+  voice_exemplars.txt (F12). F2/F3/F6/F13/F14 handled; retry exhaustion → RED
+  before Phase 6. Phase 6 stub now operates on S.v2 (no V1 fallback).
+  ⚠️ KNOWN LIMITATION: Phase 5 is a SINGLE big Option-E call — it will fatigue on
+  output tokens the same way the monolithic Phase 2B did. NEEDS the M2.6-style
+  relay-race rebuild (section-level sequential voice rewrites) before production.
+  (M3's aeo_v4.html was committed earlier as f1e4774; the M2.6 changes on top are
+  not committed yet.)
+
+  M3.5 — image generation: per the build plan, runs in parallel with Phase 5/5.5
+  from the imagePrompts the 2A frame carries. QUEUED — not built.
+
 May 11, 2026 (post-Chat-19 build session — Claude Code, continued): V4.0 PHASE 2 REBUILT — TWO-PASS (M2.5).
 
   Architectural correction (operator-directed), not a patch. The single-pass
