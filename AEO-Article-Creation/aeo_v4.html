@@ -239,7 +239,39 @@
   .toast { background:var(--blue); color:#fff; font-family:'Lexend',sans-serif; font-size:12px; line-height:1.5; padding:11px 16px; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,.2); max-width:340px; animation:toastIn .25s ease-out; }
   .toast.toast-warn { background:var(--orange); }
   @keyframes toastIn { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+
+  /* ── PHASE 7 (Final Assembly) UI — in the HTML Stub tab ── */
+  .p7-wrap { display:flex; flex-direction:column; gap:10px; }
+  .p7-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 10px; background:#eef3f8; border:1px solid var(--border); border-radius:8px; }
+  .p7-toolbar .p7-status { flex:1; min-width:140px; font-size:11px; color:var(--muted); }
+  .btn-p7 { background:var(--blue); color:#fff; border:none; border-radius:6px; padding:6px 13px; font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1px; cursor:pointer; transition:opacity .2s; }
+  .btn-p7:hover { opacity:.85; }
+  .btn-p7:disabled { opacity:.35; cursor:not-allowed; }
+  .btn-p7.on { background:var(--green); }
+  .btn-p7.finalize { background:var(--orange); }
+  .btn-p7.dl { background:var(--accent); }
+  .p7-frame { width:100%; height:760px; border:1px solid var(--border); border-radius:8px; background:#fff; }
+  .p7-src { display:none; max-height:340px; overflow:auto; }
+  .p7-src.open { display:block; }
+  .p7-src pre { background:#fff; border:1px solid var(--border); border-radius:6px; padding:10px 12px; font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.5; white-space:pre-wrap; word-break:break-word; margin:0; }
+  .p7-notes label { display:block; font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1.5px; color:var(--blue); opacity:.6; margin-bottom:4px; }
+  .p7-notes textarea { width:100%; min-height:60px; resize:vertical; background:#fff; border:1px solid var(--border); border-radius:6px; padding:8px 10px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:11px; line-height:1.6; outline:none; }
+  .p7-edit-panel { position:fixed; right:24px; bottom:24px; width:min(420px, calc(100vw - 48px)); background:#fff; border:1px solid var(--accent); border-radius:10px; box-shadow:0 8px 28px rgba(0,0,0,.22); padding:14px 16px; z-index:10001; display:none; }
+  .p7-edit-panel.open { display:block; }
+  .p7-edit-panel .pe-head { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .p7-edit-panel .pe-title { flex:1; font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1.5px; color:var(--blue); }
+  .p7-edit-panel .pe-close { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; padding:2px 8px; font-size:14px; line-height:1; cursor:pointer; }
+  .p7-edit-panel .pe-current { background:#f6f8fa; border:1px solid var(--border); border-radius:6px; padding:8px 10px; font-size:11px; line-height:1.6; color:var(--blue); max-height:140px; overflow:auto; margin-bottom:8px; white-space:pre-wrap; word-break:break-word; }
+  .p7-edit-panel .pe-input { width:100%; min-height:54px; resize:vertical; background:#fff; border:1px solid var(--border); border-radius:6px; padding:7px 9px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:12px; line-height:1.6; outline:none; margin-bottom:8px; }
+  .p7-edit-panel .pe-input:focus { border-color:var(--accent); }
+  .p7-edit-panel .pe-actions { display:flex; gap:8px; align-items:center; }
+  .p7-edit-panel .pe-busy { font-size:11px; color:var(--accent); }
+  .pub-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 16px; border-top:1px solid var(--border); background:#fff8f4; }
+  .pub-row label { font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1.5px; color:var(--orange); }
+  .pub-row input[type=date] { background:#fff; border:1px solid var(--orange); border-radius:6px; padding:5px 9px; color:var(--blue); font-family:'Lexend',sans-serif; font-size:12px; outline:none; }
+  .pub-row .pub-hint { font-size:10px; color:var(--muted); }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 </head>
 <body>
 
@@ -553,6 +585,11 @@
     <div class="img-grid" id="imgGrid">
       <div style="padding:18px;text-align:center;color:var(--faint);font-size:11px;line-height:1.6;">Images generate here automatically the moment the Phase 2 structure frame passes validation — they render in the background alongside Phases 2–5. Upload each to WordPress, paste the media URL into the card, and Phase 7 unblocks.</div>
     </div>
+    <div class="pub-row">
+      <label for="publishDate">Publish Date</label>
+      <input type="date" id="publishDate" onchange="checkUrls()" />
+      <span class="pub-hint">Required before Phase 7 (Final Assembly) — used for the Last Updated line, the byline, and the schema dates.</span>
+    </div>
     <div class="img-assemble-row">
       <button class="btn-assemble" id="imgValidateBtn" onclick="validateImages()" disabled>Validate Images</button>
       <button class="btn-assemble" id="imgDlAllBtn" onclick="downloadAllImages()" disabled style="background:var(--blue);font-size:14px;">↓ All Images</button>
@@ -570,7 +607,7 @@
       <div class="ptab" onclick="switchTab('da')">Direct Answer</div>
       <div class="ptab" onclick="switchTab('v2')">V2 Article</div>
       <div class="ptab" onclick="switchTab('schema')">Schema</div>
-      <div class="ptab" onclick="switchTab('html')">HTML Stub</div>
+      <div class="ptab" onclick="switchTab('html')">Final HTML</div>
     </div>
     <div class="pane-toolbar">
       <span class="pane-toolbar-label" id="paneLabel">Run Log</span>
@@ -635,12 +672,42 @@
     </div>
 
     <div class="ppane" id="pane-html">
-      <pre id="htmlPre">The Phase 7 (Final Assembly) stub HTML appears here.</pre>
+      <div class="p7-wrap" id="p7Wrap">
+        <div class="p7-toolbar">
+          <button class="btn-p7" id="btnEditMode" onclick="togglePhase7EditMode()" disabled>✏ Edit Mode: OFF</button>
+          <button class="btn-p7" id="btnViewSource" onclick="togglePhase7Source()" disabled>⌄ View HTML source</button>
+          <span class="p7-status" id="p7Status">Phase 7 (Final Assembly) renders here once Phases 1–6 finish and the image URLs + Publish Date are in.</span>
+          <button class="btn-p7 finalize" id="btnFinalize" onclick="finalizePhase7()" disabled>✓ Finalize Article</button>
+          <button class="btn-p7 dl" id="btnDlChecklist" onclick="dlChecklistHTML()" disabled>↓ Checklist .html</button>
+          <button class="btn-p7 dl" id="btnDlFinal" onclick="dlFinalTxt()" disabled>↓ Final .txt</button>
+        </div>
+        <iframe class="p7-frame" id="p7Frame" title="Phase 7 — assembled article preview"></iframe>
+        <div class="p7-src" id="p7Src"><pre id="htmlPre">The clean article HTML (style block + article-wrap) appears here after Phase 7 assembly.</pre></div>
+        <div class="p7-notes">
+          <label for="p7Notes">7B — operator QC notes (free-form, saved locally, never sent to Claude)</label>
+          <textarea id="p7Notes" placeholder="Notes to yourself while reviewing — things to remember, things you fixed, things to flag…"></textarea>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
 </div>
+</div>
+
+<!-- PHASE 7B — click-to-edit panel (shown when you click a prose block while Edit Mode is ON) -->
+<div class="p7-edit-panel" id="p7EditPanel">
+  <div class="pe-head">
+    <span class="pe-title" id="p7EditTitle">Fix this paragraph</span>
+    <button class="pe-close" onclick="closePhase7EditPanel()" title="Close">×</button>
+  </div>
+  <div class="pe-current" id="p7EditCurrent"></div>
+  <textarea class="pe-input" id="p7EditInstruction" placeholder="What's the fix? e.g. 'tighten this — cut the second sentence', 'make the opener a question', 'this reads like a textbook, make it conversational'…" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter')submitPhase7Edit();"></textarea>
+  <div class="pe-actions">
+    <button class="btn-p7" id="p7EditSubmit" onclick="submitPhase7Edit()">Submit fix →</button>
+    <span class="pe-busy" id="p7EditBusy" style="display:none;"><span class="spinner"></span>Asking Claude…</span>
+    <span style="font-size:10px;color:var(--faint);margin-left:auto;">Ctrl+Enter to submit</span>
+  </div>
 </div>
 
 <div class="toast-stack" id="toastStack"></div>
@@ -698,7 +765,10 @@
     voiceExemplars: '',       // Phase 5 — intent-matched gold-standard exemplar text (or '' if none — optional)
     v2: null,                 // Phase 5 voice draft — deep clone of V1 with prose rewrites + voiceArchitecture
     v3: null,                 // Phase 6 forensic-critique draft — clone of v2 with flagged paragraphs corrected (uncorrected ones keep their Phase 5 prose)
-    htmlStub: '',             // Phase 7 (Final Assembly) stub output
+    htmlStub: '',             // legacy alias — no longer used (Phase 7 writes finalTXT)
+    finalTXT: '',             // Phase 7 — the clean article HTML (style block + article-wrap div) that goes into WordPress
+    finalSchema: '',          // Phase 7 — BlogPosting + FAQPage + BreadcrumbList JSON-LD (three <script> blocks)
+    checklistHTML: '',        // Phase 7 — the downloadable checklist .html (SEO fields + cost report + schema)
     tokens: { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 },
     cacheLog: [],             // [{phase, callIndex, cacheCreate, cacheRead, input, output, verdict, ts}]
     escalationsRed: [],       // per-run RED escalations [{code, msg, ts}]
@@ -719,8 +789,11 @@
   let timerStart=0, timerInterval=null;
   // ── M3.5 image-queue control ──
   let imagesValidated = false;       // VA has pasted + validated every image URL
-  let _phase6Resolve = null;         // resolves the Phase 7 (assembly) hard-stop await once images are validated
+  let _phase6Resolve = null;         // resolves the Phase 7 prerequisite hard-stop (images + publish date)
   let _activeImgAbort = null;        // AbortController for the in-flight image fetch (so flushQueue can kill it)
+  // ── Phase 7 (Final Assembly) control ──
+  let _phase7FinalizeResolve = null; // resolves the 7B operator-QC checkpoint when "Finalize Article" is clicked
+  let _phase7EditMode = false;       // 7B Edit Mode toggle (click-to-edit prose blocks in the preview)
   // ── relay-strip state (per-block status chips for Phase 2B + Phase 5) ──
   let _relayStates = {};             // stripId → [{label, state}] where state ∈ pending|active|done|warn|fail
 
@@ -733,6 +806,7 @@
     purgeOldArtifacts();
     renderEscalationPanel();
     renderModeUI();
+    resetPhase7UI();   // initialise the Final HTML tab (placeholder preview, disabled 7B/7C controls)
   }
 
   // ─── BUILD STAMP ───────────────────────────────────────────
@@ -858,7 +932,7 @@
     S.sheetRow=''; S.sheetRowCols={}; S.cta43BWarned=false; S._extraLinksWarned=false; S.tokens={gi:0,go:0,ci:0,co:0,cacheRead:0,cacheCreate:0}; S.cacheLog=[];
     if(_activeImgAbort){ try { _activeImgAbort.abort(new Error('Client changed.')); } catch(_){} _activeImgAbort=null; }
     S.imagePrompts=[]; S.imageData={}; S.imageUrls={}; S.imageAttemptId=''; S.imageArtifactKey=''; S.expectedImageCount=0; imagesValidated=false; _phase6Resolve=null;
-    resetImagePanel(); clearRelayStrip('relayStrip2'); clearRelayStrip('relayStrip5'); clearRelayStrip('relayStrip6');
+    resetImagePanel(); resetPhase7UI(); clearRelayStrip('relayStrip2'); clearRelayStrip('relayStrip5'); clearRelayStrip('relayStrip6');
     S.phaseBuf = {};
     updateCost(); renderCacheLog(); renderModeUI();
     ['1','2','3','4','5','6','7'].forEach(n=>{ setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
@@ -941,7 +1015,7 @@
   }
   // Right-panel tabs (Item 2). Order MUST match the DOM order of .ptab divs:
   // Run Log | Cache Stats | Metadata | Direct Answer | V2 Article | Schema | HTML Stub.
-  const PANE_LABELS = { runlog:'Run Log', cache:'Cache Stats', meta:'Metadata', da:'Direct Answer', v2:'V2 Article', schema:'Schema', html:'HTML Stub' };
+  const PANE_LABELS = { runlog:'Run Log', cache:'Cache Stats', meta:'Metadata', da:'Direct Answer', v2:'V2 Article', schema:'Schema', html:'Final HTML' };
   function switchTab(name){
     document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
     document.querySelectorAll('.ppane').forEach(p=>p.classList.remove('active'));
@@ -2890,7 +2964,12 @@ Also: never use any term the 4.3B Terminology Lock bans; always use the client's
 GOLD-STANDARD VOICE EXEMPLARS (this is the bar — match this voice):
 ${exemplarText && exemplarText.trim() ? exemplarText : '(none available for this client/intent — follow the voice rules above)'}
 
-For each block: call revoice_content_block with a "nodes" array — one object per requested targetId — using pacing_directive ∈ {short punch, standard expansion, list extraction}; "short punch"/"standard expansion" → put the rewrite in newProse (markdown **bold** allowed), "list extraction" → put 3-7 items in newListItems (no list markup). Always include data_anchors_to_preserve and transition_logic per node. Always invoke the tool; never respond in plain text; never include fields not in the schema; never fabricate data.`;
+MARKDOWN IN PROSE (Phase 7's assembler parses your prose with a Markdown parser — write these EXACTLY this way):
+  • Links: \`[anchor text](https://full-url)\` — Markdown link syntax. If the V1 prose you're re-voicing already contains a link in that form, KEEP it (the same anchor text and the same URL — never strip it, never change the URL, never turn it into a bare word or a plain URL). Do NOT invent new links.
+  • Bold: \`**text**\` around the key entities / counter-intuitive punchlines (voice_architecture may name entities to bold — bold those). Never use HTML tags, never use single \`*italics*\` for emphasis.
+  • Plain text otherwise — no headings, no \`#\`, no \`<...>\` HTML.
+
+For each block: call revoice_content_block with a "nodes" array — one object per requested targetId — using pacing_directive ∈ {short punch, standard expansion, list extraction}; "short punch"/"standard expansion" → put the rewrite in newProse, "list extraction" → put 3-7 items in newListItems (each item plain text + Markdown links/bold as above; no list markup). Always include data_anchors_to_preserve and transition_logic per node. Always invoke the tool; never respond in plain text; never include fields not in the schema; never fabricate data.`;
     return { type:'text', text: txt };
   }
 
@@ -3253,6 +3332,8 @@ For each call you get: (a) the editorial brief in the user message — follow it
 
 Return via the revoice_content_block tool a "nodes" array with ONE object per paragraph you FLAGGED AND CORRECTED — { targetId: <the exact id>, data_anchors_to_preserve: [<every hard fact/number/proper-noun in the original paragraph that MUST survive verbatim in your rewrite>], pacing_directive: "short punch" | "standard expansion" | "list extraction", transition_logic: "<one sentence — how this paragraph connects to the one before it>", and newProse (for "short punch"/"standard expansion") OR newListItems (3-7 short strings, for "list extraction"). If a paragraph passes every check, DO NOT return it. If the whole block is clean, return "nodes": []. NEVER return a "voice_architecture" object (it is already set). Never fabricate data; never invent numbers.
 
+MARKDOWN IN PROSE (Phase 7's assembler parses your prose with a Markdown parser — write these EXACTLY this way): links as \`[anchor text](https://full-url)\` (Markdown link syntax — and if the paragraph you're correcting already has a link in that form, KEEP the same anchor text and the same URL; never strip it, never change the URL, never invent new links); bold as \`**text**\` around key entities (never HTML tags, never \`*italics*\`); plain text otherwise — no headings, no \`#\`, no \`<...>\` HTML.
+
 AI-TELL KILL LIST — any of these in a paragraph means it MUST be rewritten to remove them:
 ${aiTellListText()}
 Also: never use any term the 4.3B Terminology Lock bans; always use the client's canonical terms from 4.3B.` };
@@ -3492,6 +3573,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     S.imagePrompts = []; S.imageData = {}; S.imageUrls = {}; S.imageAttemptId = ''; S.imageArtifactKey = ''; S.expectedImageCount = 0;
     imagesValidated = false; _phase6Resolve = null;
     resetImagePanel();
+    resetPhase7UI();   // clears S.finalTXT/finalSchema/checklistHTML, the preview iframe, the 7B/7C buttons
     clearRelayStrip('relayStrip2'); clearRelayStrip('relayStrip5'); clearRelayStrip('relayStrip6');
     S.phaseBuf = {};
     _idCounter = 0; // ids are unique per run; reset once here, not per assignIds() call
@@ -3841,36 +3923,67 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       refreshRightPanels();   // V2 Article / Metadata / DA / Schema tabs now reflect the V3 forensic-critique draft
       log(`Phase 6 complete (forensic critique${p6res.skipped ? ' — skipped: '+p6res.skipped : `, ${p6res.elapsed}s — ${p6res.correctionCount} paragraph correction(s); ${p6res.failedBlocks||0} block(s) hit the retry cap`}).`, p6res.failedBlocks?'warn':'ok');
 
-      // ── M3.5 HARD STOP — Phase 7 (Final Assembly) cannot run until every generated image has been
-      //    uploaded to WordPress and its URL pasted + validated in the Image panel (left column,
-      //    below the phase cards): image_urls.length must equal expected_image_count. The pipeline
-      //    parks here; validateImages() in the Image panel releases it. ──
-      if(S.expectedImageCount > 0 && !(imagesValidated && Object.keys(S.imageUrls).length >= S.expectedImageCount)){
-        setPhase(7, 'waiting', 'Awaiting images');
-        document.getElementById('o7').textContent = `⏸ WAITING — Phase 7 (Final Assembly) is on hold until all ${S.expectedImageCount} generated image(s) are uploaded to WordPress and their media URLs are pasted + validated in the Image panel (left column, below the phase cards). ${Object.keys(S.imageUrls).length}/${S.expectedImageCount} entered so far.`;
-        document.getElementById('m7').textContent = `Blocked — waiting on ${S.expectedImageCount} image URL(s).`;
-        setG(`⏸ Phase 7 blocked — paste all ${S.expectedImageCount} image URL(s) in the Image panel (left column, below the phase cards); they auto-validate, then assembly continues.`, true);
-        log(`Phase 7 hard stop — parked until all ${S.expectedImageCount} image URL(s) are validated in the Image panel.`, 'warn');
-        await new Promise(res => { _phase6Resolve = res; });
-        if(pipelineHalted || !running) return; // operator stop / new run while parked
-        log('Phase 7 hard stop cleared — all image URLs validated. Continuing to assembly.', 'ok');
-      } else if(S.expectedImageCount === 0){
-        imagesValidated = true; // no image slots in this frame — nothing to gate on
+      // ── PHASE 7 — FINAL ASSEMBLY ──────────────────────────────────────────────────────────────
+      //   7A: JS assembles the complete HTML from the article JSON (no API call). 7B: operator visual
+      //   QC — Edit Mode + click-to-edit (the only non-negotiable human checkpoint). 7C: "Finalize
+      //   Article" → build + unlock the checklist .html + the clean final .txt downloads.
+      //   Hard stop first: Phase 7 cannot run until every generated image's WordPress URL is pasted +
+      //   validated in the Image panel AND a Publish Date is set there (needed for the Last Updated
+      //   line + the schema dates). The pipeline parks here; validateImages() releases it. ──
+      {
+        const imagesReady = () => !(S.expectedImageCount > 0) || (imagesValidated && Object.keys(S.imageUrls).length >= S.expectedImageCount);
+        const pubDateSet  = () => !!(document.getElementById('publishDate')?.value || '').trim();
+        if(!imagesReady() || !pubDateSet()){
+          const need = [];
+          if(!imagesReady()) need.push(`all ${S.expectedImageCount} image URL(s) pasted + validated`);
+          if(!pubDateSet())  need.push('the Publish Date');
+          setPhase(7, 'waiting', 'Awaiting inputs');
+          document.getElementById('o7').textContent = `⏸ WAITING — Phase 7 (Final Assembly) is on hold until ${need.join(' AND ')}, in the Image panel (left column, below the phase cards). ${S.expectedImageCount?`${Object.keys(S.imageUrls).length}/${S.expectedImageCount} URL(s) entered. `:''}Click "Validate Images" once everything's set.`;
+          document.getElementById('m7').textContent = `Blocked — needs ${need.join(' + ')}.`;
+          setG(`⏸ Phase 7 blocked — set ${need.join(' AND ')} in the Image panel (left column), then click Validate Images.`, true);
+          log(`Phase 7 hard stop — parked until ${need.join(' AND ')} are in.`, 'warn');
+          switchTab('html'); // jump to the Final HTML tab so the operator sees where the preview will appear
+          const _st = document.getElementById('p7Status'); if(_st) _st.textContent = `⏸ Waiting on: ${need.join(' AND ')} (Image panel, left column).`;
+          await new Promise(res => { _phase6Resolve = res; });
+          if(pipelineHalted || !running) return; // operator stop / new run while parked
+          log('Phase 7 hard stop cleared — images + Publish Date in. Assembling.', 'ok');
+        }
       }
 
-      // ── PHASE 7 STUB (operates on the Phase 6 V3 forensic-critique draft, falling back to the Phase 5 V2;
-      //    if Phase 5 had failed the pipeline would already have RED-escalated and returned before here) ──
-      setPhase(7, 'active', 'Assembling');
-      document.getElementById('o7').textContent = '⏳ Building the stub HTML from the V3 (forensic-critiqued) draft…';
-      await sleep(400);
-      S.htmlStub = buildPhase7Stub(S.v3 || S.v2);
-      document.getElementById('o7').textContent = S.htmlStub;
-      document.getElementById('m7').textContent = `STILL A STUB — ${S.htmlStub.length}b${S.expectedImageCount?`. Images: ${Object.keys(S.imageUrls).length}/${S.expectedImageCount} URL(s), featured = image ${getFeatured()+1}`:' (no image slots)'}. Real Phase 7 assembly (sections, FAQ, schema, ToC, byline, image embeds) ships in Milestone 5.`;
-      document.getElementById('htmlPre').textContent = S.htmlStub + (S.expectedImageCount ? `\n\n<!-- M3.5 — image URLs Phase 7 will embed (featured + inline) -->\n${(S.imagePrompts||[]).map((p,i)=>`Image ${i+1}${i===getFeatured()?' [FEATURED]':''} — alt: "${p.alt||''}" — url: ${S.imageUrls[i]||'(not set)'}`).join('\n')}` : '');
+      // 7A — assemble the complete HTML from the article JSON (no API call)
+      setPhase(7, 'active', '7A — assembling');
+      setG('Phase 7A — assembling the final HTML from the article JSON…', true);
+      const _article7 = currentArticle();
+      const _pubRaw = (document.getElementById('publishDate')?.value || '').trim();
+      if(!_article7){ setPhase(7, 'error', 'No article'); escalateRed('CHK1', 'Phase 7 — no article object to assemble. Manual operator review required.'); return; }
+      if(!_pubRaw){ setPhase(7, 'error', 'No publish date'); escalateRed('CHK1', 'Phase 7 — no Publish Date set (it is required: Last Updated line + schema dates). Set it in the Image panel.'); return; } // hard stop if publish date empty
+      await sleep(300);
+      let _built7;
+      try { _built7 = assemblePhase7HTML(_article7, { editMode:false }); }
+      catch(e){ setPhase(7, 'error', 'Assembly error'); escalateRed('CHK1', `Phase 7 — HTML assembly failed: ${e.message||e}. Manual operator review required.`); return; }
+      S.finalTXT = _built7.finalTxt;
+      { const fr = document.getElementById('p7Frame'); if(fr) fr.srcdoc = _built7.fullDoc; }
+      { const pre = document.getElementById('htmlPre'); if(pre) pre.textContent = _built7.finalTxt; }
+      S.finalSchema = buildSchemaJSONLD(_article7, S.docs.doc43B, _pubRaw, (S.expectedImageCount>0 ? (S.imageUrls[getFeatured()]||'') : ''));
+      { const sc = document.getElementById('schemaPre'); if(sc) sc.textContent = S.finalSchema; }
+      // enable the 7A/7B controls; the two download buttons stay disabled until 7C "Finalize Article"
+      ['btnEditMode','btnViewSource','btnFinalize'].forEach(id => { const b = document.getElementById(id); if(b){ b.disabled = false; if(id==='btnEditMode'){ b.textContent='✏ Edit Mode: OFF'; b.classList.remove('on'); } } });
+      { const b = document.getElementById('btnDlChecklist'); if(b) b.disabled = true; }
+      { const b = document.getElementById('btnDlFinal'); if(b) b.disabled = true; }
+      document.getElementById('o7').textContent = `7A — assembled (${_built7.finalTxt.length.toLocaleString()} chars). Live preview is in the Final HTML tab. Now do 7B: review it, toggle Edit Mode to click-fix any paragraph, then "Finalize Article" (7C) to unlock the downloads.`;
+      document.getElementById('m7').textContent = `Assembled — ${_secs(_article7).length} H2 section(s), ${(Array.isArray(_article7.faq)?_article7.faq.length:0)} FAQ, ${S.expectedImageCount?`${Object.keys(S.imageUrls).length}/${S.expectedImageCount} image(s)`:'no images'}. Awaiting 7B QC + Finalize.`;
       updateArtifactImageUrls();
-      setPhase(7, 'stubdone', 'STUB ✓');
-      // Phase 7 complete (final HTML produced) is the ONLY phase that auto-switches the tab.
       switchTab('html');
+      log(`Phase 7A complete — final HTML assembled (${_built7.finalTxt.length} chars; schema: BlogPosting + FAQPage + BreadcrumbList). Awaiting operator 7B QC + 7C finalize.`, 'ok');
+
+      // 7B — operator visual QC. The ONLY non-negotiable human checkpoint. Park until "Finalize Article".
+      setPhase(7, 'active', '7B — operator QC');
+      setG('Phase 7B — operator visual QC. Review the preview in the Final HTML tab; toggle Edit Mode to click-fix paragraphs; then "Finalize Article".', true);
+      { const st = document.getElementById('p7Status'); if(st) st.textContent = '7B — review the article, toggle Edit Mode to click-fix any paragraph, then click "Finalize Article" to lock it in and unlock the downloads.'; }
+      await new Promise(res => { _phase7FinalizeResolve = res; });
+      if(pipelineHalted || !running) return; // operator stop / new run while parked
+      // 7C ran inside finalizePhase7() — it built S.checklistHTML + S.finalSchema + S.finalTXT, enabled the downloads, and set Phase 7 → 'Finalized ✓'.
+      log('Phase 7 — finalized by the operator (7C). Checklist .html + final .txt are ready in the Final HTML tab.', 'ok');
       clearYellowWarnings();   // article finished / final docs produced → YELLOW list resets (RED escalations unaffected)
 
       // ── Calibration counter (informational only — never auto-promotes) ──
@@ -3879,7 +3992,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       const cacheVerdict = S.cacheLog[0]?.verdict || '—';
       const _p5applied = toArray(S.v2 && S.v2.sections).reduce((n,s)=>n+toArray(s.paragraphs).filter(p=>p.transitionLogic!==undefined).length+toArray(s.h3sections).reduce((m,h)=>m+toArray(h.paragraphs).filter(p=>p.transitionLogic!==undefined).length,0),0) + (S.v2&&S.v2.directAnswer&&S.v2.directAnswer.transitionLogic!==undefined?1:0) + (S.v2&&S.v2.cta&&S.v2.cta.transitionLogic!==undefined?1:0) + toArray(S.v2&&S.v2.faq).filter(f=>f.answer&&f.answer.transitionLogic!==undefined).length;
       const _p6corr = (p6res && p6res.correctionCount) || 0;
-      setG(`✓ Phases 1–6 complete — V1 frozen, V2 voiced (${_p5applied} prose rewrite(s)), V3 forensic-critiqued (${_p6corr} paragraph correction(s)${p6res&&p6res.failedBlocks?`, ${p6res.failedBlocks} block(s) hit the QC retry cap`:''}). Intent: ${S.intentLayer||'?'}. Mode: ${mode}${mode==='calibration' ? ` (now ${getCalibratedCount(S.client.name)} calibrated)` : ''}. Cache: ${cacheVerdict}. Real Phase 7 assembly = Milestone 5. Use "↻ Verify Cache" on the Cache Stats tab to confirm a YES.`);
+      setG(`✓ Phases 1–7 complete — article assembled & finalized. V2 voiced (${_p5applied} prose rewrite(s)), V3 forensic-critiqued (${_p6corr} paragraph correction(s)${p6res&&p6res.failedBlocks?`, ${p6res.failedBlocks} block(s) hit the QC retry cap`:''}). Intent: ${S.intentLayer||'?'}. Mode: ${mode}${mode==='calibration' ? ` (now ${getCalibratedCount(S.client.name)} calibrated)` : ''}. Cache: ${cacheVerdict}. Download the checklist .html + final .txt in the Final HTML tab.`);
       setCacheBtnsDisabled(false);
     } catch(err){
       console.error(err);
@@ -3966,8 +4079,9 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     if(_activeClaudeAbort){ try { _activeClaudeAbort.abort(new Error('Stopped by operator.')); } catch(_){} }
     if(_activeImgAbort){ try { _activeImgAbort.abort(new Error('Stopped by operator.')); } catch(_){} _activeImgAbort = null; }
     running = false;
-    // if the pipeline is parked on the Phase 7 image hard stop, release it so the run can unwind cleanly
+    // if the pipeline is parked on the Phase 7 prerequisite hard stop or the 7B operator-QC checkpoint, release it so the run can unwind cleanly
     if(_phase6Resolve){ const r = _phase6Resolve; _phase6Resolve = null; r(); }
+    if(_phase7FinalizeResolve){ const r = _phase7FinalizeResolve; _phase7FinalizeResolve = null; r(); }
     setG('Stop requested — call aborted.', false, true);
     stopTimer();
     document.getElementById('runBtn').disabled = false;
@@ -4018,6 +4132,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     const vb = document.getElementById('imgValidateBtn'); if(vb){ vb.textContent = 'Validate Images'; vb.classList.remove('ready'); vb.disabled = true; vb.onclick = validateImages; }
     const hint = document.getElementById('imgHint'); if(hint) hint.textContent = 'No images yet — they appear after the Phase 2 frame validates.';
     const fi = document.getElementById('imgFailIndicator'); if(fi){ fi.style.display = 'none'; fi.textContent = ''; }
+    const pdInput = document.getElementById('publishDate'); if(pdInput) pdInput.value = '';
     updateImageUIState();
   }
 
@@ -4292,13 +4407,20 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
   }
   function getFeatured(){ const s = document.querySelector('input[name="featImg"]:checked'); return s ? parseInt(s.value,10) : 0; }
 
-  // VA pastes WordPress URLs → tracked here; when all are in, auto-validate (300ms debounce, V3.1 pattern).
+  // VA pastes WordPress URLs (and sets the Publish Date) → tracked here; when everything is in, auto-validate (300ms debounce, V3.1 pattern).
   function checkUrls(){
     const total = S.imagePrompts.length;
     const btn = document.getElementById('imgValidateBtn');
     const hint = document.getElementById('imgHint');
     if(imagesValidated) return;
-    if(total === 0){ if(btn) btn.disabled = false; if(hint) hint.textContent = 'No images for this frame — click Validate to clear the Phase 7 gate.'; return; }
+    const pubDate = (document.getElementById('publishDate')?.value || '').trim();
+    if(total === 0){
+      if(btn) btn.disabled = false;
+      if(!pubDate){ if(hint) hint.textContent = 'No images for this article — set the Publish Date above, then click Validate to clear the Phase 7 gate.'; return; }
+      if(hint) hint.textContent = 'No images + Publish Date set — auto-clearing the Phase 7 gate…';
+      setTimeout(()=>{ if(!imagesValidated) validateImages(); }, 300);
+      return;
+    }
     let filled = 0;
     for(let i=0;i<total;i++){
       const inp = document.getElementById(`iurl${i}`);
@@ -4307,18 +4429,23 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       else { delete S.imageUrls[i]; if(inp) inp.classList.remove('filled'); }
     }
     updateArtifactImageUrls();
-    if(filled === total){
+    if(filled === total && pubDate){
       if(btn) btn.disabled = false;
-      if(hint) hint.textContent = 'All URLs entered — auto-validating…';
+      if(hint) hint.textContent = 'All URLs + Publish Date in — auto-validating…';
       setTimeout(()=>{ if(!imagesValidated) validateImages(); }, 300);
+    } else if(filled === total && !pubDate){
+      if(btn) btn.disabled = false;
+      if(hint) hint.textContent = `All ${total} image URL${total===1?'':'s'} entered — now set the Publish Date above, then it auto-validates.`;
     } else {
       if(btn) btn.disabled = true;
-      if(hint) hint.textContent = `${filled}/${total} image URL${total===1?'':'s'} entered — paste the rest to unblock Phase 7.`;
+      if(hint) hint.textContent = `${filled}/${total} image URL${total===1?'':'s'} entered${pubDate?'':' (and the Publish Date)'} — finish, then it auto-validates and Phase 7 unblocks.`;
     }
   }
   function validateImages(){
     const total = S.imagePrompts.length;
     const hint = document.getElementById('imgHint');
+    const pubDate = (document.getElementById('publishDate')?.value || '').trim();
+    if(!pubDate){ if(hint) hint.textContent = 'Set the Publish Date above before validating — Phase 7 needs it (Last Updated line + schema dates).'; return; }
     if(total > 0){
       for(let i=0;i<total;i++){
         const v = document.getElementById(`iurl${i}`)?.value.trim();
@@ -4329,10 +4456,10 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     imagesValidated = true;
     const btn = document.getElementById('imgValidateBtn');
     if(btn){ btn.textContent = 'Images Ready ✓'; btn.classList.add('ready'); btn.disabled = true; btn.onclick = null; }
-    if(hint) hint.textContent = _phase6Resolve ? 'All images validated — continuing to Phase 7 assembly…' : 'All images validated ✓';
+    if(hint) hint.textContent = _phase6Resolve ? 'All set — continuing to Phase 7 assembly…' : 'All set ✓ — images + Publish Date locked in.';
     updateArtifactImageUrls();
-    log(`M3.5 — image URLs validated (${Object.keys(S.imageUrls).length}/${S.expectedImageCount}). Featured: image ${getFeatured()+1}.`, 'ok');
-    // release the Phase 7 hard stop if the pipeline is parked on it
+    log(`M3.5 — Phase 7 inputs validated: ${total ? `${Object.keys(S.imageUrls).length}/${S.expectedImageCount} image URL(s), featured = image ${getFeatured()+1}` : 'no images'}, publish date ${pubDate}.`, 'ok');
+    // release the Phase 7 prerequisite hard stop if the pipeline is parked on it
     if(_phase6Resolve){ const r = _phase6Resolve; _phase6Resolve = null; r(); }
   }
   function downloadAllImages(){
@@ -4375,35 +4502,558 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     } catch(_){ /* quota / serialization — non-fatal */ }
   }
 
-  // ─── PHASE 7 STUB (Final Assembly) ─────────────────────────
-  // Minimal "Hello World" assembly per spec. Full Phase 7 assembly = Milestone 5.
-  function buildPhase7Stub(v1){
-    const h1 = escapeHtml(v1.checklist?.h1 || 'Untitled');
-    const da = escapeHtml(v1.directAnswer?.prose || '(no direct answer)');
-    const thesis = escapeHtml(v1.thesis?.statement || '(no thesis)');
-    const secs = _secs(v1).filter(s => s && typeof s === 'object');
-    const faqArr = Array.isArray(v1.faq) ? v1.faq : toArray(v1.faq);
-    const sectionList = secs.map((s,i)=>`  <li>${escapeHtml(s.h2||'')} <span style="color:#888;">(${(Array.isArray(s.paragraphs)?s.paragraphs.length:0)} paragraphs, ${(Array.isArray(s.tables)?s.tables.length:0)} tables, ${(Array.isArray(s.imagePrompts)?s.imagePrompts.length:0)} images)</span></li>`).join('\n');
-    return `<!-- Phase 7 (Final Assembly) STUB. Full assembly in M5. -->
-<div class="article-wrap">
-  <h1>${h1}</h1>
-  <div class="direct-answer"><p>${da}</p></div>
-  <p style="font-style:italic; color:#063a6c;">Thesis: ${thesis}</p>
-  <div style="background:#fff8e6; border:1px dashed #d4a418; padding:12px; margin:16px 0;">
-    <strong>STUB NOTICE:</strong> Phase 7 (Final Assembly) is still a stub. Real assembly (sections, FAQ, schema, ToC, byline, image embeds, etc.) ships in Milestone 5.
+  // ═══════════════════════════════════════════════════════════
+  // PHASE 7 — FINAL ASSEMBLY. 7A: JS builds the complete HTML from the article JSON (no API call) and
+  // renders it in the Final HTML tab. 7B: operator visual QC — Edit Mode toggle + click-to-edit (a click
+  // on a prose block sends only that paragraph + the operator's instruction to Claude → corrected prose
+  // swapped into the article JSON by node id → HTML re-renders). 7C: "Finalize Article" → build + unlock
+  // the checklist .html download and the clean final .txt download. Canonical stylesheet from 4.3B
+  // branding; all prose parsed through marked.js (links + bold native); itechvalet.github.io → .com.
+  // ═══════════════════════════════════════════════════════════
+
+  // The latest article object Phase 7 assembles + edits from (V3 forensic-critique → V2 voice → V1).
+  function currentArticle(){ return S.v3 || S.v2 || S.v1 || null; }
+
+  function slugifyHeading(text){
+    return String(text || '').toLowerCase().trim()
+      .replace(/&/g,' and ').replace(/['‘’"“”`]/g,'')
+      .replace(/[^a-z0-9]+/g,'-').replace(/-{2,}/g,'-').replace(/^-+|-+$/g,'') || 'section';
+  }
+  function permalinkSlug(article){
+    const raw = (article && article.checklist && article.checklist.permalink) || '';
+    const s = String(raw).replace(/^\/+|\/+$/g,'').split('/').pop().replace(/[^a-z0-9-]+/gi,'-').replace(/-{2,}/g,'-').replace(/^-+|-+$/g,'').toLowerCase();
+    return s || slugifyHeading((article && article.checklist && (article.checklist.h1||article.checklist.metaTitle)) || S.topic || 'article');
+  }
+  function formatPublishDateP7(pd){
+    if(!pd) return '';
+    const m = String(pd).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(!m) return String(pd);
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    return `${months[parseInt(m[2],10)-1]} ${parseInt(m[3],10)}, ${m[1]}`;
+  }
+  // Parse a prose string through marked.js — INLINE markdown only (bold, links, code, em) — no <p> wrap.
+  function mdInline(s){
+    const t = String(s == null ? '' : s).replace(/\r/g,'').trim();
+    if(typeof marked !== 'undefined'){
+      try { if(marked.parseInline) return marked.parseInline(t); } catch(_){}
+      try { if(marked.parse) return marked.parse(t).replace(/^<p>/,'').replace(/<\/p>\s*$/,''); } catch(_){}
+    }
+    return escapeHtml(t).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,'<a href="$2">$1</a>');
+  }
+  function stripMdToText(s){ return mdInline(s).replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/\s+/g,' ').trim(); }
+  // A prose string → one or more <p> elements (split on blank lines). tagAttr e.g. ' class="punch"'. editAttr e.g. ' data-node-id="…"' (added in Edit Mode).
+  function proseToParagraphs(prose, tagAttr, editAttr){
+    const chunks = String(prose || '').replace(/\r/g,'').split(/\n{2,}/).map(c=>c.trim()).filter(Boolean);
+    if(!chunks.length) return `<p${tagAttr||''}${editAttr||''}></p>`;
+    return chunks.map(c => `<p${tagAttr||''}${editAttr||''}>${mdInline(c.replace(/\n+/g,' '))}</p>`).join('\n');
+  }
+  function renderProseNode(p, editAttr){
+    if(!p || typeof p !== 'object') return '';
+    const pd = String(p.pacingDirective || 'standard expansion');
+    if(pd === 'list extraction' && Array.isArray(p.listItems) && p.listItems.length){
+      return `<ul${editAttr||''}>${p.listItems.map(li => `<li>${mdInline(String(li||''))}</li>`).join('')}</ul>`;
+    }
+    if(pd === 'short punch') return proseToParagraphs(p.prose || '', ' class="punch"', editAttr);
+    return proseToParagraphs(p.prose || '', '', editAttr); // 'standard expansion' or any unknown directive → plain <p> (never crash)
+  }
+  function renderArticleTable(tb){
+    const headers = Array.isArray(tb && tb.headers) ? tb.headers : [];
+    const rows = toArray(tb && tb.rows).map(r => Array.isArray(r && r.cells) ? r.cells : (Array.isArray(r) ? r : [])).filter(r => r.length);
+    if(!headers.length && !rows.length) return '';
+    let h = '<table class="article-table">';
+    if(headers.length) h += `<thead><tr>${headers.map(c=>`<th>${mdInline(String(c||''))}</th>`).join('')}</tr></thead>`;
+    h += `<tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${mdInline(String(c||''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    return h;
+  }
+
+  // ── BRANDING from 4.3B (freeform text — best-effort regex with fallbacks) ──
+  function extractBrandingFrom43B(doc43B){
+    const s = String(doc43B || '');
+    const get = (re, fb='') => { const m = s.match(re); return m ? String(m[1]).trim().replace(/\*\*$/,'').trim() : fb; };
+    const authorName  = get(/Author(?:\s*Name)?\s*:\s*([^\r\n|]+?)\s*(?:\(|\||[\r\n]|$)/i) || get(/(?:Byline|Written by)\s*:\s*([^\r\n|]+)/i);
+    const authorTitle = get(/Author\s*Title\s*:\s*([^\r\n|]+?)\s*(?:\(|\||[\r\n]|$)/i) || get(/Author[^\r\n]*?,\s*([A-Z][^\r\n|]+?)\s*(?:\(|\||[\r\n]|$)/i);
+    const authorUrl   = get(/Author[^\r\n]*?(https?:\/\/(?:www\.)?linkedin\.com\/[^\s)\]"',]+)/i) || get(/(https?:\/\/(?:www\.)?linkedin\.com\/in\/[^\s)\]"',]+)/i);
+    const orgName     = get(/(?:Organization|Company|Business|Publisher|Brand)\s*Name\s*:\s*([^\r\n|]+?)\s*(?:\(|\||[\r\n]|$)/i) || (S.client && S.client.name) || 'iTech Valet';
+    let orgUrl        = get(/(?:Organization|Company|Business|Publisher|Website|Homepage|Site)\s*(?:URL|Website|Site|Address)?\s*:\s*(https?:\/\/[^\s)\]"',]+)/i);
+    if(!orgUrl){ const d = (typeof getClientDomainV4 === 'function') ? getClientDomainV4() : ''; if(d && d !== '__NO_DOMAIN__') orgUrl = 'https://' + d.replace(/^https?:\/\//,'').replace(/\/+$/,''); }
+    if(!orgUrl) orgUrl = 'https://itechvalet.com';
+    const addr  = get(/(?:Address|Mailing Address|Street Address)\s*:\s*([^\r\n]+)/i);
+    const phone = get(/(?:Phone|Tel|Telephone|Call)\s*:\s*([+\d().\s-]{7,})/i);
+    const sameAs = [];
+    const sameRe = /(https?:\/\/(?:www\.)?(?:facebook|instagram|twitter|x|linkedin|youtube|tiktok|pinterest|yelp|g\.page|maps\.google|threads|crunchbase|bbb\.org)\.[^\s)\]"',]+)/gi;
+    let sm; while((sm = sameRe.exec(s)) !== null){ const u = sm[1].replace(/[).,;]+$/,''); if(sameAs.indexOf(u) < 0) sameAs.push(u); }
+    return { authorName, authorTitle, authorUrl, orgName, orgUrl: orgUrl.replace(/\/+$/,''), addr, phone, sameAs };
+  }
+
+  // ── CANONICAL STYLESHEET — built from 4.3B branding (ported verbatim from V3.1's buildStylesheetFrom43B) ──
+  function buildStylesheetFrom43B(doc43B){
+    const s = String(doc43B || '');
+    const get = (pattern, fallback='') => { const m = s.match(pattern); return m ? m[1].trim() : fallback; };
+    const fontsUrl = get(/Google Fonts Import:[^\r\n]*(https:\/\/fonts\.googleapis\.com\/[^\s\r\n]+)/i, '');
+    const h1Color   = get(/H1:\s*(#[0-9a-fA-F]{3,6})/i, '#063a6c');
+    const h2Color   = get(/H2:\s*(#[0-9a-fA-F]{3,6})/i, '#2494e0');
+    const h3Color   = get(/H3:\s*(#[0-9a-fA-F]{3,6})/i, '#dd6b00');
+    const bodyColor = get(/Body text:\s*(#[0-9a-fA-F]{3,6})/i, '#063a6c');
+    const linkColor = get(/All links:\s*(#[0-9a-fA-F]{3,6})/i, '#2494e0');
+    const daBackground = get(/Direct Answer box background:\s*(#[0-9a-fA-F]{3,6})/i, '#063a6c');
+    const daText    = get(/Direct Answer box.*?text:\s*(#[0-9a-fA-F]{3,6})/i, '#ffffff');
+    const luColor   = get(/Last Updated text:\s*(#[0-9a-fA-F]{3,6})/i, '#dd6b00');
+    const tocBg     = get(/(?:ToC|Table of Contents).*?[Hh]eader background:\s*(#[0-9a-fA-F]{3,6})/i, '#063a6c');
+    const tableBorder = get(/(?:Table.*?[Bb]order|[Bb]order):\s*(#[0-9a-fA-F]{3,6})/im, '#063a6c');
+    const hFontMatch = s.match(/(?:Headings?\s*\([^)]*\)|H1,?\s*H2)\s*:\s*([A-Za-z][A-Za-z\s]+?)(?:\s*\||\s*weight|\s*[\r\n])/i);
+    const hFont = hFontMatch ? hFontMatch[1].trim() : 'Bebas Neue';
+    const bFontMatch = s.match(/Body[^\r\n]*:\s*([A-Za-z][A-Za-z\s]+?)(?:\s*\||\s*weight|\s*[\r\n])/i);
+    const bFont = bFontMatch ? bFontMatch[1].trim() : 'Lexend';
+    const hTransform = /transform:\s*uppercase/i.test(s) ? 'uppercase' : /transform:\s*capitalize/i.test(s) ? 'capitalize' : 'uppercase';
+    const hWeight = get(/H[123].*?weight:\s*(\d+)/i, '400');
+    const bWeight = get(/Body.*?weight:\s*(\d+)/i, '300');
+    const h1Size = get(/H1:\s*(\d+(?:px|rem|em))\s*\//, '70px');
+    const h1TabSize = get(/H1:.*?\/\s*(\d+(?:px|rem|em))\s*\//, '60px');
+    const h1MobSize = get(/H1:.*?\/.*?\/\s*(\d+(?:px|rem|em))/, '46px');
+    const h2Size = get(/H2:\s*(\d+(?:px|rem|em))\s*\//, '50px');
+    const h2TabSize = get(/H2:.*?\/\s*(\d+(?:px|rem|em))\s*\//, '40px');
+    const h3Size = get(/H3:\s*(\d+(?:px|rem|em))\s*\//, '36px');
+    const h3TabSize = get(/H3:.*?\/\s*(\d+(?:px|rem|em))\s*\//, '30px');
+    const bodySize = get(/Body:\s*(\d+(?:px|rem|em))\s*\//, '22px');
+    const bodyMobSize = get(/Body:.*?\/.*?\/\s*(\d+(?:px|rem|em))/, '20px');
+    const daPadDesk = get(/Padding[^\r\n]*desktop[^\r\n]*:\s*([0-9][0-9px\s]+?)(?:\s*\(|\s*\/|[\r\n])/i, '36px 44px');
+    const daPadMob  = get(/Padding[^\r\n]*mobile[^\r\n]*:\s*([0-9][0-9px\s]+?)(?:\s*\(|\s*\/|[\r\n])/i, '28px 24px');
+    const daRadius  = get(/border-radius:\s*([0-9]+(?:px|rem))/i, '6px');
+    const fontImport = fontsUrl ? `@import url('${fontsUrl}');` : `@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300&display=swap');`;
+    return `<style>
+${fontImport}
+h1, h2, h3 { font-family: '${hFont}', sans-serif; font-weight: ${hWeight}; text-transform: ${hTransform}; line-height: 1; }
+h1 { font-size: ${h1Size}; color: ${h1Color}; text-align: center; padding-top: 40px; margin-bottom: 40px; }
+h2 { font-size: ${h2Size}; color: ${h2Color}; margin-top: 80px; margin-bottom: 20px; }
+h3 { font-size: ${h3Size}; color: ${h3Color}; margin-top: 40px; margin-bottom: 20px; }
+body, p, li, td, th, .article-wrap { font-family: '${bFont}', sans-serif; font-weight: ${bWeight}; color: ${bodyColor}; font-size: ${bodySize}; line-height: 1.5; }
+p { margin-bottom: 20px; }
+.punch { font-weight: 500; }
+a { color: ${linkColor}; text-decoration: none; }
+a:hover { text-decoration: underline; }
+.article-wrap img { width: 100%; height: auto; border-radius: 15px; box-shadow: 3px 2px 5px #3d3d3d; margin-bottom: 20px; }
+.direct-answer { background: ${daBackground}; color: ${daText}; padding: ${daPadDesk}; border-radius: ${daRadius}; margin-bottom: 24px; line-height: 1.5; }
+.direct-answer p, .direct-answer li, .direct-answer a { color: ${daText}; }
+.last-updated { color: ${luColor}; font-style: italic; text-align: center; margin-bottom: 100px !important; }
+.last-updated + .author-byline { margin-top: 8px; }
+.last-updated:has(+ .author-byline) { margin-bottom: 0 !important; }
+.author-byline { color: ${luColor}; font-style: italic; text-align: center; margin-bottom: 100px !important; }
+.toc { background: #f5f8fb; padding: 0; border-radius: 6px; margin-bottom: 80px; overflow: hidden; }
+.toc-header { background: ${tocBg}; color: white; padding: 16px 36px; font-family: '${hFont}', sans-serif; font-size: 28px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; margin: 0; }
+.toc-toggle { font-size: 24px; font-weight: bold; }
+.toc-body { padding: 28px 36px; display: block; }
+.toc-body.collapsed { display: none; }
+.toc ul { list-style: none; padding: 0; margin: 0; }
+.toc ul li { margin-bottom: 12px; }
+.toc ul ul { margin-top: 8px; margin-left: 20px; }
+.toc ul ul li { font-size: 20px; margin-bottom: 4px; }
+.toc a { color: ${linkColor}; text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+.h3-link { font-size: 20px; }
+table, .article-table { width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 20px; font-family: '${bFont}', sans-serif !important; font-size: ${bodySize}; background: #ffffff; border: 1px solid ${tableBorder}; overflow-x: auto; display: block; -webkit-overflow-scrolling: touch; }
+table thead { color: ${bodyColor}; font-weight: 700; }
+table th, table td { padding: 12px 16px; border: 1px solid ${tableBorder}; text-align: left; }
+table td { background: #ffffff; }
+.article-wrap { padding-bottom: 100px; }
+.article-cta { margin-top: 60px; padding: 0; background: none; }
+@media (max-width: 992px) {
+  h1 { font-size: ${h1TabSize}; }
+  h2 { font-size: ${h2TabSize}; }
+  h3 { font-size: ${h3TabSize}; }
+  body, p, li, td, th { font-size: ${bodySize}; }
+}
+@media (max-width: 768px) {
+  h1 { font-size: ${h1MobSize}; }
+  h2 { font-size: ${h2TabSize}; }
+  h3 { font-size: ${h3TabSize}; }
+  body, p, li, td, th { font-size: ${bodyMobSize}; }
+  .direct-answer { padding: ${daPadMob}; }
+  .toc-body { padding: 20px 24px; }
+  table { font-size: ${bodyMobSize}; }
+  table th, table td { padding: 10px 12px; }
+}
+</style>`;
+  }
+
+  // ── Collapsible ToC built from the article's headings (slugified ids), nesting H3s under their H2 ──
+  function collectArticleHeadings(article){
+    const out = [];
+    _secs(article).forEach((sec, si) => {
+      if(!sec || typeof sec !== 'object') return;
+      const h2 = String(sec.h2 || `Section ${si+1}`);
+      out.push({ tag:'h2', id: slugifyHeading(h2), text: h2 });
+      toArray(sec.h3sections).forEach(h3 => { if(h3 && typeof h3 === 'object' && String(h3.h3||'').trim()) out.push({ tag:'h3', id: slugifyHeading(h3.h3), text: String(h3.h3) }); });
+    });
+    if(Array.isArray(article.faq) && article.faq.length){
+      out.push({ tag:'h2', id:'faq', text:'Frequently Asked Questions' });
+      toArray(article.faq).forEach(f => { if(f && typeof f === 'object' && String(f.question||'').trim()) out.push({ tag:'h3', id: slugifyHeading(f.question), text: String(f.question) }); });
+    }
+    return out;
+  }
+  function buildArticleTocHTML(headings){
+    if(!headings || !headings.length) return '';
+    let items = '';
+    for(let i = 0; i < headings.length; i++){
+      const h = headings[i];
+      if(h.tag !== 'h2') continue;
+      const children = [];
+      for(let j = i+1; j < headings.length; j++){ if(headings[j].tag === 'h2') break; if(headings[j].tag === 'h3') children.push(headings[j]); }
+      if(children.length){
+        const nested = children.map(c => `          <li><a href="#${escapeHtml(c.id)}" class="h3-link">• ${escapeHtml(c.text)}</a></li>`).join('\n');
+        items += `\n      <li>\n        <a href="#${escapeHtml(h.id)}">• ${escapeHtml(h.text)}</a>\n        <ul>\n${nested}\n        </ul>\n      </li>`;
+      } else {
+        items += `\n      <li><a href="#${escapeHtml(h.id)}">• ${escapeHtml(h.text)}</a></li>`;
+      }
+    }
+    if(!items.trim()) return '';
+    return `<div class="toc">
+  <div class="toc-header" onclick="var b=this.nextElementSibling;var t=this.querySelector('.toc-toggle');b.classList.toggle('collapsed');t.textContent=b.classList.contains('collapsed')?'+':'−';">
+    Table of Contents <span class="toc-toggle">−</span>
   </div>
-  <h2>Section index (${secs.length})</h2>
-  <ul>
-${sectionList}
-  </ul>
-  <h2>FAQ count: ${faqArr.length}</h2>
-  <h2>CTA</h2>
-  <div class="article-cta">
-    <p>${escapeHtml(v1.cta?.hookProse||'(no CTA hook)')}</p>
-    <p><a href="${escapeHtml(v1.cta?.url||'#')}">${escapeHtml(v1.cta?.anchorText||'(no anchor)')}</a></p>
+  <div class="toc-body">
+    <ul>${items}
+    </ul>
   </div>
 </div>`;
   }
+
+  // ── 7A — assemble the complete article HTML from the article JSON ──
+  // Returns { styleBlock, articleWrap, finalTxt, fullDoc }. finalTxt = styleBlock + '\n' + articleWrap (clean — what goes into WordPress).
+  // opts.editMode → prose elements get data-node-id attrs; fullDoc gets a hover <style> + a click→postMessage <script> for 7B.
+  function assemblePhase7HTML(article, opts){
+    opts = opts || {};
+    const editMode = !!opts.editMode;
+    if(!article || typeof article !== 'object') throw new Error('no article object');
+    const styleBlock = buildStylesheetFrom43B(S.docs.doc43B);
+    const branding = extractBrandingFrom43B(S.docs.doc43B);
+    const pubFormatted = formatPublishDateP7((document.getElementById('publishDate')?.value || '').trim());
+    const headings = collectArticleHeadings(article);
+    const h1Text = String((article.checklist && (article.checklist.h1 || article.checklist.metaTitle)) || S.topic || 'Untitled');
+    // map img_ ids → pasted WordPress URL
+    const imgUrlById = {}; (S.imagePrompts||[]).forEach((p, i) => { if(p && p.id) imgUrlById[p.id] = (S.imageUrls && S.imageUrls[i]) ? S.imageUrls[i] : ''; });
+    const ea = id => editMode ? ` data-node-id="${escapeHtml(String(id||''))}"` : '';
+    const ind = (str, n) => str.split('\n').map(l => l ? (' '.repeat(n) + l) : l).join('\n');
+
+    const parts = [];
+    parts.push(`<div class="article-wrap">`);
+    parts.push(`  <h1 id="${slugifyHeading(h1Text)}">${escapeHtml(h1Text)}</h1>`);
+    if(article.directAnswer && typeof article.directAnswer === 'object'){
+      parts.push(`  <div class="direct-answer">\n${ind(proseToParagraphs(article.directAnswer.prose || '', '', ea(article.directAnswer.id)), 4)}\n  </div>`);
+    }
+    parts.push(`  <p class="last-updated">Last Updated: ${escapeHtml(pubFormatted || '(date not set)')}</p>`);
+    if(branding.authorName){
+      const byline = branding.authorTitle ? `${branding.authorName}, ${branding.authorTitle}` : branding.authorName;
+      parts.push(`  <p class="author-byline"><em>By ${escapeHtml(byline)}</em></p>`);
+    }
+    const tocHTML = buildArticleTocHTML(headings);
+    if(tocHTML) parts.push(ind(tocHTML, 2));
+    _secs(article).forEach((sec, si) => {
+      if(!sec || typeof sec !== 'object') return;
+      const h2 = String(sec.h2 || `Section ${si+1}`);
+      parts.push(`  <h2 id="${slugifyHeading(h2)}">${escapeHtml(h2)}</h2>`);
+      toArray(sec.imagePrompts).forEach(im => {
+        if(!im || typeof im !== 'object') return;
+        const url = (im.id && imgUrlById[im.id]) ? imgUrlById[im.id] : '';
+        if(url) parts.push(`  <img src="${escapeHtml(url)}" alt="${escapeHtml(String(im.alt||''))}" />`);
+      });
+      toArray(sec.paragraphs).forEach(p => { const h = renderProseNode(p, ea(p && p.id)); if(h) parts.push(ind(h, 2)); });
+      toArray(sec.h3sections).forEach(h3 => {
+        if(!h3 || typeof h3 !== 'object') return;
+        const h3t = String(h3.h3 || '');
+        if(h3t.trim()) parts.push(`  <h3 id="${slugifyHeading(h3t)}">${escapeHtml(h3t)}</h3>`);
+        toArray(h3.paragraphs).forEach(p => { const h = renderProseNode(p, ea(p && p.id)); if(h) parts.push(ind(h, 2)); });
+      });
+      toArray(sec.tables).forEach(tb => { const h = renderArticleTable(tb); if(h) parts.push(ind(h, 2)); });
+    });
+    if(Array.isArray(article.faq) && article.faq.length){
+      parts.push(`  <h2 id="faq">Frequently Asked Questions</h2>`);
+      toArray(article.faq).forEach(f => {
+        if(!f || typeof f !== 'object') return;
+        const q = String(f.question || '');
+        parts.push(`  <h3 id="${slugifyHeading(q)}">${escapeHtml(q)}</h3>`);
+        parts.push(ind(proseToParagraphs((f.answer && f.answer.prose) || '', '', ea(f.answer && f.answer.id)), 2));
+      });
+    }
+    if(article.cta && typeof article.cta === 'object'){
+      const hook = String(article.cta.hookProse || ''), anchor = String(article.cta.anchorText || ''), url = String(article.cta.url || '');
+      parts.push(`  <div class="article-cta">`);
+      if(hook.trim()) parts.push(ind(proseToParagraphs(hook, '', ea(article.cta.id)), 4));
+      if(anchor || url) parts.push(`    <p><a href="${escapeHtml(url)}">${escapeHtml(anchor || url || 'Learn more')}</a></p>`);
+      parts.push(`  </div>`);
+    }
+    parts.push(`</div>`);
+    let articleWrap = parts.join('\n');
+    // LINK FIX — itechvalet.github.io → itechvalet.com in every href / src, and in any bare URL in prose
+    articleWrap = articleWrap.replace(/(href|src)=("|')([^"']*itechvalet\.github\.io[^"']*)\2/gi, (m, attr, q, val) => `${attr}=${q}${val.replace(/itechvalet\.github\.io/gi,'itechvalet.com')}${q}`);
+    articleWrap = articleWrap.replace(/https?:\/\/itechvalet\.github\.io/gi, 'https://itechvalet.com');
+
+    const finalTxt = `${styleBlock}\n${articleWrap}`;
+    const editStyle = editMode ? `<style>[data-node-id]{cursor:pointer;transition:outline .12s,background .12s;}[data-node-id]:hover{outline:2px dashed #2494e0;outline-offset:3px;background:rgba(36,148,224,.08);}</style>` : '';
+    const editScript = editMode ? `<scr`+`ipt>document.addEventListener("click",function(e){var el=e.target&&e.target.closest&&e.target.closest("[data-node-id]");if(el){e.preventDefault();e.stopPropagation();try{window.parent.postMessage({__p7edit:true,nodeId:el.getAttribute("data-node-id"),text:(el.textContent||"")},"*");}catch(_){}}},true);<\/scr`+`ipt>` : '';
+    const fullDoc = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">${styleBlock}${editStyle}</head><body>${articleWrap}${editScript}</body></html>`;
+    return { styleBlock, articleWrap, finalTxt, fullDoc };
+  }
+
+  // ── SCHEMA — BlogPosting + FAQPage + BreadcrumbList, each as its own <script type="application/ld+json"> ──
+  // Built from the article JSON + 4.3B branding + the Publish Date (used for datePublished/dateModified — NEVER foundingDate).
+  function buildSchemaJSONLD(article, doc43B, pubRaw, featuredUrl){
+    const c = (article && article.checklist) || {};
+    const b = extractBrandingFrom43B(doc43B);
+    const pd = (pubRaw || '').trim();
+    const headline = c.h1 || c.metaTitle || S.topic || '';
+    const url = c.fullUrl || '';
+    const desc = c.metaDescription || '';
+    const author = { '@type':'Person', name: b.authorName || 'iTech Valet' };
+    if(b.authorTitle) author.jobTitle = b.authorTitle;
+    if(b.authorUrl) author.url = b.authorUrl;
+    const publisher = { '@type':'Organization', name: b.orgName || 'iTech Valet' };
+    if(b.orgUrl) publisher.url = b.orgUrl;
+    if(b.sameAs && b.sameAs.length) publisher.sameAs = b.sameAs;
+    if(b.phone) publisher.contactPoint = { '@type':'ContactPoint', telephone: b.phone, contactType:'customer service' };
+    if(b.addr) publisher.address = { '@type':'PostalAddress', streetAddress: b.addr };
+    const blogPosting = { '@context':'https://schema.org', '@type':'BlogPosting', headline: headline, description: desc };
+    if(url){ blogPosting.url = url; blogPosting.mainEntityOfPage = { '@type':'WebPage', '@id': url }; }
+    if(featuredUrl) blogPosting.image = featuredUrl;
+    if(pd){ blogPosting.datePublished = pd; blogPosting.dateModified = pd; }
+    blogPosting.author = author; blogPosting.publisher = publisher;
+    const faqPage = (Array.isArray(article.faq) && article.faq.length) ? {
+      '@context':'https://schema.org', '@type':'FAQPage',
+      mainEntity: toArray(article.faq).filter(f=>f && f.question).map(f => ({ '@type':'Question', name: String(f.question), acceptedAnswer: { '@type':'Answer', text: stripMdToText(String((f.answer && f.answer.prose) || '')) } }))
+    } : null;
+    const home = (b.orgUrl || 'https://itechvalet.com').replace(/\/+$/,'') + '/';
+    const crumbs = [{ '@type':'ListItem', position: 1, name: 'Home', item: home }];
+    if(c.category){ crumbs.push({ '@type':'ListItem', position: crumbs.length+1, name: c.category, item: home + slugifyHeading(c.category) + '/' }); }
+    const last = { '@type':'ListItem', position: crumbs.length+1, name: headline };
+    if(url) last.item = url;
+    crumbs.push(last);
+    const breadcrumb = { '@context':'https://schema.org', '@type':'BreadcrumbList', itemListElement: crumbs };
+    const blocks = [blogPosting, faqPage, breadcrumb].filter(Boolean);
+    return blocks.map(blk => `<scr`+`ipt type="application/ld+json">\n${JSON.stringify(blk, null, 2)}\n<\/scr`+`ipt>`).join('\n\n');
+  }
+
+  // ── CHECKLIST .html (ported/adapted from V3.1's dlChecklist — built from the article JSON) ──
+  function buildChecklistHTML(article){
+    const c = (article && article.checklist) || {};
+    const E = s => escapeHtml(String(s == null ? '' : s));
+    const pdRaw = (document.getElementById('publishDate')?.value || '').trim();
+    const pd = formatPublishDateP7(pdRaw) || '(not set)';
+    const title = c.metaTitle || c.h1 || S.topic || 'Untitled';
+    const featUrl = (S.expectedImageCount > 0) ? (S.imageUrls[getFeatured()] || '(not set)') : '(no images for this article)';
+    const runTime = (document.getElementById('timerDisplay')?.textContent) || '—';
+    const t = S.tokens || {};
+    const geminiCost = ((t.gi||0)/1e6*1.25) + ((t.go||0)/1e6*10.0);
+    const claudeCost = ((t.ci||0)/1e6*3.0) + ((t.cacheCreate||0)/1e6*3.75) + ((t.cacheRead||0)/1e6*0.30) + ((t.co||0)/1e6*15.0);
+    const imageCost = (S.expectedImageCount||0) * 0.020;
+    const totalCost = geminiCost + claudeCost + imageCost;
+    const fields = [
+      { label:'Title / H1', value: c.h1 || title },
+      { label:'Permalink URL', value: String(c.permalink||'').replace(/^\//,'') },
+      { label:'Full Article URL', value: c.fullUrl || '' },
+      { label:'Meta Description', value: c.metaDescription || '' },
+      { label:'Keywords', value: c.keywords || '' },
+      { label:'Category', value: c.category || '' },
+      { label:'Featured Image URL', value: featUrl },
+      { label:'Publish Date', value: pdRaw ? `${pdRaw} (${pd})` : '(not set)' }
+    ];
+    const fieldRows = fields.map(f => `      <div class="cl-field"><div class="cl-label">${E(f.label)}</div><div class="cl-val-wrap"><textarea class="cl-ta" onclick="this.select();" readonly>${E(f.value)}</textarea><button class="cl-btn" onclick="clCopy(this)">Copy</button></div></div>`).join('\n');
+    const schemaStr = (S.finalSchema || buildSchemaJSONLD(article, S.docs.doc43B, pdRaw, (S.expectedImageCount>0?(S.imageUrls[getFeatured()]||''):''))).trim();
+    const schemaRow = schemaStr ? `      <div class="cl-field"><div class="cl-label" style="color:#dd6b00;">Schema Markup (BlogPosting + FAQPage + BreadcrumbList — paste all three together)</div><div class="cl-val-wrap"><textarea class="cl-ta cl-ta-schema" onclick="this.select();" readonly>${E(schemaStr)}</textarea><button class="cl-btn" onclick="clCopy(this)">Copy</button></div></div>` : '';
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>${E(title)} — Checklist</title>
+<style>
+  body{font-family:Arial,sans-serif;font-size:14px;color:#063a6c;max-width:860px;margin:40px auto;padding:0 24px;background:#fff;}
+  h1{font-size:20px;margin-bottom:4px;color:#063a6c;}
+  .sub{font-size:12px;color:#888;margin-bottom:28px;}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:2px;color:#2494e0;border-bottom:2px solid #2494e0;padding-bottom:4px;margin:28px 0 14px;}
+  .cl-field{margin-bottom:16px;}
+  .cl-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#063a6c;margin-bottom:4px;}
+  .cl-val-wrap{display:flex;align-items:flex-start;gap:8px;}
+  .cl-ta{flex:1;font-family:Arial,sans-serif;font-size:13px;color:#063a6c;background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;padding:8px 10px;resize:vertical;cursor:pointer;min-height:36px;line-height:1.5;}
+  .cl-ta-schema{font-family:monospace;font-size:11px;min-height:200px;}
+  .cl-ta:focus{outline:2px solid #2494e0;background:#fff;}
+  .cl-btn{background:#063a6c;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0;align-self:flex-start;}
+  .cl-btn:hover{background:#2494e0;}
+  .cl-btn.copied{background:#4caf50;}
+  .cost-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .cost-item{background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;padding:10px 14px;}
+  .cost-item .cv{font-size:18px;font-weight:700;color:#063a6c;margin-top:4px;}
+  .cost-item.total{border-color:#063a6c;background:#f0f4f8;}
+  .cost-item.total .cv{font-size:22px;color:#dd6b00;}
+</style>
+</head>
+<body>
+<h1>${E(title)}</h1>
+<div class="sub">Client: ${E(S.client && S.client.name || '—')} &nbsp;·&nbsp; Published: ${E(pd)} &nbsp;·&nbsp; Generated: ${E(new Date().toLocaleDateString())}</div>
+
+<h2>Article Optimization Checklist</h2>
+${fieldRows}
+
+<h2>Run Cost Report</h2>
+<div class="cost-grid">
+  <div class="cost-item"><div class="cl-label">Run Time</div><div class="cv">${E(runTime)}</div></div>
+  <div class="cost-item"><div class="cl-label">Claude Cost</div><div class="cv">$${claudeCost.toFixed(4)}</div></div>
+  <div class="cost-item"><div class="cl-label">Gemini Text Cost</div><div class="cv">$${geminiCost.toFixed(4)}</div></div>
+  <div class="cost-item"><div class="cl-label">Image Cost</div><div class="cv">$${imageCost.toFixed(4)}</div></div>
+  <div class="cost-item total" style="grid-column:span 2"><div class="cl-label">Total Estimated Cost</div><div class="cv">$${totalCost.toFixed(4)}</div></div>
+</div>
+
+<h2>Schema Markup</h2>
+<p style="font-size:12px;color:#888;margin-bottom:14px;">Paste the block below into the page's &lt;head&gt; (or your SEO plugin's schema field) — all three schema types together.</p>
+${schemaRow}
+
+` + '<scr' + 'ipt>\nfunction clCopy(btn){var ta=btn.previousElementSibling;ta.select();try{document.execCommand("copy");btn.textContent="Copied!";btn.classList.add("copied");setTimeout(function(){btn.textContent="Copy";btn.classList.remove("copied");},2000);}catch(e){btn.textContent="Select & Ctrl+C";setTimeout(function(){btn.textContent="Copy";},2500);}}\ndocument.querySelectorAll(".cl-ta:not(.cl-ta-schema)").forEach(function(ta){ta.style.height="auto";ta.style.height=Math.max(36,ta.scrollHeight)+"px";});\n<\/scr' + 'ipt>\n</body>\n</html>';
+  }
+
+  // ── 7B — Edit Mode toggle, click-to-edit, preview rendering ──
+  let _p7EditNodeId = null;
+  const PHASE7_EDIT_TOOL = { name:'submit_corrected_prose', description:'Return the corrected version of the single paragraph the operator asked you to fix — nothing else.', input_schema: { type:'object', required:['newProse'], additionalProperties:false, properties:{ newProse:{ type:'string', description:'The corrected prose, in Markdown (links as [anchor text](url), bold as **text**). No headings, no HTML tags.' } } } };
+  function p7NodeById(id){
+    const a = currentArticle(); if(!a || !id) return null;
+    if(a.directAnswer && a.directAnswer.id === id) return { node:a.directAnswer, kind:'da', label:'Direct Answer' };
+    if(a.cta && a.cta.id === id) return { node:a.cta, kind:'cta', label:'CTA hook' };
+    let r = null;
+    _secs(a).forEach(sec => { if(r||!sec||typeof sec!=='object') return;
+      toArray(sec.paragraphs).forEach(p => { if(!r && p && p.id === id) r = { node:p, kind:'para', label:`paragraph in "${sec.h2||''}"` }; });
+      toArray(sec.h3sections).forEach(h3 => { if(r||!h3||typeof h3!=='object') return; toArray(h3.paragraphs).forEach(p => { if(!r && p && p.id === id) r = { node:p, kind:'para', label:`paragraph in "${h3.h3||''}"` }; }); });
+    });
+    if(r) return r;
+    toArray(a.faq).forEach(f => { if(!r && f && f.answer && f.answer.id === id) r = { node:f.answer, kind:'ans', label:`FAQ answer ("${String(f.question||'').slice(0,40)}")` }; });
+    return r;
+  }
+  function p7NodeCurrentText(rec){
+    if(!rec || !rec.node) return '';
+    if(rec.kind === 'cta') return String(rec.node.hookProse || '');
+    if(Array.isArray(rec.node.listItems) && rec.node.listItems.length) return rec.node.listItems.map(x=>'- '+String(x||'')).join('\n');
+    return String(rec.node.prose || '');
+  }
+  function renderPhase7Preview(){
+    const a = currentArticle();
+    const fr = document.getElementById('p7Frame'), pre = document.getElementById('htmlPre');
+    if(!a){ if(fr) fr.srcdoc = '<!DOCTYPE html><body style="font-family:sans-serif;color:#888;padding:24px;">(no article yet — run the pipeline first)</body>'; return null; }
+    let built; try { built = assemblePhase7HTML(a, { editMode: _phase7EditMode }); } catch(e){ if(fr) fr.srcdoc = `<!DOCTYPE html><body style="font-family:sans-serif;color:#c0392b;padding:24px;">Assembly error: ${escapeHtml(e.message||String(e))}</body>`; return null; }
+    S.finalTXT = built.finalTxt;
+    if(fr) fr.srcdoc = built.fullDoc;
+    if(pre) pre.textContent = built.finalTxt;
+    return built;
+  }
+  function togglePhase7EditMode(){
+    _phase7EditMode = !_phase7EditMode;
+    const b = document.getElementById('btnEditMode');
+    if(b){ b.textContent = _phase7EditMode ? '✏ Edit Mode: ON' : '✏ Edit Mode: OFF'; b.classList.toggle('on', _phase7EditMode); }
+    closePhase7EditPanel();
+    renderPhase7Preview();
+    const st = document.getElementById('p7Status');
+    if(st) st.textContent = _phase7EditMode ? '✏ Edit Mode ON — click any paragraph in the preview below to fix it. Toggle off for a clean preview.' : 'Clean preview. Toggle Edit Mode to click-fix paragraphs, or "Finalize Article" when you\'re done reviewing.';
+  }
+  function togglePhase7Source(){
+    const el = document.getElementById('p7Src'); if(el) el.classList.toggle('open');
+    const b = document.getElementById('btnViewSource'); if(b) b.textContent = (el && el.classList.contains('open')) ? '⌃ Hide HTML source' : '⌄ View HTML source';
+  }
+  function openPhase7EditPanel(nodeId, domText){
+    if(!_phase7EditMode) return;
+    const rec = p7NodeById(nodeId);
+    _p7EditNodeId = nodeId;
+    const panel = document.getElementById('p7EditPanel'); if(!panel) return;
+    document.getElementById('p7EditTitle').textContent = `Fix this ${rec ? rec.label : 'block'}`;
+    document.getElementById('p7EditCurrent').textContent = (rec ? (p7NodeCurrentText(rec) || '(empty)') : (domText || '(could not locate this block in the article JSON)'));
+    const inst = document.getElementById('p7EditInstruction'); inst.value = '';
+    document.getElementById('p7EditBusy').style.display = 'none';
+    document.getElementById('p7EditSubmit').disabled = false;
+    panel.classList.add('open');
+    setTimeout(()=>{ try{ inst.focus(); }catch(_){} }, 30);
+  }
+  function closePhase7EditPanel(){ const p = document.getElementById('p7EditPanel'); if(p) p.classList.remove('open'); _p7EditNodeId = null; }
+  async function submitPhase7Edit(){
+    const nodeId = _p7EditNodeId; if(!nodeId){ return; }
+    const instruction = (document.getElementById('p7EditInstruction')?.value || '').trim();
+    if(!instruction){ document.getElementById('p7EditInstruction').focus(); return; }
+    const akey = document.getElementById('keyAnthropic').value.trim();
+    if(!akey){ alert('Anthropic API key required.'); return; }
+    const rec = p7NodeById(nodeId); if(!rec){ alert('Could not find that node in the article JSON.'); return; }
+    const cur = p7NodeCurrentText(rec);
+    document.getElementById('p7EditBusy').style.display = 'inline-flex';
+    document.getElementById('p7EditSubmit').disabled = true;
+    try {
+      const sys = [{ type:'text', text:`You are a copy editor making ONE small, surgical fix to a single paragraph of a finished AEO article in the client's voice. The operator tells you exactly what to change. Return ONLY the corrected paragraph via the submit_corrected_prose tool — same voice, Markdown formatting (links as [anchor text](url), bold as **text**), no headings, no HTML tags. Preserve every hard fact / number / proper noun unless the instruction says otherwise; don't add or remove links unless asked.` }];
+      const usr = `CURRENT PARAGRAPH (${rec.label}):\n${cur || '(empty)'}\n\nOPERATOR'S FIX INSTRUCTION:\n${instruction}\n\nReturn the corrected paragraph now via submit_corrected_prose.`;
+      const result = await callClaude({ systemBlocks: sys, userText: usr, tools:[PHASE7_EDIT_TOOL], toolChoice:{type:'tool', name:'submit_corrected_prose'}, akey, timeoutMs: 180000 });
+      logCacheCall(7, result.usage);
+      const inp = result.toolCalls && result.toolCalls[0] && result.toolCalls[0].input;
+      const corrected = (inp && typeof inp.newProse === 'string') ? inp.newProse.trim() : '';
+      if(!corrected){ alert('Claude did not return a usable correction — try rephrasing the instruction.'); document.getElementById('p7EditBusy').style.display='none'; document.getElementById('p7EditSubmit').disabled=false; return; }
+      // swap into the article JSON by node id
+      if(rec.kind === 'cta'){ rec.node.hookProse = corrected; if('listItems' in rec.node) delete rec.node.listItems; }
+      else { rec.node.prose = corrected; if(rec.node.pacingDirective === 'list extraction') rec.node.pacingDirective = 'standard expansion'; if('listItems' in rec.node) delete rec.node.listItems; }
+      log(`Phase 7 — 7B edit applied to ${nodeId} ("${instruction.slice(0,60).replace(/\s+/g,' ')}").`, 'ok');
+      closePhase7EditPanel();
+      renderPhase7Preview();
+      // if the article was already finalized, the downloads are now stale → require re-finalize
+      if(S.checklistHTML || S.finalSchema){
+        S.checklistHTML = '';
+        const dlc = document.getElementById('btnDlChecklist'), dlf = document.getElementById('btnDlFinal');
+        if(dlc) dlc.disabled = true; if(dlf) dlf.disabled = true;
+        const st = document.getElementById('p7Status'); if(st) st.textContent = '⚠ Edited after finalize — click "Finalize Article" again to refresh the downloads + schema.';
+      }
+    } catch(e){
+      alert(`Phase 7 edit failed: ${e.message || e}`);
+      document.getElementById('p7EditBusy').style.display='none'; document.getElementById('p7EditSubmit').disabled=false;
+    }
+  }
+
+  // ── 7C — Finalize: build the clean final .txt, the schema, and the checklist .html; unlock the downloads; release the 7B park ──
+  function finalizePhase7(){
+    const article = currentArticle();
+    if(!article){ alert('No article to finalize — run the pipeline first.'); return; }
+    const pdRaw = (document.getElementById('publishDate')?.value || '').trim();
+    if(!pdRaw){ alert('Set the Publish Date in the Image panel first — Phase 7 needs it for the Last Updated line and the schema dates.'); return; }
+    let built; try { built = assemblePhase7HTML(article, { editMode:false }); } catch(e){ alert(`Assembly failed: ${e.message||e}`); return; }
+    S.finalTXT = built.finalTxt;
+    const featUrl = (S.expectedImageCount > 0) ? (S.imageUrls[getFeatured()] || '') : '';
+    S.finalSchema = buildSchemaJSONLD(article, S.docs.doc43B, pdRaw, featUrl);
+    S.checklistHTML = buildChecklistHTML(article);
+    if(_phase7EditMode){ togglePhase7EditMode(); } else { renderPhase7Preview(); }   // re-render clean
+    const sc = document.getElementById('schemaPre'); if(sc) sc.textContent = S.finalSchema;
+    const dlc = document.getElementById('btnDlChecklist'), dlf = document.getElementById('btnDlFinal');
+    if(dlc) dlc.disabled = false; if(dlf) dlf.disabled = false;
+    const st = document.getElementById('p7Status'); if(st) st.textContent = `✓ Finalized — ${(S.finalTXT.length).toLocaleString()} chars. Downloads ready below. (Editing a block again will require re-finalizing.)`;
+    if(typeof updateArtifactImageUrls === 'function') updateArtifactImageUrls();
+    log(`Phase 7C — article FINALIZED (${S.finalTXT.length} chars; schema: BlogPosting + FAQPage + BreadcrumbList). Checklist .html + final .txt ready.`, 'ok');
+    setG('✓ Phase 7 complete — article finalized. Download the checklist .html and the final .txt in the Final HTML tab.');
+    setPhase(7, 'done', 'Finalized ✓');
+    if(_phase7FinalizeResolve){ const r = _phase7FinalizeResolve; _phase7FinalizeResolve = null; r(); }   // release the 7B operator-QC checkpoint
+  }
+  function dlChecklistHTML(){
+    if(!S.checklistHTML){ alert('Click "Finalize Article" first to build the checklist.'); return; }
+    const fname = permalinkSlug(currentArticle()) + '-checklist.html';
+    const blob = new Blob([S.checklistHTML], { type:'text/html' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+  }
+  function dlFinalTxt(){
+    if(!S.finalTXT){ alert('Click "Finalize Article" first to build the final HTML.'); return; }
+    const fname = '_' + permalinkSlug(currentArticle()) + '-final.txt';
+    const blob = new Blob([S.finalTXT], { type:'text/plain' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+  }
+  // Reset the Phase 7 UI (Final HTML tab) — called at the start of every run and on client change.
+  function resetPhase7UI(){
+    _phase7EditMode = false; _phase7FinalizeResolve = null; _p7EditNodeId = null;
+    S.finalTXT = ''; S.finalSchema = ''; S.checklistHTML = '';
+    const fr = document.getElementById('p7Frame'); if(fr) fr.srcdoc = '<!DOCTYPE html><body style="font-family:sans-serif;color:#aaa;padding:24px;font-size:13px;">Phase 7 (Final Assembly) renders the article here once Phases 1–6 finish and the image URLs + Publish Date are in.</body>';
+    const pre = document.getElementById('htmlPre'); if(pre) pre.textContent = 'The clean article HTML (style block + article-wrap) appears here after Phase 7 assembly.';
+    const b = document.getElementById('btnEditMode'); if(b){ b.textContent = '✏ Edit Mode: OFF'; b.classList.remove('on'); b.disabled = true; }
+    ['btnViewSource','btnFinalize','btnDlChecklist','btnDlFinal'].forEach(id => { const el = document.getElementById(id); if(el) el.disabled = true; });
+    const src = document.getElementById('p7Src'); if(src) src.classList.remove('open');
+    const vs = document.getElementById('btnViewSource'); if(vs) vs.textContent = '⌄ View HTML source';
+    const st = document.getElementById('p7Status'); if(st) st.textContent = 'Phase 7 (Final Assembly) renders here once Phases 1–6 finish and the image URLs + Publish Date are in.';
+    closePhase7EditPanel();
+  }
+  // The iframe (Edit Mode) posts a message when the operator clicks a prose block — open the edit panel.
+  window.addEventListener('message', function(e){
+    try { if(e && e.data && e.data.__p7edit && _phase7EditMode){ openPhase7EditPanel(String(e.data.nodeId||''), String(e.data.text||'')); } } catch(_){}
+  });
 
 </script>
 
