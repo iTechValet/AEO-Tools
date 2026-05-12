@@ -1,11 +1,11 @@
-AEO ARTICLE CREATION PIPELINE — MASTER REFERENCE DOC  (WORKING COPY — full session of May 11, 2026)
-Last Updated: May 11, 2026 (continued — Chat 20 build session) | V3.1 (production) | V4.0 (BUILD UNDERWAY — M1+M2 approved; M2.5 approved; M2.6 built; M3 built; M3.5 queued)
+AEO ARTICLE CREATION PIPELINE — MASTER REFERENCE DOC  (WORKING COPY — sessions of May 11–12, 2026)
+Last Updated: May 12, 2026 (Claude Code build session — V4.0 build continues) | V3.1 (production) | V4.0 (BUILD UNDERWAY — ALL 7 PHASES NOW BUILT [M1–M5]; syntax-checked, NOT yet live-tested end to end; M6 side-by-side + M7 ship still pending)
 ================================================
 
 ⚠️ V4.0 ARCHITECTURAL REBUILD — BUILD IN PROGRESS (Claude Code)
 End of Chat 19: Three Gemini Pro consultations concluded with full sign-off.
 The spec is being executed by Claude Code against aeo_v4.html. As of the end
-of the May 11, 2026 build session:
+of the May 12, 2026 build session (all aeo_v4.html changes committed/pushed):
   M1   — APPROVED (skeleton + Phase 1-2 with caching; cache HIT verified).
   M2   — APPROVED (Phase 3 dual validation, Phase 4 freeze, F1-F4, escalation
          panel, calibration/production modes).
@@ -13,15 +13,48 @@ of the May 11, 2026 build session:
          validation → 2B data hydration → JS merge; provenance-tagged table data
          — every row cites a Phase 1 factClaim; SURGICAL retries — the V1 is
          never regenerated wholesale).
-  M2.6 — BUILT (Phase 2B rebuilt as the "Relay Race" — Sequential Hydration
-         with Rolling Context, SECTION-LEVEL granularity: buildSectionLevelQueue
-         + HYDRATE_CONTENT_BLOCK_TOOL — ~20-25 calls instead of ~63; Phase 2A
-         frame now also carries a narrative_spine). Operator live test pending.
-  M3   — BUILT (Phase 5 Voice Draft, Option E unified CoT). NOTE: Phase 5 is a
-         single big Option-E call and will fatigue on output tokens the same way
-         the monolithic Phase 2B did — it NEEDS the same Relay-Race rebuild
-         (section-level sequential rewrites) before it's production-ready.
-  M3.5 — QUEUED (image generation — runs in parallel with Phase 5/5.5; not built).
+  M2.6 — BUILT (Phase 2B = the "Relay Race" — Sequential Hydration with Rolling
+         Context, SECTION-LEVEL granularity: buildSectionLevelQueue +
+         HYDRATE_CONTENT_BLOCK_TOOL — ~20-25 calls; Phase 2A frame carries a
+         narrative_spine). Committed (d0fe354, 3063fde). Live test pending.
+  M3   — SUPERSEDED BY M3.6 (the original Phase 5 was a single Option-E call —
+         it fatigued the way monolithic Phase 2B did; rebuilt section-level).
+  M3.5 — BUILT (image generation — fires the moment the Phase 2 frame validates,
+         runs in the background through Phases 2–5, bound to a frame attempt_id
+         with zombie-queue protection, jittered 2.5–5 s delay, 35 s / 45 s / back-
+         of-queue attempts; image panel moved to the LEFT column below the phase
+         cards; Phase 7 hard-stops until every image URL + the Publish Date are in).
+         Committed (ede9f7e, d794cc5).
+  M3.6 — BUILT (Phase 5 Voice Draft RE-BUILT as a SECTION-LEVEL RELAY RACE — same
+         pattern as Phase 2B: 1× Direct Answer → 1× per H2 section → 1× all FAQ
+         answers → 1× CTA hook, sequential, each call carrying the FULL rolling V2
+         draft + the verbatim "tone anchor is always 4.3A/4.3B — never the rolling
+         draft" instruction; no per-table call [table data is frozen]). Committed
+         (ede9f7e).
+  M4   — BUILT (Phase 6 = Forensic Critique + the 6 JS Quality Checks — a SECTION-
+         LEVEL RELAY RACE over the Phase 5 V2: one "ruthless editor" call per H2
+         section with a SLIDING WINDOW [prev section's last para + next section's
+         first para], then 1× all FAQ answers, 1× Direct Answer, 1× CTA hook; the
+         6 JS checks run INSIDE the loop per section [pronoun/noun start ratio,
+         callback verifier, question density, AI-Tell scan, data-anchor
+         preservation, semantic-anchor preservation]; max 2 retries per section
+         with targeted feedback → YELLOW + keep-best, never RED on a QC failure;
+         output → S.v3). Committed (6cf1fea). NOTE: "Phase 6" here is what the
+         build plan called "Phase 5.5".
+  M5   — BUILT (Phase 7 = Final Assembly — 7A: JS builds the complete article HTML
+         from the V2/V3 JSON [canonical stylesheet from 4.3B branding, marked.js for
+         prose, collapsible ToC, byline, Last Updated, sections/images/tables/FAQ/
+         CTA, github.io→.com link fix]; 7B: operator visual QC — Edit Mode + click-
+         to-edit a prose block → one fix call to Claude → swap into the JSON → re-
+         render [the only non-negotiable human checkpoint]; 7C: "Finalize Article" →
+         two downloads — {slug}-checklist.html and _{slug}-final.txt — + BlogPosting/
+         FAQPage/BreadcrumbList schema). Committed (282b03c). NOTE: "Phase 7" is what
+         the build plan called "Phase 6".
+  M6   — PENDING (side-by-side V3.1 vs V4.0 + UI polish — after the live test).
+  M7   — PENDING (V4.0 ships, V3.1 deprecated).
+PHASE NUMBERING: V4.0's phases are now numbered 1–7 with NO decimals. What the
+  build plan called "Phase 5.5" (forensic critique) is Phase 6; what it called
+  "Phase 6" (assembly) is Phase 7.
 See "V4.0 BUILD STATUS" section below for the milestone-by-milestone detail.
 
 Spec includes (full detail in AEO_V4_Build_Plan.txt):
@@ -52,7 +85,7 @@ READ ORDER FOR NEW CHATS / CLAUDE CODE SESSIONS:
 2. This Master Doc — V3.1 history, current production state, and the
    "V4.0 BUILD STATUS" section (what's built, what's next, known bugs)
 
-OPERATOR PREREQUISITE BEFORE MILESTONE 3 (⚠️ STILL OUTSTANDING as of May 11, 2026 — M3 is the next build step after the M2 fix, so this is now on the critical path):
+OPERATOR PREREQUISITE — VOICE EXEMPLARS (⚠️ STILL OUTSTANDING as of May 12, 2026 — Phase 5 is built and runs WITHOUT exemplars [the F12 fallback chain makes them optional], so this is no longer a hard build blocker, but it remains the single highest-leverage voice lever and should be done before the side-by-side quality review):
 - For each client (start with iTV), produce ONE voice_exemplars.txt file
 - Contains 10-15 best articles from chat-version archive
 - Tagged with === [INTENT LAYER] EXEMPLAR N === markers inside file
@@ -72,7 +105,11 @@ REPO & HOSTING (REORGANIZED — May 11, 2026)
 The GitHub repo was renamed AEO-Tools → iTV-Tools and the files were
 moved into subfolders. All tool URLs changed accordingly.
 
-Repo: github.com/itechvalet/iTV-Tools  (GitHub Pages site: itechvalet.github.io/iTV-Tools/)
+Repo: github.com/iTechValet/iTV-Tools  (GitHub Pages site: itechvalet.github.io/iTV-Tools/)
+  — the GitHub org/repo casing was normalised AEO-Tools → iTV-Tools → iTechValet/iTV-Tools;
+    the old `itechvalet/iTV-Tools` remote URL still works (GitHub 301-redirects pushes/pulls),
+    but `git remote set-url origin https://github.com/iTechValet/iTV-Tools.git` clears the
+    "this repository moved" notice on every push.
 
 Subfolders:
   AEO-Article-Creation/      — aeo_v4.html (V4.0 build), aeo_article_creation.html (V3.1 production)
@@ -98,12 +135,23 @@ origin or a different host it does not cross over.
 ================================================
 
 ═══════════════════════════════════════════════════════════════
-V4.0 BUILD STATUS — AS OF MAY 11, 2026
+V4.0 BUILD STATUS — AS OF MAY 12, 2026
 ═══════════════════════════════════════════════════════════════
 
 The V4.0 rebuild is no longer just a spec. Claude Code is executing the
-build plan against AEO-Article-Creation/aeo_v4.html. Milestones 1 and 2
-are shipped. V3.1 remains untouched and in production.
+build plan against AEO-Article-Creation/aeo_v4.html. ALL SEVEN PHASES NOW
+EXIST (M1–M5): Phase 1 research, Phase 2 two-pass V1 (2A frame + 2B section-
+level relay), Phase 3 dual validation + surgical fixes, Phase 4 freeze,
+Phase 5 voice draft (section-level relay), Phase 6 forensic critique + 6 JS
+quality checks (section-level relay; this is what the build plan called
+"Phase 5.5"), Phase 7 final assembly + operator click-to-edit QC + finalize/
+download (what the build plan called "Phase 6"). Plus image generation (M3.5,
+runs in the background from the moment the Phase 2 frame validates). Every
+change is committed and pushed. NONE of M2.6 / M3 / M3.5 / M3.6 / M4 / M5 has
+been live-tested end to end against the real APIs yet — that is the immediate
+next step (M6 = side-by-side V3.1 vs V4.0; M7 = ship). V3.1 remains untouched
+and in production. PHASE NUMBERING: V4.0's phases are 1–7 with NO decimals —
+the build plan's "Phase 5.5" = Phase 6, its "Phase 6" = Phase 7.
 
 MILESTONE 1 — SKELETON + PHASE 1-2 WITH CACHING — ✅ BUILT & VERIFIED
 - aeo_v4.html created: 7 phase cards, VA-facing UI, password gate, Operator
@@ -144,9 +192,9 @@ test-injection target all changed in M2.5.)
   patches only the failing nodes — the V1 is never regenerated.]
 - Phase 4: recursive Object.freeze on V1 JSON + F16 artifact auto-save to
   localStorage (aeo_v4_artifact_v1_{client}_{ts}, 7-day auto-purge).
-- Phase 6: STILL A STUB (minimal H1 + DA + section index + CTA HTML, badged
-  amber "STUB ✓" so a VA never reads it as a real completion). Real
-  assembly = Milestone 5.
+- Final-assembly phase: WAS A STUB in M2 (minimal H1 + DA + section index + CTA
+  HTML, badged amber "STUB ✓"). [SUPERSEDED — the real assembly was built in M5
+  as Phase 7; see the MILESTONE 5 entry below.]
 - Error recovery F1–F4 implemented as the foundation: F1 (Gemini research
   empty/garbage — 2 retries), F2 (unparseable Claude JSON — markdown-strip
   + tolerant parser + raw-JSON-only retry, 2 retries), F3 (max_tokens
@@ -306,12 +354,15 @@ per-paragraph relay entirely.)
   against the APIs yet.
 
 ────────────────────────────────────────────────────────────
-MILESTONE 3 — PHASE 5 VOICE DRAFT (OPTION E UNIFIED COT) — ✅ BUILT, ⚠️ NEEDS A RELAY-RACE REBUILD BEFORE PRODUCTION
+MILESTONE 3 — PHASE 5 VOICE DRAFT (OPTION E UNIFIED COT) — ⚠️ SUPERSEDED BY M3.6 (the single-call build below was replaced by a section-level relay race; see MILESTONE 3.6)
 (Chat 20, May 11, 2026. Built per the build plan's Phase 5 spec — but as a
-SINGLE big Option-E call, which will fatigue on output tokens exactly the way
-the monolithic Phase 2B did. The fix is the same as M2.6: section-level
-sequential voice rewrites with rolling context. Treat the current Phase 5 as a
-working scaffold, not production-ready.)
+SINGLE big Option-E call, which fatigues on output tokens exactly the way the
+monolithic Phase 2B did. Rebuilt the M2.6 way in M3.6 [May 12, 2026]. The
+description below is kept as the historical M3 record; the live code is the
+M3.6 relay-race version. The Option-E *schema* — voice_architecture first, then
+per-node transition_logic / data_anchors_to_preserve / pacing_directive /
+newProse|newListItems — carried over to the relay; only the call shape changed,
+from one monolithic call to one call per section.)
 
 - Phase 5 re-voices the FROZEN V1's PROSE nodes (Direct Answer, body paragraphs,
   FAQ answers, CTA hook) via submit_voice_draft (Tool Use, Option-E schema):
@@ -340,50 +391,305 @@ working scaffold, not production-ready.)
 - Phase 5 has its own cached prefix ([submit_voice_draft]+context) so its cache
   verdict is CREATED — expected. Phase 5.5 (forensic critique) + the 6 voice
   quality checks (5.6) + the retry loop are Milestone 4.
-- Tested (JS, unit). NOT live-tested.
-- ⚠️ KNOWN LIMITATION: the single-call Option-E voice draft will hit output-token
-  fatigue on long articles (same root cause as monolithic Phase 2B). REBUILD it
-  the M2.6 way — section-level sequential voice rewrites carrying a rolling V2
-  draft — before treating Phase 5 as production-quality. (Track this as M3's
-  follow-up, ahead of M4.)
+- Tested (JS, unit). NOT live-tested. SUPERSEDED — see MILESTONE 3.6 below.
 
 ────────────────────────────────────────────────────────────
-MILESTONE 3.5 — IMAGE GENERATION — QUEUED (NOT BUILT)
-Per the build plan, image generation runs in parallel with Phase 5/5.5 from the
-imagePrompts the 2A frame already carries (prompt + alt per slot). Not built;
-queued after the Phase 5 relay-race rebuild.
+MILESTONE 3.5 — IMAGE GENERATION — ✅ BUILT, ⏳ LIVE TEST PENDING
+(May 12, 2026. Ported from V3.1's image-gen, adapted to V4.0's structured-JSON
+model + a stronger zombie-queue / retry strategy. Committed ede9f7e, d794cc5.)
+
+- WHEN IT FIRES: the moment the Phase 2 STRUCTURE FRAME validates (after Phase 2A
+  + JS frame validation), NOT after Phase 4 — so generation overlaps Phases 2B/3/
+  4/5/6. Prompts (prompt + alt per img_ slot) come straight out of the 2A frame
+  via extractImgPromptsFromV1; startImageQueue → genAllImages(prompts, gkey,
+  attemptId) → genOneImage per slot.
+- MODEL: gemini-3.1-flash-image-preview (this is the model V3.1 actually uses —
+  NOT the "gemini-2.0-flash-preview-image-generation" string that had been written
+  in the build plan; the live V3.1 file was the source of truth). Image bytes →
+  WebP via toWebP → S.imageData[idx].
+- ATTEMPT_ID / ZOMBIE-QUEUE PROTECTION: every frame attempt gets a unique
+  attempt_id (frame_v1_attempt1, _attempt2, … incrementing on each frame retry).
+  Every image call and every produced URL is tagged with the attempt_id it
+  belongs to. If Phase 3 forces a frame discard/regeneration, flushQueue(attemptId)
+  aborts all pending image calls for the dead attempt, clears the URL fields, and
+  toasts "Validation failed. Frame regenerating. Previous images discarded." — so a
+  stale image from a discarded frame can never end up in the article. (The pipeline
+  doesn't literally loop Phase 3→2A; flushQueue is wired into the CHK1 hard-stop
+  paths instead.)
+- RETRY STRATEGY: ATTEMPT_TIMEOUTS = finalPass ? [90000] : [35000, 45000] — attempt
+  1 times out at 35 s, attempt 2 (immediate retry) at 45 s; a transient failure
+  (503 / 429 / timeout / network) on a non-final pass throws {requeue:true} which
+  pushes that image to the BACK of the queue (attempt 3 runs after every other
+  image has finished, with the 90 s timeout). A jittered delay precedes EVERY
+  sequential image API call:
+      const jitter = Math.floor(Math.random() * 2500) + 2500;  // 2.5–5 s
+      await new Promise(resolve => setTimeout(resolve, jitter));
+  Manual "↻ regenerate this image" (regenImg) uses finalPass=true (the 90 s single
+  attempt).
+- IMAGE PANEL: lives in the LEFT column BELOW the phase cards (not in the right-
+  hand tab strip). Thumbnail grid (buildImgGrid) — per slot: the generated image,
+  its alt text, a WordPress-media URL field for the operator to paste the uploaded
+  URL into, a "regenerate" button, a "featured" radio. A <input type="date"
+  id="publishDate"> sits in a .pub-row in the same panel. checkUrls() auto-fires
+  validateImages() once every URL field AND the publish date are filled.
+- PHASE 7 HARD STOP: the orchestrator parks before Phase 7 on a promise that only
+  resolves when image_urls.length === expected_image_count AND the publish date is
+  set (validateImages resolves it). Phase 7 cannot start on a half-imaged article.
+- F16 ARTIFACT: the localStorage artifact saved at Phase 4 is no longer the bare V1
+  JSON — it's { v1, imageUrls, imageAttemptId, expectedImageCount, imagesValidated,
+  featuredImageIndex, savedAt } so a resumed run keeps the image state.
+
+────────────────────────────────────────────────────────────
+MILESTONE 3.6 — PHASE 5 VOICE DRAFT REBUILT AS A SECTION-LEVEL RELAY RACE — ✅ BUILT, ⏳ LIVE TEST PENDING
+(May 12, 2026. Replaces the single-call Option-E Phase 5 [M3] with the same
+section-level sequential pattern as Phase 2B's relay race. Committed ede9f7e.)
+
+- executePhase5 mirrors executePhase2B: builds a queue, walks it SEQUENTIALLY
+  (for-of, never Promise.all), each call carrying a rolling V2 draft + the captured
+  voice_architecture, JS stitches each returned node onto a clone of the FROZEN V1.
+- QUEUE (buildVoiceQueue): 1× Direct Answer → 1× per H2 section (batching ALL that
+  section's + its H3s' paragraph ids) → 1× for ALL FAQ answers (batched) → 1× CTA
+  hook. NO per-table call — table data is frozen and is explicitly disallowed for
+  re-voicing per §5.2/5.3 (Phase 5 only ever rewrites prose nodes).
+- TOOL: VOICE_BLOCK_TOOL = revoice_content_block, returns { voice_architecture?
+  [present on the first call only — core_conviction / friction_setup /
+  callback_phrase / pacing_strategy / thesis_reinforcement], nodes:[{ targetId,
+  data_anchors_to_preserve, pacing_directive ("short punch" | "standard expansion"
+  | "list extraction"), transition_logic, newProse, newListItems }] }. Each relay
+  call passes ONLY [VOICE_BLOCK_TOOL] + tool_choice (the "one tool per call" rule).
+- ROLLING DRAFT: the FULL (NOT truncated) rolling V2 draft is passed on every call,
+  for narrative continuity / transition awareness. The cached system block is the
+  SAME buildPhase2ContextBlock() used by Phase 2B (so the cached prefix is
+  byte-identical and Phase 5's calls read Phase 2B's cache → verdict YES on the
+  relay rows). buildPhase5InstrBlock() is the second, UNCACHED system block — it
+  carries the AI-Tell kill list AND this verbatim rule:
+      "The rolling V2 draft is for narrative continuity and transition awareness
+       only. Do NOT anchor your tone to the rolling draft. Your tone anchor is
+       always the voice rules and writing samples in 4.3A and 4.3B. Reset to those
+       rules on every section regardless of what the rolling draft sounds like."
+  It also instructs Claude to use markdown links [anchorText](url) and **bold**
+  around key entities (Phase 7 relies entirely on marked.js — no regex bolding).
+- buildVoiceJobPrompt carries: the captured voice_architecture + the FULL rolling
+  V2 draft + each node's current V1 prose + the id ticket ("return exactly N nodes
+  for [these ids]"). applyVoiceDraft merges the valid rewrites onto a deep clone of
+  the frozen V1 → S.v2; un-rewritten paragraphs keep their V1 prose; orphan/
+  disallowed targetIds dropped (F13). F2/F3/F6/F13/F14 handled per relay call as
+  in Phase 2B; on retry exhaustion the pipeline RED-escalates and returns BEFORE
+  Phase 6. Per-block relay chips in #relayStrip5.
+- REMOVED: the old monolithic buildPhase5SystemBlocks / runPhase5 / validateVoiceDraft
+  / makePhase5Progress / buildPhase5UserText / V1_VOICE_TOOL (the M3 single-call code).
+
+────────────────────────────────────────────────────────────
+MILESTONE 4 — PHASE 6: FORENSIC CRITIQUE + THE 6 JS QUALITY CHECKS — ✅ BUILT, ⏳ LIVE TEST PENDING
+(May 12, 2026. This is what the build plan calls "Phase 5.5" — renumbered to a
+whole phase, Phase 6. A section-level relay race over the Phase 5 V2. Committed
+6cf1fea. Output → S.v3.)
+
+- executePhase6(S.v2, akey, voiceReg, {bannedTerms, semanticAnchor}). Queue
+  (buildCritiqueQueue): 1× per H2 section in article order → 1× for ALL FAQ answers
+  (batched) → 1× Direct Answer → 1× CTA hook. Sequential (for-of).
+- Each per-section call gets: the SAME cached master-context block as Phase 5 (it
+  reuses Phase 5's VOICE_BLOCK_TOOL, so the cached prefix is byte-identical → Phase
+  6 reads Phase 5's cache); a second UNCACHED block buildPhase6InstrBlock() (the
+  ruthless-editor framing + the AI-Tell Kill List); and a per-call user message that
+  is the VERBATIM "ruthless editor" prompt with a SLIDING WINDOW substituted in —
+  the last paragraph of the previous section's Phase-5 V2 prose + the first
+  paragraph of the next section's Phase-5 V2 prose (read from the UN-mutated Phase 5
+  V2 via a v2ProseById map; the prev clause is omitted for the first section, the
+  next clause for the last) — plus the block's current prose, the id ticket, and (on
+  a retry) the targeted QC feedback. The verbatim prompt: "You are a ruthless editor
+  reviewing this section. Here is how the preceding section ends: […]. Here is how
+  the following section begins: […]. Assume the previous writer was a lazy corporate
+  PR intern. If a paragraph reads like a textbook, rewrite it as if speaking directly
+  to a skeptical business owner over coffee. Cut adverbs. Kill passive voice.
+  Introduce friction. Flag and rewrite any paragraph that: starts with a dry subject
+  noun, contains hedging language (might, could, perhaps, somewhat), lacks a
+  conversational transition, drops factual data anchors, uses any word from the
+  AI-Tell Kill List, reads as textbook prose, or breaks transition with neighboring
+  paragraphs. Return ONLY the corrected paragraphs. If a paragraph passes all checks,
+  do not return it." The model returns ONLY the flagged-and-corrected paragraphs
+  (nodes:[] when the block is clean).
+- MERGE: JS merges each block's corrections over the Phase 5 V2 by targetId →
+  S.v3. Paragraphs the editor didn't touch keep their Phase 5 prose. (Phase 7's
+  assembly reads S.v3 || S.v2.)
+- THE 6 JS QUALITY CHECKS — runQualityChecks runs after each block; on a failure the
+  block is retried (max 2) with targeted feedback; after the cap → YELLOW + keep the
+  best prose + continue. Phase 6 NEVER RED-escalates on a QC failure (or on a relay-
+  call failure):
+    QC1  Pronoun / dry-noun start ratio ≤ 60% of the block's paragraphs (inline HTML
+         stripped first). Runs on H2-section blocks with ≥ 3 paragraphs.
+    QC2  Callback verifier — the callback_phrase appears once in the TOP 20% of the
+         article's paragraphs and once in the BOTTOM 20%; FAIL if both instances land
+         in the same half. Runs after the FINAL H2-section block only.
+    QC3  Question-mark density — ≥ 1 rhetorical "?" per 500 words. Runs on H2-section
+         blocks of ≥ 150 words.
+    QC4  AI-Tell + 4.3B Terminology-Lock scan — scanAITells / extractBannedTerms;
+         any AI-Tell-Kill-List occurrence or any 4.3B banned/avoid/never-use term =
+         FAIL. (extractBannedTerms is deliberately CONSERVATIVE — it only fires near
+         an explicit banned/avoid/never-use heading in 4.3B.)
+    QC5  Data-anchor preservation — every string in the node's data_anchors_to_preserve
+         must appear VERBATIM in the rewrite.
+    QC6  Semantic-anchor preservation — the SEMANTIC_ANCHOR (from the 4.2 sheet row
+         only) must appear VERBATIM in the V3 body. Runs after the final H2-section
+         block only; skipped if the column is absent.
+- New helpers: stripInlineMarkup / countWords / countQuestionMarks / isDryNounOpener
+  (_DRY_OPENERS Set) / scanAITells / extractBannedTerms / articleParagraphTexts /
+  articleBodyText / runQualityChecks / buildPhase6InstrBlock / buildCritiqueQueue /
+  buildCritiqueJobPrompt / makeCritiqueJobProgress / executePhase6. Per-block relay
+  chips in #relayStrip6. The Phase 6 card is no longer the "M4" placeholder stub.
+
+────────────────────────────────────────────────────────────
+MILESTONE 5 — PHASE 7: FINAL ASSEMBLY (7A JS BUILD / 7B OPERATOR QC / 7C FINALIZE+DOWNLOAD) — ✅ BUILT, ⏳ LIVE TEST PENDING
+(May 12, 2026. This is what the build plan calls "Phase 6" — renumbered to Phase
+7. Committed 282b03c. The only non-negotiable human checkpoint in the whole
+pipeline is 7B.)
+
+- 7A — JS ASSEMBLY (no API call): assemblePhase7HTML(article, {editMode}) builds the
+  complete article HTML from S.v3 || S.v2 — a <style> block from buildStylesheetFrom43B()
+  (ported VERBATIM from V3.1's final-.txt CSS, lines 5181-5376, + `.punch{font-weight:500}`
+  and a `.direct-answer a` colour rule — the only additions); <div class="article-wrap">;
+  <h1 id="{slug}">; <div class="direct-answer"><p>…</p></div> (marked.js for bold + links);
+  <p class="last-updated">Last Updated: {formatted publish date}</p> (HARD STOP if the
+  publish date is empty); <p class="author-byline"><em>By {Author Name}, {Author Title}</em></p>
+  (read from 4.3B via extractBrandingFrom43B; skipped if absent); a collapsible ToC built
+  from every H2/H3 slugified id (matching V3.1's rebuildToC); per section: <h2 id="{slug}">,
+  the <img> (WordPress URL + alt), paragraphs honouring each node's pacing_directive
+  ("short punch" → <p class="punch">, "standard expansion" → <p>, "list extraction" →
+  <ul><li> per newListItems, anything unknown → <p>, never crash), marked.js on the prose,
+  H3 sub-sections + their paragraphs, tables class="article-table" (headers + rows from the
+  V2 JSON); <h2 id="faq">Frequently Asked Questions</h2> with each FAQ as <h3 id="{slug}"> +
+  <p>; <div class="article-cta"> with the hook prose <p> + <p><a href="{url}">{anchorText}</a></p>
+  (a LINK, never a button). LINK FIX: every href/src `itechvalet.github.io` → `itechvalet.com`.
+  SLUGIFY: lowercase, spaces → hyphens, strip non-alphanumerics except hyphens. marked.js
+  9.1.6 loaded from cdnjs in <head>. Rendered live in the right panel's "Final HTML" tab
+  (auto-switches to it).
+- 7B — OPERATOR VISUAL QC: an "Edit Mode" toggle above the preview. ON → every rendered
+  prose block carries data-node-id, hover-highlights, and click → opens an input panel with
+  the block's current text + a "What's the fix?" field + Submit → sends ONLY that node's
+  prose + the instruction to Claude (PHASE7_EDIT_TOOL = submit_corrected_prose, forced) →
+  Claude returns the corrected prose ONLY → JS swaps it into the V2/V3 JSON by node id →
+  re-render. OFF → clean preview. A plain-text free-form notes textarea sits at the bottom
+  (saved locally, never sent to Claude). The iframe ↔ parent handshake is window.postMessage
+  ({__p7edit:true, nodeId, text}).
+- 7C — FINALIZE + DOWNLOAD: a "Finalize Article" button → builds S.finalTXT / S.finalSchema /
+  S.checklistHTML, enables two downloads:
+    • {permalink-slug}-checklist.html — matches V3.1's dlChecklist reference: title +
+      subtitle (Client · Published · Generated), an "Article Optimization Checklist"
+      section (Title/H1, Permalink URL, Full Article URL, Meta Description, Keywords,
+      Category, Featured Image URL, Publish Date — each a labelled textarea with a Copy
+      button), a "Run Cost Report" grid (Run Time, Claude Cost, Gemini Text Cost, Image
+      Cost, Total Estimated Cost), and a "Schema Markup" section — ONE combined textarea
+      holding BlogPosting + FAQPage + BreadcrumbList JSON-LD built from the V2 JSON
+      (author / title / LinkedIn / org / address / phone / sameAs read from 4.3B; the
+      publish date used for BOTH datePublished and dateModified; NEVER foundingDate),
+      exact V3.1 CSS.
+    • _{permalink-slug}-final.txt — the clean article HTML ONLY (no doctype / html / head /
+      body — just the <style> block + the <div class="article-wrap"> contents), matching
+      V3.1's final-.txt reference.
+- New helpers: currentArticle (=S.v3||S.v2||S.v1) / slugifyHeading / permalinkSlug /
+  formatPublishDateP7 / mdInline (=marked.parseInline w/ fallback) / stripMdToText /
+  proseToParagraphs / renderProseNode / renderArticleTable / extractBrandingFrom43B /
+  buildStylesheetFrom43B / collectArticleHeadings / buildArticleTocHTML / assemblePhase7HTML
+  / buildSchemaJSONLD / buildChecklistHTML / renderPhase7Preview / togglePhase7EditMode /
+  togglePhase7Source / p7NodeById / p7NodeCurrentText / openPhase7EditPanel /
+  closePhase7EditPanel / submitPhase7Edit / finalizePhase7 / dlChecklistHTML / dlFinalTxt /
+  resetPhase7UI. All generated <script> strings inside the produced HTML are written as
+  '<scr'+'ipt>' / '<\/scr'+'ipt>' so the host file still has exactly two literal </script>.
+
+────────────────────────────────────────────────────────────
+PHASE RENUMBERING (May 12, 2026)
+The build plan and the older parts of this doc number some phases with decimals
+(2A/2B, 5.5). The live aeo_v4.html now numbers its phase CARDS 1–7 with NO
+decimals — and the renumber shifts the back end:
+    build plan / old doc         live aeo_v4.html
+    ───────────────────          ────────────────
+    Phase 1                      Phase 1   (Gemini research + thesis)
+    Phase 2 (2A frame / 2B hyd.) Phase 2   (2A frame + 2B section-level relay — still two passes internally)
+    Phase 3 (3A/3B + surgical)   Phase 3   (dual validation + surgical fixes)
+    Phase 4 (freeze)             Phase 4   (Object.freeze + F16 artifact)
+    Phase 5 (voice draft)        Phase 5   (voice draft — section-level relay)
+    Phase 5.5 (forensic critique) →  PHASE 6   (forensic critique + 6 JS quality checks)
+    Phase 6 (final assembly)      →  PHASE 7   (final assembly + 7B operator QC + 7C finalize)
+Anywhere this doc or the build plan says "Phase 5.5", read "Phase 6"; anywhere it
+says "Phase 6 assembly", read "Phase 7". All internal variable names / UI labels
+/ run-log strings in aeo_v4.html use the 1–7 numbering.
+
+────────────────────────────────────────────────────────────
+UI CHANGES (May 12, 2026)
+- RUN BUTTON: labelled simply "RUN" (was "RUN PHASE 1+2").
+- PHASE CARD DESCRIPTIONS: collapsed by default — each card has a ▼ toggle that
+  reveals its description; a Copy button sits inside every phase card's expandable
+  area; retry data ACCUMULATES (each retry appends "Attempt 2" / "=== Round N ===" /
+  "=== Attempt N ===" dividers — output is never overwritten).
+- RIGHT PANEL TABS (in order): Run Log | Cache Stats | Metadata | Direct Answer |
+  V2 Article | Schema | Final HTML. (The old "Research Brief" and "V1 JSON" tabs are
+  gone; Metadata / Direct Answer / V2 Article / Schema / Final HTML are new.) Every
+  tab panel has its own Copy button. "Final HTML" is Phase 7's live visual preview
+  (iframe) with the Edit-Mode / View-Source / Finalize / download controls.
+- IMAGE PANEL: moved out of the right-hand tabs to the LEFT column, BELOW the phase
+  cards (thumbnail grid + per-slot WordPress-URL field + regenerate + featured radio
+  + the Publish-Date input).
+- RUN-LOG COLOURS (strict): GREEN = success / pass / complete / cache YES / "phase
+  done". BLUE = informational — cache PARTIAL (this is EXPECTED on every relay call
+  and is NOT a warning), "phase in progress / hydrating / re-voicing / critiquing".
+  ORANGE = actual warnings only (F14 retries, genuine quality-check failures, anything
+  that required a retry — the INFO_YELLOW_CODES F11/F12/F16 log at info/blue, not
+  orange). RED = failures / errors / RED escalations. (verdictStyle('PARTIAL') →
+  {statClass:'accent', rowClass:'partial', level:'info'} — blue.)
+- PIPELINE HEALTH INDICATOR: the "Cache Verdict: PARTIAL" header stat was REMOVED and
+  replaced by a Pipeline Health dot (#pipelineHealth / renderPipelineHealth, refreshed
+  from renderEscalationPanel): green dot "HEALTHY" = no REDs and < 3 YELLOWs; orange
+  dot "WARNINGS" = no REDs and ≥ 3 YELLOWs; red dot "ERROR" = any RED. Updates in real
+  time.
+
+────────────────────────────────────────────────────────────
+IMAGE RETRY STRATEGY (May 12, 2026) — see MILESTONE 3.5 for the full M3.5 entry
+- Attempt 1: 35 s timeout.  Attempt 2 (immediate retry): 45 s timeout.  Attempt 3:
+  the image is pushed to the BACK of the queue (runs after every other image
+  finishes) with a 90 s timeout.
+- A jittered 2.5–5 s delay precedes EVERY sequential image API call:
+      const jitter = Math.floor(Math.random() * 2500) + 2500;
+      await new Promise(resolve => setTimeout(resolve, jitter));
+- Manual "regenerate this image" uses the single 90 s attempt (finalPass=true).
+- All image calls + URLs are bound to the frame attempt_id; a frame discard flushes
+  the dead attempt's queue and clears its URLs (zombie-queue protection).
 ────────────────────────────────────────────────────────────
 
 WHAT'S NOT BUILT YET:
-- Phase 5 RELAY-RACE REBUILD — section-level sequential voice rewrites (the
-  current Phase 5 is a single Option-E call; see M3's known limitation).
-- Phase 5.5 (Forensic Critique) + the 6 JS voice-quality checks (5.6) + their
-  retry loop — "M4".
-- Phase 6 real assembly (sections, FAQ, schema JSON-LD, ToC, byline,
-  typographic rhythm; reads S.v2's pacingDirective/listItems) — "M5".
-- Image generation (M3.5).
-- F5 concurrency semaphore, full F3 continuation-merge, side-by-side testing
-  harness (M5/M6).
-- Operator prerequisite still open: voice_exemplars.txt for iTV (optional but
-  the highest-leverage voice lever).
+- Nothing in the 7-phase pipeline itself — all of Phases 1–7 + image generation
+  now exist in code. What remains is VALIDATION and POLISH, not construction:
+- FULL END-TO-END LIVE TEST against a real iTV topic (Phase 1 → 7, images and all).
+  M2.6 / M3 / M3.5 / M3.6 / M4 / M5 are all JS-syntax-checked only; none has touched
+  the live APIs. THIS IS THE IMMEDIATE NEXT STEP — see NEXT SESSION PRIORITIES.
+- Read the finished article output and make the cost / architecture decision (does
+  the relay-race quality justify the call count, or is the Gemini single-pass voiced-
+  hydration proposal worth pursuing — see NEXT SESSION PRIORITIES).
+- F5 concurrency semaphore, full F3 continuation-merge, the side-by-side testing
+  harness (M6), and the M7 ship steps.
+- Operator prerequisite still open: voice_exemplars.txt for iTV (optional — the F12
+  fallback chain runs Phase 5 fine without it — but the highest-leverage voice lever).
+- Google Sheet logging (run data → client sheet) — queued AFTER the live test passes.
 
 NEXT STEPS (in order):
-1. LIVE TEST the M2.6 section-level Phase 2B against a real iTV topic — 2A frame
-   (+ narrative_spine + empty paragraph slots) → frame validation → 2B relay
-   (DA → per-H2 batch → per-table → per-FAQ → CTA, ~20-25 calls) → Phase 3
-   (table-row factClaim checks) → surgical fix on any fail. Confirm: ~20-25 not
-   ~63 calls; the per-H2 calls return ALL the section's paragraph ids; the cache
-   shows CREATED then a run of YES on the "2B" rows; no untraceable number in any
-   V1 table; the surgical loop converges; wall-clock is reasonable.
-   (M3 — Phase 5 — also needs a live test, but with the known single-call
-   limitation in mind.)
-2. REBUILD Phase 5 the M2.6 way (section-level sequential voice rewrites with a
-   rolling V2 draft) so it doesn't fatigue. Then M3.5 (image generation).
-3. M4 (Phase 5.5 forensic critique + the 6 voice-quality checks + retry loop),
-   M5 (real Phase 6 assembly), M6 (side-by-side V3.1 vs V4.0), M7 (ship) — per
-   the build plan's BUILD ORDER.
-4. Anchor-text validation calibration — tune validateV1Structure's link-
-   discipline rules against the real runs.
+1. FULL END-TO-END LIVE TEST — one real iTV topic, Phase 1 through Phase 7, images
+   and all. Confirm: Phase 2B is ~20-25 calls (not ~63); the per-H2 calls return ALL
+   the section's paragraph ids; the cache shows CREATED then a run of YES across the
+   2B / Phase 5 / Phase 6 relay rows (Phase 5 and 6 reuse Phase 2B's cache prefix);
+   no untraceable number in any V1 table; the surgical fix loop converges; image
+   generation finishes (with the 35/45/back-of-queue retries) and the Phase 7 hard
+   stop releases once URLs + publish date are in; Phase 6's 6 QC checks behave
+   sanely; Phase 7's HTML/checklist/.txt match V3.1's output shape; wall-clock and
+   per-article cost are acceptable.
+2. READ THE FINISHED ARTICLE and make the cost/architecture call — keep the relay
+   race, or pivot to the Gemini single-pass voiced-hydration proposal (on hold,
+   pending this review).
+3. Google Sheet logging (run data → the client's sheet) — the next queued feature
+   once the live test passes.
+4. M6 (side-by-side V3.1 vs V4.0 + UI polish), M7 (V4.0 ships, V3.1 deprecated).
+5. Anchor-text validation calibration — tune validateV1Structure's link-discipline
+   rules against the real runs.
+6. Operator: produce voice_exemplars.txt for iTV before the side-by-side quality
+   review.
 
 V4.0 ARCHITECTURAL LOCKS (so far — will be consolidated when V4.0 ships):
   V4-1. JS owns structure; Claude owns prose; Gemini owns research + semantic
@@ -435,11 +741,37 @@ V4.0 ARCHITECTURAL LOCKS (so far — will be consolidated when V4.0 ships):
         2B call (output-token fatigue, ~50% failure) and do NOT go per-paragraph
         (~63 calls, ~$2). ~20-25 calls is the target.
   V4-11. ANY "WRITE THE WHOLE ARTICLE IN ONE CALL" STEP MUST USE THE RELAY-RACE
-        PATTERN. This applies to Phase 5 (voice draft) and Phase 5.5 (forensic
-        critique) too — a single big Option-E / critique call will fatigue on
-        output tokens exactly the way the monolithic Phase 2B did. Phase 5 is
-        currently built as a single call (M3); rebuild it section-level before
-        production. New long-output Claude steps: relay-race them from the start.
+        PATTERN. Phase 5 (voice draft) and Phase 6 (forensic critique — the build
+        plan's "Phase 5.5") are BOTH section-level relays as of May 12, 2026 (M3.6,
+        M4) — a single big Option-E / critique call fatigues on output tokens
+        exactly the way the monolithic Phase 2B did. Phase 5: 1× DA → 1× per H2
+        section → 1× all FAQ → 1× CTA hook (NO per-table call — table data is
+        frozen and disallowed for re-voicing). Phase 6: 1× per H2 section (with a
+        sliding window of the neighbours' Phase-5 prose) → 1× all FAQ → 1× DA →
+        1× CTA hook. New long-output Claude steps: relay-race them from the start.
+  V4-12. EACH RELAY CALL PASSES ONLY ITS OWN SINGLE TOOL (+ forced tool_choice) —
+        never a unified tools array. Phase 2B / Phase 5 / Phase 6 all reuse the
+        SAME tool object so their cached prefix (tools → system) is byte-identical
+        and a later phase reads an earlier phase's cache; but the M2.5 decision
+        stands — do NOT merge the Phase 2A/2B/fix tools into one array to force a
+        cache hit; it broke content generation (reverted in 05ecfd4). Accept the
+        CREATED verdict where it occurs.
+  V4-13. IMAGE GENERATION FIRES THE MOMENT THE PHASE 2 FRAME VALIDATES and runs in
+        the background through Phases 2B–6, bound to a frame attempt_id. A frame
+        discard flushes the dead attempt's queue and clears its URLs (no stale
+        image from a discarded frame can reach the article). Phase 7 HARD-STOPS
+        until image_urls.length === expected_image_count AND the Publish Date is
+        set. Image bytes → WebP. Model: gemini-3.1-flash-image-preview (V3.1's
+        actual model). Retry: 35 s → 45 s → back-of-queue/90 s, jittered 2.5–5 s
+        delay before every sequential image call.
+  V4-14. PHASE 7'S ONLY HUMAN CHECKPOINT IS 7B (operator Edit Mode / click-to-edit
+        a prose block → one fix call → swap into the JSON by id → re-render). 7A
+        (HTML build) and 7C (finalize + the two downloads) are pure JS. Bold/links
+        in the article come ENTIRELY from marked.js parsing `**bold**` / `[t](u)` in
+        the prose — there is NO regex bolding (so Phase 5/6 prompts must instruct
+        Claude to write markdown bold + links). `itechvalet.github.io` → `itechvalet.com`
+        in every emitted href/src. Schema = BlogPosting + FAQPage + BreadcrumbList,
+        datePublished == dateModified == the Publish Date (never foundingDate).
 
 ================================================
 
@@ -969,8 +1301,46 @@ DO NOT TOUCH LIST
   Firefox 121+). Universally supported in 2026.
 
 
-CONFIRMED WORKING (as of Chat 19 — V3.1)
+CONFIRMED WORKING
 -----------------------------------------
+V4.0 (as of May 12, 2026 — BUILT & JS-SYNTAX-CHECKED, NOT yet live-tested end to end):
+- M1 Phase 1-2 with prompt caching — cache HIT verified in the UI (cache_read>0 on
+  the second call). The ONLY part of V4.0 that has touched the live APIs.
+- M2 Phase 3 dual validation + Phase 4 freeze + F1–F4 + escalation panel + the
+  calibration/production modes + test injection — built, unit-checked, Phase 3
+  test-injection path exercised (caught a section_count failure, RED path reached).
+- M2.5 Phase 2 two-pass (2A frame → JS validate → 2B hydration → JS merge), surgical
+  fixes, provenance-tagged table rows — built, unit-checked. Not live-tested.
+- M2.6 Phase 2B section-level relay race (buildSectionLevelQueue +
+  HYDRATE_CONTENT_BLOCK_TOOL, ~20-25 calls; 2A frame carries narrative_spine) —
+  built, 20 unit assertions pass, script parses. Not live-tested.
+- M3.5 Image generation (fires on frame validation, attempt_id zombie-queue
+  protection, jittered 2.5–5 s delay, 35/45/back-of-queue retries, left-column image
+  panel, Phase 7 hard stop on URLs+publish-date, gemini-3.1-flash-image-preview) —
+  built, script parses. Not live-tested.
+- M3.6 Phase 5 voice draft REBUILT as a section-level relay race (1× DA → 1× per H2
+  → 1× all FAQ → 1× CTA hook; FULL rolling V2 draft; the verbatim "tone anchor is
+  always 4.3A/4.3B, never the rolling draft" rule; reuses Phase 2B's cache prefix) —
+  built, script parses. Not live-tested.
+- M4 Phase 6 forensic critique + the 6 JS quality checks (section-level relay over
+  Phase 5 V2; sliding window; QC1 pronoun/noun-start ratio, QC2 callback verifier,
+  QC3 question density, QC4 AI-Tell/4.3B-terminology scan, QC5 data-anchor preserve,
+  QC6 semantic-anchor preserve; max 2 retries → YELLOW+keep-best, never RED on a QC
+  fail; output → S.v3) — built, script parses. Not live-tested.
+- M5 Phase 7 final assembly (7A JS HTML build with the canonical V3.1 stylesheet +
+  marked.js + collapsible ToC + byline + Last Updated + sections/images/tables/FAQ/
+  CTA + github.io→.com fix; 7B operator Edit-Mode click-to-edit QC; 7C "Finalize
+  Article" → {slug}-checklist.html + _{slug}-final.txt + BlogPosting/FAQPage/
+  BreadcrumbList schema) — built, script parses, div tags balanced. Not live-tested.
+- UI: run-log colour rules (green/blue/orange/red), Pipeline Health indicator
+  replacing the "Cache Verdict: PARTIAL" stat, "RUN" button, left-column image panel,
+  right-panel tabs Run Log/Cache Stats/Metadata/Direct Answer/V2 Article/Schema/Final
+  HTML, collapsible phase-card descriptions, a Copy button in every phase panel,
+  accumulating (never-overwriting) retry output — all built, script parses.
+- ⚠️ EVERYTHING ABOVE EXCEPT THE M1 CACHE CHECK IS UNTESTED AGAINST THE REAL APIs.
+  The full end-to-end live test is the immediate next step.
+
+V3.1 (as of Chat 19):
 - V3.1 Author Byline auto-injection: Pass 8C extracts Author Name + Title from
   4.3B via regex (tested against real iTV 4.3B — returns "Gerek Allen" / "Founder"
   cleanly). Renders <p class="author-byline"><em>By Name, Title</em></p> after
@@ -1058,40 +1428,50 @@ KNOWN BUGS — UNRESOLVED
 
 NEXT SESSION PRIORITIES
 -----------------------
-0. ⚠️ V4.0 REBUILD IS THE PRIORITY — AND IT'S UNDERWAY. As of the May 11, 2026
-   build session: M1+M2 APPROVED, M2.5 APPROVED, M2.6 BUILT (Phase 2B "Relay
-   Race" — section-level sequential hydration: buildSectionLevelQueue +
-   HYDRATE_CONTENT_BLOCK_TOOL, ~20-25 calls; Phase 2A frame now also carries a
-   narrative_spine), M3 BUILT (Phase 5 voice draft, Option E — but as a single
-   call; needs the same relay-race rebuild before production), M3.5 QUEUED
-   (image generation). See "V4.0 BUILD STATUS" above for the full state and
+0. ⚠️ V4.0 REBUILD IS THE PRIORITY — AND ALL 7 PHASES ARE NOW BUILT. As of the
+   May 12, 2026 build session: M1+M2 APPROVED, M2.5 APPROVED, M2.6 BUILT (Phase 2B
+   section-level relay race), M3 SUPERSEDED BY M3.6, M3.5 BUILT (image generation),
+   M3.6 BUILT (Phase 5 voice draft rebuilt as a section-level relay race), M4 BUILT
+   (Phase 6 = forensic critique + the 6 JS quality checks), M5 BUILT (Phase 7 = final
+   assembly + operator click-to-edit QC + finalize/download). All committed and
+   pushed. NONE of M2.6 / M3.5 / M3.6 / M4 / M5 has been live-tested against the real
+   APIs. See "V4.0 BUILD STATUS" above for the full milestone-by-milestone detail and
    AEO_V4_Build_Plan.txt for the spec.
 
    IMMEDIATE NEXT STEPS:
-   a) LIVE TEST the M2.6 section-level Phase 2B against a real iTV topic — 2A
-      frame (+ narrative_spine + empty paragraph slots) → frame validation → 2B
-      relay (DA → per-H2 batch → per-table → per-FAQ → CTA, ~20-25 calls) →
-      Phase 3 (table-row factClaim checks) → surgical fix on any fail. Confirm
-      ~20-25 not ~63 calls; the per-H2 calls return ALL the section's paragraph
-      ids; the cache shows CREATED then a run of YES; no untraceable number;
-      reasonable wall-clock. (Also live-test M3/Phase 5 — single-call limitation
-      noted.)
-   b) REBUILD Phase 5 the M2.6 way (section-level sequential voice rewrites with
-      a rolling V2 draft) so it doesn't fatigue. Then M3.5 (image generation).
-   c) M4 (Phase 5.5 forensic critique + the 6 voice-quality checks + retry loop),
-      M5 (real Phase 6 assembly), M6 (side-by-side), M7 (ship) — per the build
-      plan's BUILD ORDER.
-   d) Anchor-text validation calibration; voice_exemplars.txt for iTV (optional).
+   a) ⭐ FULL END-TO-END LIVE TEST against a real iTV topic — Phase 1 → Phase 7,
+      images and all. THIS IS THE #1 PRIORITY. Confirm: Phase 2B is ~20-25 calls
+      (not ~63); the per-H2 calls return ALL the section's paragraph ids; the cache
+      shows CREATED then a run of YES across the 2B / Phase 5 / Phase 6 relay rows
+      (Phase 5 and 6 reuse Phase 2B's cache prefix); no untraceable number in any V1
+      table; the surgical fix loop converges; image generation finishes (35/45/back-
+      of-queue retries) and the Phase 7 hard stop releases once URLs + publish date
+      are in; Phase 6's 6 QC checks behave sanely (and never RED on a QC fail);
+      Phase 7's HTML / checklist.html / final.txt match V3.1's output shape; wall-
+      clock and per-article cost are acceptable.
+   b) READ THE FINISHED ARTICLE OUTPUT and make the cost / architecture decision —
+      does the relay-race quality justify the call count and cost, or pivot to the
+      Gemini single-pass voiced-hydration proposal? (That proposal is ON HOLD pending
+      this article-quality review.)
+   c) Operator: produce voice_exemplars.txt for iTV — still outstanding. Phase 5 runs
+      without it (F12 fallback chain) but it's the highest-leverage voice lever; do it
+      before the side-by-side quality review.
+   d) GOOGLE SHEET LOGGING (run data → the client's sheet) — the next queued feature,
+      AFTER the live test passes (see "DEFERRED FEATURE PLANS — RUN LOG TAB" below).
+   e) M6 (side-by-side V3.1 vs V4.0 + UI polish), M7 (V4.0 ships, V3.1 deprecated).
+   f) Anchor-text validation calibration — tune validateV1Structure's link-discipline
+      rules against the real runs.
 
    Milestone map (build plan is authoritative):
-   M1:   Skeleton + Phase 1-2 with prompt caching ............ ✅ APPROVED
+   M1:   Skeleton + Phase 1-2 with prompt caching ............ ✅ APPROVED (cache HIT verified)
    M2:   Phase 3 dual validation + Phase 4 freeze + F1–F4 .... ✅ APPROVED
    M2.5: Phase 2 → TWO PASSES (2A frame → 2B hydration) ...... ✅ APPROVED
    M2.6: Phase 2B → "Relay Race" (section-level) ............. ✅ BUILT, ⏳ live test pending
-   M3:   Phase 5 voice draft (Option E) ..................... ✅ BUILT, ⚠️ needs relay-race rebuild + live test
-   M3.5: Image generation ................................... ⏭ QUEUED (not built)
-   M4:   Phase 5.5 forensic critique + 6 voice-quality checks  pending
-   M5:   Phase 6 real assembly .............................. pending (Phase 6 is a stub now)
+   M3:   Phase 5 voice draft (Option E, single call) ........ ⚠️ SUPERSEDED BY M3.6
+   M3.5: Image generation ................................... ✅ BUILT, ⏳ live test pending
+   M3.6: Phase 5 voice draft → section-level relay race ..... ✅ BUILT, ⏳ live test pending
+   M4:   Phase 6 = forensic critique + 6 JS quality checks ... ✅ BUILT, ⏳ live test pending  (build plan's "Phase 5.5")
+   M5:   Phase 7 = final assembly + 7B operator QC + 7C dl ... ✅ BUILT, ⏳ live test pending  (build plan's "Phase 6")
    M6:   Side-by-side testing V3.1 vs V4.0 + UI polish ....... pending
    M7:   V4.0 ships, V3.1 deprecated, docs updated ........... pending
 
@@ -1274,6 +1654,177 @@ Confirmed costs: ~$1.33-1.58 per article + ~$0.05-0.10 VCI.
 
 CHANGE LOG
 ----------
+May 12, 2026 (Claude Code build session): V4.0 — ALL 7 PHASES NOW BUILT. M2.6 committed; M3.5 (image gen) BUILT; M3.6 (Phase 5 → section-level relay race) BUILT; M4 (Phase 6 = forensic critique + 6 JS quality checks) BUILT; M5 (Phase 7 = final assembly + 7B operator QC + 7C finalize/download) BUILT; phases renumbered 1–7 (no decimals; "5.5"→6, "6"→7); UI overhaul. Everything committed and pushed. NOT yet live-tested end to end against the real APIs.
+
+  PHASE RENUMBER — aeo_v4.html's phase cards are now 1–7 with no decimals: the
+  build plan's "Phase 5.5" (forensic critique) = Phase 6; its "Phase 6" (assembly)
+  = Phase 7. All internal var names / UI labels / run-log strings updated. (2A/2B
+  remain internal sub-passes of Phase 2.)
+
+  M3.5 — IMAGE GENERATION (committed ede9f7e, d794cc5). Ported from V3.1, adapted to
+  V4.0's structured-JSON model. Fires the moment the Phase 2 STRUCTURE FRAME validates
+  (after 2A + JS frame validation) — overlaps Phases 2B/3/4/5/6. Prompts come from the
+  2A frame's img_ slots (extractImgPromptsFromV1 → startImageQueue → genAllImages →
+  genOneImage). MODEL: gemini-3.1-flash-image-preview (V3.1's actual model — NOT the
+  "gemini-2.0-flash-preview-image-generation" string in the build plan; the live V3.1
+  file is the source of truth). Bytes → WebP (toWebP) → S.imageData. ATTEMPT_ID /
+  ZOMBIE-QUEUE PROTECTION: each frame attempt gets a unique attempt_id
+  (frame_v1_attempt1, …); every image call + every URL is tagged with it; a frame
+  discard calls flushQueue(attemptId) → aborts the dead attempt's pending calls, clears
+  its URL fields, toasts "Validation failed. Frame regenerating. Previous images
+  discarded." (wired into the CHK1 hard-stop paths — the pipeline doesn't literally
+  loop 3→2A). RETRY: ATTEMPT_TIMEOUTS = finalPass ? [90000] : [35000,45000] — 35 s
+  then 45 s; a transient fail (503/429/timeout/network) on a non-final pass throws
+  {requeue:true} → image pushed to the BACK of the queue (attempt 3, 90 s, after all
+  others). A jittered 2.5–5 s delay precedes EVERY sequential image call (jitter =
+  Math.floor(Math.random()*2500)+2500). Manual regenImg uses finalPass=true. IMAGE
+  PANEL moved to the LEFT column below the phase cards (thumbnail grid + per-slot
+  WordPress-URL field + regenerate + featured radio + a <input type="date"
+  id="publishDate"> in a .pub-row; checkUrls() auto-fires validateImages once all URLs
+  + the date are filled). Phase 7 HARD-STOPS until image_urls.length ===
+  expected_image_count AND the publish date is set (validateImages resolves the park
+  promise). F16 artifact is now { v1, imageUrls, imageAttemptId, expectedImageCount,
+  imagesValidated, featuredImageIndex, savedAt } not the bare V1 JSON. New lock V4-13.
+
+  M3.6 — PHASE 5 VOICE DRAFT REBUILT AS A SECTION-LEVEL RELAY RACE (committed ede9f7e),
+  replacing the M3 single-call Option-E build. executePhase5 mirrors executePhase2B:
+  sequential walk (for-of, never Promise.all), each call carrying the FULL (not
+  truncated) rolling V2 draft + the captured voice_architecture; JS stitches each
+  returned node onto a clone of the FROZEN V1 (un-rewritten paragraphs keep their V1
+  prose). QUEUE (buildVoiceQueue): 1× Direct Answer → 1× per H2 section (batching ALL
+  its + its H3s' paragraph ids) → 1× ALL FAQ answers (batched) → 1× CTA hook — NO
+  per-table call (table data is frozen and disallowed for re-voicing per §5.2/5.3).
+  TOOL: VOICE_BLOCK_TOOL = revoice_content_block ({ voice_architecture? [first call
+  only], nodes:[{targetId, data_anchors_to_preserve, pacing_directive enum,
+  transition_logic, newProse, newListItems}] }); each relay call passes ONLY
+  [VOICE_BLOCK_TOOL] + tool_choice. The cached system block is the SAME
+  buildPhase2ContextBlock() Phase 2B uses (byte-identical prefix → Phase 5 reads Phase
+  2B's cache → YES on the relay rows). buildPhase5InstrBlock() is the second, UNCACHED
+  block — it carries the AI-Tell kill list + the verbatim rule: "The rolling V2 draft
+  is for narrative continuity and transition awareness only. Do NOT anchor your tone to
+  the rolling draft. Your tone anchor is always the voice rules and writing samples in
+  4.3A and 4.3B. Reset to those rules on every section regardless of what the rolling
+  draft sounds like." — and instructs Claude to write markdown links [t](u) and **bold**
+  around key entities. applyVoiceDraft merges valid rewrites onto a deep clone of V1 →
+  S.v2; orphan/disallowed targetIds dropped (F13); F2/F3/F6/F13/F14 per relay call;
+  retry exhaustion → RED before Phase 6. Per-block chips in #relayStrip5. REMOVED the
+  old monolithic buildPhase5SystemBlocks / runPhase5 / validateVoiceDraft /
+  makePhase5Progress / buildPhase5UserText / V1_VOICE_TOOL. Lock V4-11 updated.
+
+  M4 — PHASE 6 = FORENSIC CRITIQUE + THE 6 JS QUALITY CHECKS (committed 6cf1fea) — the
+  build plan's "Phase 5.5", renumbered to Phase 6. A SECTION-LEVEL RELAY RACE over the
+  Phase 5 V2. executePhase6(S.v2, akey, voiceReg, {bannedTerms, semanticAnchor}). QUEUE
+  (buildCritiqueQueue): 1× per H2 section in article order → 1× ALL FAQ answers → 1×
+  Direct Answer → 1× CTA hook (sequential). Each per-section call: the SAME cached
+  master-context block as Phase 5 (REUSES Phase 5's VOICE_BLOCK_TOOL → byte-identical
+  prefix → Phase 6 reads Phase 5's cache); a second UNCACHED buildPhase6InstrBlock()
+  (ruthless-editor framing + the AI-Tell Kill List); and a per-call user message that is
+  the VERBATIM "ruthless editor" prompt with a SLIDING WINDOW substituted in — the last
+  paragraph of the prev section's Phase-5 V2 prose + the first paragraph of the next
+  section's Phase-5 V2 prose (read from the UN-mutated Phase 5 V2 via a v2ProseById map;
+  prev clause omitted for the first section, next clause for the last) — plus the
+  block's current prose, the id ticket, and (on retry) the targeted QC feedback. The
+  model returns ONLY the flagged-and-corrected paragraphs (nodes:[] when clean). JS
+  merges each block's corrections over the Phase 5 V2 by targetId → S.v3 (untouched
+  paragraphs keep their Phase 5 prose; Phase 7 reads S.v3 || S.v2). THE 6 JS QUALITY
+  CHECKS (runQualityChecks after each block; FAIL → retry the block max 2 with targeted
+  feedback → then YELLOW + keep-best + continue; Phase 6 NEVER RED-escalates on a QC or
+  relay-call failure): QC1 pronoun/dry-noun-start ratio ≤60% [H2-section blocks ≥3
+  paras], QC2 callback_phrase appears once in the article's TOP 20% of paragraphs and
+  once in the BOTTOM 20% [after the final H2-section block only], QC3 ≥1 rhetorical "?"
+  per 500 words [H2-section blocks ≥150 words], QC4 AI-Tell + 4.3B Terminology-Lock scan
+  (scanAITells / extractBannedTerms — extractBannedTerms is CONSERVATIVE, only fires
+  near an explicit banned/avoid/never-use heading in 4.3B), QC5 every
+  data_anchors_to_preserve string verbatim in the rewrite, QC6 SEMANTIC_ANCHOR (from
+  the 4.2 sheet row only) verbatim in the V3 body [after the final H2-section block
+  only; skipped if the column is absent]. New helpers: stripInlineMarkup / countWords /
+  countQuestionMarks / isDryNounOpener / scanAITells / extractBannedTerms /
+  articleParagraphTexts / articleBodyText / runQualityChecks / buildPhase6InstrBlock /
+  buildCritiqueQueue / buildCritiqueJobPrompt / makeCritiqueJobProgress / executePhase6.
+  Per-block chips in #relayStrip6. The Phase 6 card is no longer the "M4" placeholder.
+
+  M5 — PHASE 7 = FINAL ASSEMBLY (committed 282b03c) — the build plan's "Phase 6",
+  renumbered to Phase 7. The only non-negotiable human checkpoint in the pipeline is
+  7B. 7A — JS ASSEMBLY (no API call): assemblePhase7HTML(article,{editMode}) builds the
+  complete article HTML from S.v3 || S.v2 — a <style> block from buildStylesheetFrom43B()
+  (ported VERBATIM from V3.1's final-.txt CSS, lines 5181-5376; the only additions are
+  `.punch{font-weight:500}` + a `.direct-answer a` colour); <div class="article-wrap">;
+  <h1 id="{slug}">; <div class="direct-answer"><p>…</p></div> (marked.js bold+links);
+  <p class="last-updated">Last Updated: {formatted publish date}</p> (HARD STOP if the
+  publish date is empty); <p class="author-byline"><em>By {Author Name}, {Author Title}</em></p>
+  (extractBrandingFrom43B; skipped if absent); a collapsible ToC from every H2/H3
+  slugified id (matching V3.1's rebuildToC); per section: <h2 id="{slug}">, the <img>
+  (WordPress URL + alt), paragraphs honouring each node's pacing_directive ("short
+  punch"→<p class="punch">, "standard expansion"→<p>, "list extraction"→<ul><li> per
+  newListItems, unknown→<p>, never crash), marked.js, H3 sub-sections + paragraphs,
+  tables class="article-table" (headers + rows from the V2 JSON); <h2 id="faq">Frequently
+  Asked Questions</h2> with each FAQ as <h3 id="{slug}"> + <p>; <div class="article-cta">
+  with the hook prose <p> + <p><a href="{url}">{anchorText}</a></p> (a LINK, never a
+  button). LINK FIX: every emitted href/src `itechvalet.github.io`→`itechvalet.com`.
+  SLUGIFY: lowercase, spaces→hyphens, strip non-alphanumerics except hyphens. marked.js
+  9.1.6 from cdnjs in <head>. Rendered live in the right-panel "Final HTML" tab (auto-
+  switches). 7B — OPERATOR VISUAL QC: an "Edit Mode" toggle above the preview — ON →
+  every rendered prose block carries data-node-id, hover-highlights, click → an input
+  panel with the block's current text + a "What's the fix?" field + Submit → sends ONLY
+  that node's prose + the instruction to Claude (PHASE7_EDIT_TOOL = submit_corrected_prose,
+  forced) → corrected prose ONLY → JS swaps it into the V2/V3 JSON by node id → re-render;
+  OFF → clean preview; a plain-text free-form notes textarea at the bottom (saved
+  locally, never sent to Claude); iframe↔parent via window.postMessage({__p7edit:true,
+  nodeId, text}). 7C — FINALIZE + DOWNLOAD: a "Finalize Article" button → builds
+  S.finalTXT / S.finalSchema / S.checklistHTML and enables two downloads — (i)
+  {permalink-slug}-checklist.html matching V3.1's dlChecklist reference (title + subtitle
+  [Client · Published · Generated], an "Article Optimization Checklist" section [Title/H1,
+  Permalink URL, Full Article URL, Meta Description, Keywords, Category, Featured Image
+  URL, Publish Date — each a labelled textarea with a Copy button], a "Run Cost Report"
+  grid [Run Time, Claude Cost, Gemini Text Cost, Image Cost, Total Estimated Cost], a
+  "Schema Markup" section [ONE combined textarea: BlogPosting + FAQPage + BreadcrumbList
+  JSON-LD from the V2 JSON; author/title/LinkedIn/org/address/phone/sameAs from 4.3B; the
+  publish date used for BOTH datePublished and dateModified; NEVER foundingDate], exact
+  V3.1 CSS); (ii) _{permalink-slug}-final.txt — the clean article HTML ONLY (no
+  doctype/html/head/body — just the <style> block + the <div class="article-wrap">
+  contents), matching V3.1's final-.txt reference. New helpers: currentArticle / slugifyHeading
+  / permalinkSlug / formatPublishDateP7 / mdInline / stripMdToText / proseToParagraphs /
+  renderProseNode / renderArticleTable / extractBrandingFrom43B / buildStylesheetFrom43B /
+  collectArticleHeadings / buildArticleTocHTML / assemblePhase7HTML / buildSchemaJSONLD /
+  buildChecklistHTML / renderPhase7Preview / togglePhase7EditMode / togglePhase7Source /
+  p7NodeById / p7NodeCurrentText / openPhase7EditPanel / closePhase7EditPanel /
+  submitPhase7Edit / finalizePhase7 / dlChecklistHTML / dlFinalTxt / resetPhase7UI. All
+  <script> strings inside the produced HTML are written '<scr'+'ipt>' / '<\/scr'+'ipt>'.
+  New locks V4-12 (one tool per relay call — never a unified tools array), V4-14 (7B is
+  the only human checkpoint; marked.js does all bold/links; github.io→.com; schema dates).
+  ⚠️ BOLD ENTITY EMPHASIS / LINKS: Phase 5 & 6 prompts now instruct Claude to use
+  **bold** around key entities and markdown links [t](u); Phase 7's JS relies ENTIRELY
+  on marked.js — there is NO regex bolding.
+
+  UI OVERHAUL (May 12, 2026; spans commits ede9f7e / 67ae8ae / d794cc5 / 282b03c):
+  - RUN BUTTON labelled "RUN" (was "RUN PHASE 1+2").
+  - PHASE CARDS: descriptions collapsed by default (▼ toggle reveals); a Copy button in
+    every phase card's expandable area; retry output ACCUMULATES (appends "Attempt 2" /
+    "=== Round N ===" / "=== Attempt N ===" dividers — never overwrites).
+  - RIGHT-PANEL TABS (in order): Run Log | Cache Stats | Metadata | Direct Answer | V2
+    Article | Schema | Final HTML. (Old "Research Brief" + "V1 JSON" tabs removed;
+    Metadata/Direct Answer/V2 Article/Schema/Final HTML added.) A Copy button in every
+    tab panel. "Final HTML" is Phase 7's live iframe preview + the Edit-Mode/View-Source/
+    Finalize/download controls.
+  - IMAGE PANEL moved out of the tabs to the LEFT column below the phase cards.
+  - RUN-LOG COLOURS (strict): GREEN = success/pass/complete/cache YES/"phase done";
+    BLUE = informational — cache PARTIAL (EXPECTED on every relay call, NOT a warning),
+    "phase in progress/hydrating/re-voicing/critiquing"; ORANGE = actual warnings only
+    (F14 retries, genuine quality-check failures, anything that required a retry — the
+    INFO_YELLOW_CODES F11/F12/F16 log at info/blue, not orange); RED = failures/errors/
+    RED escalations. verdictStyle('PARTIAL') → {statClass:'accent',rowClass:'partial',
+    level:'info'}.
+  - PIPELINE HEALTH INDICATOR replaces the removed "Cache Verdict: PARTIAL" header stat —
+    #pipelineHealth / renderPipelineHealth (refreshed from renderEscalationPanel): green
+    "HEALTHY" = no REDs & <3 YELLOWs; orange "WARNINGS" = no REDs & ≥3 YELLOWs; red
+    "ERROR" = any RED; updates in real time.
+
+  ⚠️ STATUS: all of M2.6 / M3.5 / M3.6 / M4 / M5 + the UI overhaul are committed and
+  pushed but JS-SYNTAX-CHECKED ONLY — NONE has been live-tested against the real APIs.
+  The full end-to-end live test against a real iTV topic is the immediate next step (see
+  "NEXT SESSION PRIORITIES"). The repo moved github.com/itechvalet/iTV-Tools →
+  github.com/iTechValet/iTV-Tools (pushes still work via GitHub's 301 redirect).
+
 May 11, 2026 (Chat 20 build session — Claude Code): V4.0 — M2.6 (Phase 2B "Relay Race", section-level) + M3 (Phase 5 voice draft) BUILT; M3.5 (image gen) QUEUED.
 
   M2.6 — Phase 2B rebuilt: monolithic single call (~50% output-token fatigue) →
@@ -1292,9 +1843,8 @@ May 11, 2026 (Chat 20 build session — Claude Code): V4.0 — M2.6 (Phase 2B "R
   - New locks V4-10 (Phase 2B is a section-level relay race) and V4-11 (any
     "write the whole article in one call" step — incl. Phase 5/5.5 — must use the
     relay-race pattern).
-  - Tested in Node (20 + earlier assertions, all green). NOT live-tested yet —
-    aeo_v4.html for M2.6 is BUILT but NOT YET COMMITTED (held for the operator
-    live test). This Master Doc copy is committed/pushed separately.
+  - Tested in Node (20 + earlier assertions, all green). NOT live-tested yet.
+    (UPDATE May 12, 2026: M2.6 was committed/pushed in d0fe354 + 3063fde.)
 
   M3 — Phase 5 Voice Draft (Option E unified CoT) built per the build plan: Claude
   re-voices the frozen V1's prose nodes (DA, paragraphs, FAQ answers, CTA hook) via
@@ -1306,14 +1856,13 @@ May 11, 2026 (Chat 20 build session — Claude Code): V4.0 — M2.6 (Phase 2B "R
   the 4.2 sheet (F11→Indirect); optional intent-matched exemplars from
   voice_exemplars.txt (F12). F2/F3/F6/F13/F14 handled; retry exhaustion → RED
   before Phase 6. Phase 6 stub now operates on S.v2 (no V1 fallback).
-  ⚠️ KNOWN LIMITATION: Phase 5 is a SINGLE big Option-E call — it will fatigue on
-  output tokens the same way the monolithic Phase 2B did. NEEDS the M2.6-style
-  relay-race rebuild (section-level sequential voice rewrites) before production.
-  (M3's aeo_v4.html was committed earlier as f1e4774; the M2.6 changes on top are
-  not committed yet.)
+  ⚠️ KNOWN LIMITATION (resolved May 12, 2026 in M3.6): Phase 5 was a SINGLE big
+  Option-E call — output-token fatigue, same root cause as the monolithic Phase 2B.
+  M3.6 rebuilt it as a section-level relay race (see the May 12, 2026 entry above).
 
   M3.5 — image generation: per the build plan, runs in parallel with Phase 5/5.5
-  from the imagePrompts the 2A frame carries. QUEUED — not built.
+  from the imagePrompts the 2A frame carries. QUEUED — not built. (BUILT May 12,
+  2026 — see the May 12, 2026 change-log entry above.)
 
 May 11, 2026 (post-Chat-19 build session — Claude Code, continued): V4.0 PHASE 2 REBUILT — TWO-PASS (M2.5).
 
