@@ -372,7 +372,7 @@
         <div class="phase-num">2</div>
         <div class="phase-info">
           <div class="phase-title">Phase 2 — V1 in TWO passes: 2A Structure Frame → 2B Data Hydration</div>
-          <div class="phase-desc">2A (submit_v1_frame): structural skeleton only — H2/H3 headings, table HEADERS (no data), FAQ QUESTIONS (no answers), link anchors mapped to the research brief, image slots, CTA placement, checklist, thesis. No prose, no numbers. JS validates the frame, then 2B (submit_v1_hydration): paragraph prose, FAQ answers, and table DATA ROWS — every row { cells, sourceReferenceId } citing a Phase 1 factClaim; rows with no supporting factClaim are dropped, not invented. JS merges 2B into the frame keyed by node id, so structure physically cannot drift. Phase 3 failures are repaired by surgical micro-calls (submit_v1_corrections) that touch only the failing nodes — the V1 is never regenerated. Shared cached context across 2A / 2B / fix.</div>
+          <div class="phase-desc">2A (submit_v1_frame): structural skeleton + NARRATIVE SPINE — H2/H3 headings + empty paragraph slots, table HEADERS (no data), FAQ QUESTIONS + empty answer slots, link anchors mapped to the research brief, image slots, CTA placement, checklist, thesis, and a narrative_spine (core_thesis, callback_setup, section_transitions keyed by heading text, 3-5 voice_reminders). No prose, no numbers. JS validates the frame, then 2B — SEQUENTIAL HYDRATION ("the Relay Race"): one focused hydrate_node call per prose/table node, in article order, each carrying the spine + a rolling draft of everything written so far; JS stitches each node into a clone of the locked frame by targetId. Table rows = { cells, sourceReferenceId } citing a Phase 1 factClaim; unsupported rows dropped, never invented. The frozen frame is never mutated; structure physically cannot drift. Phase 3 failures are repaired by surgical micro-calls (submit_v1_corrections) that touch only the failing nodes — the V1 is never regenerated. The cached master-context block (4.3A/4.3B/4.4 + research + thesis) is replayed on every relay call.</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b2">Waiting</div><span class="schev closed" id="c2">▼</span></div>
       </div>
@@ -1216,25 +1216,33 @@ SHEET ROW (pipe-delimited): ${S.sheetRow}`;
     return { type: 'text', text: ctx, cache_control: { type: 'ephemeral' } };
   }
 
-  // ── PHASE 2A — STRUCTURE FRAME ──
+  // ── PHASE 2A — STRUCTURE FRAME + NARRATIVE SPINE ──
   function buildPhase2ASystem(){
-    const instr = `PHASE 2A — STRUCTURE FRAME. Call submit_v1_frame with the article's structural skeleton ONLY. NO body prose. NO paragraphs. NO statistics. NO numerical claims. NO table data rows. NO FAQ answers. NO Direct Answer prose. (All of that comes in Phase 2B.)
+    const instr = `PHASE 2A — STRUCTURE FRAME + NARRATIVE SPINE. Call submit_v1_frame with the article's structural skeleton AND its narrative spine. NO body prose. NO statistics. NO numerical claims. NO table data rows. NO FAQ answers. NO Direct Answer prose. (All of that is written one node at a time in Phase 2B, guided by the spine you write here.)
 
 Produce:
 - checklist: the 7 SEO/URL fields — metaTitle, h1, permalink, fullUrl, metaDescription, keywords, category.
-- thesis.statement: one sentence, mirroring the clientSpecificThesis from the research brief — the article's spine.
-- sections: at least 4 H2 sections. Each section = { h2, h3sections?[{h3}], links[{anchorText,url,placementHint}], tables[{headers}], imagePrompts[{prompt,alt}] }. Headings/subheadings only — do NOT include a paragraphs array.
+- thesis.statement: one sentence — the article's spine (the same sentence you'll put in narrative_spine.core_thesis).
+- narrative_spine: the writing plan that Phase 2B will follow node-by-node —
+   • core_thesis: the one-sentence spine (same as thesis.statement).
+   • callback_setup: a metaphor / framing / concept to ESTABLISH early in the article and PAY OFF later — the through-line that makes the piece read as one thing.
+   • section_transitions: one object per H2 section AND per H3 subsection — { targetId: the EXACT heading text of that section/subsection, bridge_logic: one sentence on how to bridge INTO it from the preceding context }.
+   • voice_reminders: 3-5 SPECIFIC reminders about the desired voice, pulled from the 4.3A / 4.3B context above (concrete — e.g. a banned phrase, a sentence-rhythm rule, a tone note — not generic platitudes).
+- directAnswer: a placeholder object — leave it exactly as {}. (JS assigns its id; Phase 2B writes its prose.)
+- sections: at least 4 H2 sections. Each section = { h2, paragraphs:[{},{},…], h3sections?:[{h3, paragraphs:[{},…]}], links?:[{anchorText,url,placementHint}], tables?:[{headers}], imagePrompts:[{prompt,alt}] }.
+   • paragraphs: an array of EMPTY objects — one {} per paragraph this section should have. You decide the COUNT (2-6 is typical); JS assigns each an id; Phase 2B writes the prose into them.
+   • h3sections: optional — each has h3 (the heading) and its own paragraphs array of {} slots (at least one).
 - tables: at least 3 tables across all sections combined. For each table provide ONLY the headers array — leave the data rows to Phase 2B. Choose table topics the research brief's factClaims can actually back with data.
 - imagePrompts: at least 1 per H2 section. prompt + alt text only (this is placement).
 - links: prefer the research brief's anchorTextTargets — copy those anchorText + url pairs exactly. NEVER invent an internal link (a page on the client's own domain that isn't in the brief). A small number of additional reputable EXTERNAL citations is OK if genuinely needed. placementHint = which paragraph (by description) the link belongs to.
-- faq: at least 5 entries. The QUESTION text only — no answers.
+- faq: at least 5 entries. Each = { question: the question text, answer: {} }. The QUESTION text only — leave answer as {} (JS assigns its id; Phase 2B writes the answer prose).
 - cta: { anchorText, url, placementHint }. The url MUST match the 4.3B Primary CTA destination (the "Destination:" line under the "Primary CTA" section, or a "Conversion Primary CTA URL" / "Primary CTA URL" field). placementHint = where in the article the CTA sits.
 
-Do NOT include id fields — JS assigns them. Always invoke submit_v1_frame; never respond in plain text.`;
+Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_frame; never respond in plain text.`;
     return [ buildPhase2ContextBlock(), { type:'text', text: instr } ];
   }
   function buildPhase2AUserText(feedback, f2hint){
-    let t = `Build the STRUCTURE FRAME now by calling submit_v1_frame. Headings, table headers (no data), FAQ questions (no answers), link anchors, image slots, CTA placement — no body prose, no statistics.`;
+    let t = `Build the STRUCTURE FRAME + NARRATIVE SPINE now by calling submit_v1_frame. Headings + empty paragraph slots, table headers (no data), FAQ questions (answers stay {}), link anchors, image slots, CTA placement, the checklist, thesis.statement, and a full narrative_spine (core_thesis, callback_setup, section_transitions keyed by heading text, 3-5 voice_reminders) — no body prose, no statistics.`;
     if(feedback && feedback.trim()){
       t += `\n\n─────────────────────────────────────────\nYOUR PREVIOUS FRAME FAILED VALIDATION. Fix every problem below and resubmit the FULL frame via submit_v1_frame:\n${feedback}\n─────────────────────────────────────────`;
     }
@@ -1245,19 +1253,30 @@ Do NOT include id fields — JS assigns them. Always invoke submit_v1_frame; nev
   }
   const V1_FRAME_TOOL = {
     name: 'submit_v1_frame',
-    description: 'Submit the V1 STRUCTURE FRAME — headings, table headers (no data), FAQ questions (no answers), link anchors, image slots, CTA placement, checklist, thesis statement. No body prose. JS assigns ids; do not include id fields.',
+    description: 'Submit the V1 STRUCTURE FRAME + NARRATIVE SPINE — headings, empty paragraph slots, table headers (no data), FAQ questions + empty answer slots, link anchors, image slots, CTA placement, checklist, thesis statement, and the narrative_spine (core_thesis, callback_setup, section_transitions, voice_reminders) that Phase 2B follows node-by-node. No body prose, no table data. JS assigns ids; do not include id fields.',
     input_schema: {
-      type:'object', required:['checklist','thesis','sections','faq','cta'], additionalProperties:false,
+      type:'object', required:['checklist','narrative_spine','thesis','directAnswer','sections','faq','cta'], additionalProperties:false,
       properties: {
         checklist: { type:'object', required:['metaTitle','h1','permalink','fullUrl','metaDescription','keywords','category'], additionalProperties:false,
           properties: { metaTitle:{type:'string'}, h1:{type:'string'}, permalink:{type:'string'}, fullUrl:{type:'string'}, metaDescription:{type:'string'}, keywords:{type:'string'}, category:{type:'string'} } },
+        narrative_spine: { type:'object', required:['core_thesis','callback_setup','section_transitions','voice_reminders'], additionalProperties:false,
+          properties: {
+            core_thesis: { type:'string', description:'The one-sentence spine of the article (same as thesis.statement).' },
+            callback_setup: { type:'string', description:'A metaphor / framing / concept to establish early and pay off later — the through-line.' },
+            section_transitions: { type:'array', items:{ type:'object', required:['targetId','bridge_logic'], additionalProperties:false,
+              properties:{ targetId:{ type:'string', description:'The EXACT H2 or H3 heading text of the section/subsection this transition leads INTO.' }, bridge_logic:{ type:'string', description:'One sentence: how to bridge into this section from the preceding context.' } } } },
+            voice_reminders: { type:'array', items:{ type:'string' }, description:'3-5 SPECIFIC voice reminders pulled from the 4.3A/4.3B context (concrete, not generic).' }
+          } },
         thesis: { type:'object', required:['statement'], additionalProperties:false,
-          properties: { statement:{ type:'string', description:'One-sentence spine. Mirror Phase 1 clientSpecificThesis.thesisStatement.' } } },
+          properties: { statement:{ type:'string', description:'One-sentence spine. Same as narrative_spine.core_thesis. Mirror Phase 1 clientSpecificThesis.thesisStatement.' } } },
+        directAnswer: { type:'object', additionalProperties:false, properties:{}, description:'Placeholder — leave it as {}. JS assigns its id; Phase 2B writes its prose.' },
         sections: { type:'array', minItems:4, items: {
-          type:'object', required:['h2','imagePrompts'], additionalProperties:false,
+          type:'object', required:['h2','paragraphs','imagePrompts'], additionalProperties:false,
           properties: {
             h2: { type:'string' },
-            h3sections: { type:'array', items:{ type:'object', required:['h3'], additionalProperties:false, properties:{ h3:{type:'string'} } } },
+            paragraphs: { type:'array', minItems:1, items:{ type:'object', additionalProperties:false, properties:{} }, description:'Empty paragraph slots — one {} per paragraph this H2 should have (you decide the count, 2-6 typical). JS assigns ids; Phase 2B writes the prose.' },
+            h3sections: { type:'array', items:{ type:'object', required:['h3','paragraphs'], additionalProperties:false,
+              properties:{ h3:{type:'string'}, paragraphs:{ type:'array', minItems:1, items:{ type:'object', additionalProperties:false, properties:{} }, description:'Empty paragraph slots for this H3 — one {} per paragraph (at least one).' } } } },
             links: { type:'array', items:{ type:'object', required:['anchorText','url','placementHint'], additionalProperties:false,
               properties:{ anchorText:{type:'string'}, url:{type:'string'}, placementHint:{type:'string'} } } },
             tables: { type:'array', items:{ type:'object', required:['headers'], additionalProperties:false,
@@ -1266,89 +1285,211 @@ Do NOT include id fields — JS assigns them. Always invoke submit_v1_frame; nev
               properties:{ prompt:{type:'string'}, alt:{type:'string'} } } }
           }
         }},
-        faq: { type:'array', minItems:5, items:{ type:'object', required:['question'], additionalProperties:false, properties:{ question:{type:'string'} } } },
+        faq: { type:'array', minItems:5, items:{ type:'object', required:['question','answer'], additionalProperties:false,
+          properties:{ question:{type:'string'}, answer:{ type:'object', additionalProperties:false, properties:{}, description:'Placeholder — leave it as {}. JS assigns its id; Phase 2B writes the answer prose.' } } } },
         cta: { type:'object', required:['anchorText','url','placementHint'], additionalProperties:false,
           properties:{ anchorText:{type:'string'}, url:{type:'string'}, placementHint:{type:'string'} } }
       }
     }
   };
 
-  // ── PHASE 2B — DATA HYDRATION ──
-  function buildPhase2BSystem(){
-    const instr = `PHASE 2B — DATA HYDRATION. Call submit_v1_hydration to fill the VALIDATED structure frame (given in the user message) with prose and data, keyed by the frame's node ids. You may ADD prose, table data rows, and FAQ answers ONLY. You may NOT add, remove, rename, or reorder any heading (h2/h3), table, table header, FAQ question, link, or image — the frame's structure is locked and JS will reject anything that isn't keyed to an existing frame id.
+  // ══ PHASE 2B — SEQUENTIAL HYDRATION ("the Relay Race")  [Milestone 2.6] ══
+  // The monolithic single-call hydration fatigued on output tokens (~50% failure). Replaced
+  // with: one focused Claude call per prose/table node, in article order, each carrying the
+  // narrative spine + a rolling draft of everything written so far. JS stitches each node's
+  // output into a clone of the frozen frame by targetId. The locked frame is never mutated.
+  // Every job call sends ONLY the hydrate_node tool + the cached master-context block.
 
-Produce (every node referenced by the id it carries in the frame):
-- directAnswerProse: 200-300 words. Plain prose, no headings/links/images. Must reference / align with the clientSpecificThesis.
-- For each section (by sectionId): "paragraphs" = an array of body-prose strings (one string per paragraph; write as many as the section needs; at least 1). For each h3 in that section (by h3Id): "paragraphs" = an array of prose strings (at least 1). For each table in that section (by tableId): "rows" — see TABLE ROWS below.
-- For each FAQ (by faqId): answerProse = the answer, in prose.
-- ctaHookProse: the prose immediately before the CTA link.
-
-TABLE ROWS — CRITICAL: each row is { "cells": ["…", "…"], "sourceReferenceId": "factClaim_NN" }. cells must align with that table's headers (same count, same order). sourceReferenceId MUST be the id of a factClaim from the Phase 1 research brief that genuinely supports the data point in that row. If NO factClaim supports a row, DROP the row — do NOT invent data, statistics, or numbers. A table may end up with fewer rows than ideal; that is correct behavior. A table whose topic has no supporting factClaims should come back with an empty rows array — better empty than fabricated.
-
-Always invoke submit_v1_hydration; never respond in plain text.`;
-    return [ buildPhase2ContextBlock(), { type:'text', text: instr } ];
-  }
-  function buildPhase2BUserText(frame, f2hint){
-    // Anti-echo: strip empty arrays / empty prose from a CLONE of the frame so Claude never
-    // sees `"paragraphs": []` or `"rows": []` in the input and copies it back. The real frame
-    // object is untouched — mergeHydration still relies on it.
-    const stripEmpties = (v) => {
-      if(Array.isArray(v)) return v.map(stripEmpties);
-      if(v && typeof v === 'object'){
-        const out = {};
-        for(const k of Object.keys(v)){
-          const sv = stripEmpties(v[k]);
-          if(Array.isArray(sv) && sv.length === 0) continue;                  // drop empty arrays (paragraphs:[], rows:[], h3sections:[], links:[], …)
-          if(k === 'prose' && typeof sv === 'string' && !sv.trim()) continue; // drop empty prose
-          out[k] = sv;
-        }
-        return out;
-      }
-      return v;
-    };
-    const leanFrame = stripEmpties(JSON.parse(JSON.stringify(frame)));
-    let t = `CRITICAL HYDRATION RULES:
-1. ANTI-ECHO MANDATE: The frame contains empty arrays. DO NOT echo them back. Your only job is to fill them with newly written content.
-2. NO SKIPPING: Every section and H3 MUST have populated paragraphs. Every FAQ MUST have a written answer.
-3. VERIFICATION: If you return any paragraphs array with 0 items the system will reject your output.
-
-Hydrate this VALIDATED STRUCTURE FRAME. Do NOT change any heading, table header, FAQ question, link, or image — only ADD prose, table data rows, and FAQ answers, keyed by the ids below. Call submit_v1_hydration.
-
-FRAME (JSON):
-${JSON.stringify(leanFrame, null, 2)}
-
-AVAILABLE factClaim IDS (cite exactly one per table row; drop any row you cannot support):
-${factClaimMenu()}`;
-    if(f2hint){
-      t += `\n\nNOTE: a previous attempt produced output that could not be parsed. Call submit_v1_hydration with clean structured JSON only — no code fences, no preamble inside string values, no commentary.`;
-    }
-    return t;
-  }
-  const V1_HYDRATION_TOOL = {
-    name: 'submit_v1_hydration',
-    description: 'Fill the locked V1 structure frame with prose and data, keyed by the frame node ids. Adds paragraph prose, table data rows (each citing a Phase 1 factClaim), and FAQ answers only — never changes structure.',
+  // Tool used on EVERY Phase 2B job call — intentionally tiny.
+  const HYDRATE_NODE_TOOL = {
+    name: 'hydrate_node',
+    description: 'Provide the content for the ONE specified target node. Use `prose` for a paragraph / Direct Answer / FAQ answer / CTA hook. Use `rows` ONLY when hydrating a table node.',
     input_schema: {
-      type:'object', required:['directAnswerProse','ctaHookProse','sections','faq'], additionalProperties:false,
+      type:'object', required:['targetId'], additionalProperties:false,
       properties: {
-        directAnswerProse: { type:'string', description:'200-300 words. Plain prose. References the clientSpecificThesis.' },
-        ctaHookProse: { type:'string', description:'The prose immediately before the CTA link.' },
-        sections: { type:'array', minItems: 4, description:'CRITICAL: MUST match every section id from the frame. DO NOT return an empty array.', items: {
-          type:'object', required:['sectionId','paragraphs'], additionalProperties:false,
-          properties: {
-            sectionId: { type:'string', description:'Must match a section id from the frame.' },
-            paragraphs: { type:'array', minItems:1, items:{ type:'string' }, description:'CRITICAL: THIS MUST NOT BE EMPTY. Write the prose here. DO NOT echo the empty array from the input frame.' },
-            h3sections: { type:'array', items:{ type:'object', required:['h3Id','paragraphs'], additionalProperties:false,
-              properties:{ h3Id:{type:'string'}, paragraphs:{ type:'array', minItems:1, items:{type:'string'}, description:'CRITICAL: THIS MUST NOT BE EMPTY. Write the prose here. DO NOT echo the empty array from the input frame.' } } } },
-            tables: { type:'array', items:{ type:'object', required:['tableId','rows'], additionalProperties:false,
-              properties:{ tableId:{type:'string'}, rows:{ type:'array', minItems:1, description:'CRITICAL: Generate at least 1 data row supported by a factClaim. DO NOT return an empty array. Drop the table entirely if no factClaim supports it.', items:{ type:'object', required:['cells','sourceReferenceId'], additionalProperties:false,
-                properties:{ cells:{ type:'array', items:{type:'string'} }, sourceReferenceId:{ type:'string', description:'id of a supporting factClaim from the Phase 1 brief; drop the row if none supports it' } } } } } } }
-          }
-        }},
-        faq: { type:'array', minItems: 5, description:'CRITICAL: Every FAQ item MUST have a populated answerProse. DO NOT return an empty array.', items:{ type:'object', required:['faqId','answerProse'], additionalProperties:false,
-          properties:{ faqId:{type:'string'}, answerProse:{type:'string'} } } }
+        targetId: { type:'string', description:'Must match the requested targetId exactly.' },
+        prose: { type:'string', description:'Markdown-formatted prose for a paragraph / Direct Answer / FAQ answer / CTA hook. Omit ONLY when hydrating a table.' },
+        rows: { type:'array', description:'Table data rows — use ONLY when hydrating a table. Each row = { cells:[string,…], sourceReferenceId:"factClaim_NN" } where cells align to the table headers and sourceReferenceId is the id of a Phase 1 factClaim that supports the row.', items:{ type:'object', required:['cells','sourceReferenceId'], additionalProperties:false,
+          properties:{ cells:{ type:'array', items:{type:'string'} }, sourceReferenceId:{ type:'string', description:'The id of the Phase 1 factClaim that supports this row.' } } } }
       }
     }
   };
+
+  // Build the linear job queue from the (id-stamped) frame, in this exact order:
+  // directAnswer → for each section: H2 paragraphs → H3 paragraphs → tables → … → FAQ answers → CTA hook.
+  // section_transitions in the narrative spine are keyed by HEADING TEXT (h2/h3) — JS-assigned
+  // ids don't exist when Phase 2A writes the spine — so getTransition matches on the heading.
+  function buildHydrationQueue(frame, narrativeSpine){
+    const queue = [];
+    const transitions = (narrativeSpine && Array.isArray(narrativeSpine.section_transitions)) ? narrativeSpine.section_transitions : [];
+    const getTransition = (headingText) => {
+      const want = String(headingText||'').trim().toLowerCase();
+      if(!want) return '';
+      const t = transitions.find(x => x && String(x.targetId||'').trim().toLowerCase() === want);
+      return t ? String(t.bridge_logic||'') : '';
+    };
+    // 1. Direct Answer
+    if(frame.directAnswer && frame.directAnswer.id){
+      queue.push({ targetId: frame.directAnswer.id, type:'directAnswer', contextHints:'The Direct Answer — 200-300 words. Answer the topic immediately, in the client’s voice, and reference / align with the thesis. This opens the article.', transitionLogic:'' });
+    }
+    // 2. Sections, in order: H2 paragraphs → H3 paragraphs → tables
+    toArray(frame.sections).forEach(section => {
+      if(!section || typeof section !== 'object') return;
+      const h2 = String(section.h2 || '');
+      const secTransition = getTransition(h2);
+      const linkHint = (Array.isArray(section.links) && section.links.length) ? ` Links available to weave in where natural: ${section.links.map(l=>`[${l.anchorText||''}](${l.url||''})`).join(', ')}.` : '';
+      toArray(section.paragraphs).forEach((para, i) => {
+        if(!para || !para.id) return;
+        queue.push({ targetId: para.id, type:'paragraph', contextHints:`A body paragraph under H2: "${h2}".${linkHint}`, transitionLogic: i === 0 ? secTransition : '' });
+      });
+      toArray(section.h3sections).forEach(h3 => {
+        if(!h3 || typeof h3 !== 'object') return;
+        const h3t = String(h3.h3 || '');
+        const h3Transition = getTransition(h3t);
+        toArray(h3.paragraphs).forEach((para, i) => {
+          if(!para || !para.id) return;
+          queue.push({ targetId: para.id, type:'paragraph', contextHints:`A body paragraph under H2: "${h2}" › H3: "${h3t}".${linkHint}`, transitionLogic: i === 0 ? h3Transition : '' });
+        });
+      });
+      toArray(section.tables).forEach(table => {
+        if(!table || !table.id) return;
+        queue.push({ targetId: table.id, type:'table', contextHints:`A data table under H2: "${h2}". Headers: [${(table.headers||[]).join(', ')}]. Fill the data rows — each row { cells, sourceReferenceId } where cells align to those headers (same count + order) and sourceReferenceId is the id of a Phase 1 factClaim that supports the data. Drop any row you cannot support; never invent numbers.`, transitionLogic:'' });
+      });
+    });
+    // 3. FAQ answers
+    toArray(frame.faq).forEach(faq => {
+      if(!faq || typeof faq !== 'object' || !faq.answer || !faq.answer.id) return;
+      queue.push({ targetId: faq.answer.id, type:'faq_answer', contextHints:`The answer to this FAQ question: "${String(faq.question||'')}". A tight, direct answer in voice.`, transitionLogic:'' });
+    });
+    // 4. CTA hook
+    if(frame.cta && frame.cta.id){
+      queue.push({ targetId: frame.cta.id, type:'cta_hook', contextHints:`The hook prose that leads into the CTA link: [${frame.cta.anchorText||''}](${frame.cta.url||''}). 1-3 sentences, in voice, that naturally hands off to that link. The link itself is added by JS — write only the lead-in prose.`, transitionLogic: getTransition(frame.cta.anchorText) });
+    }
+    return queue;
+  }
+
+  // Recursively traverse the frame clone and inject the node's output by targetId match.
+  // Auto-detects the node type from its shape: a node with `headers` is a table → set .rows;
+  // a node with `anchorText`+`url` is the CTA → set .hookProse; anything else is a prose node → .prose.
+  function stitchNode(obj, newData){
+    if(!obj || typeof obj !== 'object' || !newData || !newData.targetId) return false;
+    if(Array.isArray(obj)){
+      for(let i = 0; i < obj.length; i++){ if(stitchNode(obj[i], newData)) return true; }
+      return false;
+    }
+    if(obj.id === newData.targetId){
+      if(Array.isArray(obj.headers)){ // table node
+        obj.rows = (Array.isArray(newData.rows) ? newData.rows : toArray(newData.rows)).filter(r => r && typeof r === 'object').map(normalizeRow);
+      } else if(obj.anchorText !== undefined && obj.url !== undefined){ // CTA node
+        obj.hookProse = typeof newData.prose === 'string' ? newData.prose.trim() : '';
+      } else { // prose node — Direct Answer / paragraph / FAQ answer
+        obj.prose = typeof newData.prose === 'string' ? newData.prose.trim() : '';
+      }
+      return true;
+    }
+    for(const k of Object.keys(obj)){ if(stitchNode(obj[k], newData)) return true; }
+    return false;
+  }
+
+  // The per-job user prompt: narrative spine + rolling draft + this one job ticket + a CRITICAL
+  // instruction to hydrate ONLY the specified targetId. (The cached master-context block carries
+  // 4.3A/4.3B/4.4 + research brief + thesis — same as every other Phase 2 call.)
+  function buildHydrateJobPrompt(spine, rollingDraft, job, idx, total, frame){
+    const reminders = (spine && Array.isArray(spine.voice_reminders) && spine.voice_reminders.length) ? spine.voice_reminders.join('  |  ') : '(follow the 4.3A/4.3B voice rules)';
+    const isTable = job.type === 'table';
+    return `You are hydrating ONE node of an AEO article whose structure is already locked. This is node ${idx} of ${total}.
+
+NARRATIVE SPINE (the through-line you must serve on every node):
+- Core thesis: ${(spine && spine.core_thesis) || (frame.thesis && frame.thesis.statement) || '(none)'}
+- Setup / payoff (callback): ${(spine && spine.callback_setup) || '(none)'}
+- Voice reminders: ${reminders}
+
+DRAFT SO FAR (everything written before this node — keep this node coherent with it; do NOT repeat any of it; pick up where it leaves off):
+${rollingDraft ? rollingDraft.slice(-7000) : '(this is the beginning of the article)'}
+
+CURRENT TASK — hydrate node "${job.targetId}":
+  Type: ${job.type}
+  Context: ${job.contextHints}
+  Transition rule: ${job.transitionLogic ? job.transitionLogic : 'Continue naturally from the draft so far.'}
+
+CRITICAL: Call hydrate_node ONCE, with targetId="${job.targetId}", and provide ${isTable ? '`rows` — the table data only (each row { cells, sourceReferenceId } citing a Phase 1 factClaim; drop rows you cannot support; never invent numbers). Do NOT provide `prose`.' : '`prose` — markdown-formatted, in the client’s voice, just this node’s content (no heading, no list markup unless it IS a list paragraph). Do NOT provide `rows`.'} Do NOT generate any other node, the heading, or the table itself.`;
+  }
+
+  // The static "you are hydrating one node at a time" framing — a small uncached system block
+  // appended after the cached master-context block. (Putting it uncached keeps the cached prefix
+  // identical across all Phase 2B job calls so job 1 writes the cache and the rest read it.)
+  function buildHydrateInstrBlock(){
+    return { type:'text', text: `PHASE 2B — SEQUENTIAL HYDRATION (the "Relay Race"). You will be asked to write ONE node at a time, in article order, each call carrying a rolling draft of everything written so far. For each call: read the narrative spine and the draft so far, then call hydrate_node with the requested targetId and ITS content only — the "prose" field for paragraphs / the Direct Answer / FAQ answers / the CTA hook; the "rows" field for tables. Stay in the client's voice the whole way through. Never fabricate statistics or numbers — every table row must cite a Phase 1 factClaim by id. Never repeat content already in the draft. Never write headings or table markup — just the node's content.` };
+  }
+
+  // The relay loop: clone the locked frame, build the queue, walk it sequentially, stitch + roll the draft.
+  // Never mutates `lockedFrame`. Returns the fully (or partially — Phase 3A + surgical fix catch gaps) hydrated clone.
+  async function executePhase2B(lockedFrame, akey){
+    const hydratedFrame = JSON.parse(JSON.stringify(lockedFrame)); // never mutate the locked frame
+    // belt-and-suspenders: the relay queue needs these node ids to exist
+    if(!hydratedFrame.directAnswer || typeof hydratedFrame.directAnswer !== 'object') hydratedFrame.directAnswer = {};
+    if(!hydratedFrame.directAnswer.id) hydratedFrame.directAnswer.id = genId('da');
+    if(hydratedFrame.cta && typeof hydratedFrame.cta === 'object' && !hydratedFrame.cta.id) hydratedFrame.cta.id = genId('cta');
+    toArray(hydratedFrame.faq).forEach(f => { if(f && typeof f === 'object'){ if(!f.answer || typeof f.answer !== 'object') f.answer = {}; if(!f.answer.id) f.answer.id = genId('ans'); } });
+    toArray(hydratedFrame.sections).forEach(sec => {
+      if(!sec || typeof sec !== 'object') return;
+      if(!Array.isArray(sec.paragraphs) || !sec.paragraphs.length) sec.paragraphs = [{}];
+      sec.paragraphs.forEach(p => { if(p && typeof p === 'object' && !p.id) p.id = genId('para'); });
+      toArray(sec.h3sections).forEach(h3 => { if(h3 && typeof h3 === 'object'){ if(!Array.isArray(h3.paragraphs) || !h3.paragraphs.length) h3.paragraphs = [{}]; h3.paragraphs.forEach(p => { if(p && typeof p === 'object' && !p.id) p.id = genId('para'); }); } });
+      toArray(sec.tables).forEach(t => { if(t && typeof t === 'object' && !t.id) t.id = genId('table'); });
+    });
+    const spine = hydratedFrame.narrative_spine || hydratedFrame.narrativeSpine || {};
+    const queue = buildHydrationQueue(hydratedFrame, spine);
+    const total = queue.length;
+    log(`Phase 2B — sequential hydration ("relay race"): ${total} node(s) to write in order, each with rolling context.`, 'info');
+    const masterCtx = buildPhase2ContextBlock();      // cached master context (same content as every Phase 2 call)
+    const instrBlock = buildHydrateInstrBlock();      // small uncached "one node at a time" framing
+    let rollingDraft = '', failed = 0;
+    for(let i = 0; i < total; i++){
+      const job = queue[i];
+      setPhase(2, 'active', `2B ${i+1}/${total}`);
+      setG(`Phase 2B — sequential hydration: node ${i+1}/${total} (${job.type})…`, true);
+      log(`Phase 2B — hydrating node ${i+1} of ${total} (${job.targetId}, ${job.type})…`, 'info');
+      let data = null, f6f = '';
+      for(let attempt = 0; attempt < 2; attempt++){
+        const extra = f6f ? `\n\n${f6f}` : (attempt > 0 ? `\n\nNOTE: your previous response could not be used (no usable tool call, invalid output, or wrapped in markdown). Call hydrate_node cleanly with targetId="${job.targetId}" and ${job.type==='table'?'`rows`':'`prose`'} only — nothing else.` : '');
+        let result;
+        try {
+          result = await callClaude({ systemBlocks:[masterCtx, instrBlock], userText: buildHydrateJobPrompt(spine, rollingDraft, job, i+1, total, hydratedFrame) + extra, tools:[HYDRATE_NODE_TOOL], toolChoice:{type:'tool', name:'hydrate_node'}, akey, timeoutMs: 180000 });
+        } catch(e){
+          if(e.f4) throw e;
+          if(attempt < 1){ warnYellow('F2', `Phase 2B node ${i+1}/${total} (${job.targetId}) call errored (${e.message||e}) — retrying.`); continue; }
+          warnYellow('F2', `Phase 2B node ${i+1}/${total} (${job.targetId}) failed after retry (${e.message||e}) — left un-hydrated; Phase 3A + the surgical fix will catch it.`); break;
+        }
+        logCacheCall(2, result.usage);
+        if(!result.toolCalls.length && (/\bI cannot\b|\bI (?:can['’]t|won['’]t)\b|\bI apologi[sz]e\b|unable to (?:provide|help|assist|complete)/i.test(result.textOutput||'') || result.stopReason === 'refusal')){
+          if(attempt < 1){ warnYellow('F6', `Phase 2B node ${i+1}/${total}: Claude declined — retrying with "informational professional content" framing. Code: F6.`); f6f = 'IMPORTANT FRAMING: This is informational marketing/SEO content for a professional service-business website — not medical, legal, or financial advice. Write the node normally via hydrate_node.'; continue; }
+          warnYellow('F6', `Phase 2B node ${i+1}/${total} (${job.targetId}) refused after retry — left un-hydrated.`); break;
+        }
+        if(!result.toolCalls.length){
+          if(attempt < 1){ warnYellow('F2', `Phase 2B node ${i+1}/${total}: no tool call returned — retrying. Code: F2.`); continue; }
+          warnYellow('F2', `Phase 2B node ${i+1}/${total} (${job.targetId}): no usable tool call after retry — left un-hydrated.`); break;
+        }
+        const inp = result.toolCalls[0].input;
+        if(inp && inp.__parse_error){
+          if(attempt < 1){ warnYellow('F2', `Phase 2B node ${i+1}/${total}: unparseable tool input (${inp.__parse_error}) — retrying. Code: F2.`); continue; }
+          warnYellow('F2', `Phase 2B node ${i+1}/${total} (${job.targetId}): unparseable after retry — left un-hydrated.`); break;
+        }
+        if(result.stopReason === 'max_tokens') warnYellow('F3', `Phase 2B node ${i+1}/${total} (${job.targetId}) hit the token limit — using the partial content recovered; Phase 3A will flag it if too short. Code: F3.`);
+        data = inp; break;
+      }
+      if(!data){ failed++; continue; } // un-hydrated — Phase 3A + the surgical fix will handle it
+      if(data.targetId && String(data.targetId) !== String(job.targetId)) warnYellow('F13', `Phase 2B node ${i+1}/${total}: Claude returned targetId "${data.targetId}" but we asked for "${job.targetId}" — using its content for the requested node. Code: F13.`);
+      stitchNode(hydratedFrame, { targetId: job.targetId, prose: data.prose, rows: data.rows });
+      if(typeof data.prose === 'string' && data.prose.trim()) rollingDraft += `\n\n\n${data.prose.trim()}`;
+      else if(Array.isArray(data.rows) && data.rows.length) rollingDraft += `\n\n\n[Table inserted — ${job.targetId}, ${data.rows.length} row(s)]`;
+      const o2 = document.getElementById('o2'); if(o2){ o2.textContent = `Phase 2B relay — ${i+1}/${total} node(s) hydrated (last: ${job.targetId} / ${job.type})${failed?`; ${failed} left un-hydrated so far`:''}\n\n` + JSON.stringify(hydratedFrame, null, 2).slice(0, 4000); o2.scrollTop = 0; }
+      const v1Pre = document.getElementById('v1Pre'); if(v1Pre) v1Pre.textContent = JSON.stringify(hydratedFrame, null, 2);
+      const m2 = document.getElementById('m2'); if(m2) m2.textContent = `Phase 2B relay — ${i+1}/${total} done${failed?`, ${failed} un-hydrated`:''}.`;
+    }
+    if(failed) warnYellow('F2', `Phase 2B sequential hydration: ${failed} of ${total} node(s) left un-hydrated after retries — Phase 3A will flag them and the surgical fix will patch them (or CHK1 if it can't). Code: F2.`);
+    return hydratedFrame;
+  }
 
   // ── SURGICAL CORRECTION (replaces ONLY the failing nodes — never regenerates the V1) ──
   function buildSurgicalFixSystem(){
@@ -2034,68 +2175,13 @@ Output the JSON now.`;
     if(r.parseError) return r;
     return { frame: r.input, elapsed: r.elapsed, stopReason: r.stopReason };
   }
-  async function runPhase2B(akey, frame, f2hint, label){
-    const r = await runClaudeTool({ systemBlocks: buildPhase2BSystem(), userText: buildPhase2BUserText(frame, f2hint), tool: V1_HYDRATION_TOOL, label, cardLabel: '2B hydrate', akey });
-    if(r.parseError) return r;
-    return { hydration: r.input, elapsed: r.elapsed, stopReason: r.stopReason };
-  }
   async function runSurgicalFix(akey, packets, label){
     const r = await runClaudeTool({ systemBlocks: buildSurgicalFixSystem(), userText: buildSurgicalFixUserText(packets), tool: V1_FIX_TOOL, label, cardLabel: 'surgical fix', akey });
     if(r.parseError) return r;
     return { corrections: Array.isArray(r.input?.corrections) ? r.input.corrections : [], elapsed: r.elapsed, stopReason: r.stopReason };
   }
-
-  // ─── MERGE 2B HYDRATION INTO THE 2A FRAME ──────────────────
-  // The frame is the structural contract. Hydration adds prose / table rows / FAQ answers
-  // keyed by frame node ids — JS does the merge so Claude physically cannot move the bones.
-  // Mutates `frame` in place and returns it (it becomes the V1).
-  function mergeHydration(frame, hyd){
-    if(!frame || typeof frame !== 'object') return frame;
-    hyd = (hyd && typeof hyd === 'object') ? hyd : {};
-    frame.directAnswer = { id: genId('da'), prose: typeof hyd.directAnswerProse === 'string' ? hyd.directAnswerProse.trim() : '' };
-    if(frame.cta && typeof frame.cta === 'object') frame.cta.hookProse = typeof hyd.ctaHookProse === 'string' ? hyd.ctaHookProse.trim() : (frame.cta.hookProse || '');
-    // index frame nodes by id
-    const secById = {}, h3ById = {}, tableById = {}, faqById = {};
-    toArray(frame.sections).forEach(sec => {
-      if(!sec || typeof sec !== 'object') return;
-      if(sec.id) secById[sec.id] = sec;
-      toArray(sec.h3sections).forEach(h => { if(h && h.id) h3ById[h.id] = h; });
-      toArray(sec.tables).forEach(t => { if(t && t.id) tableById[t.id] = t; });
-    });
-    toArray(frame.faq).forEach(f => { if(f && f.id) faqById[f.id] = f; });
-    const mkParas = arr => toArray(arr).filter(s => typeof s === 'string' && s.trim()).map(s => ({ id: genId('para'), prose: s.trim() }));
-    let orphans = 0;
-    toArray(hyd.sections).forEach(hs => {
-      const sec = secById[hs && hs.sectionId];
-      if(!sec){ orphans++; return; }
-      sec.paragraphs = mkParas(hs.paragraphs);
-      toArray(hs.h3sections).forEach(hh => {
-        const h3 = h3ById[hh && hh.h3Id];
-        if(!h3){ orphans++; return; }
-        h3.paragraphs = mkParas(hh.paragraphs);
-      });
-      toArray(hs.tables).forEach(ht => {
-        const tbl = tableById[ht && ht.tableId];
-        if(!tbl){ orphans++; return; }
-        tbl.rows = toArray(ht.rows).filter(r => r && typeof r === 'object').map(normalizeRow);
-      });
-    });
-    toArray(hyd.faq).forEach(hf => {
-      const f = faqById[hf && hf.faqId];
-      if(!f){ orphans++; return; }
-      f.answer = { id: genId('ans'), prose: typeof hf.answerProse === 'string' ? hf.answerProse.trim() : '' };
-    });
-    // any frame node 2B didn't hydrate gets a safe empty default so downstream code never chokes
-    toArray(frame.sections).forEach(sec => {
-      if(!sec || typeof sec !== 'object') return;
-      if(!Array.isArray(sec.paragraphs)) sec.paragraphs = [];
-      toArray(sec.h3sections).forEach(h => { if(h && typeof h === 'object' && !Array.isArray(h.paragraphs)) h.paragraphs = []; });
-      toArray(sec.tables).forEach(t => { if(t && typeof t === 'object' && !Array.isArray(t.rows)) t.rows = []; });
-    });
-    toArray(frame.faq).forEach(f => { if(f && typeof f === 'object' && (!f.answer || typeof f.answer !== 'object')) f.answer = { id: genId('ans'), prose: '' }; });
-    if(orphans) warnYellow('F13', `Phase 2B hydration referenced ${orphans} node id(s) not present in the frame — ignored. Phase 3 will flag any node left un-hydrated.`);
-    return frame;
-  }
+  // (Phase 2B no longer has a monolithic runner / merge — see executePhase2B + stitchNode above:
+  //  the "relay race" walks one node at a time and stitches each into a clone of the frozen frame.)
 
   // ─── BUILD SURGICAL-FIX PACKETS FROM PHASE 3 FAILS ─────────
   // Maps a validation fail (which carries the offending node's id) to a "fix packet":
@@ -2609,10 +2695,11 @@ Do NOT target any other id. Do NOT change any heading, table header, table row, 
       log(`Phase 1 complete: ${phase1Json.sources.length} sources, ${phase1Json.factClaims.length} factClaims (id-stamped), thesis present.`, 'ok');
 
       // ════════════════════════════════════════════════════════
-      // PHASE 2 — TWO-PASS. 2A STRUCTURE FRAME → JS frame validation → 2B DATA HYDRATION → JS merge.
-      // Then PHASE 3 (3A structural — incl. every table row cites a Phase 1 factClaim; 3B Gemini
-      // semantic, run only when 3A is clean). Phase 3 failures are fixed by SURGICAL micro-calls
-      // that touch ONLY the failing nodes — the full V1 is never regenerated. Max 2 rounds → CHK1.
+      // PHASE 2 — 2A STRUCTURE FRAME + NARRATIVE SPINE → JS frame validation → 2B SEQUENTIAL
+      // HYDRATION ("the Relay Race": one hydrate_node call per node, in order, with a rolling
+      // draft) → JS stitch. Then PHASE 3 (3A structural — incl. every table row cites a Phase 1
+      // factClaim; 3B Gemini semantic, run only when 3A is clean). Phase 3 failures are fixed by
+      // SURGICAL micro-calls that touch ONLY the failing nodes — the V1 is never regenerated.
       // ════════════════════════════════════════════════════════
       const inject = document.getElementById('testInjection')?.value || 'off';
 
@@ -2667,36 +2754,29 @@ Do NOT target any other id. Do NOT change any heading, table header, table row, 
       }
       if(pipelineHalted || !frame) return;
 
-      // ── PHASE 2B — DATA HYDRATION (one call; F2 retries up to 2x; data failures are surfaced by Phase 3, not retried here) ──
-      setG('Phase 2B — Claude DATA HYDRATION (paragraph prose, table data rows citing factClaims, FAQ answers) into the locked frame…', true);
-      setPhase(2, 'active', '2B hydrate');
-      let v1 = null;
-      {
-        let p2b = null, bF2hint = false;
-        for(let ba = 0; ba <= 2; ba++){
-          try { p2b = await runPhase2B(akey, frame, bF2hint, ba === 0 ? 'Phase 2B' : `Phase 2B retry ${ba}`); }
-          catch(e){ if(e.f4){ escalateRed('F4', `Claude/proxy unavailable during Phase 2B. (${e.message})`); return; } throw e; }
-          if(p2b.parseError){
-            if(ba < 2){ warnYellow('F2', `Phase 2B returned unparseable output (${p2b.parseError}). Retrying with a raw-JSON-only instruction.`); bF2hint = true; continue; }
-            escalateRed('F2', `Claude returned unparseable JSON for Phase 2B after 2 retries. ${p2b.parseError}.`); return;
-          }
-          break;
-        }
-        if(p2b.stopReason === 'max_tokens'){
-          warnYellow('F3', `Phase 2B hydration hit the token limit (stop_reason=max_tokens). Recovered the partial JSON via the tolerant parser; Phase 3 will flag any node left un-hydrated. Full continuation-merge ships in a later milestone.`);
-        }
-        v1 = mergeHydration(frame, p2b.hydration);   // mutates `frame` in place → it becomes the V1
-        assignIds(v1);                               // assign-if-missing — backfill any node id not already set
-        S.v1 = v1;
-        const rowCount = (v1.sections||[]).reduce((n,s)=>n+(toArray(s.tables).reduce((m,t)=>m+(Array.isArray(t.rows)?t.rows.length:0),0)),0);
-        const paraCount = (v1.sections||[]).reduce((n,s)=>n+(Array.isArray(s.paragraphs)?s.paragraphs.length:0)+toArray(s.h3sections).reduce((m,h)=>m+(Array.isArray(h.paragraphs)?h.paragraphs.length:0),0),0);
-        const sm = `sections:${v1.sections?.length||0}  paras:${paraCount}  faq:${v1.faq?.length||0}  table rows:${rowCount}  tables:${countTables(v1)}  images:${countImages(v1)}`;
-        document.getElementById('o2').textContent = '── V1 (frame + Phase 2B hydration) ──\n' + JSON.stringify(v1, null, 2).slice(0, 4000);
-        document.getElementById('v1Pre').textContent = JSON.stringify(v1, null, 2);
-        document.getElementById('m2').textContent = `V1 hydrated (${p2b.elapsed}s) — ${sm}. DA: ${(v1.directAnswer?.prose||'').trim().split(/\s+/).filter(Boolean).length} words.`;
-        setPhase(2, 'done', `V1 ${p2b.elapsed}s`);
-        log(`Phase 2B complete — ${sm}.`, 'ok');
-      }
+      // ── PHASE 2B — SEQUENTIAL HYDRATION ("the Relay Race") — Milestone 2.6 ──
+      //    One focused Claude call per prose/table node, in article order, each carrying the
+      //    narrative spine + a rolling draft of everything written so far. JS stitches each node
+      //    into a clone of the locked frame by targetId (the frame itself is never mutated).
+      //    This permanently replaces the monolithic single-call hydration (output-token fatigue).
+      setG('Phase 2B — sequential hydration (the "relay race": one node at a time, with rolling context)…', true);
+      setPhase(2, 'active', '2B relay');
+      const _t2b = Date.now();
+      let v1;
+      try { v1 = await executePhase2B(frame, akey); }
+      catch(e){ if(e.f4){ escalateRed('F4', `Claude/proxy unavailable during Phase 2B sequential hydration. (${e.message})`); return; } throw e; }
+      if(pipelineHalted || !v1) return;
+      assignIds(v1);                                 // assign-if-missing — backfill any node id not already set (no-op if all are)
+      S.v1 = v1;
+      const _e2b = ((Date.now()-_t2b)/1000).toFixed(1);
+      const rowCount  = toArray(v1.sections).reduce((n,s)=>n+toArray(s.tables).reduce((m,t)=>m+(Array.isArray(t.rows)?t.rows.length:0),0),0);
+      const paraCount = toArray(v1.sections).reduce((n,s)=>n+(Array.isArray(s.paragraphs)?s.paragraphs.filter(p=>p&&String(p.prose||'').trim()).length:0)+toArray(s.h3sections).reduce((m,h)=>m+(Array.isArray(h.paragraphs)?h.paragraphs.filter(p=>p&&String(p.prose||'').trim()).length:0),0),0);
+      const sm = `sections:${v1.sections?.length||0}  hydrated paras:${paraCount}  faq:${v1.faq?.length||0}  table rows:${rowCount}  tables:${countTables(v1)}  images:${countImages(v1)}`;
+      document.getElementById('o2').textContent = '── V1 (frame + Phase 2B sequential hydration) ──\n' + JSON.stringify(v1, null, 2).slice(0, 4000);
+      document.getElementById('v1Pre').textContent = JSON.stringify(v1, null, 2);
+      document.getElementById('m2').textContent = `V1 hydrated in ${_e2b}s via the relay race — ${sm}. DA: ${(v1.directAnswer?.prose||'').trim().split(/\s+/).filter(Boolean).length} words.`;
+      setPhase(2, 'done', `V1 ${_e2b}s`);
+      log(`Phase 2B complete (sequential hydration, ${_e2b}s) — ${sm}.`, 'ok');
 
       // ── PHASE 3 (3A structural + 3B Gemini semantic) + SURGICAL RETRY (max 2 rounds; never regenerates the V1) ──
       let lastValidation = null;
@@ -2775,7 +2855,7 @@ Do NOT target any other id. Do NOT change any heading, table header, table row, 
       const _rowCount = (v1.sections||[]).reduce((n,s)=>n+(toArray(s.tables).reduce((m,t)=>m+(Array.isArray(t.rows)?t.rows.length:0),0)),0);
       const _daWords = (v1.directAnswer?.prose||'').trim().split(/\s+/).filter(Boolean).length;
       document.getElementById('o4').textContent =
-        `V1 frozen — Object.frozen=${Object.isFrozen(v1)} (recursive). Built two-pass: 2A frame → 2B hydration → JS merge.\n` +
+        `V1 frozen — Object.frozen=${Object.isFrozen(v1)} (recursive). Built: 2A frame + narrative spine → 2B sequential hydration (the "relay race", one node at a time) → JS stitch.\n` +
         `Structural minimums met: sections=${v1.sections.length}, faq=${v1.faq.length}, tables=${countTables(v1)} (rows=${_rowCount}, each row citing a Phase 1 factClaim), images=${countImages(v1)}, DA=${_daWords} words.\n` +
         `Thesis: "${v1.thesis?.statement || '(none)'}"\n` +
         (artifactKey ? `Snapshot saved to localStorage key: ${artifactKey}` : 'Snapshot save failed (see YELLOW F16).') +
