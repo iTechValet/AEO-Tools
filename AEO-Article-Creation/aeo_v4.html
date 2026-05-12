@@ -56,6 +56,7 @@
   .stat-value.orange { color:var(--orange); }
   .stat-value.green { color:var(--green); }
   .stat-value.accent { color:var(--accent); }
+  .stat-value.red { color:var(--red); }
   .stat-divider { width:1px; height:32px; background:var(--border); align-self:center; }
 
   .gstatus { font-size:12px; color:var(--accent); min-height:16px; font-weight:400; padding:6px 0 2px; }
@@ -115,9 +116,9 @@
   .cache-stat-value.orange { color:var(--orange); }
   .cache-log-row { padding:10px 12px; border-bottom:1px solid var(--border); font-size:12px; display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr; gap:8px; align-items:center; }
   .cache-log-row.header { font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1.5px; color:var(--blue); opacity:.6; background:#eef3f8; }
-  .cache-log-row .verdict.hit { color:var(--green); font-weight:600; }
-  .cache-log-row .verdict.miss { color:var(--orange); font-weight:600; }
-  .cache-log-row .verdict.partial { color:var(--accent); font-weight:600; }
+  .cache-log-row .verdict.hit { color:var(--green); font-weight:600; }      /* YES / CREATED */
+  .cache-log-row .verdict.partial { color:var(--orange); font-weight:600; } /* PARTIAL */
+  .cache-log-row .verdict.miss { color:var(--red); font-weight:600; }       /* MISS */
 
   .runlog { font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.6; }
   .runlog .line { padding:3px 6px; border-bottom:1px solid #eef0f3; }
@@ -469,7 +470,7 @@
 
     <div class="ppane active" id="pane-runlog">
       <div class="legend-box">
-        <strong>What to look for:</strong> First Phase 2 call (2A) → <code>cache_creation_input_tokens &gt; 0</code>, <code>cache_read_input_tokens = 0</code> (cache MISS — the shared context block is being written). Every later call (2B, the surgical fix, and "↻ Verify Cache") within ~5 min → <code>cache_read_input_tokens &gt; 0</code> (cache HIT — same context block replayed). The "↻ Verify Cache" button in the Cache Stats tab re-runs Phase 2A to prove the round trip.
+        <strong>What to look for:</strong> First Phase 2 call (2A) → <code>cache_creation_input_tokens &gt; 0</code>, <code>cache_read_input_tokens = 0</code> (verdict <strong style="color:var(--green);">CREATED</strong> — the shared context block is being written). Every later call (2B, the surgical fix, and "↻ Verify Cache") within ~5 min → <code>cache_read_input_tokens &gt; 0</code> (verdict <strong style="color:var(--green);">YES</strong> — same context block replayed). The "↻ Verify Cache" button in the Cache Stats tab re-runs Phase 2A to prove the round trip.
       </div>
       <div class="runlog" id="runlogBody"><div class="line info"><span class="ts">—</span>V4.0 M1 ready.</div></div>
     </div>
@@ -486,7 +487,7 @@
       <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px; padding:12px 14px; background:#eef3f8; border:1px solid var(--border); border-radius:8px;">
         <button class="btn-cache" id="cacheBtnPanel" onclick="repeatPhase2()" disabled style="background:var(--blue);">↻ Verify Cache — re-run Phase 2A</button>
         <div style="font-size:11px; color:var(--muted); line-height:1.5;">
-          Re-runs Phase 2A with the identical cached context block (the same block 2A / 2B / surgical-fix all share). Within ~5 min of a completed run, the result row below should read <strong style="color:var(--green);">HIT</strong> with <code>cache_read &gt; 0</code>. Enabled only after ⚡ Run completes. Streams live in the V1 JSON tab — it is working even if the result takes 30–90s.
+          Re-runs Phase 2A with the identical cached context block (the same block 2A / 2B / surgical-fix all share). Within ~5 min of a completed run, the result row below should read <strong style="color:var(--green);">YES</strong> with <code>cache_read &gt; 0</code>. Enabled only after ⚡ Run completes. Streams live in the V1 JSON tab — it is working even if the result takes 30–90s.
         </div>
       </div>
       <div class="cache-grid">
@@ -512,7 +513,7 @@
       </div>
       <div id="cacheLogRows"></div>
       <div style="margin-top:14px; padding:10px 12px; background:#eef9ee; border:1px solid #c8e6c9; border-radius:6px; font-size:11px; color:#1b5e20;">
-        <strong>Milestone 1 cache verification passes when:</strong> ⚡ Run produces row 1 with cache_creation &gt; 0 (verdict MISS or PARTIAL — context being written), then ↻ Verify Cache within 5 min produces row 2 with cache_read &gt; 0 (verdict HIT — context replayed from cache). Both numbers visible = caching is wired correctly.
+        <strong>Milestone 1 cache verification passes when:</strong> ⚡ Run produces row 1 with cache_creation &gt; 0 (verdict <strong style="color:var(--green);">CREATED</strong> — context being written), then ↻ Verify Cache within 5 min produces row 2 with cache_read &gt; 0 (verdict <strong style="color:var(--green);">YES</strong> — context replayed from cache). Both numbers visible = caching is wired correctly.
       </div>
     </div>
 
@@ -725,7 +726,7 @@
     document.getElementById('o4').textContent='';
     document.getElementById('htmlPre').textContent='Phase 6 stub output appears here.';
     setCacheBtnsDisabled(true);
-    document.getElementById('cacheVerdict').textContent='—';
+    { const cv = document.getElementById('cacheVerdict'); cv.textContent = '—'; cv.className = 'stat-value accent'; }
     setG(S.client ? `Client: ${S.client.name} [${getClientMode(S.client.name)}]. Ready.` : 'Ready. Select client, paste topic, hit Run.');
   }
 
@@ -1471,13 +1472,23 @@ ${factClaimMenu()}`;
   }
 
   // ─── CACHE LOG ─────────────────────────────────────────────
+  // Cache verdict names + colours:
+  //   YES     = this call READ the cache (cacheRead>0, cacheCreate=0)      → green
+  //   CREATED = this call WROTE the cache (cacheRead=0, cacheCreate>0)      → green
+  //   PARTIAL = both read and wrote (cacheRead>0, cacheCreate>0)           → orange
+  //   MISS    = no cache read and nothing written (cacheRead=0, write=0)   → red
+  function verdictStyle(v){
+    if(v === 'YES' || v === 'CREATED') return { statClass:'green', rowClass:'hit', level:'ok' };
+    if(v === 'PARTIAL')                 return { statClass:'orange', rowClass:'partial', level:'warn' };
+    return { statClass:'red', rowClass:'miss', level:'err' }; // MISS (and any unexpected value)
+  }
   function logCacheCall(phase, usage){
     const callIndex = S.cacheLog.length + 1;
     let verdict = 'MISS';
-    if(usage.cacheRead > 0 && usage.cacheCreate === 0) verdict = 'HIT';
+    if(usage.cacheRead > 0 && usage.cacheCreate === 0) verdict = 'YES';
     else if(usage.cacheRead > 0 && usage.cacheCreate > 0) verdict = 'PARTIAL';
-    else if(usage.cacheRead === 0 && usage.cacheCreate > 0) verdict = 'MISS (write)';
-    else if(usage.cacheRead === 0 && usage.cacheCreate === 0) verdict = 'NO CACHE';
+    else if(usage.cacheRead === 0 && usage.cacheCreate > 0) verdict = 'CREATED';
+    else if(usage.cacheRead === 0 && usage.cacheCreate === 0) verdict = 'MISS';
     S.cacheLog.push({
       phase, callIndex,
       cacheCreate: usage.cacheCreate,
@@ -1489,16 +1500,18 @@ ${factClaimMenu()}`;
     document.getElementById('lastRead').textContent = usage.cacheRead.toLocaleString();
     document.getElementById('lastInput').textContent = usage.input.toLocaleString();
     document.getElementById('lastOutput').textContent = usage.output.toLocaleString();
-    document.getElementById('cacheVerdict').textContent = verdict;
+    const cv = document.getElementById('cacheVerdict');
+    cv.textContent = verdict;
+    cv.className = 'stat-value ' + verdictStyle(verdict).statClass;
     renderCacheLog();
     log(`Phase ${phase} cache → write:${usage.cacheCreate} read:${usage.cacheRead} input:${usage.input} output:${usage.output} → ${verdict}`,
-        verdict === 'HIT' ? 'ok' : verdict === 'PARTIAL' ? 'info' : 'warn');
+        verdictStyle(verdict).level);
   }
   function renderCacheLog(){
     const c = document.getElementById('cacheLogRows');
     if(!S.cacheLog.length){ c.innerHTML = '<div style="padding:14px; color:var(--faint); font-style:italic;">No calls yet.</div>'; return; }
     c.innerHTML = S.cacheLog.map(r => {
-      const klass = r.verdict.startsWith('HIT') ? 'hit' : r.verdict.startsWith('PARTIAL') ? 'partial' : 'miss';
+      const klass = verdictStyle(r.verdict).rowClass;
       return `<div class="cache-log-row">
         <div>${r.callIndex}</div>
         <div>${r.phase}</div>
@@ -2202,7 +2215,7 @@ Output the JSON now.`;
     S.research = null; S.frame = null; S.v1 = null; S.v1Frozen = false; S.validation = null; S.htmlStub = ''; S.cta43BWarned = false; S._extraLinksWarned = false;
     _idCounter = 0; // ids are unique per run; reset once here, not per assignIds() call
     updateCost(); renderCacheLog();
-    document.getElementById('cacheVerdict').textContent = '—';
+    { const cv = document.getElementById('cacheVerdict'); cv.textContent = '—'; cv.className = 'stat-value accent'; }
     setCacheBtnsDisabled(true);
     clearYellowWarnings();   // YELLOW warnings reset at the start of every run (RED behavior unchanged)
     clearRunEscalations();   // clears this run's RED list + re-renders the panel (now empty of both)
@@ -2471,7 +2484,7 @@ Output the JSON now.`;
       if(mode === 'calibration'){ incrementCalibratedCount(S.client.name); renderModeUI(); }
 
       const cacheVerdict = S.cacheLog[0]?.verdict || '—';
-      setG(`✓ Phases 1–4 complete — V1 validated & frozen. Mode: ${mode}${mode==='calibration' ? ` (now ${getCalibratedCount(S.client.name)} calibrated)` : ''}. Cache: ${cacheVerdict}. Phase 5 = Milestone 3; Phase 6 = stub. Use "↻ Verify Cache" on the Cache Stats tab to confirm a HIT.`);
+      setG(`✓ Phases 1–4 complete — V1 validated & frozen. Mode: ${mode}${mode==='calibration' ? ` (now ${getCalibratedCount(S.client.name)} calibrated)` : ''}. Cache: ${cacheVerdict}. Phase 5 = Milestone 3; Phase 6 = stub. Use "↻ Verify Cache" on the Cache Stats tab to confirm a YES.`);
       setCacheBtnsDisabled(false);
     } catch(err){
       console.error(err);
@@ -2493,7 +2506,7 @@ Output the JSON now.`;
 
   // Cache verification: re-run Phase 2A with the SAME cached context block. Both the real
   // Phase 2A/2B/surgical-fix calls and this one share that block byte-for-byte, so within the
-  // ~5-min TTL this run reports cache_read > 0, cache_creation = 0 → verdict HIT. Streams live
+  // ~5-min TTL this run reports cache_read > 0, cache_creation = 0 → verdict YES. Streams live
   // so it never looks stalled; aborts on watchdog timeout so a real hang surfaces as an error.
   function setCacheBtnsDisabled(disabled){
     ['cacheBtn','cacheBtnPanel'].forEach(id=>{ const b=document.getElementById(id); if(b) b.disabled = disabled; });
@@ -2526,8 +2539,8 @@ Output the JSON now.`;
       logCacheCall(2, result.usage);
       const elapsed = ((Date.now()-t)/1000).toFixed(1);
       const verdict = S.cacheLog[S.cacheLog.length-1].verdict;
-      const isHit = verdict.startsWith('HIT');
-      setPhase(2, isHit ? 'done' : 'error', isHit ? `Cache HIT ${elapsed}s` : `Cache ${verdict}`);
+      const isHit = (verdict === 'YES'); // a cache READ happened — the round-trip is proven
+      setPhase(2, isHit ? 'done' : 'error', isHit ? `Cache YES ${elapsed}s` : `Cache ${verdict}`);
       // Refresh the o2/m2 boxes with the parsed frame so it doesn't sit on the streaming view
       if(result.toolCalls.length && !result.toolCalls[0].input.__parse_error){
         const fb = result.toolCalls[0].input;
@@ -2536,7 +2549,7 @@ Output the JSON now.`;
       document.getElementById('m2').textContent = `Cache test (re-ran Phase 2A) done in ${elapsed}s — cache_read=${result.usage.cacheRead}, cache_creation=${result.usage.cacheCreate} → ${verdict}`;
       log(`Cache verification verdict: ${verdict} (cache_read=${result.usage.cacheRead}, cache_creation=${result.usage.cacheCreate})`, isHit ? 'ok' : 'warn');
       setG(isHit
-        ? `✓ CACHE HIT CONFIRMED. cache_read_input_tokens=${result.usage.cacheRead}, cache_creation_input_tokens=${result.usage.cacheCreate}. Caching verification complete.`
+        ? `✓ CACHE READ CONFIRMED — verdict YES. cache_read_input_tokens=${result.usage.cacheRead}, cache_creation_input_tokens=${result.usage.cacheCreate}. Caching verification complete.`
         : `Cache verdict: ${verdict} (cache_read=${result.usage.cacheRead}, cache_creation=${result.usage.cacheCreate}). If >5 min passed since the first run the TTL expired — run ⚡ Run Phase 1+2 again then click ↻ Verify Cache promptly.`, false, !isHit);
       switchTab('cache');
     } catch(err){
