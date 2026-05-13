@@ -1,5 +1,5 @@
 AEO ARTICLE CREATION PIPELINE — MASTER REFERENCE DOC  (WORKING COPY — sessions of May 11–13, 2026)
-Last Updated: May 13, 2026 (Claude Code build session — V4.0 schema refactor + hallucination-sweep recalibration + assembly-time delivery polish + multiple live end-to-end runs against real iTV topics — bugs surfaced + patched in-session) | V3.1 (production) | V4.0 (LIVE-TESTED — ALL 7 PHASES BUILT [M1–M5] + post-M5 schema upgrade [content_sections / conclusion_section / faq_section / sectional fact allocation / framework_labels / table_type / Save State per-section rollback / inline citation tokens / Phase 3B is now hallucination-sweep-only with FLAG/IGNORE recalibration]; multiple end-to-end runs completed against real iTV topics this session; live-run bug catches patched same-day [byline title duplication, consecutive duplicate paragraphs, conclusion content landing in content_sections]; M6 side-by-side V3.1↔V4.0 + M7 ship still pending)
+Last Updated: May 13, 2026 (Claude Code build session — V4.0 schema refactor + hallucination-sweep recalibration + assembly-time delivery polish + multiple live end-to-end runs against real iTV topics — bugs surfaced + patched in-session + a SECOND WAVE of M5.5 polish at the end of the day: conclusion regex expansion, Phase 3B link/entity recalibration, structural threshold loosening, Phase 6 QC1/QC3 demotion to informational, Phase 2A final-section constraint + Phase 3A granularity trap, Phase 7A render order swapped to FAQ-before-conclusion per 4.3A) | V3.1 (production) | V4.0 (LIVE-TESTED — ALL 7 PHASES BUILT [M1–M5] + post-M5 schema upgrade [content_sections / conclusion_section / faq_section / sectional fact allocation / framework_labels / table_type / Save State per-section rollback / inline citation tokens / Phase 3B is now hallucination-sweep-only with FLAG/IGNORE recalibration + link_/entity carveouts]; multiple end-to-end runs completed against real iTV topics this session; live-run bug catches patched same-day [byline title duplication, consecutive duplicate paragraphs, conclusion content landing in content_sections, narrative-climax sections like "The Widening Gap" / "The Verdict" getting an image + ToC entry instead of going to conclusion_section, FAQ rendering after conclusion]; M6 side-by-side V3.1↔V4.0 + M7 ship still pending)
 ================================================
 
 ⚠️ V4.0 ARCHITECTURAL REBUILD — LIVE-TESTING IN PROGRESS (Claude Code)
@@ -975,6 +975,154 @@ aeo_v4.html. The 7-phase pipeline shape is unchanged; the schema, the Phase
   capacity blips without compounding them. Total attempts: up to 3
   per image.
 
+— SECOND WAVE OF M5.5 POLISH (May 13, 2026 — five additional commits
+  shipped at end of day, all from continued live-run observation).
+  After the initial six-commit M5.5 wave, a second round of iTV-topic
+  live runs surfaced more friction. Patched in five commits:
+
+  • CONCLUSION REGEX EXPANSION (commit 21ae084, May 13). The Phase
+    2B end-of-relay diagnostic + (separately) the Phase 3A granularity
+    trap need a regex that catches the actual conclusion-style H2s
+    Claude produces in the iTV voice. Expanded from ~10 to 34
+    alternations. Adds: the widening gap / widening gap / the verdict
+    / the truth / the reality / the stakes / the road ahead / the long
+    view / closing thoughts / closing notes / closing word / in
+    summary / moving forward / next steps / the path forward / where
+    do you go|we go / the choice / the decision / the outcome / what
+    this means / what now / what happens next / the cost of waiting.
+    Smoke-tested (29 cases): all 25 conclusion-style headings match;
+    "How AEO Differs from SEO", "Why Speed Matters", "The Three
+    Pillars", "Pricing Models Compared" do NOT false-positive.
+
+  • PHASE 3B LINK_ NODE FILTER + ENTITY FLAG RECALIBRATION (commit
+    5c20630, May 13 — informed by a Gemini Pro consultation). The
+    Phase 3B hallucination sweep was thrashing on two false-positive
+    classes: (1) link_ nodes (links are deterministically validated
+    by Phase 3A; Phase 3B should never weigh in on them), and (2)
+    casual mentions of ubiquitous industry platforms (Google, Bing,
+    WordPress, Google Analytics) used as rhetorical examples. Three
+    surgical edits:
+      — buildPhase3BPrompt IGNORE list: added "All URLs and domain
+        names (e.g., https://hbr.org, hbr.org). Links are validated
+        separately by a different system — do not flag them."
+      — buildPhase3BPrompt FLAG entity rule: rewritten from "Named
+        companies, software tools, or agencies not present in 4.3B
+        or factClaims" to "Named companies or agencies presented as
+        specific case studies, proprietary data sources, or partners
+        — only when not present in factClaims or 4.3B. Do NOT flag
+        ubiquitous industry tools or platforms (e.g., Google, Bing,
+        WordPress, Google Analytics) used as casual rhetorical
+        examples or industry-standard references."
+      — buildPhase3BPrompt nodeId example: "e.g. da_*, para_*, ans_*,
+        table_*, cta_* — do NOT return link_* ids; links are out of
+        scope for this check."
+      — Phase 3B orchestrator pre-filter at the top of the
+        for(const h of proseFails) loop: "if(String(h.nodeId || '')
+        .startsWith('link_')){ continue; }" — defensive guard so
+        any link_ id that slips past the prompt-level instruction
+        never triggers a Save State micro-retry or kill-only RED.
+
+  • STRUCTURAL THRESHOLD LOOSENING + assigned_facts CAP BUMP + DA
+    GLOBAL POOL (commit 6e2bc33, May 13). Live runs were rejecting
+    structurally-sound frames on cosmetic threshold misses. Loosened:
+      — tables: >=3 → >=2 (across all content_sections combined)
+      — faq qa_pairs: >=5 → >=4 (schema minItems + 3A check both)
+      — Direct Answer word count: 200-300 → 150-400
+      — content_section assigned_facts: maxItems 3 → 4
+      — conclusion_section assigned_facts: minItems 1 → 0, maxItems
+        3 → 4. The conclusion may now ship with [] when it
+        synthesizes existing arguments with no new data.
+        validateV1Structure.checkAssignedFacts gained a required
+        flag (defaults true for content + FAQ; false for conclusion).
+      — Phase 2A prompt + tool schema descriptions rewritten end to
+        end so the "1-3 factClaim IDs" wording reflects "1-4" (or
+        "0-4" for conclusion).
+      — Direct Answer factClaim pool: switched from "union of every
+        section's assigned_facts" to the FULL Phase 1
+        validFactClaimIds() set, since the DA opens the article and
+        may legitimately cite any thesis-level factClaim — including
+        ones no body section ended up consuming.
+
+  • PHASE 6 QC1 + QC3 DEMOTED TO INFORMATIONAL (commit 6e2bc33,
+    May 13 — same commit as the threshold loosening). QC1 (pronoun/
+    noun-start ratio) and QC3 (rhetorical question density) were
+    causing retry-thrash on sections that were structurally fine but
+    happened to skew noun-heavy or argue without rhetorical questions.
+    runQualityChecks now returns { fails, infoFails, passed:
+    fails.length === 0 }. QC1 and QC3 push to infoFails (informational
+    — never drives retries); QC2 callback / QC4 AI-Tell / QC5 data
+    anchors / QC6 semantic anchor continue to push to fails
+    (BLOCKING — drives retries). The Phase 6 critique loop now tracks
+    lastInfoFails alongside lastFails and emits a single YELLOW F14
+    per block listing the informational notes — operator sees the
+    metrics without burning re-voice cycles.
+
+  • PHASE 2A FINAL-CONTENT-SECTION CONSTRAINT + PHASE 3A GRANULARITY
+    TRAP (commit 631e1f5, May 13). Closes the loop on the conclusion-
+    misplacement class of bugs (sections like "The Widening Gap"
+    landing in content_sections instead of conclusion_section).
+    Phase 2A prompt addition (NON-NEGOTIABLE): the final
+    content_section must end ABRUPTLY on a specific, granular
+    sub-topic (implementation step / technical component / named
+    process / pricing detail / tactical how-to). Forbidden as the
+    final content_section: narrative climax, cost of inaction,
+    widening gap, stakes summary, any synthesizing/urgency content.
+    All stakes / urgency / synthesis belong EXCLUSIVELY in
+    conclusion_section. The final content_section must contain H3
+    sub-sections OR a table (or both). Phase 3A enforcement: new
+    last_section_no_depth structural fail — if content_sections is
+    non-empty AND the last entry has ZERO h3sections AND ZERO tables,
+    emit the fail. Drives the surgical-fix loop (cap 2 rounds) then
+    CHK1 RED if Phase 2A can't repair. Smoke-tested with 4 frame
+    variants (last has table → silent; last has H3 → silent; last
+    is flat prose → fires; empty content_sections → silent).
+
+  • PHASE 7A RENDER ORDER — FAQ BEFORE CONCLUSION (commit 613be17,
+    May 13). Per 4.3A spec the correct order is content_sections →
+    faq_section → conclusion_section → CTA — the conclusion is the
+    narrative payoff that lands as the FINAL section immediately
+    before the CTA, the FAQ sits between the body content and the
+    conclusion. Earlier builds had conclusion before FAQ, which
+    buried the payoff AND made QC2's bottom-20% check measure
+    against the wrong ordering. Three swaps + one dependent fix:
+      — assemblePhase7HTML: FAQ block (heading + intro_paragraphs +
+        qa_pairs) now renders immediately after the content_sections
+        loop; conclusion block (heading + paragraphs) renders after
+        the FAQ block and immediately before the CTA. Block bodies
+        unchanged — only positions swapped.
+      — collectArticleHeadings: ToC pushes FAQ H2 + qa_pair questions
+        BEFORE the conclusion H2 (ToC order matches assembly order).
+      — Phase 2A frame prompt: added "ARTICLE RENDER ORDER (LOCKED —
+        per 4.3A): Direct Answer → content_sections → faq_section →
+        conclusion_section → CTA" as the first instruction after the
+        opening line, before the "Produce:" list.
+      — DEPENDENT FIX articleParagraphTexts(): its code comment
+        already required ordering to match render order; helper now
+        pushes FAQ → conclusion (was conclusion → FAQ). Keeps QC2
+        (callback verifier — top-20%/bottom-20%) and QC6 (semantic
+        anchor) measuring against the correct sequence.
+      — INTENTIONALLY NOT CHANGED: Phase 2B / Phase 5 / Phase 6
+        relay queue WRITE orders (the sequence in which Claude
+        composes content + accumulates the rolling draft). Those
+        are independent of render order. The conclusion staying
+        the last 'section'-type critique job in Phase 6 means
+        lastSectionJobIdx keeps pointing at it — QC2/QC6 still fire
+        on the conclusion (the right place for the callback to
+        land). Phase 6's conclusion job's sliding-window nextHead
+        still expects "FAQ follows" because the FAQ is written
+        after the conclusion in the relay — write-order is
+        independent of render-order.
+
+  STATUS after the second wave: all 5 commits live on main, all
+  syntax-clean, none yet live-tested as a batch. Cumulative
+  M5.5 commit count: 11 aeo_v4.html commits across May 12–13
+  (282b03c, 832dde1, 9dcfad8, 04e8c55, 09250e1, 45f1d0c, bfecf3d,
+  234775d, e0efe2a, 21ae084, 5c20630, 6e2bc33, 631e1f5, 613be17 —
+  that's 14 including the two from before M5.5 was formalized).
+  Combined effect: every architectural failure mode surfaced in
+  live testing has either a fix shipped or a kill-only RED with a
+  bounded-cost retry path.
+
 ────────────────────────────────────────────────────────────
 PHASE RENUMBERING (May 12, 2026)
 The build plan and the older parts of this doc number some phases with decimals
@@ -1820,23 +1968,38 @@ next clean end-to-end run before being closed.
    past the new regex stops (comma / same-line "Author Title:" / pipe /
    newline / end), revisit extractBrandingFrom43B.
 
-2. CONCLUSION PARAGRAPHS LANDING IN content_sections — PARTIAL FIX
-   PUSHED. The architectural schema fix (commit 04e8c55, May 13) gives
-   the conclusion its own top-level key + Phase 3A hard validation that
-   forces a Phase 2A retry when conclusion_section is empty. The
-   end-of-Phase-2B diagnostic (commit e0efe2a, May 13) logs a YELLOW
-   F14 listing the misplaced node ids when conclusion_section is empty
-   AND a content_section's heading matches the conclusion regex AND
-   has hydrated prose. CURRENT REGEX (e0efe2a): covers ~10 patterns —
-   conclusion / conclud / bottom line / wrap up / wrapping up / final
-   thoughts|words|takeaways / in closing / to sum up / takeaway /
-   summary / the last word / where this leaves you. WATCH ITEM (open):
-   live-observed headings "The Widening Gap" and "The Verdict" do NOT
-   match this regex — the YELLOW diagnostic will silently NOT fire on
-   them, even though Phase 3A's structural fail still forces the
-   Phase 2A retry. The regex is a candidate for expansion if these
-   patterns keep showing up; document the expansion in the next
-   session entry when shipped.
+2. CONCLUSION PARAGRAPHS LANDING IN content_sections — FULL FIX
+   PUSHED (multi-commit). RESOLVED in defense-in-depth across the
+   pipeline:
+     (a) Schema (commit 04e8c55) — conclusion_section is its own
+         top-level key with Phase 3A hard validation that forces a
+         Phase 2A retry when it's empty.
+     (b) Phase 2B end-of-relay diagnostic (commit e0efe2a) — YELLOW
+         F14 listing misplaced nodes when conclusion_section is empty
+         AND a content_section H2 matches the conclusion regex AND
+         has hydrated prose.
+     (c) Conclusion regex expansion (commit 21ae084) — went from ~10
+         patterns to 34. NOW MATCHES: the widening gap / the verdict
+         / the truth / the reality / the stakes / the road ahead / the
+         long view / closing thoughts / closing notes|word / in
+         summary / moving forward / next steps / the path forward /
+         where do you|we go / the choice / the decision / the outcome
+         / what this means / what now / what happens next / the cost
+         of waiting — plus the original conclusion/bottom line/wrap
+         up/final thoughts/in closing/to sum up/takeaway/summary/
+         the last word/where this leaves you.
+     (d) Phase 2A frame prompt: FINAL CONTENT SECTION CONSTRAINT
+         (commit 631e1f5) tells Claude where the line is at frame
+         time — content_sections must end on a granular sub-topic,
+         narrative climax belongs exclusively in conclusion_section.
+     (e) Phase 3A granularity trap (commit 631e1f5) — new structural
+         fail last_section_no_depth fires when the final
+         content_section has zero H3s AND zero tables. Drives the
+         surgical-fix loop then CHK1 RED if Phase 2A can't repair.
+   WATCH: confirm the next live runs show conclusion content in
+   conclusion_section. If a new heading pattern slips past the regex
+   AND the structural trap, that's a third-line failure worth a
+   regex expansion.
 
 3. IMAGE GENERATION — 4/5 FAILURE RATE OBSERVED ON SOME LIVE RUNS.
    MITIGATIONS PUSHED. Image queue tuning is in place: 35 s / 45 s /
@@ -1862,19 +2025,27 @@ next clean end-to-end run before being closed.
    separated by a sentence or an unrelated paragraph), this guard
    won't catch it — that would be a different bug class.
 
-5. PHASE 3B FALSE POSITIVES ON CONVERSATIONAL LANGUAGE — FIX PUSHED
-   (commit 45f1d0c, May 13). The Phase 3B prompt's IGNORE list now
-   explicitly tells Gemini to NOT flag conversational timeframes
-   ("in six weeks"), written-out rhetorical numbers ("eighteen
-   clients"), qualitative comparisons ("most"), general duration /
-   frequency language, and any prose that "sounds specific but makes
-   no claim to be sourced data." Combined with the FLAG list (only
-   specific %/$/named studies/named companies/software/agencies),
-   this should massively reduce the previous thrashing where Gemini
-   flagged voice-driven prose as hallucinations. WATCH: the next
-   live runs' Phase 3B pass rate should jump. If it stays low,
-   expand the IGNORE list with the specific patterns being
-   over-flagged.
+5. PHASE 3B FALSE POSITIVES — TWO WAVES OF FIXES PUSHED. RESOLVED.
+   First wave (commit 45f1d0c, May 13): conversational language
+   carveout. The IGNORE list explicitly tells Gemini to NOT flag
+   conversational timeframes ("in six weeks"), written-out rhetorical
+   numbers ("eighteen clients"), qualitative comparisons ("most"),
+   general duration/frequency language, and any prose that "sounds
+   specific but makes no claim to be sourced data." Second wave
+   (commit 5c20630, May 13 — Gemini Pro consultation): link_/entity
+   carveout. (a) URL/domain IGNORE bullet added (link_ nodes are
+   validated by Phase 3A, not 3B). (b) Entity FLAG rule narrowed
+   from "Named companies, software tools, or agencies not present"
+   to "Named companies or agencies presented as specific case
+   studies, proprietary data sources, or partners — only when not
+   present in factClaims or 4.3B" with an explicit Google/Bing/
+   WordPress/Google Analytics carveout. (c) nodeId example excludes
+   link_*. (d) Defensive orchestrator pre-filter drops any link_*
+   id that slips past the prompt-level instruction before it can
+   trigger a Save State micro-retry or kill-only RED. WATCH: the
+   next live runs' Phase 3B pass rate should jump dramatically. If
+   a specific pattern still over-flags, expand the IGNORE list with
+   the offending pattern.
 
 6. SAVE STATE COST BOUND VERIFICATION — NEEDS LIVE-RUN MEASUREMENT.
    The Save State micro-retry architecture (commit 09250e1, May 13)
@@ -1894,6 +2065,50 @@ next clean end-to-end run before being closed.
    RED fires (Phase 2B cap hit or Phase 3B prose hallucination cap
    hit), confirm all three labelled lines + the kill instruction are
    visible to the operator without overflow / truncation.
+
+8. STRUCTURAL THRESHOLD LOOSENING — NEEDS LIVE-RUN MEASUREMENT
+   (commit 6e2bc33, May 13). Phase 3A thresholds dropped: tables
+   >=3 → >=2, faq qa_pairs >=5 → >=4, DA word count 200-300 →
+   150-400, content_section assigned_facts maxItems 3 → 4,
+   conclusion_section assigned_facts min 1 → 0 (now optional).
+   WATCH: confirm runs that previously failed only on these
+   cosmetic threshold misses now pass 3A on first attempt. If a
+   threshold ends up TOO loose (e.g. articles shipping with only
+   2 tables when they need 3 for SEO purposes), re-tighten the
+   specific one — these were calibrated to the actual content
+   shapes Claude produces in live runs, not theoretical minima.
+
+9. PHASE 6 QC1/QC3 DEMOTED TO INFORMATIONAL — NEEDS LIVE-RUN
+   QUALITATIVE REVIEW (commit 6e2bc33, May 13). QC1 (pronoun/noun
+   start ratio) and QC3 (rhetorical question density) were
+   triggering retry-thrash on sections that were structurally
+   sound. Both are now logged YELLOW once per block (visible to
+   the operator) and never drive a retry. QC2/QC4/QC5/QC6 still
+   trigger retries. WATCH: read the next finished articles for
+   actual prose quality. If sections feel monotone (too many dry
+   noun openers) or too declarative (no rhetorical questions),
+   the demotion may have over-corrected; consider re-promoting
+   one or both, or tightening the threshold instead of the
+   severity. The metrics remain visible in the YELLOW notes so
+   the operator has the signal even without the retry.
+
+10. PHASE 7A RENDER ORDER — FAQ NOW BEFORE CONCLUSION (commit
+    613be17, May 13). Per 4.3A: content_sections → faq_section →
+    conclusion_section → CTA. The FAQ block in assemblePhase7HTML
+    + the ToC push order in collectArticleHeadings + the
+    articleParagraphTexts helper (used by QC2 + QC6) were all
+    swapped. WATCH: confirm on the next finished article that
+    (a) the FAQ heading renders before the conclusion heading in
+    the iframe + the final .txt, (b) the ToC links land at the
+    right spot when clicked, and (c) QC2's "callback in bottom
+    20%" check fires correctly (the conclusion paragraphs now
+    sit closer to the article's end since the FAQ no longer
+    follows them). DOWNSTREAM NOT TOUCHED: Phase 2B/5/6 relay
+    queue WRITE orders kept conclusion-before-FAQ — write order
+    is independent of render order. If the live runs show
+    write-order also needs to swap (e.g. conclusion gets
+    awkward because Claude has already written the FAQ when
+    composing it), that's a separate change.
 
 
 NEXT SESSION PRIORITIES
@@ -2967,6 +3182,91 @@ May 13, 2026 (M5.5 — six commits, schema refactor + Phase 3B recalibration
             CHANGE LOG. This commit log section + the V4.0 KNOWN BUGS /
             WATCH ITEMS section + the M5.5 entry in V4.0 BUILD STATUS were
             added in a later Master Doc update commit.]
+  187eedf  docs: Master Doc updated to May 13 2026 — V4.0 live-tested,
+           full session changelog
+           [Full Master Doc update: header/last-updated bumped, V4.0 BUILD
+            STATUS gained the MILESTONE 5.5 entry with detailed sub-entries,
+            V4.0 KNOWN BUGS / WATCH ITEMS section added (7 items, the four
+            originally requested by the operator + 3 watch items I
+            identified), commit log appended for the May 12–13 session.
+            584 insertions.]
+
+May 13, 2026 — SECOND WAVE OF M5.5 POLISH (continued same-day after
+the initial wave; five aeo_v4.html commits + this Master Doc commit):
+
+  21ae084  fix: expand conclusion regex to catch iTV-voice heading patterns
+           [Phase 2B end-of-relay conclusion-misplacement diagnostic regex
+            expanded from ~10 to 34 alternations. Adds the iTV-voice
+            patterns surfaced in live runs: the widening gap, the verdict,
+            the truth, the reality, the stakes, the road ahead, the long
+            view, closing thoughts/notes/word, in summary, moving forward,
+            next steps, the path forward, where do you|we go, the choice,
+            the decision, the outcome, what this means|now|happens next,
+            the cost of waiting. Smoke-tested (29 cases): all 25
+            conclusion-style headings match; 4 content-section samples do
+            not false-positive.]
+  5c20630  fix: Phase 3B — exclude link_ nodes from hallucination scope,
+           recalibrate entity FLAG rule
+           [Informed by a Gemini Pro consultation. Two surgical changes to
+            keep Phase 3B from thrashing on link_ nodes and casual mentions
+            of ubiquitous industry platforms. (1) buildPhase3BPrompt — FLAG
+            entity rule rewritten from broad-named-companies to specific
+            case studies / proprietary data sources / named partners only,
+            with explicit Google/Bing/WordPress/Google Analytics carveout;
+            IGNORE list added URL/domain bullet; nodeId example excludes
+            link_*. (2) Phase 3B orchestrator — link_ pre-filter at top of
+            proseFails loop, defensive guard so any link_ id that slips
+            past the prompt-level instruction never triggers a Save State
+            micro-retry or kill-only RED.]
+  6e2bc33  fix: threshold loosening + Phase 3B link/entity recalibration
+           + Phase 6 QC demotion
+           [Phase 3A thresholds loosened: tables >=3 → >=2, faq qa_pairs
+            >=5 → >=4, DA word count 200-300 → 150-400. assigned_facts
+            caps: content_section max 3 → 4, conclusion_section min 1 → 0
+            and max 3 → 4 (now optional — empty [] is valid). Tool schema
+            + Phase 2A prompt prose updated everywhere it said "1-3
+            factClaim IDs" or "at least 5 Q&A pairs" — now "1-4" / "at
+            least 4". Direct Answer factClaim pool switched from union of
+            sections' assigned_facts to FULL Phase 1 validFactClaimIds()
+            set. Phase 6 QC1 (pronoun/noun start ratio) + QC3 (rhetorical
+            question density) demoted to informational — runQualityChecks
+            now returns { fails, infoFails, passed }; QC1/QC3 push to
+            infoFails (never triggers retry); QC2/QC4/QC5/QC6 still push
+            to fails (drives retry). Phase 6 critique loop emits a single
+            YELLOW per block listing the informational notes. Verified
+            with 14 automated string checks, all PASS.]
+  631e1f5  fix: Phase 2A final-section constraint + Phase 3A granularity
+           trap — prevent narrative climax in content_sections
+           [Two surgical changes closing the loop on conclusion-
+            misplacement. Phase 2A prompt: FINAL CONTENT SECTION CONSTRAINT
+            (NON-NEGOTIABLE) added as the closing sub-bullet of the
+            content_sections block — the final content_section must end on
+            a specific, granular sub-topic and must contain H3s OR a
+            table; narrative climax / cost of inaction / widening gap /
+            stakes summary belong EXCLUSIVELY in conclusion_section.
+            Phase 3A: new last_section_no_depth structural fail — if
+            content_sections is non-empty AND the last entry has zero
+            h3sections AND zero tables, emit the fail. Drives surgical-
+            fix loop (cap 2 rounds) then CHK1 RED. Smoke-tested (4 frame
+            variants): last has table → silent; last has H3 → silent;
+            last is flat prose → fires; empty content_sections → silent.]
+  613be17  fix: Phase 7A render order — FAQ before conclusion per 4.3A spec
+           [Per 4.3A correct order is content_sections → faq_section →
+            conclusion_section → CTA. assemblePhase7HTML: FAQ block now
+            renders immediately after content_sections; conclusion block
+            renders after FAQ and immediately before CTA. Block bodies
+            unchanged — only positions swapped. collectArticleHeadings:
+            ToC pushes FAQ H2 + qa_pair questions BEFORE conclusion H2.
+            Phase 2A frame prompt: added explicit ARTICLE RENDER ORDER
+            (LOCKED — per 4.3A) instruction directly after the opening
+            line. DEPENDENT FIX articleParagraphTexts(): its code comment
+            already required ordering match render order; helper now
+            pushes FAQ → conclusion (was conclusion → FAQ). Keeps QC2
+            callback verifier (top-20%/bottom-20%) and QC6 semantic
+            anchor measuring against the correct sequence. INTENTIONALLY
+            NOT CHANGED: Phase 2B/5/6 relay queue WRITE orders kept
+            conclusion-before-FAQ — write order independent of render
+            order. All 4 automated verification checks PASS.]
 
 ═══════════════════════════════════════════════════════════════
 END OF MASTER DOC
