@@ -1664,6 +1664,7 @@ Produce:
    • assigned_facts: REQUIRED. An array of 1-4 factClaim IDs from the Phase 1 research brief (e.g. ["factClaim_02","factClaim_05"]) that are most relevant to this section's topic. Phase 2B will see ONLY these factClaims when hydrating this section. A factClaim MAY be assigned to multiple sections. Every content_section MUST have at least 1.
    • FINAL CONTENT SECTION CONSTRAINT (NON-NEGOTIABLE): The content_sections array must end ABRUPTLY on a specific, granular sub-topic — for example: a specific implementation step, a technical component, a named process, a pricing detail, or a tactical how-to. You are strictly forbidden from writing a "narrative climax," "cost of inaction," "widening gap," "stakes summary," or ANY synthesizing/urgency section as the final content_section entry. All stakes, urgency, synthesis, and narrative payoff belong EXCLUSIVELY in conclusion_section. The final content_section must contain H3 sub-sections OR a table (or both) — if it cannot support that granular depth, replace it with a section that can.
 - conclusion_section: REQUIRED. { h2: the conclusion heading text (e.g. "The Bottom Line", "Where This Leaves You" — your call, in voice), paragraphs:[{},{},…], assigned_facts:["factClaim_NN",…] } — one {} per closing paragraph (2-4 typical). NO image, NO table, NO links here. JS assigns ids; Phase 2B writes the prose. assigned_facts: OPTIONAL — 0-4 factClaim IDs. If the conclusion synthesizes existing arguments with no new data, pass an empty array []. If it will repeat any specific figure already cited earlier in the article, list the supporting factClaim ids here so Phase 2B can re-emit the [factClaim_NN] tokens.
+   • CONCLUSION CTA PROHIBITION: The conclusion_section prose must contain ZERO calls-to-action, ZERO links to the Primary CTA URL, and ZERO promotional language. The conclusion is a narrative wrap-up only. A dedicated CTA block is rendered by the system after the conclusion automatically.
 - faq_section: REQUIRED. { h2: the FAQ heading text (e.g. "Frequently Asked Questions"), intro_paragraphs:[{},…] (one or two {} slots — the framing prose BEFORE the questions), qa_pairs:[{ question: the question text, answer: {} }, …] — at least 4 Q&A pairs (questions only; leave each answer as {}), assigned_facts:["factClaim_NN",…] } — same assigned_facts rule (1-4 factClaim IDs, at least 1; the whole FAQ section shares one allocation since the intro + every answer pulls from the same allowed set). NO image, NO table here.
 - cta: { anchorText, url, placementHint }. The url MUST match the 4.3B Primary CTA destination (the "Destination:" line under the "Primary CTA" section, or a "Conversion Primary CTA URL" / "Primary CTA URL" field). placementHint = where in the article the CTA sits.
 
@@ -1999,7 +2000,11 @@ FRAMEWORK LABELS: If the frame defines custom multi-part labels (stages, phases,
 
 PHASE 2B — SEQUENTIAL HYDRATION (the "Relay Race", section-level). You will be asked to write one content block at a time, in article order — the Direct Answer, then one block per H2 content section (ALL of that section's + its H3s' paragraphs together) with one block per table (quantitative OR conceptual, declared per table), then ONE block for the conclusion section (all its paragraphs), then ONE block for the FAQ section (its intro paragraph(s) + every Q&A answer), then the CTA hook. Each call carries a rolling draft of everything written so far. For each call: read the narrative spine, the assigned factClaims, the framework labels, and the draft so far, then call hydrate_content_block returning a "nodes" array with exactly one object per requested targetId — the "prose" field for paragraphs / the Direct Answer / conclusion paragraphs / FAQ intro paragraphs / FAQ answers / the CTA hook; the "rows" field for tables (with sourceReferenceId + fact_anchor_justification per row for QUANTITATIVE tables, cells only for CONCEPTUAL tables). Stay in the client's voice the whole way through. Never fabricate statistics or numbers. Never repeat content already in the draft. Never write headings or table markup — just the nodes' content.
 
-PARAGRAPH STRUCTURE (NON-NEGOTIABLE): Maximum 3 sentences per paragraph. Target 1–2. Single-sentence paragraphs are strongly preferred for impact and readability. If you write 4 or more sentences in a single paragraph, split it. Use white space as a design element — it signals premium writing.` };
+PARAGRAPH STRUCTURE (NON-NEGOTIABLE): Maximum 3 sentences per paragraph. Target 1–2. Single-sentence paragraphs are strongly preferred for impact and readability. If you write 4 or more sentences in a single paragraph, split it. Use white space as a design element — it signals premium writing.
+
+LINK DISCIPLINE (NON-NEGOTIABLE): Internal URLs from the anchorTextTargets array are single-use tokens — once used in any section's prose, that URL is exhausted and cannot appear again anywhere in the article. The Primary CTA URL is RESERVED — never write it as an inline link in any paragraph, conclusion, or FAQ answer. It belongs exclusively to the CTA block which the system appends automatically. If you have no unused internal URLs left, omit the link entirely rather than repeating one.
+
+CONCLUSION DISCIPLINE: Do NOT write Call-to-Action buttons, promotional links, or "contact us" language in the conclusion prose. Do NOT write any link to the Primary CTA URL in the conclusion. The system appends a dedicated CTA block automatically after the conclusion. End the conclusion strictly on the narrative wrap-up.` };
   }
 
   // The relay loop: clone the locked frame, build the section-level queue, walk it sequentially,
@@ -2826,6 +2831,38 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
   // rows yet): run only the checks that apply to the skeleton (counts, headings, link
   // discipline, checklist fields, CTA url, thesis present, conclusion_section present,
   // faq_section present with qa_pairs). Used between 2A and 2B.
+  // PROSE LINK EXTRACTOR — single source of truth for body-link validation.
+  // Iterates every prose-containing node in V1 and pulls every inline [anchor](url)
+  // pair out via regex. Phase 3A uses this instead of scanning section.links[] so
+  // links Claude wrote in prose but never echoed into the JSON link arrays still
+  // get caught by the duplicate-URL and CTA-reservation checks.
+  function extractMarkdownLinksFromProse(v1){
+    const LINK_RE = /\[([^\]]*)\]\(([^)]+)\)/g;
+    const found = []; // { url, anchorText, location }
+    const scanText = (text, location) => {
+      if(!text || typeof text !== 'string') return;
+      let m;
+      LINK_RE.lastIndex = 0;
+      while((m = LINK_RE.exec(text)) !== null){
+        found.push({ anchorText: m[1], url: m[2], location });
+      }
+    };
+    scanText((v1.directAnswer||{}).prose, 'directAnswer');
+    (_secs(v1)||[]).forEach(sec => {
+      const h2 = String(sec.h2||'');
+      toArray(sec.paragraphs).forEach(p => scanText(p && p.prose, `section "${h2}"`));
+      toArray(sec.h3sections).forEach(h3 => {
+        toArray(h3.paragraphs).forEach(p => scanText(p && p.prose, `section "${h2}" > h3 "${h3.h3||''}"`));
+      });
+    });
+    const cs = _concl(v1);
+    toArray(cs.paragraphs).forEach(p => scanText(p && p.prose, 'conclusion'));
+    _faqIntro(v1).forEach(p => scanText(p && p.prose, 'faq intro'));
+    _qaPairs(v1).forEach(qp => scanText(qp.answer && qp.answer.prose, `faq answer "${String(qp.question||'').slice(0,40)}"`));
+    scanText((v1.cta||{}).hookProse, 'cta');
+    return found;
+  }
+
   function validateV1Structure(v1, research, doc43B, opts){
     const frameOnly = !!(opts && opts.frameOnly);
     const fails = [];
@@ -3013,15 +3050,12 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
       warnYellow('P3A', `V1 has ${extraExternal.length} external link(s) not in the research brief's anchorTextTargets (allowed — extra citations, not blocking): ${extraExternal.slice(0,8).join('; ')}${extraExternal.length>8?' …':''}`);
     }
 
-    // DUPLICATE INTERNAL URL CHECK
-    // Enforces the Unique Link Mandate: every internal URL from anchorTextTargets is a single-use
-    // token. Same URL in two body sections = hard fail (the operator either ships duplicate links
-    // or one of them is silently removed by the WordPress editor — both are bad). The CTA is
-    // EXCLUSIVELY EXCLUDED — the 4.3B Primary CTA is a separate destination by design and may
-    // happen to repeat one of the body anchors.
-    // Normalize each URL to its path only (strip protocol + domain + www., normalize trailing
-    // slash to always-present) so absolute and relative variants of the same destination collapse.
-    {
+    // PROSE LINK VALIDATION — reads actual inline [text](url) links in the body prose
+    // via extractMarkdownLinksFromProse(), not just section.links[] arrays. This catches
+    // links Claude wrote in prose that never round-tripped into the JSON link arrays —
+    // the original duplicate / cta-in-body checks missed those entirely.
+    if(!frameOnly){
+      const proseLinks = extractMarkdownLinksFromProse(v1);
       const normLinkUrl = u => {
         if(!u) return '';
         let s = String(u).trim().toLowerCase();
@@ -3030,39 +3064,37 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
         if(s && !s.endsWith('/')) s = s + '/';               // ensure trailing slash (normalize variants)
         return s;
       };
-      const allBodyLinks = [];
-      sections.forEach(sec => secLinks(sec).forEach(l => { if(l && l.url) allBodyLinks.push({ url:l.url, id:l.id, section:String(sec.h2||'') }); }));
-      // conclusion_section + faq_section don't carry links per the V4.0 schema, but if a future
-      // shape ever does, secLinks() safely returns [] for any missing property — defensive only.
-      secLinks(_concl(v1)).forEach(l => { if(l && l.url) allBodyLinks.push({ url:l.url, id:l.id, section:'conclusion' }); });
-      secLinks(_faqSec(v1)).forEach(l => { if(l && l.url) allBodyLinks.push({ url:l.url, id:l.id, section:'faq' }); });
-      // CTA url is INTENTIONALLY not added here.
-      const internalBodyLinks = allBodyLinks.filter(l => isInternalUrl(l.url, clientDomain));
-      const seenPaths = new Map(); // normalized path → first section that used it
+      const isInternalLinkUrl = u => {
+        if(!u) return false;
+        const s = String(u).trim().toLowerCase();
+        return s.startsWith('/') || s.includes(clientDomain) || s.includes('itechvalet.com');
+      };
+      // Exclude CTA node from body link checks — that block legitimately carries the Primary CTA URL.
+      const bodyProseLinks = proseLinks.filter(l => l.location !== 'cta');
+      const internalBodyLinks = bodyProseLinks.filter(l => isInternalLinkUrl(l.url));
+      // Check 1: no duplicate internal URLs in body prose
+      const seenPaths = new Map();
       internalBodyLinks.forEach(l => {
         const path = normLinkUrl(l.url);
         if(!path) return;
         if(seenPaths.has(path)){
           F('duplicate_internal_url',
-            'each internal URL may appear at most once in the article body — replace duplicates with unused anchorTextTargets URLs or omit',
-            `"${l.url}" already used in section "${seenPaths.get(path)}" — duplicated in "${l.section}"`,
-            l.id);
+            'each internal URL may appear at most once in the article body prose — replace duplicates with unused anchorTextTargets URLs or omit',
+            `"${l.url}" already used in ${seenPaths.get(path)} — duplicated in ${l.location}`,
+            null);
         } else {
-          seenPaths.set(path, l.section);
+          seenPaths.set(path, l.location);
         }
       });
-      // CTA URL RESERVATION CHECK — the Primary CTA URL must not appear as a body link.
-      // The CTA block uses extract43BCtaUrl(doc43B) as its source of truth; we normalize the
-      // same way as the body links and fail any body link whose normalized path matches it.
-      // The CTA url itself is intentionally not collected into allBodyLinks (see above).
+      // Check 2: CTA URL must not appear in any body prose
       const ctaUrlNorm = normLinkUrl(extract43BCtaUrl(doc43B));
       if(ctaUrlNorm){
         internalBodyLinks.forEach(l => {
           if(normLinkUrl(l.url) === ctaUrlNorm){
             F('cta_url_in_body',
-              'the Primary CTA URL is reserved — it must not appear as a body link in any content_section, conclusion_section, or faq_section',
-              `CTA URL "${l.url}" found in body section "${l.section}"`,
-              l.id);
+              'the Primary CTA URL is reserved — it must not appear as a body link in any prose section',
+              `CTA URL "${l.url}" found in prose at ${l.location}`,
+              null);
           }
         });
       }
@@ -5749,6 +5781,33 @@ table td { background: #ffffff; }
     walkLinks((_concl(article)).links);                 // schema currently has no links here; defensive
     walkLinks((_faqSec(article)).links);                // same — defensive
     if(article.cta && typeof article.cta === 'object' && article.cta.url) article.cta.url = fixUrl(article.cta.url);
+
+    // PROSE LINK NORMALIZATION — the JSON link arrays aren't the whole story. Claude
+    // emits inline [anchor](url) markdown inside paragraph prose too, and those URLs
+    // need the same relative-path → absolute + github.io → client-domain treatment.
+    // Without this, prose links survive assembly with broken or off-domain hrefs.
+    const PROSE_LINK_RE = /\[([^\]]*)\]\(([^)]+)\)/g;
+    const fixProseLinks = text => {
+      if(!text || typeof text !== 'string') return text;
+      return text.replace(PROSE_LINK_RE, (match, anchor, url) => {
+        const fixed = fixUrl(url);
+        return fixed !== url ? `[${anchor}](${fixed})` : match;
+      });
+    };
+    const walkProse = sec => {
+      if(!sec || typeof sec !== 'object') return;
+      toArray(sec.paragraphs).forEach(p => { if(p && p.prose) p.prose = fixProseLinks(p.prose); });
+      toArray(sec.h3sections).forEach(h3 => {
+        toArray(h3.paragraphs).forEach(p => { if(p && p.prose) p.prose = fixProseLinks(p.prose); });
+      });
+    };
+    (_secs(article)||[]).forEach(walkProse);
+    walkProse(_concl(article));
+    walkProse(_faqSec(article));
+    _faqIntro(article).forEach(p => { if(p && p.prose) p.prose = fixProseLinks(p.prose); });
+    _qaPairs(article).forEach(qp => { if(qp && qp.answer && qp.answer.prose) qp.answer.prose = fixProseLinks(qp.answer.prose); });
+    if(article.directAnswer && article.directAnswer.prose) article.directAnswer.prose = fixProseLinks(article.directAnswer.prose);
+    if(article.cta && article.cta.hookProse) article.cta.hookProse = fixProseLinks(article.cta.hookProse);
   }
 
   // ── 7A — assemble the complete article HTML from the article JSON ──
@@ -5771,6 +5830,7 @@ table td { background: #ffffff; }
     const ea = id => { const s = String(id == null ? '' : id).trim(); return s ? ` data-node-id="${escapeHtml(s)}"` : ''; };
     const ind = (str, n) => str.split('\n').map(l => l ? (' '.repeat(n) + l) : l).join('\n');
 
+    let _ctaRendered = false;   // makes the CTA emit mathematically impossible to fire twice
     const parts = [];
     parts.push(`<div class="article-wrap">`);
     parts.push(`  <h1 id="${slugifyHeading(h1Text)}"${ea('__h1')}>${escapeHtml(h1Text)}</h1>`);
@@ -5878,7 +5938,11 @@ table td { background: #ffffff; }
     if(_dupSkipped > 0 && typeof log === 'function'){
       log(`Phase 7A — skipped ${_dupSkipped} consecutive-duplicate paragraph(s) during assembly.`, 'warn');
     }
-    if(article.cta && typeof article.cta === 'object'){
+    // CTA renders exactly once — outside all loops, after conclusion + FAQ. The _ctaRendered
+    // guard makes a second emit mathematically impossible even if a future refactor inadvertently
+    // hits this block twice (the source of the "ghost CTA" duplication bug we just fixed).
+    if(article.cta && typeof article.cta === 'object' && !_ctaRendered){
+      _ctaRendered = true;
       const hook = String(article.cta.hookProse || ''), anchor = String(article.cta.anchorText || ''), url = String(article.cta.url || '');
       parts.push(`  <div class="article-cta"${ea(article.cta.id || '__cta')}>`);
       if(hook.trim()) parts.push(ind(proseToParagraphs(hook, '', ''), 4));
