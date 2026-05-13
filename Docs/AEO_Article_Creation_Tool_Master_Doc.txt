@@ -1,5 +1,5 @@
 AEO ARTICLE CREATION PIPELINE — MASTER REFERENCE DOC  (WORKING COPY — sessions of May 11–13, 2026)
-Last Updated: May 13, 2026 (Claude Code build session — V4.0 schema refactor + hallucination-sweep recalibration + assembly-time delivery polish + multiple live end-to-end runs against real iTV topics — bugs surfaced + patched in-session + a SECOND WAVE of M5.5 polish at the end of the day: conclusion regex expansion, Phase 3B link/entity recalibration, structural threshold loosening, Phase 6 QC1/QC3 demotion to informational, Phase 2A final-section constraint + Phase 3A granularity trap, Phase 7A render order swapped to FAQ-before-conclusion per 4.3A, Phase 2A Unique Link Mandate + Phase 3A duplicate_internal_url trap) | V3.1 (production) | V4.0 (LIVE-TESTED — ALL 7 PHASES BUILT [M1–M5] + post-M5 schema upgrade [content_sections / conclusion_section / faq_section / sectional fact allocation / framework_labels / table_type / Save State per-section rollback / inline citation tokens / Phase 3B is now hallucination-sweep-only with FLAG/IGNORE recalibration + link_/entity carveouts]; multiple end-to-end runs completed against real iTV topics this session; live-run bug catches patched same-day [byline title duplication, consecutive duplicate paragraphs, conclusion content landing in content_sections, narrative-climax sections like "The Widening Gap" / "The Verdict" getting an image + ToC entry instead of going to conclusion_section, FAQ rendering after conclusion]; M6 side-by-side V3.1↔V4.0 + M7 ship still pending)
+Last Updated: May 13, 2026 (Claude Code build session — V4.0 schema refactor + hallucination-sweep recalibration + assembly-time delivery polish + multiple live end-to-end runs against real iTV topics — bugs surfaced + patched in-session + a SECOND WAVE of M5.5 polish at the end of the day: conclusion regex expansion, Phase 3B link/entity recalibration, structural threshold loosening, Phase 6 QC1/QC3 demotion to informational, Phase 2A final-section constraint + Phase 3A granularity trap, Phase 7A render order swapped to FAQ-before-conclusion per 4.3A, Phase 2A Unique Link Mandate + Phase 3A duplicate_internal_url trap, Phase 2A CTA URL Reservation + Phase 3A cta_url_in_body trap) | V3.1 (production) | V4.0 (LIVE-TESTED — ALL 7 PHASES BUILT [M1–M5] + post-M5 schema upgrade [content_sections / conclusion_section / faq_section / sectional fact allocation / framework_labels / table_type / Save State per-section rollback / inline citation tokens / Phase 3B is now hallucination-sweep-only with FLAG/IGNORE recalibration + link_/entity carveouts]; multiple end-to-end runs completed against real iTV topics this session; live-run bug catches patched same-day [byline title duplication, consecutive duplicate paragraphs, conclusion content landing in content_sections, narrative-climax sections like "The Widening Gap" / "The Verdict" getting an image + ToC entry instead of going to conclusion_section, FAQ rendering after conclusion]; M6 side-by-side V3.1↔V4.0 + M7 ship still pending)
 ================================================
 
 ⚠️ V4.0 ARCHITECTURAL REBUILD — LIVE-TESTING IN PROGRESS (Claude Code)
@@ -1159,15 +1159,58 @@ aeo_v4.html. The 7-phase pipeline shape is unchanged; the schema, the Phase
         fail). Only internal URLs (anchorTextTargets type:"internal"
         plus anything on the client domain) are inventoried.
 
-  STATUS after the second wave: all 6 commits live on main, all
+  • PHASE 2A CTA URL RESERVATION + PHASE 3A cta_url_in_body TRAP
+    (commit 8a54b42, May 13 — addendum to 70dd293). The previous
+    commit established the body-link inventory rule but left the
+    Primary CTA URL itself unprotected: Claude could still pick the
+    4.3B Primary CTA URL as a body link in any section, which
+    silently breaks the conclusion CTA (WordPress dedups identical
+    hrefs / the operator ships two links pointing to the same
+    destination under different anchor text). Same defense-in-depth
+    pattern as the rest of M5.5 — prompt addition tells Claude at
+    frame time, JS enforces in Phase 3A regardless.
+      — Phase 2A prompt addition (NON-NEGOTIABLE): "The Primary CTA
+        URL (from the client's 4.3B identity card) is RESERVED. It
+        must NEVER be used as a body link in any content_section,
+        conclusion_section, or faq_section. It belongs exclusively
+        to the CTA block. Do not assign it to any section's links
+        array under any circumstances." Added as a new sub-bullet
+        on content_sections immediately after the UNIQUE LINK
+        MANDATE from 70dd293.
+      — BUG FIX bundled into the same commit: the 70dd293 Mandate
+        text ended with a contradictory parenthetical — "(The CTA
+        url is separate from this inventory and is allowed to
+        repeat one of the body anchors if the 4.3B Primary CTA
+        happens to match.)" — directly opposite to what the new
+        CTA RESERVATION enforces. Stripped that parenthetical so
+        the prompt is internally consistent.
+      — Phase 3A enforcement: new cta_url_in_body structural fail
+        added INSIDE the existing DUPLICATE INTERNAL URL CHECK
+        scope block (immediately after the dup-check forEach,
+        before the block's closing brace) so the already-declared
+        normLinkUrl + internalBodyLinks remain in scope. Reuses
+        extract43BCtaUrl(doc43B) — the same helper the later
+        CTA-match check uses, so "the CTA url" is defined
+        identically in both places (adapts to whatever 4.3B labels
+        it: "Primary CTA → Destination:", "Conversion Primary CTA
+        URL", "Primary CTA URL"). Walks internalBodyLinks; emits
+        the fail on any body link whose normalized path matches
+        the normalized CTA url. Drives the surgical-fix loop (cap
+        2 rounds) then CHK1 RED.
+      — Smoke-tested with CTA = https://itechvalet.com/contact/
+        (normalizes to /contact/) against 5 body-link variants:
+        absolute / relative / www-variant all fire (correct),
+        different-path / external link both silent (correct).
+
+  STATUS after the second wave: all 7 commits live on main, all
   syntax-clean, none yet live-tested as a batch. Cumulative
-  M5.5 commit count: 12 aeo_v4.html commits across May 12–13
+  M5.5 commit count: 13 aeo_v4.html commits across May 12–13
   (282b03c, 832dde1, 9dcfad8, 04e8c55, 09250e1, 45f1d0c, bfecf3d,
   234775d, e0efe2a, 21ae084, 5c20630, 6e2bc33, 631e1f5, 613be17,
-  70dd293 — 15 total including the two from before M5.5 was
-  formalized). Combined effect: every architectural failure mode
-  surfaced in live testing has either a fix shipped or a kill-only
-  RED with a bounded-cost retry path.
+  70dd293, 8a54b42 — 16 total including the two from before M5.5
+  was formalized). Combined effect: every architectural failure
+  mode surfaced in live testing has either a fix shipped or a
+  kill-only RED with a bounded-cost retry path.
 
 ────────────────────────────────────────────────────────────
 PHASE RENUMBERING (May 12, 2026)
@@ -2168,9 +2211,10 @@ next clean end-to-end run before being closed.
     internal URL in the article body to its path
     (https://itechvalet.com/services/ and /services/ both
     collapse to /services/) and hard-fails on the first
-    repetition. CTA is intentionally excluded from the inventory
-    (it's a separate destination by design, may legitimately
-    match one of the body anchors). WATCH: confirm on the next
+    repetition. NOTE: a separate Primary CTA URL rule was added
+    in 8a54b42 (item 12) — the original 70dd293 framing said the
+    CTA was "allowed to repeat one of the body anchors," which is
+    wrong and has since been stripped. WATCH: confirm on the next
     live run that internal links across body sections are all
     unique. If the 3A check fires and the surgical fix can't
     replace the duplicate with an unused anchorTextTargets
@@ -2180,6 +2224,35 @@ next clean end-to-end run before being closed.
     External links are NOT deduped — multiple sections citing
     the same authoritative source URL is legitimate sourcing
     (kept as YELLOW per existing operator calibration).
+
+12. PRIMARY CTA URL APPEARING AS A BODY LINK — FIX PUSHED
+    (commit 8a54b42, May 13 — addendum to 70dd293). The original
+    UNIQUE LINK MANDATE protected the body-link inventory but
+    left the 4.3B Primary CTA URL itself unprotected: Claude
+    could still pick it as a body link in any section, which
+    silently breaks the conclusion CTA. Defense-in-depth:
+    Phase 2A prompt now carries a CTA URL RESERVATION sub-bullet
+    (NON-NEGOTIABLE) explicitly forbidding the Primary CTA URL
+    as a body link in any content_section, conclusion_section,
+    or faq_section. Phase 3A enforces it via a new
+    cta_url_in_body structural fail that walks every internal
+    body link, normalizes via the same normLinkUrl helper from
+    70dd293 (so absolute / relative / www variants all collapse
+    to the same path), and emits a fail on any path that matches
+    extract43BCtaUrl(doc43B). Same source of truth as the later
+    cta_url_match check, so "the CTA url" is defined identically
+    in both places. The same commit ALSO fixed a contradictory
+    parenthetical in the 70dd293 Mandate text that had claimed
+    the CTA was allowed to repeat a body anchor — that
+    parenthetical is now stripped. Smoke-tested 5 variants
+    (absolute / relative / www match all fire; different-path /
+    external both silent). WATCH: confirm on the next live run
+    that the Primary CTA URL appears ONLY in the CTA block — no
+    body section link should point at it. If the 3A check fires
+    and the surgical fix can't repair, it's a CHK1 RED — the
+    operator either picks a different body link or accepts that
+    the article shouldn't link to that destination from body
+    prose.
 
 
 NEXT SESSION PRIORITIES
@@ -3348,7 +3421,9 @@ the initial wave; five aeo_v4.html commits + this Master Doc commit):
             sections.links instruction — reframes anchorTextTargets as
             an INVENTORY of single-use tokens that get EXHAUSTED on use
             (positive structural reinforcement, not a prohibition). CTA
-            explicitly carved out. (2) Phase 3A new
+            explicitly carved out (BUT the original parenthetical
+            framing was wrong — "allowed to repeat one of the body
+            anchors" — and was stripped in 8a54b42). (2) Phase 3A new
             duplicate_internal_url structural fail: collects every link
             url from content_sections + (defensively) conclusion +
             faq_section, filters to internal via existing isInternalUrl
@@ -3357,7 +3432,8 @@ the initial wave; five aeo_v4.html commits + this Master Doc commit):
             slash — so https://itechvalet.com/services/ and /services/
             collapse to /services/), walks with Map(path → first
             section), emits a fail on the first repetition naming both
-            sections. CTA INTENTIONALLY excluded from the inventory.
+            sections. CTA INTENTIONALLY excluded from the dup-inventory
+            (it has its own reservation rule — see 8a54b42).
             External links NOT deduped (legitimate sourcing). Drives
             the surgical-fix loop then CHK1 RED. Verified end-to-end:
             parse clean, Mandate at offset 115282 inside buildPhase2A
@@ -3365,6 +3441,37 @@ the initial wave; five aeo_v4.html commits + this Master Doc commit):
             inputs all PASS including both spec-required forms
             collapsing to /services/, no v1.cta / article.cta
             reference in the new block. 41 insertions, 0 deletions.]
+  8a54b42  fix: CTA URL reservation — prevent Primary CTA URL from
+           appearing as body link
+           [Addendum to 70dd293. The previous commit established the
+            body-link inventory but left the Primary CTA URL itself
+            unprotected — Claude could still pick the 4.3B Primary CTA
+            URL as a body link in any section, which silently breaks
+            the conclusion CTA. (1) Phase 2A prompt: appended a CTA
+            URL RESERVATION (NON-NEGOTIABLE) sub-bullet immediately
+            after the UNIQUE LINK MANDATE forbidding the Primary CTA
+            URL as a body link in any content_section, conclusion_
+            section, or faq_section. Also stripped the contradictory
+            parenthetical the previous commit had introduced (which
+            had claimed the CTA was allowed to repeat a body anchor).
+            (2) Phase 3A: added a new cta_url_in_body structural fail
+            INSIDE the existing DUPLICATE INTERNAL URL CHECK scope
+            block (immediately after the dup-check forEach, before
+            the block's closing brace) so the already-declared
+            normLinkUrl + internalBodyLinks remain in scope per the
+            "do not redefine them" spec note. Reuses
+            extract43BCtaUrl(doc43B) — the same helper the later
+            cta_url_match check uses, so "the CTA url" is defined
+            identically in both places (adapts to whatever 4.3B
+            labels it). Walks internalBodyLinks; emits the fail on
+            any body link whose normalized path matches the
+            normalized CTA url. Drives the surgical-fix loop then
+            CHK1 RED. Verified end-to-end: 6 placement/scope checks
+            + 5 smoke-test cases (CTA = https://itechvalet.com/
+            contact/ → norm /contact/; absolute / relative / www
+            variants all fire correctly; different-path /services/
+            and external https://hbr.org/2024/article both correctly
+            silent) — 11/11 PASS. 17 insertions, 1 deletion.]
 
 ═══════════════════════════════════════════════════════════════
 END OF MASTER DOC
