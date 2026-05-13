@@ -1,11 +1,13 @@
 AEO ARTICLE CREATION PIPELINE — MASTER REFERENCE DOC  (WORKING COPY — sessions of May 11–13, 2026)
-Last Updated: May 13, 2026 (Claude Code build session — V4.0 schema refactor + hallucination-sweep recalibration + assembly-time delivery polish) | V3.1 (production) | V4.0 (BUILD UNDERWAY — ALL 7 PHASES BUILT [M1–M5]; SCHEMA UPGRADED — content_sections / conclusion_section / faq_section / sectional fact allocation / framework_labels / table_type / Save State per-section rollback / inline citation tokens / Phase 3B is now hallucination-sweep-only; syntax-checked, NOT yet live-tested end to end; M6 side-by-side + M7 ship still pending)
+Last Updated: May 13, 2026 (Claude Code build session — V4.0 schema refactor + hallucination-sweep recalibration + assembly-time delivery polish + multiple live end-to-end runs against real iTV topics — bugs surfaced + patched in-session) | V3.1 (production) | V4.0 (LIVE-TESTED — ALL 7 PHASES BUILT [M1–M5] + post-M5 schema upgrade [content_sections / conclusion_section / faq_section / sectional fact allocation / framework_labels / table_type / Save State per-section rollback / inline citation tokens / Phase 3B is now hallucination-sweep-only with FLAG/IGNORE recalibration]; multiple end-to-end runs completed against real iTV topics this session; live-run bug catches patched same-day [byline title duplication, consecutive duplicate paragraphs, conclusion content landing in content_sections]; M6 side-by-side V3.1↔V4.0 + M7 ship still pending)
 ================================================
 
-⚠️ V4.0 ARCHITECTURAL REBUILD — BUILD IN PROGRESS (Claude Code)
+⚠️ V4.0 ARCHITECTURAL REBUILD — LIVE-TESTING IN PROGRESS (Claude Code)
 End of Chat 19: Three Gemini Pro consultations concluded with full sign-off.
 The spec is being executed by Claude Code against aeo_v4.html. As of the end
-of the May 12, 2026 build session (all aeo_v4.html changes committed/pushed):
+of the May 13, 2026 build/test session (all aeo_v4.html changes committed/pushed;
+multiple end-to-end live runs completed against real iTV topics this session,
+with surfaced bugs patched same-day):
   M1   — APPROVED (skeleton + Phase 1-2 with caching; cache HIT verified).
   M2   — APPROVED (Phase 3 dual validation, Phase 4 freeze, F1-F4, escalation
          panel, calibration/production modes).
@@ -44,13 +46,36 @@ of the May 12, 2026 build session (all aeo_v4.html changes committed/pushed):
   M5   — BUILT (Phase 7 = Final Assembly — 7A: JS builds the complete article HTML
          from the V2/V3 JSON [canonical stylesheet from 4.3B branding, marked.js for
          prose, collapsible ToC, byline, Last Updated, sections/images/tables/FAQ/
-         CTA, github.io→.com link fix]; 7B: operator visual QC — Edit Mode + click-
-         to-edit a prose block → one fix call to Claude → swap into the JSON → re-
-         render [the only non-negotiable human checkpoint]; 7C: "Finalize Article" →
-         two downloads — {slug}-checklist.html and _{slug}-final.txt — + BlogPosting/
-         FAQPage/BreadcrumbList schema). Committed (282b03c). NOTE: "Phase 7" is what
-         the build plan called "Phase 6".
-  M6   — PENDING (side-by-side V3.1 vs V4.0 + UI polish — after the live test).
+         CTA, github.io→.com link fix]; 7B: REBUILT IN M5.5 as pure-JS formatting
+         QC — operator sidebar [Global Link Manager / Metadata / Re-Sync ToC /
+         Re-render] + contextual hover modal on every clicked block [DA → Force
+         Paragraph Breaks; Image → set WP URL; Table → Re-parse Table; Paragraph/
+         FAQ/CTA → read-only raw prose]; one-way data flow [JS owns JSON, iframe
+         is read-only]; NO Claude calls anywhere; 7C: "Finalize Article" → two
+         downloads — {slug}-checklist.html and _{slug}-final.txt — + BlogPosting/
+         FAQPage/BreadcrumbList schema). Committed (282b03c; 7B rebuilt in 832dde1).
+         NOTE: "Phase 7" is what the build plan called "Phase 6".
+  M5.5 — BUILT & LIVE-TESTED (May 12–13, 2026 — POST-M5 SCHEMA REFACTOR + DATA-
+         INTEGRITY RECALIBRATION + DELIVERY POLISH + LIVE-TEST PATCHES. Twelve
+         commits across two days. New top-level keys content_sections /
+         conclusion_section / faq_section [Phase 7A renders deterministically with
+         NO text-matching]; sectional fact allocation [assigned_facts per section,
+         Phase 2B sees only its section's facts]; inline citation tokens
+         [factClaim_NN] [stripped at render]; framework_labels [locked label
+         registry injected into every Phase 2B call]; table_type [quantitative /
+         conceptual with per-type binding rules]; Save State per-section rollback
+         in Phase 2B [cap 2, then kill-only RED]; Phase 3B stripped to data-
+         integrity sweep only with FLAG/IGNORE recalibration [conversational
+         language ignored, only invented facts/entities flagged]; Phase 3B prose
+         hallucinations now trigger Save State micro-retry of the affected
+         section [cap 2, same kill-only RED]; Phase 7B rebuilt pure-JS; Phase 2/5
+         run log green per block on success; checklist Full Article URL + Run
+         Cost Report removed [VA-facing]; Featured image alt text added as primary
+         field; byline title extraction hardened; consecutive duplicate paragraph
+         guard at render; conclusion-section misplacement diagnostic at Phase 2B
+         end. See "MILESTONE 5.5" entry in V4.0 BUILD STATUS for full detail.).
+  M6   — PENDING (side-by-side V3.1 vs V4.0 + UI polish — live tests on individual
+         iTV topics done in M5.5; this is the formal A/B against V3.1 still to do).
   M7   — PENDING (V4.0 ships, V3.1 deprecated).
 PHASE NUMBERING: V4.0's phases are now numbered 1–7 with NO decimals. What the
   build plan called "Phase 5.5" (forensic critique) is Phase 6; what it called
@@ -595,6 +620,360 @@ pipeline is 7B.)
   closePhase7EditPanel / submitPhase7Edit / finalizePhase7 / dlChecklistHTML / dlFinalTxt /
   resetPhase7UI. All generated <script> strings inside the produced HTML are written as
   '<scr'+'ipt>' / '<\/scr'+'ipt>' so the host file still has exactly two literal </script>.
+
+────────────────────────────────────────────────────────────
+MILESTONE 5.5 — POST-M5 V4.0 SCHEMA REFACTOR + DATA-INTEGRITY RECALIBRATION + DELIVERY POLISH + LIVE-TEST PATCHES — ✅ BUILT & LIVE-TESTED
+(May 12–13, 2026. Two-day window. The 7-phase pipeline as shipped in M5 went
+through its first end-to-end live runs against real iTV topics, and the
+architectural failure modes that surfaced — image-gate flapping, ToC duplicate
+FAQ entries, image slots injecting into FAQ headings, conclusion content
+landing in content_sections, "Gerek Allen, Founder, Founder" byline duplication,
+consecutive duplicate paragraphs, Phase 3B false-positive thrashing on
+conversational language, full-pipeline aborts when a single section
+hallucinated — were patched in-session via a schema refactor, a Phase 3B
+recalibration, the Save State rollback architecture, and assembly-time
+delivery polish. Twelve commits across the two days, all live on main, all
+syntax-checked, with multiple end-to-end live runs verifying each before the
+next layer of changes shipped. Build target unchanged: AEO-Article-Creation/
+aeo_v4.html. The 7-phase pipeline shape is unchanged; the schema, the Phase
+3B contract, and Phase 2B's retry topology all upgraded.)
+
+- SCHEMA REFACTOR — Phase 2A frame, V1_FRAME_TOOL.input_schema, Phase 3A
+  validation, Phase 7A assembly (commit 04e8c55, May 13). The frame's
+  generic `sections` array + `faq` array are gone. The frame JSON now
+  ships three dedicated top-level keys:
+    • content_sections   — standard H2 sections only. Every entry gets a
+                           ToC entry + an injected image. NO FAQ, NO
+                           conclusion in this array. Min 4.
+    • conclusion_section — { id, h2, paragraphs[] }. ALWAYS required.
+                           Own top-level key with its own id. NO image
+                           slot, NO image rendering, at any phase. Ever.
+    • faq_section        — { id, h2, intro_paragraphs[], qa_pairs[{id,
+                           question, answer{}}] }. ALWAYS required. Own
+                           top-level key. NO image slot, NO image
+                           rendering, at any phase. Ever.
+  V1_FRAME_TOOL.input_schema requires all three; the Phase 2A prompt
+  spells out the shape and the "ALWAYS required, both intro_paragraphs
+  AND qa_pairs" rule for faq_section. Phase 3A adds hard validation:
+  conclusion_section_missing, faq_section_missing, conclusion_paragraphs_
+  empty, faq_intro_empty, faq_answer_empty, faq_qa_count (≥5),
+  conclusion_section_h2_empty, faq_section_h2_empty.
+  Phase 7A assembly renders DETERMINISTICALLY from these three keys with
+  ZERO text-matching anywhere: DA → Last Updated + byline → ToC (sourced
+  strictly from content_sections H2s + conclusion_section.h2 +
+  faq_section.h2) → each content_section (H2, image, paragraphs, h3s,
+  tables) → conclusion_section (H2 + paragraphs only — no image, no
+  table, ever) → faq_section (H2, intro_paragraphs as <p>, then each
+  qa_pair as H3 + answer prose — no image, ever) → CTA. Every previous
+  toLowerCase().includes() / regex used to identify FAQ or conclusion
+  inside the old generic `sections` array is gone.
+  Downstream: Phase 2B hydration relay queues a dedicated conclusion
+  block + a FAQ block (intro paragraphs + every qa_pair answer batched);
+  Phase 5 voice relay + Phase 6 critique relay both iterate through
+  conclusion paragraphs + FAQ intro paragraphs alongside content-section
+  paragraphs and qa_pair answers; the conclusion job in Phase 6 is the
+  lastSectionJobIdx so QC2 (callback verifier) + QC6 (semantic anchor)
+  literally fire on the conclusion section.
+  Resolves three live-run failure modes in one structural change:
+  missing conclusions slipping past validation, duplicate FAQ ToC entries,
+  and images injecting after FAQ headings.
+
+- SECTIONAL FACT ALLOCATION — Phase 2A frame field, Phase 2B per-section
+  factClaim scoping (commit 09250e1, May 13). The Phase 2A frame now
+  produces, on EVERY section (content / conclusion / FAQ), a required
+  assigned_facts array of 1-3 factClaim IDs drawn from the Phase 1
+  research brief. Phase 2B hydration calls receive ONLY the 1-3
+  factClaims assigned to the section being written — not the full
+  factClaim menu. JS validates that each assigned id is real (present in
+  Phase 1 factClaims) AND, for quantitative-table rows, that the row's
+  sourceReferenceId is in the parent section's assigned_facts pool.
+  Eliminates cross-section factClaim confusion (e.g. a stat about "agency
+  conversion rates" being cited inside a section about "site speed") and
+  reduces per-call token pressure (the section sees ~3 factClaims, not
+  the full ~20-claim brief).
+
+- INLINE CITATION TOKENS — Phase 2B prompt + Phase 7A render-time strip
+  (commit 09250e1, May 13). Phase 2B's prompt requires Claude to append
+  the citation token [factClaim_NN] in brackets IMMEDIATELY after any
+  specific number, percentage, dollar amount, timeframe, or named study
+  used in prose or table cells. Example: "Agencies waste significant
+  budget [factClaim_02] on tactics that don't build entity trust." The
+  token MUST reference one of THIS section's assigned_facts. Forces
+  Claude to verify the claim before completing the sentence — and JS
+  inline-validation rejects the section if a token references a
+  factClaim NOT assigned to it (Save State retry kicks in). Phase 7A
+  mdInline strips every [factClaim_NN] token before parsing, so tokens
+  never appear in the rendered preview iframe, the final .txt, the
+  operator HTML source view, or the BlogPosting / FAQPage / Breadcrumb
+  schema JSON. Tokens exist only between Phase 2B writing and Phase 7A
+  rendering — purely internal anchors.
+
+- FRAMEWORK LABELS — Phase 2A frame field + Phase 2B verbatim injection
+  (commit 09250e1, May 13). The Phase 2A frame outputs a top-level
+  framework_labels JSON object — a flat string→string map of every
+  custom multi-part structural label Claude invents in the article
+  (numbered stages, named phases, pillars, layers, steps). Example:
+  {"Stage 1":"Dormancy","Stage 2":"Displacement","Stage 3":"Invisibility"}.
+  Empty {} if the article has no custom framework. The map is LOCKED
+  once written. Phase 2B injects it verbatim into every hydration call
+  as a "use these exact strings — do not alter, abbreviate, or
+  paraphrase" reference. Prevents internal-consistency failures (e.g.
+  "Stage Two dormancy" appearing when Stage One was named "Dormancy"
+  in section 1). Phase 3A validates the field's presence and that
+  every value is a string.
+
+- TYPED TABLES — Phase 2A frame field + Phase 2B per-type constraints
+  (commit 09250e1, May 13). The Phase 2A frame now declares table_type
+  on every table, enum {quantitative, conceptual}. QUANTITATIVE tables
+  enforce the CoT fact-anchor justification schema: Claude must quote
+  the supporting factClaim's exact phrase in fact_anchor_justification
+  BEFORE writing the cells, and sourceReferenceId must come from the
+  parent section's assigned_facts. Rows without supporting facts are
+  sentinel-tagged "DELETE_ROW_UNSUPPORTED" and JS guillotines them
+  post-stitch. CONCEPTUAL tables organize narrative comparisons /
+  frameworks / structural info with no factClaim binding required —
+  cells only. The Phase 3A minimum table count (≥3 across all content
+  sections) is maintained; conceptual tables count toward the
+  minimum. HYDRATE_CONTENT_BLOCK_TOOL.input_schema was relaxed so
+  sourceReferenceId + fact_anchor_justification are per-table-type
+  optional (JS enforces them only for quantitative).
+
+- PHASE 2B NUMERICAL ABSOLUTE RULE — Phase 2B uncached instr block
+  (commit 09250e1, May 13). The hydration prompt's NUMERICAL ABSOLUTE
+  RULE: Claude is strictly forbidden from inventing specific numbers,
+  percentages, timeframes, or dollar amounts unless they appear
+  verbatim in one of the section's assigned factClaims. Explicit
+  escape hatch: describe concepts qualitatively when no assigned
+  factClaim supports a specific figure (e.g. "requires significant
+  capital expenditure" instead of "$30,000", "over several months"
+  instead of "3-6 months"). Combined with the citation-token rule
+  this gives a closed loop: every specific figure must be anchored
+  to an assigned factClaim, or it must not be there.
+
+- SAVE STATE ROLLBACK — Phase 2B per-section snapshotting + Phase 3B
+  micro-retry (commit 09250e1 + 45f1d0c, May 13). Phase 2B now
+  snapshots the article JSON + rolling draft state AFTER each
+  successfully hydrated section passes inline validation (all
+  required ids non-empty AND no cross-section citation token). If a
+  section fails inline validation OR fails Phase 3B's hallucination
+  sweep, JS rolls the article back to the last good snapshot and
+  retries ONLY that section — up to 2 Save State micro-retries with
+  a targeted warning (the previous failure reason / the offending
+  text Gemini flagged) fed back into the per-section prompt. Cost
+  of a section retry is roughly the cost of one Phase 2B section
+  call (~$0.10-0.15) — NOT the cost of regenerating the entire
+  article (~$1.50+). If a section still fails after 2 retries on
+  EITHER stage, the pipeline emits an immediate kill-only RED
+  escalation via buildKillOnlyRed (Stage / Section H2 / failure
+  reason / "This run has been stopped after 2 retry attempts. Start
+  a new run or move to the next topic.") and halts — no resume, no
+  fix UI. The .esc-msg CSS got white-space:pre-wrap so the
+  multi-line RED renders structured in the escalation panel.
+
+- PHASE 3B RECALIBRATION — buildPhase3BPrompt rewritten as a data-
+  integrity-only sweep with FLAG/IGNORE lists (commit 09250e1 +
+  45f1d0c, May 13). Phase 3B's prompt is stripped to one job: did
+  Claude fabricate a specific statistic / percentage / dollar amount /
+  named study and present it as a sourced fact — when it does NOT
+  appear in the Phase 1 factClaims or the 4.3B client identity
+  document? Explicit FLAG list:
+    • Specific percentages or fractions presented as research-backed
+      facts not present in factClaims
+    • Specific dollar amounts presented as facts not present in
+      factClaims
+    • Named research studies, reports, or case studies not in
+      factClaims
+    • Named companies, software tools, or agencies not in 4.3B or
+      factClaims
+  Explicit IGNORE list (the prompt says "Do not flag, do not mention"):
+    • Conversational timeframes ("in six weeks," "within a quarter,"
+      "a few months")
+    • Written-out numbers used rhetorically ("eighteen clients," "a
+      dozen practices")
+    • Qualitative comparisons ("most businesses," "many practices,"
+      "the majority")
+    • General duration or frequency language
+    • Any prose that sounds specific but makes no claim to be sourced
+      data
+  Phase 3B is no longer asked to check anchor text, structural
+  elements, framework-label consistency, internal-link placement, or
+  writing quality — those belong elsewhere. The response shape is
+  typed: { verdict:"PASS"|"FAIL", hallucinations:[{nodeId,
+  offendingText, location:"table_row"|"prose"}] }. Routing:
+  table_row hallucinations → JS guillotine (the matching row is
+  deleted from the article JSON, pipeline continues, no Claude
+  call); prose hallucinations → Save State micro-retry of the
+  containing section (the section's prose is cleared, a new
+  hydrate_content_block call fires with Gemini's flagged text as
+  the retry warning, then 3B re-runs). Cap: 2 micro-retries per
+  section. The exhaustive-audit semantic checker + the surgical-fix
+  loop are GONE from Phase 3B — surgical fix remains only for Phase
+  3A structural failures (2-round cap, unchanged).
+
+- RUN LOG COLOR DISCIPLINE — Phase 2 + Phase 5 per-block green
+  (commits bfecf3d + 234775d, May 13). The Phase 2 hydration relay
+  now logs a GREEN "Phase 2 — block X of Y done (label)" line after
+  each section's clean stitch. The Phase 5 voice relay logs a GREEN
+  "Phase 5 — block X of Y re-voiced (label)" line after each clean
+  re-voicing (gated on !hadWarn so blocks that hit a warning still
+  surface yellow via the existing warnYellow path, not double-logged
+  green). Per-block START lines stay blue (informational). The
+  "Phase 2 hydration relay complete" + "Phase 5 complete" summary
+  lines were already green-on-success. Cache stat lines
+  (write/read/input/output PARTIAL/MISS/YES/CREATED) keep their
+  verdict-driven colors via logCacheCall. Red stays for errors,
+  yellow for warnings, blue for informational/neutral. Green now
+  consistently means "the pipeline successfully moved forward."
+
+- CHECKLIST DOWNLOAD POLISH — VA-facing scrub (commit bfecf3d, May 13).
+  buildChecklistHTML — the {permalink-slug}-checklist.html download —
+  was restructured:
+    • Removed the "Full Article URL" field. The permalink slug field
+      suffices for the VA workflow.
+    • Featured image promoted to TWO fields. PRIMARY:
+      "FEATURED IMAGE ALT TEXT" — pulled from imagePrompts[featured].
+      alt with hyphens, en-dashes, and em-dashes replaced by spaces
+      (then whitespace collapsed + trimmed) so the VA pastes it
+      straight into WordPress's alt field. SECONDARY: the existing
+      "FEATURED IMAGE URL" stays beneath it.
+    • Removed the entire "Run Cost Report" section (Run Time, Claude
+      Cost, Gemini Text Cost, Image Cost, Total Estimated Cost). Cost
+      data still surfaces in the in-tool run log for operator
+      reference; the downloaded checklist is now purely content-focused
+      and surfaces no cost noise to the VA.
+    • The .cost-grid / .cost-item CSS and the now-unused runTime /
+      geminiCost / claudeCost / imageCost / totalCost variables in
+      buildChecklistHTML were stripped with the section.
+
+- BYLINE TITLE EXTRACTION FIX — extractBrandingFrom43B + byline
+  assembly guard (commit e0efe2a, May 13). Symptom from live runs:
+  bylines rendering as "Gerek Allen, Founder, Founder" or "Gerek
+  Allen Author Title: Founder." Root causes were:
+    (1) The authorName main regex captured greedily across the comma
+        in a same-line "Author: Name, Title" pattern, sweeping the
+        title into the captured name.
+    (2) On a same-line "Author: Name Author Title: Title" pattern,
+        the authorName regex captured the entire trailing string,
+        including the label "Author Title:".
+    (3) The captured authorTitle could leak surrounding markdown bold
+        (e.g. **Founder**) when 4.3B used `**Author Title:**` styling.
+  Fix:
+    • authorName main regex now stops at: a COMMA, the literal
+      "Author Title:" on the same line, pipe, newline, or end. The
+      Byline / Written-by fallback intentionally keeps no comma stop
+      (it stays a verbatim override).
+    • Both name and title regexes consume any leading / trailing **
+      around the value or the label.
+    • The primary authorTitle regex captures [^\r\n|*]+? — asterisks
+      excluded — so markdown bold around the value cannot leak in.
+    • Belt-and-suspenders scrub strips any residual "Author Title:" /
+      "Title:" prefix and any surrounding asterisks from the captured
+      title.
+    • Byline assembly in assemblePhase7HTML adds a duplicate-title
+      guard: if authorTitle already appears at the end of authorName
+      (case-insensitive, with or without a comma separator), the
+      title is NOT appended again. Eliminates the doubled-title
+      output in all observed forms.
+
+- DUPLICATE PARAGRAPH DETECTION — assemblePhase7HTML render guard
+  (commit e0efe2a, May 13). Symptom from live runs: "That playbook
+  is dead." appearing twice back-to-back in one section. assemble-
+  Phase7HTML now runs a CONSECUTIVE-duplicate guard during rendering:
+  for each paragraph in content_sections, content_sections.h3sections,
+  conclusion_section, and faq_section.intro_paragraphs, the trimmed
+  prose is compared to the IMMEDIATELY preceding paragraph's trimmed
+  prose; on exact match the second is skipped (not rendered). The
+  tracker resets at every H2 content section, every H3 inside a
+  content section, the conclusion_section, and the faq_section.intro_
+  paragraphs — so non-consecutive repeats elsewhere in the article
+  still render. qa_pair answers are NOT deduped (per spec — content
+  sections, conclusion, FAQ intro only). The skip count is logged
+  yellow at the end of assembly when > 0. The article JSON is NOT
+  mutated; this is render-time only.
+
+- CONCLUSION-SECTION INTEGRITY CHECK — Phase 2B end-of-relay
+  diagnostic (commit e0efe2a, May 13). Symptom from live runs: the
+  Phase 2A frame occasionally puts conclusion-style content into a
+  content_sections entry (with a heading like "The Bottom Line" or
+  "Where This Leaves You") rather than into the dedicated
+  conclusion_section, leaving conclusion_section empty and the
+  conclusion content rendered as a normal content section (with an
+  injected image). After executePhase2B's main loop finishes, JS
+  now verifies that conclusion_section is a top-level object AND
+  has ≥1 paragraph with non-empty prose. If missing or empty, JS
+  scans content_sections for any H2 whose heading text matches a
+  conclusion-style label regex AND has hydrated paragraphs. Each
+  match is logged as a misplaced node (section index + H2 text +
+  hydrated paragraph ids) via warnYellow F14 — diagnostic only.
+  JS does NOT auto-move the content; the misplacement is flagged
+  so the operator can see which frame attempt produced misplaced
+  content, and Phase 3A's conclusion_paragraphs_empty hard fail
+  still fires next to force a Phase 2A retry. CURRENT REGEX (as of
+  e0efe2a): /\b(conclusion|conclud|bottom\s+line|wrap(?:ping)?\s+
+  up|final\s+(?:thought|word|takeaway)s?|in\s+closing|to\s+sum\s+
+  up|takeaway|summary|the\s+last\s+word|where\s+this\s+leaves\s+
+  you)\b/i — covers ~10 common patterns. NOTE: live-observed
+  headings like "The Widening Gap" or "The Verdict" do NOT match
+  this regex and will silently NOT be caught by this YELLOW
+  diagnostic; expansion is a tracked watch item (see V4.0 KNOWN
+  BUGS / WATCH ITEMS below). Phase 3A's structural fail still
+  forces the retry whether or not this diagnostic fires.
+
+- PHASE 7B PURE-JS FORMATTING QC (commit 832dde1, May 12 — included
+  here because the May 13 schema refactor depends on its read-only
+  contract). All Claude-touching code was removed from Phase 7B.
+  Phase 7B is now a permanent sidebar beside the read-only iframe:
+    • Global Link Manager — domain chips (auto-collected from every
+      URL in the article JSON), find/replace rewrites all URLs
+      across the article JSON in one pass.
+    • Metadata — author byline override (S.p7AuthorByline; wins
+      over the 4.3B-derived author when set), publish date.
+    • Rebuild Structure — "Re-Sync ToC Anchors" (slugifies +
+      de-duplicates every H2/H3/conclusion/FAQ id and rebuilds ToC
+      links), "Re-render Article" (wipes the iframe + rebuilds it
+      from the current JSON).
+    • QC Notes scratchpad — operator notes, never sent anywhere.
+  Contextual hover modal on every rendered block: DA → "Force
+  Paragraph Breaks" JS option; Image → set its WordPress URL +
+  re-render; Table → "Re-parse Table" (splits cells on lingering
+  pipes, drops markdown separator rows, trims); Paragraph / FAQ /
+  CTA → show the raw prose read-only (no edit, no Claude call).
+  One-way data flow: the iframe is STRICTLY read-only, JS owns
+  the master JSON, assembly wipes and re-renders the iframe from
+  the JSON on every change. The old "Edit Mode + click-to-edit +
+  one fix Claude call per block" code (M5's 7B) is gone — Phase 7
+  no longer has any Claude calls anywhere.
+
+- BUG FIXES — image-gate strictness + QC4 V1 delta check + 40/60
+  layout (commit 9dcfad8, May 12). Phase 7 image gate is now a
+  strict three-way AND: expectedImageCount > 0 AND imagesValidated
+  AND every URL filled — a downstream image-generation completion
+  cannot downgrade a valid green gate state to red. QC4 (AI-Tell +
+  4.3B Terminology-Lock scan) got a V1 Delta Check: a 4.3B
+  Terminology-Lock hit is suppressed if either (a) the term is
+  one of the data anchors the Phase 5 rewrite marked to preserve,
+  or (b) the term was already present in the frozen V1 prose for
+  these nodes (so Phase 5/6 didn't introduce it and re-flagging
+  would just churn). The universal AI-Tell Kill List remains
+  absolute — those hits are never suppressed. Layout changed to
+  40/60 (left column 2fr — phase cards + image panel; right column
+  3fr — tabs + preview).
+
+- IMAGE QUEUE TUNING — fail-fast + back-of-queue final retry
+  (image-gen module, current code). ATTEMPT_TIMEOUTS = finalPass ?
+  [90000] : [35000, 45000]. Attempt 1 times out at 35 s (fail-fast,
+  was 90 s nominal). Attempt 2 (immediate retry) at 45 s. Attempt 3
+  pushes the image to the BACK of the queue (runs after every other
+  image finishes, at the 90 s timeout). 503 capacity errors and 429
+  rate-limit errors on a non-final pass throw {requeue:true} → the
+  image is pushed to the back-of-queue for attempt 3 (no separate
+  fixed-duration backoff before the requeue; back-of-queue latency
+  comes from waiting for all other images to finish). A jittered
+  2.5–5 s delay precedes every sequential image API call. Manual
+  "↻ regenerate this image" uses finalPass=true (the 90 s single
+  attempt, no requeue). Designed to recover from transient Gemini
+  capacity blips without compounding them. Total attempts: up to 3
+  per image.
 
 ────────────────────────────────────────────────────────────
 PHASE RENUMBERING (May 12, 2026)
@@ -1424,6 +1803,97 @@ KNOWN BUGS — UNRESOLVED
     clean text (observed once in this session — H1 had "[H1]" appended).
     Working as designed but worth eliminating at the source. Step 5 prompt
     should explicitly instruct Claude to strip [H#] suffixes when filling.
+
+
+V4.0 KNOWN BUGS / WATCH ITEMS (POST-LIVE-TEST, MAY 13, 2026)
+-------------------------------------------------------------
+These were surfaced or theorized during the May 12–13 live-test runs. The
+in-session fixes are pushed; the WATCH items below need verification on the
+next clean end-to-end run before being closed.
+
+1. BYLINE TITLE DUPLICATION ("Gerek Allen, Founder, Founder" / "Gerek Allen
+   Author Title: Founder") — FIX PUSHED (commit e0efe2a, May 13). The
+   extractBrandingFrom43B regex + the byline assembly guard in assemble-
+   Phase7HTML were both hardened. WATCH: the next live iTV run should
+   render "By Gerek Allen, Founder" exactly once, with no duplicate title
+   and no leaked "Author Title:" label. If a different 4.3B layout slips
+   past the new regex stops (comma / same-line "Author Title:" / pipe /
+   newline / end), revisit extractBrandingFrom43B.
+
+2. CONCLUSION PARAGRAPHS LANDING IN content_sections — PARTIAL FIX
+   PUSHED. The architectural schema fix (commit 04e8c55, May 13) gives
+   the conclusion its own top-level key + Phase 3A hard validation that
+   forces a Phase 2A retry when conclusion_section is empty. The
+   end-of-Phase-2B diagnostic (commit e0efe2a, May 13) logs a YELLOW
+   F14 listing the misplaced node ids when conclusion_section is empty
+   AND a content_section's heading matches the conclusion regex AND
+   has hydrated prose. CURRENT REGEX (e0efe2a): covers ~10 patterns —
+   conclusion / conclud / bottom line / wrap up / wrapping up / final
+   thoughts|words|takeaways / in closing / to sum up / takeaway /
+   summary / the last word / where this leaves you. WATCH ITEM (open):
+   live-observed headings "The Widening Gap" and "The Verdict" do NOT
+   match this regex — the YELLOW diagnostic will silently NOT fire on
+   them, even though Phase 3A's structural fail still forces the
+   Phase 2A retry. The regex is a candidate for expansion if these
+   patterns keep showing up; document the expansion in the next
+   session entry when shipped.
+
+3. IMAGE GENERATION — 4/5 FAILURE RATE OBSERVED ON SOME LIVE RUNS.
+   MITIGATIONS PUSHED. Image queue tuning is in place: 35 s / 45 s /
+   back-of-queue 90 s with jittered 2.5–5 s delays between sequential
+   calls, 503/429 → requeue to the back of the queue (no separate
+   fixed-duration backoff in code), max 3 attempts per image. WATCH:
+   confirm the per-run failure rate drops on the next iTV runs. If
+   capacity errors stay high during peak Gemini load, candidates for
+   adjustment: (a) add an explicit fixed backoff before the requeue
+   attempt rather than relying on back-of-queue latency, (b) increase
+   the jitter window, (c) widen the final-pass timeout.
+
+4. CONSECUTIVE DUPLICATE PARAGRAPH ("That playbook is dead." rendered
+   twice back-to-back) — FIX PUSHED (commit e0efe2a, May 13).
+   assemblePhase7HTML now skips a paragraph whose trimmed prose
+   exactly matches the immediately preceding paragraph's trimmed prose.
+   Tracker resets per H2 content section, per H3 inside a content
+   section, the conclusion_section, and the faq_section.intro_paragraphs.
+   Render-time only — the article JSON is NOT mutated; the duplicate
+   stays in S.v3 for forensic review. Skip count logged YELLOW at end
+   of assembly. WATCH: the next run shouldn't show consecutive
+   duplicates. If repeated prose appears NON-consecutively (e.g.
+   separated by a sentence or an unrelated paragraph), this guard
+   won't catch it — that would be a different bug class.
+
+5. PHASE 3B FALSE POSITIVES ON CONVERSATIONAL LANGUAGE — FIX PUSHED
+   (commit 45f1d0c, May 13). The Phase 3B prompt's IGNORE list now
+   explicitly tells Gemini to NOT flag conversational timeframes
+   ("in six weeks"), written-out rhetorical numbers ("eighteen
+   clients"), qualitative comparisons ("most"), general duration /
+   frequency language, and any prose that "sounds specific but makes
+   no claim to be sourced data." Combined with the FLAG list (only
+   specific %/$/named studies/named companies/software/agencies),
+   this should massively reduce the previous thrashing where Gemini
+   flagged voice-driven prose as hallucinations. WATCH: the next
+   live runs' Phase 3B pass rate should jump. If it stays low,
+   expand the IGNORE list with the specific patterns being
+   over-flagged.
+
+6. SAVE STATE COST BOUND VERIFICATION — NEEDS LIVE-RUN MEASUREMENT.
+   The Save State micro-retry architecture (commit 09250e1, May 13)
+   is designed so a single failing section costs roughly ~$0.10-0.15
+   per retry — NOT the ~$1.50+ of a full pipeline restart. WATCH:
+   verify in the per-run cost log on a run that actually triggers a
+   Save State retry. If the measured cost is higher than expected,
+   audit reHydrateSectionFor3B to confirm only the one section's
+   hydrate_content_block call is firing (not a re-run of the whole
+   Phase 2B queue).
+
+7. KILL-ONLY RED ESCALATION DISPLAY — NEEDS LIVE-RUN VERIFICATION.
+   buildKillOnlyRed (commit 45f1d0c, May 13) emits multi-line REDs
+   structured as Stage / Section / Failure reason / kill instruction,
+   and .esc-msg CSS has white-space:pre-wrap so the multi-line body
+   renders structured in the escalation panel. WATCH: when a real
+   RED fires (Phase 2B cap hit or Phase 3B prose hallucination cap
+   hit), confirm all three labelled lines + the kill instruction are
+   visible to the operator without overflow / truncation.
 
 
 NEXT SESSION PRIORITIES
@@ -2393,6 +2863,110 @@ for full detail. Key milestones:
 - V2.3: Step 8 FAIL format injection. extractDirectAnspartwer DA_END marker.
 - V2.4: Drive API key in header. VCI architecture rebuilt to JS math.
 - V1.x (Chats 11-16): Initial production tool. Multiple test runs and fixes.
+
+═══════════════════════════════════════════════════════════════
+COMMIT LOG — MAY 12–13, 2026 SESSION (M5 + M5.5)
+═══════════════════════════════════════════════════════════════
+In chronological order, top-of-section is the earliest. All commits live on
+main (origin: github.com/iTechValet/iTV-Tools, GitHub Pages auto-deploys).
+
+May 12, 2026 (M5 + 7B pure-JS rebuild + bug fixes):
+
+  282b03c  aeo_v4.html: build Phase 7 (Final Assembly) — 7A JS assembly +
+           7B operator click-to-edit QC + 7C finalize/download
+           [M5 — original Phase 7 build, before the 7B pure-JS rebuild]
+  832dde1  Rebuild Phase 7B as a pure-JS formatting QC checkpoint (no Claude)
+           [Phase 7B sidebar: Global Link Manager / Metadata / Re-Sync ToC /
+            Re-render; contextual modal per clicked block: DA → Force Paragraph
+            Breaks / Image → set WP URL / Table → Re-parse Table / Paragraph,
+            FAQ, CTA → read-only raw prose. No Claude calls in Phase 7 anywhere.]
+  9dcfad8  fix: QC4/QC5 V1 delta check, image gate logic, 40/60 layout
+           [Phase 7 image gate is strict three-way AND; QC4 suppresses 4.3B
+            Terminology-Lock hits that were in V1 or are listed as data anchors;
+            layout switched to 40/60 (left 2fr — phases + image panel; right
+            3fr — tabs + preview).]
+  d48ec93  fix: Phase 3 exhaustive audit, semantic 1-round cap, subtractive
+           scrub mandate
+           [Phase 3B was still the exhaustive audit at this point; later
+            replaced by the M5.5 hallucination-sweep recalibration (commit
+            45f1d0c).]
+  00a93ee  fix: Phase 2B numerical absolute rule + CoT fact anchor schema
+           [The NUMERICAL ABSOLUTE RULE was added to Phase 2B's prompt;
+            HYDRATE_CONTENT_BLOCK_TOOL got fact_anchor_justification as a
+            required per-row field for quantitative tables. Later relaxed in
+            M5.5 (commit 09250e1) to per-table-type optional.]
+
+May 13, 2026 (M5.5 — six commits, schema refactor + Phase 3B recalibration
++ delivery polish + live-test bug patches):
+
+  04e8c55  refactor: Phase 2A root-level FAQ/conclusion extraction, Phase 3A
+           hard validation, Phase 7A deterministic assembly
+           [SCHEMA REFACTOR. content_sections / conclusion_section / faq_section
+            as dedicated top-level keys. Phase 3A enforces all three. Phase 7A
+            renders deterministically from the three keys with zero text-matching.]
+  09250e1  refactor: sectional fact allocation, citation tokens, save state
+           rollback, Phase 3B hallucination sweep only
+           [Phase 2A frame adds assigned_facts (per section), framework_labels
+            (top-level), table_type (per table). Phase 2B prompt: per-section
+            factClaim menu, citation token rule, entity guardrail, framework
+            labels verbatim, per-table-type constraints. HYDRATE_CONTENT_BLOCK
+            _TOOL schema relaxed. Save State per-section snapshot in
+            executePhase2B + 2 micro-retries on inline-validation failure.
+            Phase 7A mdInline strips [factClaim_NN] tokens. Phase 3B stripped
+            from exhaustive audit to a one-shot hallucination sweep returning
+            { verdict, hallucinations:[{nodeId, offendingText, location}] };
+            table_row → JS guillotine; prose → routed to surgical-fix path
+            (later moved to Save State micro-retry in 45f1d0c).]
+  45f1d0c  fix: Phase 3B recalibration, micro-retry cap 2, kill-only RED
+           escalation
+           [Phase 3B prompt rewritten as a data-integrity-only sweep with
+            explicit FLAG / IGNORE lists. Phase 3B prose hallucinations now
+            trigger Save State micro-retry of the affected section (cap 2 per
+            section) — reHydrateSectionFor3B clears the section's prose +
+            re-runs hydrate_content_block with Gemini's flagged text as the
+            retry warning. Both Phase 2B's existing inline-validation cap
+            hits AND Phase 3B's new prose-hallucination cap hits emit the
+            same kill-only RED via buildKillOnlyRed (Stage / Section H2 /
+            Failure reason / "This run has been stopped after 2 retry
+            attempts. Start a new run or move to the next topic."). .esc-msg
+            CSS gets white-space:pre-wrap. No resume button, no fix UI.]
+  bfecf3d  fix: run log colors, checklist UI cleanup, alt text, cost
+           visibility
+           [Phase 2 hydration relay now logs GREEN "Phase 2 — block X of Y
+            done (label)" line per clean section. Checklist download: Full
+            Article URL field removed, Run Cost Report section removed (VA-
+            facing scrub), Featured Image promoted to TWO fields — primary
+            "FEATURED IMAGE ALT TEXT" pulled from imagePrompts[featured].alt
+            with hyphens / en-dashes / em-dashes replaced by spaces +
+            whitespace collapsed + trimmed for direct WordPress paste;
+            existing "FEATURED IMAGE URL" stays beneath it.]
+  234775d  fix: Phase 5 run log green on success
+           [Phase 5 voice relay now logs GREEN "Phase 5 — block X of Y
+            re-voiced (label)" line per clean re-voicing block, gated on
+            !hadWarn so warning blocks still surface yellow via warnYellow.]
+  e0efe2a  fix: byline title extraction, duplicate paragraph detection,
+           conclusion section validation
+           [extractBrandingFrom43B: authorName stops at comma + same-line
+            "Author Title:" label + strips surrounding ** + scrubs leaked
+            "Author Title:" / "Title:" prefix from captured title.
+            Byline assembly in assemblePhase7HTML: guard against duplicate-
+            title append (case-insensitive endsWith check). Phase 7A
+            assemblePhase7HTML: consecutive-duplicate paragraph guard via
+            _dupTracker / _pushParaIfNotDup; resets per H2 content section,
+            per H3 inside a content section, the conclusion_section, the
+            faq_section.intro_paragraphs. qa_pair answers not deduped.
+            Skip count logged YELLOW at end of assembly. Phase 2B end-of-
+            relay diagnostic: if conclusion_section is missing/empty AND a
+            content_section H2 matches the conclusion regex (~10 patterns,
+            see KNOWN BUGS / WATCH ITEMS) AND has hydrated prose → logs
+            YELLOW F14 listing misplaced nodes. JS does NOT auto-move;
+            diagnostic only.]
+  4a25049  Update Master Doc for May 13, 2026 session — V4.0 schema refactor
+           + Phase 3B recalibration + delivery polish
+           [Documents the above six aeo_v4.html commits in the Master Doc's
+            CHANGE LOG. This commit log section + the V4.0 KNOWN BUGS /
+            WATCH ITEMS section + the M5.5 entry in V4.0 BUILD STATUS were
+            added in a later Master Doc update commit.]
 
 ═══════════════════════════════════════════════════════════════
 END OF MASTER DOC
