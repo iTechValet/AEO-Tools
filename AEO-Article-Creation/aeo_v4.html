@@ -3737,6 +3737,9 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
       const uncovered = reqIds.length - covered;
       if(uncovered > 0){ hadWarn = true; warnYellow('F14', `Phase 5 block ${i+1}/${total} (${job.label||job.type}): ${uncovered} of ${reqIds.length} node(s) not re-voiced — those keep their V1 prose. Code: F14.`); }
       setRelayChip('relayStrip5', i, hadWarn ? 'warn' : 'done');
+      // GREEN forward-progress signal: this block re-voiced cleanly + the relay advances to the next.
+      // (Matches the Phase 2 pattern — blue is informational; green means the pipeline moved forward.)
+      if(!hadWarn) log(`Phase 5 — block ${i+1} of ${total} re-voiced (${job.label||job.type}).`, 'ok');
       document.getElementById('m5').textContent = `Phase 5 relay — ${i+1}/${total} block(s) re-voiced (${allValid.length} node(s) so far${failedBlocks?`, ${failedBlocks} block(s) failed`:''}${droppedTotal?`, ${droppedTotal} dropped`:''}).`;
       document.getElementById('o5').textContent = `Phase 5 voice relay — ${i+1}/${total} block(s) done (last: ${job.label||job.type}).\n\n── rolling V2 draft (so far) ──\n${rollingV2Draft.slice(0, 6000)}`;
     }
