@@ -156,7 +156,7 @@
   .esc-entry .esc-code { font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; }
   .esc-entry.red .esc-code { color:var(--red); }
   .esc-entry.yellow .esc-code { color:var(--orange); }
-  .esc-entry .esc-msg { color:#333; margin-top:3px; }
+  .esc-entry .esc-msg { color:#333; margin-top:3px; white-space:pre-wrap; word-break:break-word; }
   .esc-entry .esc-ts { color:var(--faint); font-size:10px; }
   .esc-notify { margin-top:8px; background:var(--red); color:#fff; border:none; border-radius:6px; padding:7px 14px; font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1px; cursor:pointer; }
   .esc-notify:hover { opacity:.85; }
@@ -2042,7 +2042,8 @@ PHASE 2B — SEQUENTIAL HYDRATION (the "Relay Race", section-level). You will be
     // by the most recently completed job's sectionId; we keep a single rolling "last good" pair.
     let saveStateFrame = JSON.parse(JSON.stringify(hydratedFrame));
     let saveStateRollingDraft = '';
-    const sectionRedFailures = []; // [{ jobIdx, label, reason, sectionId }]
+    // (Per Change 2 spec: any section that fails the 2-retry Save State cap RED-escalates immediately
+    //  via escalateRed and returns; no per-relay aggregation of failed sections.)
     for(let i = 0; i < total; i++){
       const job = queue[i];
       const reqIds = job.requiredIds || [];
@@ -2150,25 +2151,122 @@ PHASE 2B — SEQUENTIAL HYDRATION (the "Relay Race", section-level). You will be
         const v2Pre = document.getElementById('v2Pre'); if(v2Pre) v2Pre.textContent = JSON.stringify(hydratedFrame, null, 2);
         const m2 = document.getElementById('m2'); if(m2) m2.textContent = `Phase 2 hydration relay — ${i+1}/${total} block(s) done (last: ${job.label||job.type})${failedIds?`, ${failedIds} node(s) un-hydrated`:''}${guillotinedRows?`, ${guillotinedRows} unsupported row(s) guillotined`:''}.`;
       } else {
-        // SECTION-LEVEL RED escalate for THIS section only — restore the last good snapshot so the
-        // rest of the relay isn't poisoned. RED is logged here; we continue with the next section.
+        // SECTION-LEVEL CAP HIT — Save State micro-retry cap (2) exhausted. Per spec: RED escalate
+        // IMMEDIATELY, halt the pipeline (do NOT attempt a 3rd retry, do NOT continue to the next
+        // section). Kill-only — no resume, no fix UI.
         failedIds += reqIds.length;
-        sectionRedFailures.push({ jobIdx:i, label:job.label||job.type, reason:lastSectionFailReason, sectionId:job.sectionId||'' });
-        hydratedFrame = JSON.parse(JSON.stringify(saveStateFrame));
-        rollingDraft = saveStateRollingDraft;
         setRelayChip('relayStrip2', i, 'fail');
-        warnYellow('F14', `Phase 2 — section "${job.label||job.type}" FAILED after 2 Save State retries (${lastSectionFailReason}). ${reqIds.length} node(s) left un-hydrated; the rest of the article continues from the last good snapshot. RED escalation queued for this section.`);
+        const sectionH2 = sectionH2FromJob(hydratedFrame, job);
         const v2Pre = document.getElementById('v2Pre'); if(v2Pre) v2Pre.textContent = JSON.stringify(hydratedFrame, null, 2);
-        const m2 = document.getElementById('m2'); if(m2) m2.textContent = `Phase 2 hydration relay — ${i+1}/${total} block(s) processed; section "${job.label||job.type}" failed (Save State retries exhausted).`;
+        const m2 = document.getElementById('m2'); if(m2) m2.textContent = `Phase 2 hydration relay — section "${sectionH2}" failed Save State retry cap (2). Pipeline halted.`;
+        escalateRed('CHK1', buildKillOnlyRed('Phase 2B Save State', sectionH2, lastSectionFailReason));
+        return hydratedFrame; // pipelineHalted = true; orchestrator's pipelineHalted guard takes over
       }
     }
     if(failedIds) warnYellow('F2', `Phase 2 hydration relay: ${failedIds} of ${totalReqIds} node(s) left un-hydrated after Save State retries — Phase 3A will flag them and the surgical fix will patch them (or CHK1 if it can't). Code: F2.`);
-    if(sectionRedFailures.length){
-      const detail = sectionRedFailures.map(s => `${s.label} (${s.reason})`).join(' | ');
-      escalateRed('CHK1', `Phase 2 — ${sectionRedFailures.length} section(s) failed Save State retry cap (2): ${detail}. Save State kept the rest of the article intact; only those sections' API costs were burned. Manual operator review required to re-hydrate them. Code: CHK1.`);
-    }
     if(guillotinedRows) log(`Phase 2 — JS guillotine deleted ${guillotinedRows} unsupported quantitative-table row(s) (DELETE_ROW_UNSUPPORTED sentinel).`, 'warn');
     return hydratedFrame;
+  }
+
+  // Pretty-print a job's section H2 for the kill-only RED message (and any status display).
+  function sectionH2FromJob(v1, job){
+    if(!job) return '(unknown)';
+    if(job.type === 'directAnswer') return 'Direct Answer';
+    if(job.type === 'cta_hook') return 'CTA hook';
+    if(job.sectionId){
+      const sid = String(job.sectionId);
+      for(const s of _secs(v1)){ if(s && s.id === sid) return String(s.h2 || job.label || ''); }
+      const concl = _concl(v1); if(concl && concl.id === sid) return String(concl.h2 || 'Conclusion');
+      const faq = _faqSec(v1); if(faq && faq.id === sid) return String(faq.h2 || 'Frequently Asked Questions');
+    }
+    return String(job.label || job.type || '(unknown)');
+  }
+  // Locate the queue job that produced a given nodeId. Used by Phase 3B retry to find which
+  // section to re-hydrate when Gemini flags a prose hallucination.
+  function findJobByNodeId(queue, nodeId){
+    const want = String(nodeId || '');
+    if(!want) return null;
+    for(const j of queue){
+      if(Array.isArray(j.requiredIds) && j.requiredIds.some(id => String(id) === want)) return j;
+    }
+    return null;
+  }
+  // Standard kill-only RED message body. Renders as three labelled lines (the escalation panel CSS
+  // sets white-space:pre-wrap so newlines show). No resume, no fix options, no remediation paths.
+  function buildKillOnlyRed(stage, sectionH2, reason){
+    return `Stage: ${stage}\nSection: "${sectionH2}"\nFailure reason: ${reason}\nThis run has been stopped after 2 retry attempts. Start a new run or move to the next topic.`;
+  }
+  // Re-hydrate one section under Phase 3B's Save State micro-retry. Clears the section's prose / rows,
+  // fires a fresh hydration call with Gemini's flagged text fed back as the retry warning, and stitches
+  // the result. Returns { ok, reason }. The orchestrator handles retry counting + RED on cap.
+  async function reHydrateSectionFor3B(v1, job, fails, akey){
+    if(!job || !Array.isArray(job.requiredIds) || !job.requiredIds.length) return { ok:false, reason:'no job/requiredIds' };
+    const spine = v1.narrative_spine || v1.narrativeSpine || {};
+    // Index every node in the frame so we can clear the offending ids in place.
+    const idx = {};
+    const indexAll = (sec) => {
+      if(!sec || typeof sec !== 'object') return;
+      toArray(sec.paragraphs).forEach(p => { if(p && p.id) idx[p.id] = p; });
+      toArray(sec.h3sections).forEach(h3 => { if(h3 && typeof h3 === 'object') toArray(h3.paragraphs).forEach(p => { if(p && p.id) idx[p.id] = p; }); });
+      toArray(sec.tables).forEach(t => { if(t && t.id) idx[t.id] = t; });
+    };
+    _secs(v1).forEach(indexAll);
+    indexAll(_concl(v1));
+    indexAll(_faqSec(v1));
+    _faqIntro(v1).forEach(p => { if(p && p.id) idx[p.id] = p; });
+    _qaPairs(v1).forEach(qp => { if(qp && qp.answer && qp.answer.id) idx[qp.answer.id] = qp.answer; });
+    if(v1.directAnswer && v1.directAnswer.id) idx[v1.directAnswer.id] = v1.directAnswer;
+    if(v1.cta && v1.cta.id) idx[v1.cta.id] = v1.cta;
+    // Clear the section's offending nodes — prose to '', table rows to []. The structure itself
+    // (headings, ids, headers, etc.) is preserved so the hydration call re-fills the same shape.
+    for(const id of job.requiredIds){
+      const node = idx[id];
+      if(!node) continue;
+      if(Array.isArray(node.headers)){ node.rows = []; }                                       // table node
+      else if(node.anchorText !== undefined && node.url !== undefined){ node.hookProse = ''; }  // CTA
+      else { node.prose = ''; if('listItems' in node) delete node.listItems; }                   // prose
+    }
+    const flaggedList = (fails || []).map(f => `  • [${f.nodeId}] "${(f.offendingText||'').slice(0,300)}"`).join('\n');
+    const feedback = `SAVE STATE MICRO-RETRY (Phase 3B data-integrity sweep flagged a fabricated stat/study/entity in your previous prose for THIS section). Rewrite the section WITHOUT the following fabrication(s):\n${flaggedList || '  (no specific text returned)'}\nStrict rules:\n  - Use ONLY the assigned factClaims listed above and cite them with [factClaim_NN] tokens after every specific figure.\n  - If no assigned factClaim supports a specific number, dollar amount, percentage, or named study, describe the concept qualitatively and append NO token.\n  - Do NOT invent named software, agencies, competitors, case studies, or definitive timelines that aren't in the assigned factClaims or 4.3B.\n  - Re-emit ALL ${job.requiredIds.length} required node ids: [${job.requiredIds.join(', ')}].`;
+    const masterCtx = buildPhase2ContextBlock();
+    const instrBlock = buildHydrateInstrBlock();
+    const rollingDraft = ''; // re-hydration is self-contained — the frame has the rest of the article in place; no rolling draft replay needed
+    let nodes = null;
+    for(let attempt = 0; attempt < 2; attempt++){
+      let result;
+      try {
+        result = await callClaude({ systemBlocks:[masterCtx, instrBlock], userText: buildHydrateJobPrompt(spine, rollingDraft, job, 1, 1, v1, feedback), tools:[HYDRATE_CONTENT_BLOCK_TOOL], toolChoice:{type:'tool', name:'hydrate_content_block'}, akey, timeoutMs: 240000 });
+      } catch(e){
+        if(e.f4) return { ok:false, reason:`callClaude error: ${e.message||e}` };
+        if(attempt < 1){ warnYellow('F2', `Phase 3B re-hydration call errored (${e.message||e}) — retrying once.`); continue; }
+        return { ok:false, reason:`callClaude error after retry: ${e.message||e}` };
+      }
+      logCacheCall(2, result.usage);
+      if(!result.toolCalls.length){
+        if(attempt < 1){ warnYellow('F2', `Phase 3B re-hydration: no tool call returned — retrying once.`); continue; }
+        return { ok:false, reason:'no tool call returned by Claude' };
+      }
+      const inp = result.toolCalls[0].input;
+      if(inp && inp.__parse_error){
+        if(attempt < 1){ warnYellow('F2', `Phase 3B re-hydration: unparseable tool input (${inp.__parse_error}) — retrying once.`); continue; }
+        return { ok:false, reason:`unparseable tool input: ${inp.__parse_error}` };
+      }
+      const got = toArray(inp.nodes).filter(n => n && typeof n === 'object' && n.targetId);
+      if(!got.length){
+        if(attempt < 1){ warnYellow('F2', `Phase 3B re-hydration: empty "nodes" array — retrying once.`); continue; }
+        return { ok:false, reason:'empty nodes array' };
+      }
+      nodes = got;
+      break;
+    }
+    if(!nodes || !nodes.length) return { ok:false, reason:'no nodes returned' };
+    // Stitch the re-hydrated nodes (applyDeleteRowSentinel handles unsupported quantitative rows)
+    let stitched = 0;
+    for(const node of nodes){
+      applyDeleteRowSentinel(node, job);
+      if(stitchNode(v1, { targetId: node.targetId, prose: node.prose, rows: node.rows })) stitched++;
+    }
+    return { ok: stitched > 0, reason: stitched > 0 ? '' : 'nothing stitched', stitched };
   }
 
   // ── SURGICAL CORRECTION (replaces ONLY the failing nodes — never regenerates the V1) ──
@@ -2842,22 +2940,33 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
     return { passed: fails.length === 0, structuralFails: fails };
   }
 
-  // ─── PHASE 3B: GEMINI HALLUCINATION SWEEP (one job only) ──────────────────
-  // Stripped down from the old exhaustive semantic audit. Phase 3B now does ONE thing: scan the
-  // article and ask "are there specific numbers / percentages / dollar amounts / timeframes / named
-  // studies / invented software / invented agencies / fake case studies / definitive timelines in
-  // the prose or tables that DO NOT appear in the Phase 1 factClaims or the 4.3B identity doc?".
-  // No anchor-text checks. No stage-label consistency. No internal-link placement. No structural
-  // checks. No writing-quality checks. Just hallucinations. Routing per change 10:
+  // ─── PHASE 3B: GEMINI DATA-INTEGRITY SWEEP (one job only) ──────────────────
+  // Stripped down. Phase 3B now does ONE thing: did Claude fabricate a SPECIFIC STATISTIC,
+  // PERCENTAGE, DOLLAR AMOUNT, or NAMED STUDY and present it as a sourced fact when it isn't in
+  // the factClaims or the 4.3B identity doc? Conversational timeframes, written-out numbers used
+  // rhetorically, qualitative comparisons, and general duration/frequency language are IGNORED.
+  // Routing per the kill-only spec:
   //   • table-row hallucination → JS guillotine (delete that row, pipeline continues)
-  //   • prose-paragraph hallucination → RED escalate (Save State means the manual retry burns only
-  //     that one section's API cost, not the full article)
+  //   • prose-paragraph hallucination → Save State micro-retry of that section (max 2); on cap
+  //     hit → RED escalate immediately, halt the run (no resume, no fix UI)
   function buildPhase3BPrompt(v1, research, doc43B){
-    return `You are performing a HALLUCINATION SWEEP. Read the article. Read the Phase 1 factClaims and the 4.3B client identity document. Your ONLY job: did the author include any specific number, percentage, dollar amount, timeframe, or named study in the prose or tables that does NOT appear verbatim in the provided factClaims or in the 4.3B identity document? Also flag: invented software tool names, invented agency names, fake case studies, or definitive timelines not supported by the factClaims or 4.3B.
+    return `Your only job is DATA INTEGRITY. Read the article. Read the Phase 1 factClaims. Ask one question: did Claude fabricate a specific statistic, percentage, dollar amount, or named study and present it as a sourced fact — when it does not appear in the provided factClaims or the client's 4.3B document?
 
-Do NOT check anchor text. Do NOT check stage / framework label consistency. Do NOT check internal-link placement. Do NOT check structural elements. Do NOT check writing quality, voice, tone, or style. ONLY check for invented facts, numbers, and entities.
+FLAG these:
+  • Specific percentages or fractions presented as research-backed facts not present in factClaims
+  • Specific dollar amounts presented as facts not present in factClaims
+  • Named research studies, reports, or case studies not present in factClaims
+  • Named companies, software tools, or agencies not present in 4.3B or factClaims
 
-Return ONLY a JSON object. If you find NOTHING return exactly: {"verdict":"PASS","hallucinations":[]}. Otherwise return: {"verdict":"FAIL","hallucinations":[{"nodeId":"<the JS-assigned id of the offending node — e.g. da_*, para_*, ans_*, table_*, cta_*>","offendingText":"<the exact invented span of text (or the exact cell value / row)>","location":"table_row" | "prose"}]}. The location field is REQUIRED — "table_row" if the offending text is inside a table row's cells, "prose" if it's inside any paragraph (Direct Answer, body paragraph, conclusion paragraph, FAQ intro, FAQ answer, or CTA hook). No code fences, no preamble. First char "{", last char "}". The nodeId MUST be a real id present in the V1 JSON below.
+IGNORE these entirely — do not flag, do not mention:
+  • Conversational timeframes ('in six weeks,' 'within a quarter,' 'a few months')
+  • Written-out numbers used rhetorically ('eighteen clients,' 'a dozen practices')
+  • Qualitative comparisons ('most businesses,' 'many practices,' 'the majority')
+  • General duration or frequency language
+  • Any prose that sounds specific but makes no claim to be sourced data
+
+If you find nothing in the FLAG list: return exactly {"verdict":"PASS","hallucinations":[]}. Do not mention anything from the IGNORE list.
+If you find something in the FLAG list: return {"verdict":"FAIL","hallucinations":[{"nodeId":"<JS-assigned id of the offending node — e.g. da_*, para_*, ans_*, table_*, cta_*>","offendingText":"<the exact offending span verbatim — the fabricated stat / dollar amount / study name / company name as written>","location":"table_row" | "prose"}]}. The location field is REQUIRED — "table_row" if the offending text is inside a table row's cells, "prose" if it's inside any paragraph (Direct Answer, body paragraph, conclusion paragraph, FAQ intro, FAQ answer, or CTA hook). No code fences, no preamble. First char "{", last char "}". The nodeId MUST be a real id present in the V1 JSON below.
 
 PHASE 1 FACTCLAIMS (the ONLY numeric / named-entity facts the article is allowed to assert; everything else is a hallucination):
 ${JSON.stringify((research && research.factClaims) || [], null, 2)}
@@ -4367,51 +4476,116 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       }
       if(pipelineHalted || !v1 || !phase3aPassed) return;
 
-      // ── PHASE 3B: HALLUCINATION SWEEP (one-shot). Table-row hallucinations → JS guillotine
-      //    (delete the row, pipeline continues). Prose hallucinations → RED escalate (the Save
-      //    State from Phase 2B is in memory so a manual retry burns only the failing section's
-      //    cost, not the full article). No surgical fix is run for 3B fails. ──
-      setG('Phase 3B — Gemini hallucination sweep (invented facts / entities only)…', true);
+      // ── PHASE 3B: DATA-INTEGRITY SWEEP with Save State MICRO-RETRY (cap: 2 per section).
+      //    Table-row hallucinations → JS guillotine (delete the row, pipeline continues).
+      //    Prose hallucinations → roll back the affected section's prose, re-hydrate with Gemini's
+      //    flagged text as feedback, re-run 3B. Up to 2 micro-retries per section. On cap hit for
+      //    ANY section → immediate RED + halt (kill-only; no resume, no fix UI). ──
+      setG('Phase 3B — Gemini data-integrity sweep (fabricated stats / studies / entities only)…', true);
       setPhase(3, 'active', 'Validating 3B');
-      const v3b = await validateV1Semantic(v1, S.research, gkey, S.docs.doc43B);
+      const MAX_3B_RETRIES = 2;
+      const section3BRetryCounts = new Map(); // sectionKey → count of micro-retries already done
+      let totalGuillotined3B = 0;
+      let microRound = 0;
+      let v3b = await validateV1Semantic(v1, S.research, gkey, S.docs.doc43B);
       if(pipelineHalted) return; // F19 RED inside validateV1Semantic
-      const hallucinations = v3b.hallucinations || [];
-      lastValidation = { structuralFails: [], hallucinations, passed: hallucinations.length === 0 };
-      S.validation = lastValidation;
-      renderPhase3([], hallucinations, 0, hallucinations.length === 0, false);
-      if(hallucinations.length === 0){
-        setPhase(3, 'done', 'PASS ✓');
-        document.getElementById('m3').textContent = `3A PASS + 3B PASS — no hallucinations detected.`;
-        refreshRightPanels();
-        log('Phase 3B PASS — hallucination sweep found nothing.', 'ok');
-      } else {
-        // Route by location: table_row → JS guillotine; prose → collect for RED.
+      while(true){
+        const hallucinations = (v3b && v3b.hallucinations) || [];
+        lastValidation = { structuralFails: [], hallucinations, passed: hallucinations.length === 0 };
+        S.validation = lastValidation;
+        renderPhase3([], hallucinations, microRound, hallucinations.length === 0, false);
+        if(hallucinations.length === 0){
+          setPhase(3, 'done', microRound ? `PASS ✓ (after ${microRound} micro-retry round${microRound===1?'':'s'})` : 'PASS ✓');
+          document.getElementById('m3').textContent = `3A PASS + 3B PASS${microRound?` after ${microRound} Save State micro-retry round(s)`:''}${totalGuillotined3B?` (${totalGuillotined3B} table row(s) guillotined)`:''}.`;
+          refreshRightPanels();
+          log(`Phase 3B PASS${microRound?` after ${microRound} micro-retry round(s)`:''} — no fabricated stats / studies / entities.`, 'ok');
+          break;
+        }
+        // Route by location: table_row → JS guillotine; prose → Save State micro-retry.
         const proseFails = [];
-        let guillotined = 0;
+        let guillotinedThisRound = 0;
         const failedTableIds = [];
         for(const h of hallucinations){
           if(h.location === 'table_row'){
             const deleted = guillotineTableRow(v1, h);
-            if(deleted){ guillotined++; failedTableIds.push(h.nodeId); }
-            else proseFails.push(Object.assign({}, h, { __note: 'table guillotine could not locate the row; routed as prose RED' }));
+            if(deleted){ guillotinedThisRound++; failedTableIds.push(h.nodeId); }
+            else proseFails.push(Object.assign({}, h, { __note: 'table guillotine could not locate the row; routed as prose retry' }));
           } else {
             proseFails.push(h);
           }
         }
-        if(guillotined){
-          log(`Phase 3B — JS guillotine deleted ${guillotined} hallucinated table row(s) from: ${[...new Set(failedTableIds)].join(', ')}. Pipeline continues.`, 'warn');
+        totalGuillotined3B += guillotinedThisRound;
+        if(guillotinedThisRound) log(`Phase 3B (round ${microRound+1}) — JS guillotine deleted ${guillotinedThisRound} hallucinated table row(s) from: ${[...new Set(failedTableIds)].join(', ')}. Pipeline continues.`, 'warn');
+
+        if(proseFails.length === 0){
+          // Only table rows were flagged — already handled. Re-run 3B to confirm clean.
+          if(microRound >= 5){ // safety: don't loop forever even on guillotine-only rounds
+            setPhase(3, 'done', `PASS ✓ (with guillotines)`);
+            document.getElementById('m3').textContent = `3A PASS + 3B → ${totalGuillotined3B} table-row guillotine(s); reached safety cap on guillotine-only re-runs; continuing.`;
+            refreshRightPanels();
+            log(`Phase 3 — 3B fired ${totalGuillotined3B} table-row guillotine(s); guillotine-only safety cap reached; continuing.`, 'warn');
+            break;
+          }
+          microRound++;
+          setPhase(3, 'active', `3B re-run ${microRound} (post-guillotine)`);
+          setG(`Phase 3B — re-running after ${guillotinedThisRound} table-row guillotine(s)…`, true);
+          v3b = await validateV1Semantic(v1, S.research, gkey, S.docs.doc43B);
+          if(pipelineHalted) return;
+          continue;
         }
-        if(proseFails.length){
-          setPhase(3, 'error', 'Prose hallucination → RED');
-          flushQueue(S.imageAttemptId);
-          const detail = proseFails.map(f => `[${f.nodeId || '?'}] "${(f.offendingText||'').slice(0,140)}"`).join(' | ');
-          escalateRed('CHK1', `Phase 3B — ${proseFails.length} prose-paragraph hallucination(s) detected: ${detail}. The Phase 2B Save State is held in memory — a manual retry would burn only the failing section's API cost, not the whole article. Manual operator review required. Code: CHK1.`);
-          return;
+
+        // Group prose fails by the queue job that produced each offending nodeId
+        const queue3b = buildSectionLevelQueue(v1, v1.narrative_spine || {});
+        const affected = new Map(); // sectionKey → { job, sectionH2, fails:[...] }
+        for(const h of proseFails){
+          const job = findJobByNodeId(queue3b, h.nodeId);
+          if(!job){
+            // Can't locate the offending section → cannot retry → immediate RED
+            setPhase(3, 'error', 'Unlocatable prose hallucination → RED');
+            flushQueue(S.imageAttemptId);
+            escalateRed('CHK1', buildKillOnlyRed('Phase 3B (data-integrity sweep)', `(unknown — nodeId "${h.nodeId}" not found in any hydration job)`, `Gemini flagged: "${(h.offendingText||'').slice(0,400)}"`));
+            return;
+          }
+          const sectionKey = job.sectionId || job.type;
+          if(!affected.has(sectionKey)) affected.set(sectionKey, { job, sectionH2: sectionH2FromJob(v1, job), fails: [] });
+          affected.get(sectionKey).fails.push(h);
         }
-        setPhase(3, 'done', 'PASS ✓ (with guillotines)');
-        document.getElementById('m3').textContent = `3A PASS + 3B FAIL → ${guillotined} table-row guillotine(s); no prose hallucinations; pipeline continues.`;
+        // Cap check — if ANY affected section has already used its 2 retries, RED + halt now
+        for(const [sectionKey, info] of affected){
+          const used = section3BRetryCounts.get(sectionKey) || 0;
+          if(used >= MAX_3B_RETRIES){
+            setPhase(3, 'error', 'Save State cap (2) → RED');
+            flushQueue(S.imageAttemptId);
+            const reason = info.fails.map(f => `Gemini flagged: "${(f.offendingText||'').slice(0,400)}"`).join(' | ');
+            escalateRed('CHK1', buildKillOnlyRed('Phase 3B (data-integrity sweep)', info.sectionH2, reason));
+            return;
+          }
+        }
+        // Re-hydrate each affected section with Gemini's flagged text as the warning
+        microRound++;
+        setPhase(3, 'active', `3B micro-retry ${microRound} (${affected.size} section${affected.size===1?'':'s'})`);
+        setG(`Phase 3B — micro-retrying ${affected.size} section(s) via Save State rollback…`, true);
+        log(`Phase 3B micro-retry ${microRound}: re-hydrating ${affected.size} section(s) — ${[...affected.values()].map(a=>`"${a.sectionH2}"`).join(', ')}.`, 'warn');
+        let anyRehydrationFailed = false;
+        for(const [sectionKey, info] of affected){
+          section3BRetryCounts.set(sectionKey, (section3BRetryCounts.get(sectionKey) || 0) + 1);
+          const reHyd = await reHydrateSectionFor3B(v1, info.job, info.fails, akey);
+          if(!reHyd.ok){
+            // Treat re-hydration failure as a cap-equivalent failure for that section → RED + halt
+            anyRehydrationFailed = true;
+            setPhase(3, 'error', 'Re-hydration failed → RED');
+            flushQueue(S.imageAttemptId);
+            const reason = `Re-hydration call failed: ${reHyd.reason}. (Gemini had flagged: "${(info.fails[0]&&info.fails[0].offendingText||'').slice(0,400)}")`;
+            escalateRed('CHK1', buildKillOnlyRed('Phase 3B (data-integrity sweep)', info.sectionH2, reason));
+            return;
+          }
+        }
+        if(anyRehydrationFailed) return; // belt-and-suspenders
+        // Update live JSON view + re-run 3B
+        const v2Pre = document.getElementById('v2Pre'); if(v2Pre) v2Pre.textContent = JSON.stringify(v1, null, 2);
         refreshRightPanels();
-        log(`Phase 3 complete — 3B fired ${guillotined} table-row guillotine(s); 0 prose hallucinations.`, 'ok');
+        v3b = await validateV1Semantic(v1, S.research, gkey, S.docs.doc43B);
+        if(pipelineHalted) return;
       }
       if(pipelineHalted || !v1) return;
 
