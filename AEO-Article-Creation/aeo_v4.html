@@ -1622,6 +1622,7 @@ Produce:
    • imagePrompts: at least 1 per H2 content section. prompt + alt text only (this is placement). The conclusion and the FAQ never get images.
    • links: prefer the research brief's anchorTextTargets — copy those anchorText + url pairs exactly. NEVER invent an internal link (a page on the client's own domain that isn't in the brief). A small number of additional reputable EXTERNAL citations is OK if genuinely needed. placementHint = which paragraph (by description) the link belongs to.
    • assigned_facts: REQUIRED. An array of 1-4 factClaim IDs from the Phase 1 research brief (e.g. ["factClaim_02","factClaim_05"]) that are most relevant to this section's topic. Phase 2B will see ONLY these factClaims when hydrating this section. A factClaim MAY be assigned to multiple sections. Every content_section MUST have at least 1.
+   • FINAL CONTENT SECTION CONSTRAINT (NON-NEGOTIABLE): The content_sections array must end ABRUPTLY on a specific, granular sub-topic — for example: a specific implementation step, a technical component, a named process, a pricing detail, or a tactical how-to. You are strictly forbidden from writing a "narrative climax," "cost of inaction," "widening gap," "stakes summary," or ANY synthesizing/urgency section as the final content_section entry. All stakes, urgency, synthesis, and narrative payoff belong EXCLUSIVELY in conclusion_section. The final content_section must contain H3 sub-sections OR a table (or both) — if it cannot support that granular depth, replace it with a section that can.
 - conclusion_section: REQUIRED. { h2: the conclusion heading text (e.g. "The Bottom Line", "Where This Leaves You" — your call, in voice), paragraphs:[{},{},…], assigned_facts:["factClaim_NN",…] } — one {} per closing paragraph (2-4 typical). NO image, NO table, NO links here. JS assigns ids; Phase 2B writes the prose. assigned_facts: OPTIONAL — 0-4 factClaim IDs. If the conclusion synthesizes existing arguments with no new data, pass an empty array []. If it will repeat any specific figure already cited earlier in the article, list the supporting factClaim ids here so Phase 2B can re-emit the [factClaim_NN] tokens.
 - faq_section: REQUIRED. { h2: the FAQ heading text (e.g. "Frequently Asked Questions"), intro_paragraphs:[{},…] (one or two {} slots — the framing prose BEFORE the questions), qa_pairs:[{ question: the question text, answer: {} }, …] — at least 4 Q&A pairs (questions only; leave each answer as {}), assigned_facts:["factClaim_NN",…] } — same assigned_facts rule (1-4 factClaim IDs, at least 1; the whole FAQ section shares one allocation since the intro + every answer pulls from the same allowed set). NO image, NO table here.
 - cta: { anchorText, url, placementHint }. The url MUST match the 4.3B Primary CTA destination (the "Destination:" line under the "Primary CTA" section, or a "Conversion Primary CTA URL" / "Primary CTA URL" field). placementHint = where in the article the CTA sits.
@@ -2812,6 +2813,21 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
     sections.forEach(s => { if(!String(s.h2||'').trim()) F('section_h2_empty', 'every content section has non-empty h2', '(empty)', s.id); });
     allTables.forEach(t => { if(!(Array.isArray(t.headers) && t.headers.length && t.headers.every(h => String(h||'').trim()))) F('table_headers_empty', 'every table has non-empty headers', JSON.stringify(t.headers||[]), t.id); });
     sections.forEach(s => secImages(s).forEach(im => { if(!im || !String(im.prompt||'').trim() || !String(im.alt||'').trim()) F('image_prompt_incomplete', 'each image has non-empty prompt + alt', JSON.stringify(im||{}), im && im.id); }));
+
+    // GRANULARITY TRAP — the final content_section must have H3s or a table.
+    // A flat prose-only final section is a rhetorical climax / pseudo-conclusion
+    // that belongs in conclusion_section, not content_sections.
+    if(sections.length > 0){
+      const lastSec = sections[sections.length - 1];
+      const hasH3s = toArray(lastSec.h3sections).length > 0;
+      const hasTables = toArray(lastSec.tables).length > 0;
+      if(!hasH3s && !hasTables){
+        F('last_section_no_depth',
+          'final content_section must contain H3 sub-sections or a table (prevents narrative climax from landing in content_sections)',
+          `last section "${String(lastSec.h2||'').slice(0,60)}" has no H3s and no tables`,
+          lastSec.id);
+      }
+    }
 
     // HARD: the conclusion section must exist, be an object, and have ≥1 paragraph slot. Same
     // failure behavior as missing tables — a fail here forces a Phase 2A frame retry.
