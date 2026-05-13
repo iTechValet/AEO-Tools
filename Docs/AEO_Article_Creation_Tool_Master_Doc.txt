@@ -1,5 +1,5 @@
 AEO ARTICLE CREATION PIPELINE — MASTER REFERENCE DOC  (WORKING COPY — sessions of May 11–13, 2026)
-Last Updated: May 13, 2026 (Claude Code build session — V4.0 schema refactor + hallucination-sweep recalibration + assembly-time delivery polish + multiple live end-to-end runs against real iTV topics — bugs surfaced + patched in-session + a SECOND WAVE of M5.5 polish at the end of the day: conclusion regex expansion, Phase 3B link/entity recalibration, structural threshold loosening, Phase 6 QC1/QC3 demotion to informational, Phase 2A final-section constraint + Phase 3A granularity trap, Phase 7A render order swapped to FAQ-before-conclusion per 4.3A, Phase 2A Unique Link Mandate + Phase 3A duplicate_internal_url trap, Phase 2A CTA URL Reservation + Phase 3A cta_url_in_body trap, Phase 7A silent URL normalization + Phase 7B Link Manager rebuilt as a status-toggled Link Audit drawer) | V3.1 (production) | V4.0 (LIVE-TESTED — ALL 7 PHASES BUILT [M1–M5] + post-M5 schema upgrade [content_sections / conclusion_section / faq_section / sectional fact allocation / framework_labels / table_type / Save State per-section rollback / inline citation tokens / Phase 3B is now hallucination-sweep-only with FLAG/IGNORE recalibration + link_/entity carveouts]; multiple end-to-end runs completed against real iTV topics this session; live-run bug catches patched same-day [byline title duplication, consecutive duplicate paragraphs, conclusion content landing in content_sections, narrative-climax sections like "The Widening Gap" / "The Verdict" getting an image + ToC entry instead of going to conclusion_section, FAQ rendering after conclusion]; M6 side-by-side V3.1↔V4.0 + M7 ship still pending)
+Last Updated: May 13, 2026 (Claude Code build session — V4.0 schema refactor + hallucination-sweep recalibration + assembly-time delivery polish + multiple live end-to-end runs against real iTV topics — bugs surfaced + patched in-session + a SECOND WAVE of M5.5 polish at the end of the day: conclusion regex expansion, Phase 3B link/entity recalibration, structural threshold loosening, Phase 6 QC1/QC3 demotion to informational, Phase 2A final-section constraint + Phase 3A granularity trap, Phase 7A render order swapped to FAQ-before-conclusion per 4.3A, Phase 2A Unique Link Mandate + Phase 3A duplicate_internal_url trap, Phase 2A CTA URL Reservation + Phase 3A cta_url_in_body trap, Phase 7A silent URL normalization + Phase 7B Link Manager rebuilt as a status-toggled Link Audit drawer, DA hover contrast fix + paragraph structure rule appended to Phase 2B/5 uncached instruction blocks) | V3.1 (production) | V4.0 (LIVE-TESTED — ALL 7 PHASES BUILT [M1–M5] + post-M5 schema upgrade [content_sections / conclusion_section / faq_section / sectional fact allocation / framework_labels / table_type / Save State per-section rollback / inline citation tokens / Phase 3B is now hallucination-sweep-only with FLAG/IGNORE recalibration + link_/entity carveouts]; multiple end-to-end runs completed against real iTV topics this session; live-run bug catches patched same-day [byline title duplication, consecutive duplicate paragraphs, conclusion content landing in content_sections, narrative-climax sections like "The Widening Gap" / "The Verdict" getting an image + ToC entry instead of going to conclusion_section, FAQ rendering after conclusion]; M6 side-by-side V3.1↔V4.0 + M7 ship still pending)
 ================================================
 
 ⚠️ V4.0 ARCHITECTURAL REBUILD — LIVE-TESTING IN PROGRESS (Claude Code)
@@ -975,10 +975,10 @@ aeo_v4.html. The 7-phase pipeline shape is unchanged; the schema, the Phase
   capacity blips without compounding them. Total attempts: up to 3
   per image.
 
-— SECOND WAVE OF M5.5 POLISH (May 13, 2026 — five additional commits
+— SECOND WAVE OF M5.5 POLISH (May 13, 2026 — nine additional commits
   shipped at end of day, all from continued live-run observation).
   After the initial six-commit M5.5 wave, a second round of iTV-topic
-  live runs surfaced more friction. Patched in five commits:
+  live runs surfaced more friction. Patched in nine commits:
 
   • CONCLUSION REGEX EXPANSION (commit 21ae084, May 13). The Phase
     2B end-of-relay diagnostic + (separately) the Phase 3A granularity
@@ -1288,13 +1288,46 @@ aeo_v4.html. The 7-phase pipeline shape is unchanged; the schema, the Phase
         dup flagged, external dup correctly NOT flagged, cta-in-
         body flagged) — 4/4 PASS.
 
-  STATUS after the second wave: all 8 commits live on main, all
+  • DA HOVER CONTRAST + PARAGRAPH STRUCTURE RULE IN PHASE 2B/5
+    UNCACHED INSTRUCTION BLOCKS (commit 77458f5, May 13). Two
+    small operator-facing fixes shipped together.
+      — DA hover contrast: the Phase 7B click-to-edit hover style
+        defaulted to a light-blue tint (rgba(36,148,224,.08)) that
+        washed out the dark-background Direct Answer block.
+        hoverStyle (inside assemblePhase7HTML) extended with a
+        .direct-answer[data-node-id]:hover override using a faint
+        white tint (rgba(255,255,255,.08)) so the DA block stays
+        readable on hover. Every non-DA node keeps the original
+        blue.
+      — Paragraph structure rule: appended as a final
+        NON-NEGOTIABLE clause at the END of both uncached
+        instruction blocks — buildHydrateInstrBlock (Phase 2B
+        hydration relay) AND buildPhase5InstrBlock (Phase 5
+        voice relay). Wording: "Maximum 3 sentences per paragraph.
+        Target 1–2. Single-sentence paragraphs are strongly
+        preferred for impact and readability. If you write 4 or
+        more sentences in a single paragraph, split it. Use white
+        space as a design element — it signals premium writing."
+        Placed immediately before the closing backtick of each
+        block so it's the LAST instruction Claude reads on every
+        hydration call and every voice-relay call. Targets the
+        live-observed AI-tell of dense 4–5 sentence paragraph
+        slabs that survived Phase 6 because no QC rule was
+        scoring sentence density.
+      — Verified: 1 <script> block parses clean; smoke tests 6/6
+        PASS (hoverStyle contains the DA tint, both instruction
+        builders contain the new rule, the rule is the final
+        sentence before the closing backtick in both,
+        exactly 2 occurrences of "PARAGRAPH STRUCTURE
+        (NON-NEGOTIABLE)" in the file).
+
+  STATUS after the second wave: all 9 commits live on main, all
   syntax-clean, none yet live-tested as a batch. Cumulative
-  M5.5 commit count: 14 aeo_v4.html commits across May 12–13
+  M5.5 commit count: 15 aeo_v4.html commits across May 12–13
   (282b03c, 832dde1, 9dcfad8, 04e8c55, 09250e1, 45f1d0c, bfecf3d,
   234775d, e0efe2a, 21ae084, 5c20630, 6e2bc33, 631e1f5, 613be17,
-  70dd293, 8a54b42, 92f281e — 17 total including the two from
-  before M5.5 was formalized). Combined effect: every
+  70dd293, 8a54b42, 92f281e, 77458f5 — 18 total including the two
+  from before M5.5 was formalized). Combined effect: every
   architectural failure mode surfaced in live testing has either
   a fix shipped or a kill-only RED with a bounded-cost retry
   path, AND the operator-facing Phase 7B surfaces only the
@@ -3664,6 +3697,35 @@ the initial wave; five aeo_v4.html commits + this Master Doc commit):
             Data correctly flags a planted duplicate path and a planted
             CTA-in-body case, banner toggles green↔orange correctly,
             drawer Replace dropdown excludes already-used paths.]
+  77458f5  fix: DA hover contrast + paragraph structure rule in Phase
+           2B/5 uncached prompts
+           [Two small operator-facing fixes shipped together. (1) DA
+            HOVER CONTRAST — hoverStyle (inside assemblePhase7HTML)
+            extended with a .direct-answer[data-node-id]:hover
+            override that uses a faint white tint
+            (rgba(255,255,255,.08)) instead of the default light-blue
+            (rgba(36,148,224,.08)) that was washing out the dark-
+            background DA block. Every non-DA node keeps the original
+            blue. (2) PARAGRAPH STRUCTURE RULE — appended as a final
+            NON-NEGOTIABLE clause at the END of both uncached
+            instruction blocks (buildHydrateInstrBlock for Phase 2B,
+            buildPhase5InstrBlock for Phase 5), immediately before
+            the closing backtick of each so it's the LAST instruction
+            Claude reads on every hydration call and every voice-
+            relay call. Wording: "Maximum 3 sentences per paragraph.
+            Target 1–2. Single-sentence paragraphs are strongly
+            preferred for impact and readability. If you write 4 or
+            more sentences in a single paragraph, split it. Use white
+            space as a design element — it signals premium writing."
+            Targets the live-observed AI-tell of dense 4–5 sentence
+            paragraph slabs that survived Phase 6 because no QC rule
+            was scoring sentence density. Verified: 1 <script> block
+            parses clean via new Function; smoke tests 6/6 PASS —
+            hoverStyle contains the DA tint, both instruction builders
+            contain the new rule, the rule is the final sentence
+            before the closing backtick in both, exactly 2 occurrences
+            of "PARAGRAPH STRUCTURE (NON-NEGOTIABLE)" in the file. 7
+            insertions, 3 deletions.]
 
 ═══════════════════════════════════════════════════════════════
 END OF MASTER DOC
