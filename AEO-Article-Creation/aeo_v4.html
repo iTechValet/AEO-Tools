@@ -1603,6 +1603,8 @@ SHEET ROW (pipe-delimited): ${S.sheetRow}`;
   function buildPhase2ASystem(){
     const instr = `PHASE 2A — STRUCTURE FRAME + NARRATIVE SPINE. Call submit_v1_frame with the article's structural skeleton AND its narrative spine AND a sectional fact-allocation plan AND a framework-label registry. NO body prose. NO statistics. NO numerical claims. NO table data rows. NO FAQ answers. NO conclusion prose. NO Direct Answer prose. (All of that is written in Phase 2 — one content block at a time, section by section, guided by the spine + the allocations you write here.)
 
+ARTICLE RENDER ORDER (LOCKED — per 4.3A): Direct Answer → content_sections → faq_section → conclusion_section → CTA. The conclusion_section is the FINAL section before the CTA. The faq_section ALWAYS precedes the conclusion_section. Phase 7A assembles the HTML in this exact order regardless of how you author the frame — design your narrative spine + section_transitions to fit this order. The conclusion is the narrative payoff that lands right before the CTA; the FAQ sits between the body content and the conclusion.
+
 Produce:
 - checklist: the 7 SEO/URL fields — metaTitle, h1, permalink, fullUrl, metaDescription, keywords, category.
 - thesis.statement: one sentence — the article's spine (the same sentence you'll put in narrative_spine.core_thesis).
@@ -3890,10 +3892,11 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     }
     return [...out].filter(x => x && x.length >= 3 && x.length <= 40 && /[a-z]/i.test(x)).slice(0, 60);
   }
-  // Ordered list of every body paragraph's text in render order: DA → content sections' paras + h3
-  // paras → conclusion paras → FAQ intro paras + FAQ answers → CTA hook. Used by QC2 (callback
-  // verifier — top-20%/bottom-20%) and QC6 (semantic anchor check), so the order MUST match how
-  // the article actually renders so "near the end" means the same thing both places.
+  // Ordered list of every body paragraph's text in render order (per 4.3A): DA → content sections'
+  // paras + h3 paras → FAQ intro paras + FAQ answers → conclusion paras → CTA hook. Used by QC2
+  // (callback verifier — top-20%/bottom-20%) and QC6 (semantic anchor check), so the order MUST
+  // match how the article actually renders so "near the end" means the same thing both places.
+  // (FAQ now precedes conclusion — see assemblePhase7HTML and collectArticleHeadings.)
   function articleParagraphTexts(obj){
     const out = [];
     if(obj && obj.directAnswer) out.push(String(obj.directAnswer.prose || ''));
@@ -3902,9 +3905,9 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
       toArray(sec.paragraphs).forEach(p => out.push(String((p && p.prose) || '')));
       toArray(sec.h3sections).forEach(h3 => { if(h3) toArray(h3.paragraphs).forEach(p => out.push(String((p && p.prose) || ''))); });
     });
-    _conclParas(obj).forEach(p => out.push(String((p && p.prose) || '')));
     _faqIntro(obj).forEach(p => out.push(String((p && p.prose) || '')));
     _qaPairs(obj).forEach(qp => { if(qp && qp.answer) out.push(String(qp.answer.prose || '')); });
+    _conclParas(obj).forEach(p => out.push(String((p && p.prose) || '')));
     if(obj && obj.cta) out.push(String(obj.cta.hookProse || ''));
     return out.filter(p => p.trim());
   }
@@ -5579,8 +5582,11 @@ table td { background: #ffffff; }
       out.push({ tag:'h2', id: slugOf(sec, h2), text: h2 });
       toArray(sec.h3sections).forEach(h3 => { if(h3 && typeof h3 === 'object' && String(h3.h3||'').trim()) out.push({ tag:'h3', id: slugOf(h3, h3.h3), text: String(h3.h3) }); });
     });
-    { const cs = _concl(article); if(_conclParas(article).length || String(cs.h2||'').trim()){ const conclH2 = String(cs.h2 || 'Conclusion'); out.push({ tag:'h2', id: conclAnchorOf(article), text: conclH2 }); } }
+    // ToC order MUST match assemblePhase7HTML's render order (per 4.3A): content_sections →
+    // faq_section → conclusion_section. FAQ pushed BEFORE conclusion so a click on either
+    // anchor lands at the right spot.
     { const fs = _faqSec(article); const qps = _qaPairs(article); if(qps.length || _faqIntro(article).length || String(fs.h2||'').trim()){ const faqH2 = String(fs.h2 || 'Frequently Asked Questions'); out.push({ tag:'h2', id: faqAnchorOf(article), text: faqH2 }); qps.forEach(qp => { if(qp && typeof qp === 'object' && String(qp.question||'').trim()) out.push({ tag:'h3', id: slugOf(qp, qp.question), text: String(qp.question) }); }); } }
+    { const cs = _concl(article); if(_conclParas(article).length || String(cs.h2||'').trim()){ const conclH2 = String(cs.h2 || 'Conclusion'); out.push({ tag:'h2', id: conclAnchorOf(article), text: conclH2 }); } }
     return out;
   }
   function buildArticleTocHTML(headings){
@@ -5704,17 +5710,11 @@ table td { background: #ffffff; }
       });
       toArray(sec.tables).forEach(tb => { const h = renderArticleTable(tb, ea(tb && tb.id)); if(h) parts.push(ind(h, 2)); });
     });
-    // CONCLUSION — render strictly from conclusion_section. NO image, NO image slot. Ever.
-    { const cs = _concl(article); const cps = _conclParas(article);
-      if(cps.length || String(cs.h2||'').trim()){
-        const conclH2 = String(cs.h2 || 'Conclusion');
-        parts.push(`  <h2 id="${conclAnchorOf(article)}"${ea(cs.id || '__conclheading')}>${escapeHtml(conclH2)}</h2>`);
-        _dupReset();
-        cps.forEach(_pushParaIfNotDup);
-      }
-    }
     // FAQ — render strictly from faq_section: heading → intro_paragraphs as regular <p> → each
     // qa_pair as H3 (question) + answer prose. NO image, NO image slot. Ever.
+    // ORDER (per 4.3A): content_sections → faq_section → conclusion_section → CTA.
+    // The FAQ block renders BEFORE the conclusion so the conclusion lands as the final body
+    // section immediately before the CTA — that's where the narrative payoff is supposed to sit.
     { const fs = _faqSec(article); const qps = _qaPairs(article); const fIntro = _faqIntro(article);
       if(qps.length || fIntro.length || String(fs.h2||'').trim()){
         const faqH2 = String(fs.h2 || 'Frequently Asked Questions');
@@ -5727,6 +5727,16 @@ table td { background: #ffffff; }
           parts.push(`  <h3 id="${slugOf(qp, q)}"${ea(qp.id || '__faqq')}>${escapeHtml(q)}</h3>`);
           parts.push(ind(proseToParagraphs((qp.answer && qp.answer.prose) || '', '', ea(qp.answer && qp.answer.id)), 2));
         });
+      }
+    }
+    // CONCLUSION — render strictly from conclusion_section. NO image, NO image slot. Ever.
+    // Renders AFTER faq_section and immediately before the CTA — the final body section.
+    { const cs = _concl(article); const cps = _conclParas(article);
+      if(cps.length || String(cs.h2||'').trim()){
+        const conclH2 = String(cs.h2 || 'Conclusion');
+        parts.push(`  <h2 id="${conclAnchorOf(article)}"${ea(cs.id || '__conclheading')}>${escapeHtml(conclH2)}</h2>`);
+        _dupReset();
+        cps.forEach(_pushParaIfNotDup);
       }
     }
     if(_dupSkipped > 0 && typeof log === 'function'){
