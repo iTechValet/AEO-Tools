@@ -261,6 +261,29 @@
   .p7-sb-input { width:100%; background:#f9f9f9; border:1px solid var(--border); border-radius:6px; padding:6px 9px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:11px; outline:none; transition:border-color .2s; }
   .p7-sb-input:focus { border-color:var(--accent); }
   .p7-sb-textarea { width:100%; min-height:58px; resize:vertical; background:#f9f9f9; border:1px solid var(--border); border-radius:6px; padding:7px 9px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:11px; line-height:1.6; outline:none; }
+  /* ── PHASE 7B LINK AUDIT (replaces the old Global Link Manager) ── */
+  /* Status bar sits above the iframe row. Green = clean (drawer non-toggleable). Orange = warnings (clickable to open the drawer). */
+  .p7-link-status { display:flex; align-items:center; gap:10px; padding:11px 16px; border:1px solid #4caf50; border-radius:8px; background:#e6f4ea; color:#1b5e20; font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1.5px; user-select:none; margin-bottom:10px; transition:background .2s,color .2s,border-color .2s; cursor:default; }
+  .p7-link-status.warn { background:#fff8e6; color:#8a6d00; border-color:#e0c000; cursor:pointer; }
+  .p7-link-status.warn:hover { background:#ffeec2; }
+  .p7-link-status .p7-link-chev { margin-left:auto; font-size:11px; color:var(--muted); }
+  .p7-link-status.warn .p7-link-chev { color:#8a6d00; }
+  /* Drawer is a flex sibling to .p7-frame inside .p7-main. Hidden by default; opens to a fixed width so the iframe shrinks predictably. */
+  .p7-link-drawer { display:none; flex-shrink:0; width:420px; flex-direction:column; gap:8px; }
+  .p7-link-drawer.open { display:flex; }
+  .p7-link-table { width:100%; border-collapse:collapse; font-size:11px; background:#fff; border:1px solid var(--border); border-radius:6px; overflow:hidden; table-layout:fixed; }
+  .p7-link-table thead th { background:#eef3f8; font-family:'Bebas Neue',sans-serif; font-size:10px; letter-spacing:1.5px; color:var(--blue); padding:6px 8px; text-align:left; border-bottom:1px solid var(--border); }
+  .p7-link-table tbody td { padding:6px 8px; border-bottom:1px solid var(--border); vertical-align:top; word-break:break-word; font-family:'Lexend',sans-serif; font-weight:300; color:var(--blue); }
+  .p7-link-table tbody tr:last-child td { border-bottom:none; }
+  .p7-link-table .row-status { font-family:'SF Mono',Menlo,monospace; font-size:10px; white-space:nowrap; }
+  .p7-link-table tr.row-warn { background:#fff8e6; cursor:pointer; }
+  .p7-link-table tr.row-warn:hover { background:#ffeec2; }
+  .p7-link-table tr.row-ok { color:var(--faint); }
+  .p7-link-replace { background:#f9f9f9; border:1px solid var(--border); border-radius:6px; padding:10px 12px; }
+  .p7-link-replace .p7-sb-lbl { margin-top:4px; }
+  .p7-link-replace select.p7-sb-input { padding:6px 8px; appearance:auto; }
+  /* (Legacy .p7-domain-list / .p7-domain-chip kept — unused in the new audit panel but referenced
+     by older docs / the contextual modal note; safe to keep around as dead CSS.) */
   .p7-domain-list { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:4px; }
   .p7-domain-list:empty:before { content:'(no links found yet)'; color:var(--faint); font-size:10px; font-style:italic; }
   .p7-domain-chip { font-family:'SF Mono',Menlo,monospace; font-size:10px; background:#eef3f8; border:1px solid var(--border); border-radius:4px; padding:2px 7px; color:var(--blue); cursor:pointer; transition:border-color .2s,background .2s; word-break:break-all; }
@@ -304,7 +327,7 @@
 <div class="top-bar">
   <div style="flex:1;">
     <h1>iTech Valet <span>AEO V4.0</span><span class="ver-badge">M2</span><span class="build-stamp" id="buildStamp">build …</span></h1>
-    <p class="subtitle">Phase 1 (research+thesis) → Phase 2 (V1 frame → frame validation → [M3.5: fire image gen, bound to the frame attempt_id] → hydration relay, table rows cite factClaims) → Phase 3 dual validation + surgical fixes (node-level, never a full regen) → Phase 4 freeze → Phase 5 voice draft (section-level relay race) → Phase 6 forensic critique + 6 JS quality checks (section-level relay) → Phase 7 final assembly (7A JS HTML build → 7B read-only preview + pure-JS formatting QC: Global Link Manager / Metadata / Re-Sync ToC / click-a-block modal → 7C finalize → checklist .html + final .txt + schema; hard-stops on image URLs + Publish Date). Error recovery F1–F4 + F13/F16/F19. Calibration/Production modes.</p>
+    <p class="subtitle">Phase 1 (research+thesis) → Phase 2 (V1 frame → frame validation → [M3.5: fire image gen, bound to the frame attempt_id] → hydration relay, table rows cite factClaims) → Phase 3 dual validation + surgical fixes (node-level, never a full regen) → Phase 4 freeze → Phase 5 voice draft (section-level relay race) → Phase 6 forensic critique + 6 JS quality checks (section-level relay) → Phase 7 final assembly (7A JS HTML build with silent URL normalization → 7B read-only preview + pure-JS formatting QC: Link Audit banner+drawer / Metadata / Re-Sync ToC / click-a-block modal → 7C finalize → checklist .html + final .txt + schema; hard-stops on image URLs + Publish Date). Error recovery F1–F4 + F13/F16/F19. Calibration/Production modes.</p>
   </div>
   <div style="text-align:right;">
     <div class="cp-label" style="opacity:.55;">Client Mode</div>
@@ -572,7 +595,7 @@
         <div class="phase-num">7</div>
         <div class="phase-info">
           <div class="phase-title">Phase 7 — Final Assembly</div>
-          <div class="phase-desc">Runs after Phase 6 — but HARD-STOPS until every generated image (M3.5) has been uploaded to WordPress and its media URL pasted + validated in the Image panel (left column) AND a Publish Date is set there. 7A: JS assembles the complete article HTML deterministically from the V3 (→V2) JSON — canonical 4.3B stylesheet, marked.js prose (links + bold), collapsible ToC (content_sections H2s + conclusion_section H2 + faq_section H2, no text-matching), byline, Last Updated, content sections / images / tables / conclusion (no image slot ever) / FAQ (intro paras then qa_pairs, no image slot ever) / CTA, github.io→.com link fix — and renders it into a READ-ONLY iframe in the Final HTML tab. 7B: operator visual formatting QC — PURE JS, no Claude, no rewrites; a pre-flight sidebar (Global Link Manager find/replace-a-domain, Metadata author-byline + publish-date, Re-Sync ToC Anchors, Re-render) plus a contextual modal on every clicked block (Direct Answer → "Force Paragraph Breaks"; image → set its WordPress URL; table → "Re-parse Table"; paragraph/FAQ/CTA → show the raw prose for reference). One-way data flow: JS owns the JSON, the iframe is wiped + re-rendered from it. 7C: "Finalize Article" → builds the clean final .txt + the checklist .html (SEO fields, cost report, BlogPosting + FAQPage + BreadcrumbList schema) and unlocks the two downloads. (Was Phase 6.)</div>
+          <div class="phase-desc">Runs after Phase 6 — but HARD-STOPS until every generated image (M3.5) has been uploaded to WordPress and its media URL pasted + validated in the Image panel (left column) AND a Publish Date is set there. 7A: JS assembles the complete article HTML deterministically from the V3 (→V2) JSON — canonical 4.3B stylesheet, marked.js prose (links + bold), collapsible ToC (content_sections H2s + conclusion_section H2 + faq_section H2, no text-matching), byline, Last Updated, content sections / images / tables / conclusion (no image slot ever) / FAQ (intro paras then qa_pairs, no image slot ever) / CTA. URL normalization happens silently at the data layer via normalizeArticleUrls (relative paths → absolute, itechvalet.github.io → client domain, applied to every link.url + cta.url BEFORE HTML generation). Rendered into a READ-ONLY iframe in the Final HTML tab. 7B: operator visual formatting QC — PURE JS, no Claude, no rewrites. A Link Audit banner above the iframe shows green ("✔ N Links Audited — All Valid") on a clean article; orange + clickable ("⚠ N Links Audited — X Warning(s) Detected") opens a side-by-side drawer with a table of every internal body link (URL / Anchor / # / Location / Status: 🔴 duplicate / 🟡 cta-in-body / ✅ ok). Click a flagged row → dropdown of UNUSED anchorTextTargets URLs (filtered to prevent introducing new dups) + a "+ Enter Custom URL" option → Apply rewrites the JSON, re-normalizes URLs, re-renders, refreshes the banner. Sidebar still carries Metadata (author byline + publish date), Rebuild Structure (Re-Sync ToC Anchors + Re-render), and QC Notes. Contextual modal on every clicked block (Direct Answer → "Force Paragraph Breaks"; image → set its WordPress URL; table → "Re-parse Table"; paragraph/FAQ/CTA → show the raw prose for reference). One-way data flow: JS owns the JSON, the iframe is wiped + re-rendered from it. 7C: "Finalize Article" → builds the clean final .txt + the checklist .html (SEO fields, BlogPosting + FAQPage + BreadcrumbList schema) and unlocks the two downloads. (Was Phase 6.)</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b7">Waiting</div><span class="schev closed" id="c7">▼</span></div>
       </div>
@@ -687,25 +710,38 @@
     <div class="ppane" id="pane-html">
       <div class="p7-wrap" id="p7Wrap">
         <div class="p7-toolbar">
-          <span class="p7-status" id="p7Status">Phase 7 (Final Assembly) renders here once Phases 1–6 finish and the image URLs + Publish Date are in. The preview is read-only — fix formatting with the sidebar or by clicking a block.</span>
+          <span class="p7-status" id="p7Status">Phase 7 (Final Assembly) renders here once Phases 1–6 finish and the image URLs + Publish Date are in. The preview is read-only — review the Link Audit banner below, then use the sidebar or click a block for JS formatting fixes.</span>
           <button class="btn-p7 sb" id="btnViewSource" onclick="togglePhase7Source()" disabled>⌄ View HTML source</button>
           <button class="btn-p7 finalize" id="btnFinalize" onclick="finalizePhase7()" disabled>✓ Finalize Article</button>
           <button class="btn-p7 dl" id="btnDlChecklist" onclick="dlChecklistHTML()" disabled>↓ Checklist .html</button>
           <button class="btn-p7 dl" id="btnDlFinal" onclick="dlFinalTxt()" disabled>↓ Final .txt</button>
         </div>
+        <!-- LINK AUDIT STATUS BAR — green when clean, orange + clickable when warnings exist. -->
+        <div class="p7-link-status" id="p7LinkStatus" onclick="togglePhase7LinkDrawer()" role="button" tabindex="0">
+          <span id="p7LinkStatusText">⏳ Awaiting article…</span>
+          <span class="p7-link-chev" id="p7LinkStatusChev"></span>
+        </div>
         <div class="p7-main">
           <iframe class="p7-frame" id="p7Frame" title="Phase 7 — assembled article preview (read-only — click a block for JS formatting fixes)"></iframe>
-          <div class="p7-sidebar" id="p7Sidebar">
-            <div class="p7-sb-section">
-              <div class="p7-sb-title">Global Link Manager</div>
-              <div class="p7-sb-hint">Unique domains found in the assembled article. Click a chip to fill "Find", then Replace All — JS rewrites every matching URL in the article JSON and re-renders.</div>
-              <div class="p7-domain-list" id="p7DomainList"></div>
-              <label class="p7-sb-lbl">Find domain</label>
-              <input class="p7-sb-input" id="p7LinkFind" placeholder="e.g. itechvalet.github.io" />
-              <label class="p7-sb-lbl">Replace with</label>
-              <input class="p7-sb-input" id="p7LinkReplace" placeholder="e.g. itechvalet.com" />
-              <button class="btn-p7" id="p7LinkReplaceBtn" onclick="p7ReplaceDomain()" style="margin-top:8px;width:100%;">Replace All →</button>
+          <!-- LINK AUDIT DRAWER — flex sibling, hidden by default; opens when the status bar is clicked. -->
+          <div class="p7-link-drawer" id="p7LinkDrawer" aria-hidden="true">
+            <div class="p7-sb-section" style="padding:10px 12px;">
+              <div class="p7-sb-title">Link Audit</div>
+              <div class="p7-sb-hint">🔴 duplicate = same internal URL used twice in the body. 🟡 cta-in-body = Primary CTA URL appears in a body section. Click a flagged row to swap it for an unused anchorTextTargets URL or a custom one.</div>
+              <table class="p7-link-table" id="p7LinkTable">
+                <thead><tr>
+                  <th style="width:34%;">URL</th>
+                  <th style="width:22%;">Anchor</th>
+                  <th style="width:8%;">#</th>
+                  <th style="width:18%;">Location</th>
+                  <th style="width:18%;">Status</th>
+                </tr></thead>
+                <tbody id="p7LinkTbody"><tr><td colspan="5" style="padding:10px;color:#888;font-style:italic;">No article yet.</td></tr></tbody>
+              </table>
+              <div class="p7-link-replace" id="p7LinkReplace" style="display:none;margin-top:8px;"></div>
             </div>
+          </div>
+          <div class="p7-sidebar" id="p7Sidebar">
             <div class="p7-sb-section">
               <div class="p7-sb-title">Metadata</div>
               <label class="p7-sb-lbl">Author byline (overrides the 4.3B-derived byline; blank = use 4.3B)</label>
@@ -4816,10 +4852,14 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       log(`Phase 6 complete (forensic critique${p6res.skipped ? ' — skipped: '+p6res.skipped : `, ${p6res.elapsed}s — ${p6res.correctionCount} paragraph correction(s); ${p6res.failedBlocks||0} block(s) hit the retry cap`}).`, p6res.failedBlocks?'warn':'ok');
 
       // ── PHASE 7 — FINAL ASSEMBLY ──────────────────────────────────────────────────────────────
-      //   7A: JS assembles the complete HTML from the article JSON (no API call). 7B: operator visual
-      //   formatting QC — a READ-ONLY iframe preview + a pre-flight sidebar (Global Link Manager,
-      //   Metadata, Re-Sync ToC / Re-render) + a contextual modal per clicked block (DA → force
-      //   paragraph breaks; image → set WP URL; table → re-parse rows; paragraph → show raw prose).
+      //   7A: JS assembles the complete HTML from the article JSON (no API call); URL normalization
+      //   runs silently at the data layer via normalizeArticleUrls (relative paths → absolute,
+      //   itechvalet.github.io → client domain) BEFORE HTML generation. 7B: operator visual
+      //   formatting QC — a READ-ONLY iframe preview + a Link Audit banner (green = all links
+      //   unique + CTA reserved; orange = warnings, click to open a side-by-side drawer with a
+      //   table + per-row replacement form) + a sidebar (Metadata, Re-Sync ToC / Re-render) + a
+      //   contextual modal per clicked block (DA → force paragraph breaks; image → set WP URL;
+      //   table → re-parse rows; paragraph → show raw prose).
       //   PURE JS — no Claude calls, no rewrites. Content is final; this step fixes rendering only.
       //   7C: "Finalize Article" → build + unlock the checklist .html + the clean final .txt downloads.
       //   Hard stop first: Phase 7 cannot run until every generated image's WordPress URL is pasted +
@@ -4867,7 +4907,8 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       { const b = document.getElementById('btnDlChecklist'); if(b) b.disabled = true; }
       { const b = document.getElementById('btnDlFinal'); if(b) b.disabled = true; }
       if(typeof p7RefreshSidebar === 'function') p7RefreshSidebar();
-      document.getElementById('o7').textContent = `7A — assembled (${_built7.finalTxt.length.toLocaleString()} chars). Live preview is in the Final HTML tab. Now do 7B: review it; fix any formatting with the sidebar (Global Link Manager / Metadata / Re-Sync ToC) or by clicking a block in the preview; then "Finalize Article" (7C) to unlock the downloads.`;
+      if(typeof renderLinkAudit === 'function') renderLinkAudit();    // paint the Link Audit banner + drawer table on first 7A render
+      document.getElementById('o7').textContent = `7A — assembled (${_built7.finalTxt.length.toLocaleString()} chars). Live preview is in the Final HTML tab. Now do 7B: review the Link Audit banner above the preview, fix any flagged links by clicking the orange row + picking a replacement, fix metadata / ToC via the sidebar or click a block in the preview; then "Finalize Article" (7C) to unlock the downloads.`;
       document.getElementById('m7').textContent = `Assembled — ${_secs(_article7).length} content section(s) + conclusion + FAQ (${_qaPairs(_article7).length} Q&A), ${S.expectedImageCount?`${Object.keys(S.imageUrls).length}/${S.expectedImageCount} image(s)`:'no images'}. Awaiting 7B QC + Finalize.`;
       updateArtifactImageUrls();
       switchTab('html');
@@ -4876,7 +4917,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       // 7B — operator visual formatting QC (read-only iframe + sidebar + contextual modal — pure JS, no Claude). The ONLY non-negotiable human checkpoint. Park until "Finalize Article".
       setPhase(7, 'active', '7B — operator QC');
       setG('Phase 7B — operator formatting QC. Review the read-only preview; fix links / byline / date / ToC anchors with the sidebar, or click a block for JS formatting options; then "Finalize Article".', true);
-      { const st = document.getElementById('p7Status'); if(st) st.textContent = '7B — review the read-only preview. Fix formatting via the sidebar (Global Link Manager / Metadata / Re-Sync ToC) or by clicking a block, then "Finalize Article" to lock it in and unlock the downloads.'; }
+      { const st = document.getElementById('p7Status'); if(st) st.textContent = '7B — review the read-only preview. The Link Audit banner above the preview is green when every body link is unique + the CTA URL is reserved; orange means click it open and swap the flagged URL(s). Sidebar handles Metadata / Re-Sync ToC. Then "Finalize Article" to lock it in and unlock the downloads.'; }
       await new Promise(res => { _phase7FinalizeResolve = res; });
       if(pipelineHalted || !running) return; // operator stop / new run while parked
       // 7C ran inside finalizePhase7() — it built S.checklistHTML + S.finalSchema + S.finalTXT, enabled the downloads, and set Phase 7 → 'Finalized ✓'.
@@ -5419,11 +5460,15 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
   // PHASE 7 — FINAL ASSEMBLY.
   //  7A: JS builds the complete article HTML from the article JSON (no API call) and renders it into a
   //      READ-ONLY iframe in the Final HTML tab. Canonical stylesheet from 4.3B branding; all prose
-  //      parsed through marked.js (links + bold native); itechvalet.github.io → itechvalet.com.
+  //      parsed through marked.js (links + bold native); URL normalization happens silently at the
+  //      data layer via normalizeArticleUrls (relative paths → absolute, itechvalet.github.io →
+  //      client domain, applied to every link.url + cta.url BEFORE HTML generation).
   //  7B: operator visual FORMATTING QC — PURE JS, no Claude, no rewrites. Content is final; this step
-  //      fixes rendering errors only. (a) a pre-flight SIDEBAR: Global Link Manager (find/replace a
-  //      domain across every URL in the JSON), Metadata editor (author byline override + publish date),
-  //      Re-Sync ToC Anchors + Re-render Article. (b) a CONTEXTUAL MODAL — every rendered block carries
+  //      fixes rendering errors only. (a) a LINK AUDIT BANNER above the iframe — green when every body
+  //      link is unique + the CTA URL is reserved, orange + clickable when warnings exist (opens a
+  //      side-by-side drawer with a per-row replacement form: unused anchorTextTargets dropdown +
+  //      custom URL option). (b) a SIDEBAR with Metadata editor (author byline override + publish
+  //      date), Re-Sync ToC Anchors + Re-render Article, and QC Notes. (c) a CONTEXTUAL MODAL — every rendered block carries
   //      data-node-id; clicking it opens JS-only options for that block type: DA → "Force Paragraph
   //      Breaks"; image → set the WordPress URL; table → "Re-parse Table"; paragraph/FAQ/CTA → show the
   //      raw prose for reference. ONE-WAY DATA FLOW: the iframe is strictly read-only (never
@@ -5673,6 +5718,35 @@ table td { background: #ffffff; }
 </div>`;
   }
 
+  // ── 7A SILENT URL NORMALIZATION — runs at the top of assemblePhase7HTML, mutates link URLs
+  //    in place on the article JSON BEFORE any HTML is generated. Replaces the old post-assembly
+  //    string-replace on articleWrap (which was a second-pass safety net that we no longer need
+  //    since this fixes the data at the source). Two transforms, applied to every link.url field
+  //    and to cta.url: (1) relative path "/services/" → absolute "https://<client-domain>/services/";
+  //    (2) "https://itechvalet.github.io/..." → "https://<client-domain>/..." (legacy V3.1 host fix).
+  //    NOTE: getClientDomainV4() returns a bare host ("itechvalet.com"). We prepend "https://" so
+  //    the produced URLs are valid absolute URLs — the literal "clientDomain + u" form in the spec
+  //    would produce bare-host strings (e.g. "itechvalet.com/services/") that aren't valid hrefs
+  //    and would also trip isInternalUrl()'s "relative" detection downstream.
+  function normalizeArticleUrls(article){
+    if(!article || typeof article !== 'object') return;
+    const bareHost = String(getClientDomainV4() || 'itechvalet.com').replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+    const clientOrigin = 'https://' + bareHost;     // e.g. "https://itechvalet.com"
+    const fixUrl = u => {
+      if(!u || typeof u !== 'string') return u;
+      // 1. Relative path → absolute (the bare-host case can't happen here because the regex
+      //    on github.io still requires a protocol; relative-with-no-protocol stays out of scope)
+      if(u.startsWith('/')) return clientOrigin + u;
+      // 2. github.io → client domain (preserve protocol + path)
+      return u.replace(/https?:\/\/itechvalet\.github\.io/gi, clientOrigin);
+    };
+    const walkLinks = links => { if(Array.isArray(links)) links.forEach(l => { if(l && l.url) l.url = fixUrl(l.url); }); };
+    toArray(article.content_sections).forEach(s => { if(s && typeof s === 'object') walkLinks(s.links); });
+    walkLinks((_concl(article)).links);                 // schema currently has no links here; defensive
+    walkLinks((_faqSec(article)).links);                // same — defensive
+    if(article.cta && typeof article.cta === 'object' && article.cta.url) article.cta.url = fixUrl(article.cta.url);
+  }
+
   // ── 7A — assemble the complete article HTML from the article JSON ──
   // Returns { styleBlock, articleWrap, finalTxt, fullDoc }.
   //  - articleWrap: the <div class="article-wrap"> markup WITH data-node-id attrs on every rendered block (used in the preview iframe).
@@ -5680,6 +5754,7 @@ table td { background: #ffffff; }
   //  - fullDoc: a complete doc for the read-only preview iframe — styleBlock + a hover <style> + articleWrap + a click→postMessage <script> (so a clicked block opens the contextual modal in the parent).
   function assemblePhase7HTML(article){
     if(!article || typeof article !== 'object') throw new Error('no article object');
+    normalizeArticleUrls(article);   // silent URL canonicalization — runs BEFORE any HTML is generated
     const styleBlock = buildStylesheetFrom43B(S.docs.doc43B);
     const branding = extractBrandingFrom43B(S.docs.doc43B);
     const pubFormatted = formatPublishDateP7((document.getElementById('publishDate')?.value || '').trim());
@@ -5807,10 +5882,12 @@ table td { background: #ffffff; }
       parts.push(`  </div>`);
     }
     parts.push(`</div>`);
-    let articleWrap = parts.join('\n');
-    // LINK FIX — itechvalet.github.io → itechvalet.com in every href / src, and in any bare URL in prose
-    articleWrap = articleWrap.replace(/(href|src)=("|')([^"']*itechvalet\.github\.io[^"']*)\2/gi, (m, attr, q, val) => `${attr}=${q}${val.replace(/itechvalet\.github\.io/gi,'itechvalet.com')}${q}`);
-    articleWrap = articleWrap.replace(/https?:\/\/itechvalet\.github\.io/gi, 'https://itechvalet.com');
+    const articleWrap = parts.join('\n');
+    // (Old post-assembly itechvalet.github.io → itechvalet.com regex sweep removed —
+    //  normalizeArticleUrls() at the top of this function now fixes link.url + cta.url at the
+    //  data layer before assembly. URLs embedded in prose markdown [text](url) are NOT
+    //  rewritten by this helper; if a future iTV run surfaces a github.io URL in body prose,
+    //  expand normalizeArticleUrls to walk prose strings too.)
 
     const cleanWrap = articleWrap.replace(/\s+data-node-id="[^"]*"/g, '');  // the version that goes into WordPress — no instrumentation
     const finalTxt = `${styleBlock}\n${cleanWrap}`;
@@ -5956,12 +6033,13 @@ ${schemaRow}
   function renderPhase7Preview(){
     const a = currentArticle();
     const fr = document.getElementById('p7Frame'), pre = document.getElementById('htmlPre');
-    if(!a){ if(fr) fr.srcdoc = '<!DOCTYPE html><body style="font-family:sans-serif;color:#888;padding:24px;">(no article yet — run the pipeline first)</body>'; return null; }
-    let built; try { built = assemblePhase7HTML(a); } catch(e){ if(fr) fr.srcdoc = `<!DOCTYPE html><body style="font-family:sans-serif;color:#c0392b;padding:24px;">Assembly error: ${escapeHtml(e.message||String(e))}</body>`; return null; }
+    if(!a){ if(fr) fr.srcdoc = '<!DOCTYPE html><body style="font-family:sans-serif;color:#888;padding:24px;">(no article yet — run the pipeline first)</body>'; renderLinkAudit(); return null; }
+    let built; try { built = assemblePhase7HTML(a); } catch(e){ if(fr) fr.srcdoc = `<!DOCTYPE html><body style="font-family:sans-serif;color:#c0392b;padding:24px;">Assembly error: ${escapeHtml(e.message||String(e))}</body>`; renderLinkAudit(); return null; }
     S.finalTXT = built.finalTxt;
     if(fr) fr.srcdoc = built.fullDoc;
     if(pre) pre.textContent = built.finalTxt;
     p7RefreshSidebar();
+    renderLinkAudit();    // scan + paint the status banner + the audit-drawer table
     return built;
   }
   function togglePhase7Source(){
@@ -5970,27 +6048,10 @@ ${schemaRow}
   }
 
   // ── Pre-flight sidebar ──
-  function p7CollectDomains(article){
-    let blob = '';
-    try { blob += JSON.stringify(article || {}); } catch(_){}
-    try { blob += ' ' + JSON.stringify(S.imageUrls || {}); } catch(_){}
-    const set = new Set(); let m;
-    const re = /https?:\/\/([a-z0-9](?:[a-z0-9.-]*[a-z0-9])?)/gi;
-    while((m = re.exec(blob)) !== null){ const h = String(m[1]).toLowerCase().replace(/^www\./,''); if(h.indexOf('.') > 0) set.add(h); }
-    return Array.from(set).sort();
-  }
+  // p7RefreshSidebar — kept; the Link Manager block was removed but author-byline + publish-date
+  // pickers still live in the sidebar. (The old p7CollectDomains + domain-chip rendering is gone;
+  // the new Link Audit lives in its own drawer with its own scan / render path.)
   function p7RefreshSidebar(){
-    const a = currentArticle();
-    const dl = document.getElementById('p7DomainList');
-    if(dl){
-      dl.innerHTML = '';
-      p7CollectDomains(a).forEach(host => {
-        const chip = document.createElement('span');
-        chip.className = 'p7-domain-chip'; chip.textContent = host; chip.title = 'Click to fill "Find domain"';
-        chip.onclick = () => { const f = document.getElementById('p7LinkFind'); if(f){ f.value = host; f.focus(); } };
-        dl.appendChild(chip);
-      });
-    }
     const ab = document.getElementById('p7AuthorByline');
     if(ab){
       const b = extractBrandingFrom43B(S.docs.doc43B);
@@ -6006,32 +6067,206 @@ ${schemaRow}
     ['btnDlChecklist','btnDlFinal'].forEach(id => { const el = document.getElementById(id); if(el) el.disabled = true; });
     const st = document.getElementById('p7Status'); if(st) st.textContent = '⚠ Formatting changed after finalize — click "Finalize Article" again to refresh the downloads + schema.';
   }
-  function p7ReplaceDomain(){
-    const find = String(document.getElementById('p7LinkFind')?.value || '').trim();
-    const repl = String(document.getElementById('p7LinkReplace')?.value || '').trim();
-    if(!find){ alert('Enter the domain to find.'); document.getElementById('p7LinkFind')?.focus(); return; }
-    if(!repl){ alert('Enter the replacement domain.'); document.getElementById('p7LinkReplace')?.focus(); return; }
-    if(find === repl) return;
-    const a = currentArticle(); if(!a){ alert('No article to update.'); return; }
-    let count = 0;
-    const sub = s => { const t = String(s == null ? '' : s); if(t.indexOf(find) < 0) return s; count += t.split(find).length - 1; return t.split(find).join(repl); };
-    if(a.directAnswer && typeof a.directAnswer === 'object' && typeof a.directAnswer.prose === 'string') a.directAnswer.prose = sub(a.directAnswer.prose);
-    if(a.cta && typeof a.cta === 'object'){ if(typeof a.cta.hookProse === 'string') a.cta.hookProse = sub(a.cta.hookProse); if(typeof a.cta.url === 'string') a.cta.url = sub(a.cta.url); }
-    if(a.checklist && typeof a.checklist === 'object'){ ['fullUrl','permalink'].forEach(k => { if(typeof a.checklist[k] === 'string') a.checklist[k] = sub(a.checklist[k]); }); }
-    _secs(a).forEach(sec => {
-      if(!sec || typeof sec !== 'object') return;
-      toArray(sec.paragraphs).forEach(p => { if(p && typeof p === 'object'){ if(typeof p.prose === 'string') p.prose = sub(p.prose); if(Array.isArray(p.listItems)) p.listItems = p.listItems.map(x => sub(x)); } });
-      toArray(sec.h3sections).forEach(h3 => { if(h3 && typeof h3 === 'object') toArray(h3.paragraphs).forEach(p => { if(p && typeof p === 'object'){ if(typeof p.prose === 'string') p.prose = sub(p.prose); if(Array.isArray(p.listItems)) p.listItems = p.listItems.map(x => sub(x)); } }); });
-      toArray(sec.tables).forEach(tb => { if(tb && typeof tb === 'object'){ if(Array.isArray(tb.headers)) tb.headers = tb.headers.map(x => sub(x)); toArray(tb.rows).forEach(r => { const cells = Array.isArray(r && r.cells) ? r.cells : (Array.isArray(r) ? r : null); if(cells) for(let i=0;i<cells.length;i++) cells[i] = sub(cells[i]); }); } });
-      toArray(sec.links).forEach(lk => { if(lk && typeof lk === 'object' && typeof lk.url === 'string') lk.url = sub(lk.url); });
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  // PHASE 7B LINK AUDIT (replaces the old Global Link Manager)
+  // Status bar above the iframe shows a single number: how many body links exist + how many
+  // warnings exist. Click it (when orange) to open the audit drawer alongside the iframe.
+  //   • 🔴 duplicate — same internal URL appears more than once in the body (excludes CTA).
+  //   • 🟡 cta-in-body — the Primary CTA URL appears in a body section.
+  //   • ✅ ok — no issues.
+  // Click a flagged row to swap the URL for an unused anchorTextTargets entry or a custom URL.
+  // Apply walks every body link.url, rewrites the matching ones, re-normalizes via the data-layer
+  // helper, re-renders the iframe, and refreshes the audit.
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+
+  // Normalize any URL to its path form (lowercased, protocol+www stripped, leading & trailing
+  // slash present) for comparison. Same shape as the Phase 3A normLinkUrl — duplicated here
+  // because Phase 3A's normLinkUrl is a local const inside validateV1Structure (out of scope).
+  function _audNorm(u){
+    if(!u) return '';
+    let s = String(u).trim().toLowerCase();
+    s = s.replace(/^https?:\/\/(www\.)?[^/]+/, '');
+    if(s && !s.startsWith('/')) s = '/' + s;
+    if(s && !s.endsWith('/')) s = s + '/';
+    return s;
+  }
+
+  // Collect every body link with its enclosing section label, group by (internal-ness + path),
+  // count occurrences, and assign a status. Returns one row per UNIQUE URL — duplicate entries
+  // collapse into a single row with count > 1. CTA is INTENTIONALLY EXCLUDED from collection
+  // so it can't false-positive as a "duplicate" of itself.
+  function buildLinkAuditData(article){
+    if(!article || typeof article !== 'object') return [];
+    const clientDomain = getClientDomainV4();
+    const ctaPath = _audNorm(extract43BCtaUrl(S.docs.doc43B));
+    const entries = [];
+    _secs(article).forEach((sec, si) => {
+      const label = String(sec.h2 || `Section ${si+1}`);
+      toArray(sec.links).forEach(l => { if(l && l.url) entries.push({ url:String(l.url), anchorText:String(l.anchorText||''), location: label, id: l.id }); });
     });
-    _conclParas(a).forEach(p => { if(p && typeof p === 'object'){ if(typeof p.prose === 'string') p.prose = sub(p.prose); if(Array.isArray(p.listItems)) p.listItems = p.listItems.map(x => sub(x)); } });
-    _faqIntro(a).forEach(p => { if(p && typeof p === 'object'){ if(typeof p.prose === 'string') p.prose = sub(p.prose); if(Array.isArray(p.listItems)) p.listItems = p.listItems.map(x => sub(x)); } });
-    _qaPairs(a).forEach(qp => { if(qp && qp.answer && typeof qp.answer === 'object' && typeof qp.answer.prose === 'string') qp.answer.prose = sub(qp.answer.prose); });
-    Object.keys(S.imageUrls || {}).forEach(k => { const nv = sub(S.imageUrls[k]); if(nv !== S.imageUrls[k]){ S.imageUrls[k] = nv; const inp = document.getElementById('iurl'+k); if(inp) inp.value = nv; } });
-    if(typeof updateArtifactImageUrls === 'function') updateArtifactImageUrls();
-    renderPhase7Preview();
-    log(`Phase 7 — Global Link Manager: "${find}" → "${repl}" (${count} occurrence(s) rewritten).`, count ? 'ok' : 'info');
+    toArray(_concl(article).links).forEach(l => { if(l && l.url) entries.push({ url:String(l.url), anchorText:String(l.anchorText||''), location:'conclusion', id:l.id }); });
+    toArray(_faqSec(article).links).forEach(l => { if(l && l.url) entries.push({ url:String(l.url), anchorText:String(l.anchorText||''), location:'faq', id:l.id }); });
+    const byKey = new Map();
+    entries.forEach(e => {
+      const isInt = isInternalUrl(e.url, clientDomain);
+      const path = isInt ? _audNorm(e.url) : String(e.url).trim().toLowerCase();
+      const key = (isInt ? 'I::' : 'E::') + path;
+      if(!byKey.has(key)) byKey.set(key, { url:e.url, anchorText:e.anchorText, count:0, locations:[], ids:[], internal:isInt, normalizedPath: isInt ? path : '' });
+      const rec = byKey.get(key);
+      rec.count++;
+      rec.locations.push(e.location);
+      rec.ids.push(e.id);
+      if(!rec.anchorText && e.anchorText) rec.anchorText = e.anchorText;
+    });
+    return [...byKey.values()].map(r => {
+      let status = 'ok';
+      if(r.internal && r.count > 1) status = 'duplicate';
+      if(ctaPath && r.internal && r.normalizedPath === ctaPath) status = 'cta-in-body';
+      return Object.assign(r, { status });
+    });
+  }
+
+  // Render the audit drawer table + update the status banner. Auto-closes the drawer on a clean
+  // article (no warnings) — and auto-opens on first detection of warnings would be intrusive, so
+  // we just colour the banner orange and let the operator click in.
+  function renderLinkAudit(){
+    const article = currentArticle();
+    const tbody = document.getElementById('p7LinkTbody');
+    const statusEl = document.getElementById('p7LinkStatus');
+    const statusText = document.getElementById('p7LinkStatusText');
+    const statusChev = document.getElementById('p7LinkStatusChev');
+    if(!tbody || !statusEl || !statusText) return;
+    if(!article){
+      statusEl.className = 'p7-link-status'; if(statusChev) statusChev.textContent = '';
+      statusText.textContent = '⏳ Awaiting article…';
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:10px;color:#888;font-style:italic;">No article yet.</td></tr>';
+      closePhase7LinkDrawer();
+      return;
+    }
+    const rows = buildLinkAuditData(article);
+    const total = rows.reduce((n,r)=>n+r.count, 0);
+    const warnRows = rows.filter(r => r.status !== 'ok');
+    if(warnRows.length === 0){
+      statusEl.className = 'p7-link-status';
+      statusText.textContent = `✔ ${total} Link${total===1?'':'s'} Audited — All Valid`;
+      if(statusChev) statusChev.textContent = '';
+      closePhase7LinkDrawer();   // collapse — iframe takes full width
+    } else {
+      statusEl.className = 'p7-link-status warn';
+      statusText.textContent = `⚠ ${total} Link${total===1?'':'s'} Audited — ${warnRows.length} Warning${warnRows.length===1?'':'s'} Detected`;
+      if(statusChev) statusChev.textContent = (document.getElementById('p7LinkDrawer')?.classList.contains('open')) ? '▾ Hide' : '▸ View';
+    }
+    const sorted = warnRows.concat(rows.filter(r => r.status === 'ok'));
+    if(!sorted.length){
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:10px;color:#888;font-style:italic;">No body links in this article.</td></tr>';
+    } else {
+      tbody.innerHTML = sorted.map(r => {
+        const statusIcon = r.status === 'duplicate' ? '🔴 duplicate' : r.status === 'cta-in-body' ? '🟡 cta-in-body' : '✅ ok';
+        const rowClass = r.status === 'ok' ? 'row-ok' : 'row-warn';
+        const onclick = r.status === 'ok' ? '' : ` onclick="openLinkReplaceForm(this)" data-original-url="${escapeHtml(r.url)}"`;
+        const shortUrl = r.url.length > 60 ? r.url.slice(0,57)+'…' : r.url;
+        const shortLocs = r.locations.join(', ');
+        return `<tr class="${rowClass}"${onclick}>` +
+          `<td title="${escapeHtml(r.url)}" style="font-family:'SF Mono',Menlo,monospace;font-size:10px;">${escapeHtml(shortUrl)}</td>` +
+          `<td>${escapeHtml((r.anchorText||'').slice(0,40))}</td>` +
+          `<td>${r.count}</td>` +
+          `<td title="${escapeHtml(shortLocs)}">${escapeHtml(shortLocs.length>40 ? shortLocs.slice(0,37)+'…' : shortLocs)}</td>` +
+          `<td class="row-status">${statusIcon}</td>` +
+          `</tr>`;
+      }).join('');
+    }
+    const rep = document.getElementById('p7LinkReplace'); if(rep){ rep.style.display = 'none'; rep.innerHTML = ''; }
+  }
+
+  function togglePhase7LinkDrawer(){
+    const statusEl = document.getElementById('p7LinkStatus');
+    // Clean state (no warnings) → no toggle. Operator can't open an empty audit drawer.
+    if(statusEl && !statusEl.classList.contains('warn')) return;
+    const drawer = document.getElementById('p7LinkDrawer');
+    if(!drawer) return;
+    const willOpen = !drawer.classList.contains('open');
+    drawer.classList.toggle('open', willOpen);
+    drawer.setAttribute('aria-hidden', willOpen ? 'false' : 'true');
+    const chev = document.getElementById('p7LinkStatusChev');
+    if(chev) chev.textContent = willOpen ? '▾ Hide' : '▸ View';
+  }
+  function closePhase7LinkDrawer(){
+    const drawer = document.getElementById('p7LinkDrawer');
+    if(drawer){ drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); }
+    const chev = document.getElementById('p7LinkStatusChev'); if(chev) chev.textContent = '';
+  }
+
+  // Click handler on a flagged row → render the replacement form below the table.
+  function openLinkReplaceForm(rowEl){
+    const origUrl = rowEl && rowEl.getAttribute && rowEl.getAttribute('data-original-url');
+    if(!origUrl) return;
+    const article = currentArticle(); if(!article) return;
+    // Build the set of normalized paths already in use across the body (so we don't suggest a
+    // replacement URL that would create a NEW duplicate). The original URL's path is OK to keep
+    // in the "used" set; we'll filter it out of the candidate list either way (it's what we're
+    // replacing) — but for safety, allow any candidate whose path equals the original's path.
+    const usedPaths = new Set();
+    _secs(article).forEach(s => toArray(s.links).forEach(l => { if(l && l.url) usedPaths.add(_audNorm(l.url)); }));
+    toArray(_concl(article).links).forEach(l => { if(l && l.url) usedPaths.add(_audNorm(l.url)); });
+    toArray(_faqSec(article).links).forEach(l => { if(l && l.url) usedPaths.add(_audNorm(l.url)); });
+    const ctaPath = _audNorm(extract43BCtaUrl(S.docs.doc43B));
+    const origPath = _audNorm(origUrl);
+    const usableTargets = ((S.research && S.research.anchorTextTargets) || []).filter(t => {
+      if(!t || !t.url) return false;
+      const tPath = _audNorm(t.url);
+      if(tPath === ctaPath) return false;                                    // never suggest the CTA URL
+      if(usedPaths.has(tPath) && tPath !== origPath) return false;           // would create a new dup
+      return true;
+    });
+    const rep = document.getElementById('p7LinkReplace');
+    if(!rep) return;
+    rep.style.display = 'block';
+    rep.innerHTML =
+      `<div style="font-size:11px;color:var(--blue);margin-bottom:6px;"><strong>Replacing:</strong> <span style="font-family:'SF Mono',Menlo,monospace;font-size:10px;">${escapeHtml(origUrl)}</span></div>` +
+      `<label class="p7-sb-lbl">Pick a replacement URL</label>` +
+      `<select class="p7-sb-input" id="p7LinkReplaceSelect" onchange="onReplaceSelectChange()">` +
+        `<option value="">— Select —</option>` +
+        usableTargets.map(t => `<option value="${escapeHtml(t.url)}">${escapeHtml((t.anchorText || t.url).slice(0,40))} → ${escapeHtml(t.url)}</option>`).join('') +
+        `<option value="__CUSTOM__">+ Enter Custom URL</option>` +
+      `</select>` +
+      `<div id="p7LinkCustomBox" style="display:none;">` +
+        `<label class="p7-sb-lbl">Custom URL</label>` +
+        `<input class="p7-sb-input" id="p7LinkCustomUrl" placeholder="https://itechvalet.com/your-page/" />` +
+      `</div>` +
+      `<button class="btn-p7" style="width:100%;margin-top:8px;" onclick="applyLinkReplace(this)" data-original-url="${escapeHtml(origUrl)}">Apply →</button>`;
+  }
+  function onReplaceSelectChange(){
+    const sel = document.getElementById('p7LinkReplaceSelect');
+    const box = document.getElementById('p7LinkCustomBox');
+    if(!sel || !box) return;
+    box.style.display = (sel.value === '__CUSTOM__') ? 'block' : 'none';
+  }
+
+  // Apply — find every body link whose URL matches the original (exact string match) and rewrite.
+  // Then re-canonicalize via normalizeArticleUrls, re-render the iframe, refresh the audit table.
+  function applyLinkReplace(btn){
+    const article = currentArticle(); if(!article) return;
+    const origUrl = btn && btn.getAttribute && btn.getAttribute('data-original-url');
+    const sel = document.getElementById('p7LinkReplaceSelect');
+    if(!origUrl){ alert('Lost the original URL — close and re-open the row.'); return; }
+    if(!sel || !sel.value){ alert('Pick a replacement URL.'); return; }
+    let newUrl = sel.value;
+    if(newUrl === '__CUSTOM__'){
+      const inp = document.getElementById('p7LinkCustomUrl');
+      newUrl = String((inp && inp.value) || '').trim();
+      if(!newUrl){ alert('Enter a custom URL.'); if(inp) inp.focus(); return; }
+    }
+    let replaced = 0;
+    const replaceIn = (links) => { if(Array.isArray(links)) links.forEach(l => { if(l && l.url === origUrl){ l.url = newUrl; replaced++; } }); };
+    _secs(article).forEach(s => replaceIn(s.links));
+    replaceIn(_concl(article).links);
+    replaceIn(_faqSec(article).links);
+    if(replaced === 0){ alert('Could not find the original URL in the article. (Article state may have changed — refresh the audit and try again.)'); renderLinkAudit(); return; }
+    normalizeArticleUrls(article);      // re-canonicalize after the swap (handles relative → absolute, etc.)
+    renderPhase7Preview();              // also calls p7RefreshSidebar
+    renderLinkAudit();                  // refresh table + status banner
+    log(`Phase 7B — link replaced: "${origUrl}" → "${newUrl}" (${replaced} occurrence${replaced===1?'':'s'} in the article body).`, 'ok');
     p7MarkStaleIfFinalized();
   }
   function p7SetAuthorByline(){
@@ -6113,7 +6348,7 @@ ${schemaRow}
       } else {
         title = rec.label ? (rec.label.charAt(0).toUpperCase() + rec.label.slice(1)) : 'Paragraph';
         html = `<div>Raw prose (reference only — no edit, no Claude call):</div><div class="pcx-raw">${escapeHtml(p7NodeCurrentText(rec) || '(empty)')}</div>
-        <div class="pcx-note">Content is final. Fix links via the sidebar's <strong>Global Link Manager</strong>. (Paragraph re-splitting is available on the Direct Answer block.)</div>`;
+        <div class="pcx-note">Content is final. Fix links via the <strong>Link Audit banner</strong> above the preview (click the orange banner if it shows warnings). Paragraph re-splitting is available on the Direct Answer block.</div>`;
       }
     }
     if(titleEl) titleEl.textContent = title;
@@ -6206,15 +6441,21 @@ ${schemaRow}
   function resetPhase7UI(){
     _phase7FinalizeResolve = null; _p7CtxNodeId = null;
     S.finalTXT = ''; S.finalSchema = ''; S.checklistHTML = ''; S.p7AuthorByline = '';
-    const fr = document.getElementById('p7Frame'); if(fr) fr.srcdoc = '<!DOCTYPE html><body style="font-family:sans-serif;color:#aaa;padding:24px;font-size:13px;">Phase 7 (Final Assembly) renders the article here once Phases 1–6 finish and the image URLs + Publish Date are in. The preview is read-only — fix formatting with the sidebar or by clicking a block.</body>';
+    const fr = document.getElementById('p7Frame'); if(fr) fr.srcdoc = '<!DOCTYPE html><body style="font-family:sans-serif;color:#aaa;padding:24px;font-size:13px;">Phase 7 (Final Assembly) renders the article here once Phases 1–6 finish and the image URLs + Publish Date are in. The preview is read-only — fix flagged links via the Link Audit banner above, or click a block for JS formatting fixes.</body>';
     const pre = document.getElementById('htmlPre'); if(pre) pre.textContent = 'The clean article HTML (style block + article-wrap) appears here after Phase 7 assembly.';
     ['btnViewSource','btnFinalize','btnDlChecklist','btnDlFinal'].forEach(id => { const el = document.getElementById(id); if(el) el.disabled = true; });
     const src = document.getElementById('p7Src'); if(src) src.classList.remove('open');
     const vs = document.getElementById('btnViewSource'); if(vs) vs.textContent = '⌄ View HTML source';
-    ['p7LinkFind','p7LinkReplace','p7AuthorByline','p7PubDate','p7Notes'].forEach(id => { const el = document.getElementById(id); if(el){ el.value = ''; } });
+    ['p7AuthorByline','p7PubDate','p7Notes'].forEach(id => { const el = document.getElementById(id); if(el){ el.value = ''; } });
     const ab = document.getElementById('p7AuthorByline'); if(ab) ab.placeholder = 'Name, Title';
-    const dl = document.getElementById('p7DomainList'); if(dl) dl.innerHTML = '';
-    const st = document.getElementById('p7Status'); if(st) st.textContent = 'Phase 7 (Final Assembly) renders here once Phases 1–6 finish and the image URLs + Publish Date are in. The preview is read-only — fix formatting with the sidebar or by clicking a block.';
+    // Link Audit reset — clear the drawer body, collapse it, reset the banner to its waiting state.
+    closePhase7LinkDrawer();
+    const linkStatusEl = document.getElementById('p7LinkStatus'); if(linkStatusEl) linkStatusEl.className = 'p7-link-status';
+    const linkStatusTxt = document.getElementById('p7LinkStatusText'); if(linkStatusTxt) linkStatusTxt.textContent = '⏳ Awaiting article…';
+    const linkStatusChev = document.getElementById('p7LinkStatusChev'); if(linkStatusChev) linkStatusChev.textContent = '';
+    const linkTbody = document.getElementById('p7LinkTbody'); if(linkTbody) linkTbody.innerHTML = '<tr><td colspan="5" style="padding:10px;color:#888;font-style:italic;">No article yet.</td></tr>';
+    const linkReplaceForm = document.getElementById('p7LinkReplace'); if(linkReplaceForm){ linkReplaceForm.style.display = 'none'; linkReplaceForm.innerHTML = ''; }
+    const st = document.getElementById('p7Status'); if(st) st.textContent = 'Phase 7 (Final Assembly) renders here once Phases 1–6 finish and the image URLs + Publish Date are in. The preview is read-only — review the Link Audit banner, then use the sidebar or click a block for JS formatting fixes.';
     closeP7Ctx();
   }
   // The read-only preview iframe posts a message when the operator clicks a block — open the contextual modal.
