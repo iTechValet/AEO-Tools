@@ -2145,6 +2145,9 @@ PHASE 2B — SEQUENTIAL HYDRATION (the "Relay Race", section-level). You will be
       // Per-block: live JSON in the V2 Article tab + progress line in the Phase 2 meta. The Phase 2
       // panel (#o2) is written once at the end by the orchestrator (so the Frame attempts above stay).
       if(sectionOK){
+        // GREEN forward-progress signal: this block landed cleanly + the relay advances to the next.
+        // (Blue is reserved for informational/neutral entries; green means the pipeline moved forward.)
+        log(`Phase 2 — block ${i+1} of ${total} done (${job.label||job.type}).`, 'ok');
         // commit the new save state — last good baseline for any future section-retry
         saveStateFrame = JSON.parse(JSON.stringify(hydratedFrame));
         saveStateRollingDraft = rollingDraft;
@@ -5667,25 +5670,26 @@ table td { background: #ffffff; }
     const pdRaw = (document.getElementById('publishDate')?.value || '').trim();
     const pd = formatPublishDateP7(pdRaw) || '(not set)';
     const title = c.metaTitle || c.h1 || S.topic || 'Untitled';
-    const featUrl = (S.expectedImageCount > 0) ? (S.imageUrls[getFeatured()] || '(not set)') : '(no images for this article)';
-    const runTime = (document.getElementById('timerDisplay')?.textContent) || '—';
-    const t = S.tokens || {};
-    const geminiCost = ((t.gi||0)/1e6*1.25) + ((t.go||0)/1e6*10.0);
-    const claudeCost = ((t.ci||0)/1e6*3.0) + ((t.cacheCreate||0)/1e6*3.75) + ((t.cacheRead||0)/1e6*0.30) + ((t.co||0)/1e6*15.0);
-    const imageCost = (S.expectedImageCount||0) * 0.020;
-    const totalCost = geminiCost + claudeCost + imageCost;
+    // Featured image — promote ALT TEXT to the primary field, keep URL as secondary. Alt is pulled
+    // from the article's imagePrompts[featured].alt. Hyphens / en-dashes / em-dashes become spaces
+    // (and any run of whitespace collapses) so the VA can paste straight into WordPress's alt field.
+    const featIdx = (typeof getFeatured === 'function') ? getFeatured() : 0;
+    const featPrompt = (S.imagePrompts && S.imagePrompts[featIdx]) || null;
+    const featAltRaw = featPrompt ? String(featPrompt.alt || '') : '';
+    const featAlt = featAltRaw ? featAltRaw.replace(/[-–—]/g, ' ').replace(/\s+/g, ' ').trim() : '';
+    const featUrl = (S.expectedImageCount > 0) ? (S.imageUrls[featIdx] || '(not set)') : '(no images for this article)';
     const fields = [
       { label:'Title / H1', value: c.h1 || title },
       { label:'Permalink URL', value: String(c.permalink||'').replace(/^\//,'') },
-      { label:'Full Article URL', value: c.fullUrl || '' },
       { label:'Meta Description', value: c.metaDescription || '' },
       { label:'Keywords', value: c.keywords || '' },
       { label:'Category', value: c.category || '' },
+      { label:'Featured Image Alt Text', value: featAlt || (S.expectedImageCount > 0 ? '(no alt text)' : '(no images for this article)') },
       { label:'Featured Image URL', value: featUrl },
       { label:'Publish Date', value: pdRaw ? `${pdRaw} (${pd})` : '(not set)' }
     ];
     const fieldRows = fields.map(f => `      <div class="cl-field"><div class="cl-label">${E(f.label)}</div><div class="cl-val-wrap"><textarea class="cl-ta" onclick="this.select();" readonly>${E(f.value)}</textarea><button class="cl-btn" onclick="clCopy(this)">Copy</button></div></div>`).join('\n');
-    const schemaStr = (S.finalSchema || buildSchemaJSONLD(article, S.docs.doc43B, pdRaw, (S.expectedImageCount>0?(S.imageUrls[getFeatured()]||''):''))).trim();
+    const schemaStr = (S.finalSchema || buildSchemaJSONLD(article, S.docs.doc43B, pdRaw, (S.expectedImageCount>0?(S.imageUrls[featIdx]||''):''))).trim();
     const schemaRow = schemaStr ? `      <div class="cl-field"><div class="cl-label" style="color:#dd6b00;">Schema Markup (BlogPosting + FAQPage + BreadcrumbList — paste all three together)</div><div class="cl-val-wrap"><textarea class="cl-ta cl-ta-schema" onclick="this.select();" readonly>${E(schemaStr)}</textarea><button class="cl-btn" onclick="clCopy(this)">Copy</button></div></div>` : '';
     return `<!DOCTYPE html>
 <html lang="en">
@@ -5706,11 +5710,6 @@ table td { background: #ffffff; }
   .cl-btn{background:#063a6c;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0;align-self:flex-start;}
   .cl-btn:hover{background:#2494e0;}
   .cl-btn.copied{background:#4caf50;}
-  .cost-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  .cost-item{background:#f9f9f9;border:1px solid #e0e0e0;border-radius:6px;padding:10px 14px;}
-  .cost-item .cv{font-size:18px;font-weight:700;color:#063a6c;margin-top:4px;}
-  .cost-item.total{border-color:#063a6c;background:#f0f4f8;}
-  .cost-item.total .cv{font-size:22px;color:#dd6b00;}
 </style>
 </head>
 <body>
@@ -5719,15 +5718,6 @@ table td { background: #ffffff; }
 
 <h2>Article Optimization Checklist</h2>
 ${fieldRows}
-
-<h2>Run Cost Report</h2>
-<div class="cost-grid">
-  <div class="cost-item"><div class="cl-label">Run Time</div><div class="cv">${E(runTime)}</div></div>
-  <div class="cost-item"><div class="cl-label">Claude Cost</div><div class="cv">$${claudeCost.toFixed(4)}</div></div>
-  <div class="cost-item"><div class="cl-label">Gemini Text Cost</div><div class="cv">$${geminiCost.toFixed(4)}</div></div>
-  <div class="cost-item"><div class="cl-label">Image Cost</div><div class="cv">$${imageCost.toFixed(4)}</div></div>
-  <div class="cost-item total" style="grid-column:span 2"><div class="cl-label">Total Estimated Cost</div><div class="cv">$${totalCost.toFixed(4)}</div></div>
-</div>
 
 <h2>Schema Markup</h2>
 <p style="font-size:12px;color:#888;margin-bottom:14px;">Paste the block below into the page's &lt;head&gt; (or your SEO plugin's schema field) — all three schema types together.</p>
