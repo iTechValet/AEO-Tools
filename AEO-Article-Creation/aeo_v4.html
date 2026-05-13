@@ -506,7 +506,7 @@
         <div class="phase-num">3</div>
         <div class="phase-info">
           <div class="phase-title">Phase 3 — Dual Validation</div>
-          <div class="phase-desc">3A: JS structural checks — content_sections≥4 (no conclusion/FAQ in there), tables≥3 each non-empty, images≥content-section count, ≥1 paragraph per content section/H3, link↔research match, internal-link domain, DA 200–300 words, CTA URL, checklist fields, thesis present+referenced — AND every table row carries a sourceReferenceId pointing at a real Phase 1 factClaim, with cells aligned to headers — AND hard checks for conclusion_section (present, ≥1 paragraph) + faq_section (present, intro_paragraphs ≥1, qa_pairs ≥5). A 3A fail skips the Gemini call. 3B: Gemini does an EXHAUSTIVE audit — every table row / paragraph / heading vs the factClaims, one complete pass — and returns { nodeId, violationType, offendingText, requiredAction } per violation (claims align w/ research + anchors clientSpecificThesis). Any fail → a surgical micro-call (subtractive scrub: remove unsupported numbers/claims, don't invent replacements) patches just the named nodes. RETRY CAP IS SPLIT: STRUCTURAL fails get 2 rounds; SEMANTIC fails (factual hallucinations) get 1 round → still failing after Round 1 ⇒ immediate RED escalation (Checkpoint 1), no Round 2. Every validation round is kept in this panel.</div>
+          <div class="phase-desc">3A: JS structural checks — content_sections≥4 (no conclusion/FAQ in there), tables≥3 each non-empty (with table_type ∈ {quantitative, conceptual}), images≥content-section count, ≥1 paragraph per content section/H3, link↔research match, internal-link domain, DA 200–300 words, CTA URL, checklist fields, thesis present+referenced, every section declares 1-3 assigned_facts (real factClaim IDs), framework_labels present — AND every QUANTITATIVE table row carries a sourceReferenceId from its parent section's assigned_facts pool, with cells aligned to headers — AND hard checks for conclusion_section (present, ≥1 paragraph) + faq_section (present, intro_paragraphs ≥1, qa_pairs ≥5). A 3A fail → a surgical micro-call (subtractive scrub) patches just the named nodes; max 2 rounds, then CHK1 RED. 3B (ONE JOB ONLY): Gemini hallucination sweep — flags any specific number / percentage / dollar amount / timeframe / named study / invented software / invented agency / fake case study / definitive timeline that DOES NOT appear in the Phase 1 factClaims or the 4.3B identity doc. Returns each fail with location ∈ {table_row, prose}. Table-row hallucinations → JS guillotine (delete the row, pipeline continues). Prose hallucinations → CHK1 RED (the Phase 2B Save State is held in memory so a manual retry burns only that section's API cost). NO surgical fix on 3B fails. Every validation round is kept in this panel.</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b3">Waiting</div><span class="schev closed" id="c3">▼</span></div>
       </div>
@@ -793,7 +793,7 @@
     frame: null,              // Phase 2A structure frame (becomes v1 after the 2B merge — same object)
     v1: null,                 // Phase 2 JSON (frame + 2B hydration, with JS-assigned IDs)
     v1Frozen: false,          // Phase 4
-    validation: null,         // { structuralFails:[], semanticFails:[], passed:bool }
+    validation: null,         // { structuralFails:[], hallucinations:[], passed:bool }  (3B returns hallucinations[] with {nodeId, offendingText, location})
     intentLayer: '',          // Phase 5 — resolved from the 4.2 sheet row's Intent Layer column (F11 → Indirect)
     voiceExemplars: '',       // Phase 5 — intent-matched gold-standard exemplar text (or '' if none — optional)
     v2: null,                 // Phase 5 voice draft — deep clone of V1 with prose rewrites + voiceArchitecture
@@ -1601,7 +1601,7 @@ SHEET ROW (pipe-delimited): ${S.sheetRow}`;
 
   // ── PHASE 2A — STRUCTURE FRAME + NARRATIVE SPINE ──
   function buildPhase2ASystem(){
-    const instr = `PHASE 2A — STRUCTURE FRAME + NARRATIVE SPINE. Call submit_v1_frame with the article's structural skeleton AND its narrative spine. NO body prose. NO statistics. NO numerical claims. NO table data rows. NO FAQ answers. NO conclusion prose. NO Direct Answer prose. (All of that is written in Phase 2 — one content block at a time, section by section, guided by the spine you write here.)
+    const instr = `PHASE 2A — STRUCTURE FRAME + NARRATIVE SPINE. Call submit_v1_frame with the article's structural skeleton AND its narrative spine AND a sectional fact-allocation plan AND a framework-label registry. NO body prose. NO statistics. NO numerical claims. NO table data rows. NO FAQ answers. NO conclusion prose. NO Direct Answer prose. (All of that is written in Phase 2 — one content block at a time, section by section, guided by the spine + the allocations you write here.)
 
 Produce:
 - checklist: the 7 SEO/URL fields — metaTitle, h1, permalink, fullUrl, metaDescription, keywords, category.
@@ -1611,22 +1611,30 @@ Produce:
    • callback_setup: a metaphor / framing / concept to ESTABLISH early in the article and PAY OFF later — the through-line that makes the piece read as one thing.
    • section_transitions: one object per H2 content section AND per H3 subsection AND for the conclusion heading AND the FAQ heading — { targetId: the EXACT heading text of that section/subsection, bridge_logic: one sentence on how to bridge INTO it from the preceding context }.
    • voice_reminders: 3-5 SPECIFIC reminders about the desired voice, pulled from the 4.3A / 4.3B context above (concrete — e.g. a banned phrase, a sentence-rhythm rule, a tone note — not generic platitudes).
+- framework_labels: a flat JSON object mapping every CUSTOM structural label you invent in this article to its EXACT string. This covers numbered stages, named phases, named frameworks, pillars, layers, steps — any multi-part structure you create. Example: {"Stage 1": "Dormancy", "Stage 2": "Displacement", "Stage 3": "Invisibility"}. If the article has NO custom framework (no numbered stages or named sequences), output an empty object {}. These labels are LOCKED — Phase 2B will inject them into every hydration call and must use them verbatim.
 - directAnswer: a placeholder object — leave it exactly as {}. (JS assigns its id; Phase 2B writes its prose.)
-- content_sections: at least 4 standard H2 content sections — STANDARD CONTENT ONLY. Do NOT put a conclusion section here. Do NOT put an FAQ section here. (The conclusion and the FAQ are separate top-level keys below.) Each content section = { h2, paragraphs:[{},{},…], h3sections?:[{h3, paragraphs:[{},…]}], links?:[{anchorText,url,placementHint}], tables?:[{headers}], imagePrompts:[{prompt,alt}] }.
+- content_sections: at least 4 standard H2 content sections — STANDARD CONTENT ONLY. Do NOT put a conclusion section here. Do NOT put an FAQ section here. (The conclusion and the FAQ are separate top-level keys below.) Each content section = { h2, paragraphs:[{},{},…], h3sections?:[{h3, paragraphs:[{},…]}], links?:[{anchorText,url,placementHint}], tables?:[{headers, table_type}], imagePrompts:[{prompt,alt}], assigned_facts:["factClaim_NN",…] }.
    • paragraphs: an array of EMPTY objects — one {} per paragraph this section should have. You decide the COUNT (2-6 is typical); JS assigns each an id; Phase 2B writes the prose into them.
    • h3sections: optional — each has h3 (the heading) and its own paragraphs array of {} slots (at least one).
-   • tables: at least 3 tables across all content sections combined. For each table provide ONLY the headers array — leave the data rows to Phase 2B. Choose table topics the research brief's factClaims can actually back with data.
+   • tables: at least 3 tables across all content sections combined. For each table provide ONLY the headers array AND a table_type — leave the data rows to Phase 2B. Choose table topics the research brief's factClaims can actually back with data.
+     ► table_type: "quantitative" — rows will be built from specific statistics / numbers / data points (must bind to factClaims, with CoT fact-anchor justification).
+     ► table_type: "conceptual" — rows organize narrative comparisons, frameworks, or structural information that DOES NOT depend on specific statistics (no factClaim binding required).
    • imagePrompts: at least 1 per H2 content section. prompt + alt text only (this is placement). The conclusion and the FAQ never get images.
    • links: prefer the research brief's anchorTextTargets — copy those anchorText + url pairs exactly. NEVER invent an internal link (a page on the client's own domain that isn't in the brief). A small number of additional reputable EXTERNAL citations is OK if genuinely needed. placementHint = which paragraph (by description) the link belongs to.
-- conclusion_section: REQUIRED. { h2: the conclusion heading text (e.g. "The Bottom Line", "Where This Leaves You" — your call, in voice), paragraphs:[{},{},…] } — one {} per closing paragraph (2-4 typical). NO image, NO table, NO links here. JS assigns ids; Phase 2B writes the prose. This is the article's wrap-up — it must always be present.
-- faq_section: REQUIRED. { h2: the FAQ heading text (e.g. "Frequently Asked Questions"), intro_paragraphs:[{},…] (one or two {} slots — the framing prose BEFORE the questions; JS assigns ids, Phase 2B writes them), qa_pairs:[{ question: the question text, answer: {} }, …] — at least 5 Q&A pairs. The QUESTION text only — leave each answer as {} (JS assigns its id; Phase 2B writes the answer prose). The FAQ section must always contain BOTH intro_paragraphs and qa_pairs. NO image, NO table here.
+   • assigned_facts: REQUIRED. An array of 1-3 factClaim IDs from the Phase 1 research brief (e.g. ["factClaim_02","factClaim_05"]) that are most relevant to this section's topic. Phase 2B will see ONLY these factClaims when hydrating this section. A factClaim MAY be assigned to multiple sections. Every content_section MUST have at least 1.
+- conclusion_section: REQUIRED. { h2: the conclusion heading text (e.g. "The Bottom Line", "Where This Leaves You" — your call, in voice), paragraphs:[{},{},…], assigned_facts:["factClaim_NN",…] } — one {} per closing paragraph (2-4 typical). NO image, NO table, NO links here. JS assigns ids; Phase 2B writes the prose. assigned_facts: same rule (1-3 factClaim IDs, at least 1).
+- faq_section: REQUIRED. { h2: the FAQ heading text (e.g. "Frequently Asked Questions"), intro_paragraphs:[{},…] (one or two {} slots — the framing prose BEFORE the questions), qa_pairs:[{ question: the question text, answer: {} }, …] — at least 5 Q&A pairs (questions only; leave each answer as {}), assigned_facts:["factClaim_NN",…] } — same assigned_facts rule (1-3 factClaim IDs, at least 1; the whole FAQ section shares one allocation since the intro + every answer pulls from the same allowed set). NO image, NO table here.
 - cta: { anchorText, url, placementHint }. The url MUST match the 4.3B Primary CTA destination (the "Destination:" line under the "Primary CTA" section, or a "Conversion Primary CTA URL" / "Primary CTA URL" field). placementHint = where in the article the CTA sits.
+
+FACT-ALLOCATION RULE (NON-NEGOTIABLE): For every section in content_sections, the conclusion_section, and the faq_section you MUST assign 1-3 factClaim IDs from the Phase 1 research brief that are most relevant to that section's topic. A factClaim may be assigned to multiple sections if relevant. Every section must have at least 1 assigned factClaim. No section may use a factClaim not assigned to it (Phase 2B enforces this — sections see ONLY their assigned factClaims).
+
+FRAMEWORK-LABEL RULE (NON-NEGOTIABLE): If you create any numbered or named multi-part framework in this article (stages, phases, pillars, layers, steps), you MUST log every label exactly as defined in the framework_labels field. These labels are locked. You must use them verbatim throughout the article — Phase 2B receives this map and treats it as immutable.
 
 Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_frame; never respond in plain text.`;
     return [ buildPhase2ContextBlock(), { type:'text', text: instr } ];
   }
   function buildPhase2AUserText(feedback, f2hint){
-    let t = `Build the STRUCTURE FRAME + NARRATIVE SPINE now by calling submit_v1_frame. content_sections (≥4 standard H2 sections — no conclusion, no FAQ — each with empty paragraph slots, table headers without data, link anchors, image slots), a conclusion_section (heading + empty paragraph slots), a faq_section (heading + intro_paragraphs slots + ≥5 qa_pairs whose answers stay {}), CTA placement, the checklist, thesis.statement, and a full narrative_spine (core_thesis, callback_setup, section_transitions keyed by heading text — include the conclusion and FAQ headings — 3-5 voice_reminders) — no body prose, no statistics.`;
+    let t = `Build the STRUCTURE FRAME + NARRATIVE SPINE + FACT-ALLOCATION PLAN + FRAMEWORK-LABEL REGISTRY now by calling submit_v1_frame. content_sections (≥4 standard H2 sections — no conclusion, no FAQ — each with empty paragraph slots, table headers + table_type, link anchors, image slots, and an assigned_facts array of 1-3 factClaim IDs), a conclusion_section (heading + empty paragraph slots + assigned_facts), a faq_section (heading + intro_paragraphs slots + ≥5 qa_pairs whose answers stay {} + assigned_facts), CTA placement, the checklist, thesis.statement, a full narrative_spine (core_thesis, callback_setup, section_transitions keyed by heading text — include the conclusion and FAQ headings — 3-5 voice_reminders), and framework_labels (flat map of every custom multi-part label you invent; {} if none) — no body prose, no statistics.`;
     if(feedback && feedback.trim()){
       t += `\n\n─────────────────────────────────────────\nYOUR PREVIOUS FRAME FAILED VALIDATION. Fix every problem below and resubmit the FULL frame via submit_v1_frame:\n${feedback}\n─────────────────────────────────────────`;
     }
@@ -1637,9 +1645,9 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
   }
   const V1_FRAME_TOOL = {
     name: 'submit_v1_frame',
-    description: 'Submit the V1 STRUCTURE FRAME + NARRATIVE SPINE — content_sections (standard H2 content only — headings, empty paragraph slots, table headers without data, link anchors, image slots), a dedicated conclusion_section (heading + empty paragraph slots), a dedicated faq_section (heading + intro_paragraph slots + qa_pairs with empty answer slots), CTA placement, checklist, thesis statement, and the narrative_spine (core_thesis, callback_setup, section_transitions, voice_reminders) that Phase 2B follows node-by-node. No body prose, no table data. JS assigns ids; do not include id fields. The conclusion_section and faq_section are ALWAYS required.',
+    description: 'Submit the V1 STRUCTURE FRAME + NARRATIVE SPINE + SECTIONAL FACT ALLOCATION + FRAMEWORK-LABEL REGISTRY — content_sections (standard H2 content only — headings, empty paragraph slots, table headers + table_type, link anchors, image slots, assigned_facts), a dedicated conclusion_section (heading + paragraph slots + assigned_facts), a dedicated faq_section (heading + intro_paragraph slots + qa_pairs with empty answer slots + assigned_facts), CTA placement, checklist, thesis statement, the narrative_spine, and framework_labels (locked map of every custom structural label). No body prose, no table data. JS assigns ids; do not include id fields. The conclusion_section and faq_section are ALWAYS required, every section ALWAYS has assigned_facts.',
     input_schema: {
-      type:'object', required:['checklist','narrative_spine','thesis','directAnswer','content_sections','conclusion_section','faq_section','cta'], additionalProperties:false,
+      type:'object', required:['checklist','narrative_spine','thesis','framework_labels','directAnswer','content_sections','conclusion_section','faq_section','cta'], additionalProperties:false,
       properties: {
         checklist: { type:'object', required:['metaTitle','h1','permalink','fullUrl','metaDescription','keywords','category'], additionalProperties:false,
           properties: { metaTitle:{type:'string'}, h1:{type:'string'}, permalink:{type:'string'}, fullUrl:{type:'string'}, metaDescription:{type:'string'}, keywords:{type:'string'}, category:{type:'string'} } },
@@ -1653,9 +1661,10 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
           } },
         thesis: { type:'object', required:['statement'], additionalProperties:false,
           properties: { statement:{ type:'string', description:'One-sentence spine. Same as narrative_spine.core_thesis. Mirror Phase 1 clientSpecificThesis.thesisStatement.' } } },
+        framework_labels: { type:'object', additionalProperties:{ type:'string' }, description:'Flat map of every custom multi-part label this article invents (e.g. {"Stage 1":"Dormancy","Stage 2":"Displacement"}). LOCKED — Phase 2B uses these verbatim. Empty {} if the article has no custom framework.' },
         directAnswer: { type:'object', additionalProperties:false, properties:{}, description:'Placeholder — leave it as {}. JS assigns its id; Phase 2B writes its prose.' },
-        content_sections: { type:'array', minItems:4, description:'Standard H2 content sections ONLY — no conclusion section, no FAQ section (those are the dedicated conclusion_section / faq_section keys). Every entry here gets a ToC entry and an injected image.', items: {
-          type:'object', required:['h2','paragraphs','imagePrompts'], additionalProperties:false,
+        content_sections: { type:'array', minItems:4, description:'Standard H2 content sections ONLY — no conclusion section, no FAQ section (those are the dedicated conclusion_section / faq_section keys). Every entry here gets a ToC entry and an injected image. Every entry must declare assigned_facts.', items: {
+          type:'object', required:['h2','paragraphs','imagePrompts','assigned_facts'], additionalProperties:false,
           properties: {
             h2: { type:'string' },
             paragraphs: { type:'array', minItems:1, items:{ type:'object', additionalProperties:false, properties:{} }, description:'Empty paragraph slots — one {} per paragraph this H2 should have (you decide the count, 2-6 typical). JS assigns ids; Phase 2B writes the prose.' },
@@ -1663,20 +1672,29 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
               properties:{ h3:{type:'string'}, paragraphs:{ type:'array', minItems:1, items:{ type:'object', additionalProperties:false, properties:{} }, description:'Empty paragraph slots for this H3 — one {} per paragraph (at least one).' } } } },
             links: { type:'array', items:{ type:'object', required:['anchorText','url','placementHint'], additionalProperties:false,
               properties:{ anchorText:{type:'string'}, url:{type:'string'}, placementHint:{type:'string'} } } },
-            tables: { type:'array', items:{ type:'object', required:['headers'], additionalProperties:false,
-              properties:{ headers:{ type:'array', items:{type:'string'}, description:'Column headers only — no data rows here.' } } } },
+            tables: { type:'array', items:{ type:'object', required:['headers','table_type'], additionalProperties:false,
+              properties:{
+                headers:{ type:'array', items:{type:'string'}, description:'Column headers only — no data rows here.' },
+                table_type:{ type:'string', enum:['quantitative','conceptual'], description:'"quantitative" → rows bind to factClaims (CoT fact-anchor justification, sourceReferenceId from this section\'s assigned_facts). "conceptual" → rows organize narrative comparisons / frameworks, no factClaim binding required.' }
+              } } },
             imagePrompts: { type:'array', minItems:1, items:{ type:'object', required:['prompt','alt'], additionalProperties:false,
-              properties:{ prompt:{type:'string'}, alt:{type:'string'} } } }
+              properties:{ prompt:{type:'string'}, alt:{type:'string'} } } },
+            assigned_facts: { type:'array', minItems:1, maxItems:3, items:{ type:'string' }, description:'1-3 factClaim IDs from the Phase 1 research brief (e.g. ["factClaim_02","factClaim_05"]) that Phase 2B is permitted to cite when hydrating this section. A factClaim may be assigned to multiple sections.' }
           }
         }},
-        conclusion_section: { type:'object', required:['h2','paragraphs'], additionalProperties:false, description:'The article wrap-up — ALWAYS present. No image, no table, no links.',
-          properties:{ h2:{ type:'string', description:'The conclusion heading text (in the client voice).' }, paragraphs:{ type:'array', minItems:1, items:{ type:'object', additionalProperties:false, properties:{} }, description:'Empty paragraph slots — one {} per closing paragraph (2-4 typical). JS assigns ids; Phase 2B writes the prose.' } } },
-        faq_section: { type:'object', required:['h2','intro_paragraphs','qa_pairs'], additionalProperties:false, description:'The FAQ section — ALWAYS present, ALWAYS with both intro_paragraphs and qa_pairs. No image, no table.',
+        conclusion_section: { type:'object', required:['h2','paragraphs','assigned_facts'], additionalProperties:false, description:'The article wrap-up — ALWAYS present. No image, no table, no links. Has its own assigned_facts allocation.',
+          properties:{
+            h2:{ type:'string', description:'The conclusion heading text (in the client voice).' },
+            paragraphs:{ type:'array', minItems:1, items:{ type:'object', additionalProperties:false, properties:{} }, description:'Empty paragraph slots — one {} per closing paragraph (2-4 typical). JS assigns ids; Phase 2B writes the prose.' },
+            assigned_facts:{ type:'array', minItems:1, maxItems:3, items:{ type:'string' }, description:'1-3 factClaim IDs the Phase 2B conclusion job is permitted to cite.' }
+          } },
+        faq_section: { type:'object', required:['h2','intro_paragraphs','qa_pairs','assigned_facts'], additionalProperties:false, description:'The FAQ section — ALWAYS present, ALWAYS with intro_paragraphs + qa_pairs + assigned_facts. No image, no table.',
           properties:{
             h2:{ type:'string', description:'The FAQ heading text (e.g. "Frequently Asked Questions").' },
             intro_paragraphs:{ type:'array', minItems:1, items:{ type:'object', additionalProperties:false, properties:{} }, description:'Empty paragraph slots for the framing prose BEFORE the questions — one or two {}. JS assigns ids; Phase 2B writes the prose.' },
             qa_pairs:{ type:'array', minItems:5, items:{ type:'object', required:['question','answer'], additionalProperties:false,
-              properties:{ question:{type:'string'}, answer:{ type:'object', additionalProperties:false, properties:{}, description:'Placeholder — leave it as {}. JS assigns its id; Phase 2B writes the answer prose.' } } } }
+              properties:{ question:{type:'string'}, answer:{ type:'object', additionalProperties:false, properties:{}, description:'Placeholder — leave it as {}. JS assigns its id; Phase 2B writes the answer prose.' } } } },
+            assigned_facts:{ type:'array', minItems:1, maxItems:3, items:{ type:'string' }, description:'1-3 factClaim IDs the Phase 2B faq job is permitted to cite for BOTH the intro paragraphs AND every Q&A answer in this section.' }
           } },
         cta: { type:'object', required:['anchorText','url','placementHint'], additionalProperties:false,
           properties:{ anchorText:{type:'string'}, url:{type:'string'}, placementHint:{type:'string'} } }
@@ -1696,6 +1714,9 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
   // mutated. Every job call sends ONLY the hydrate_content_block tool + the cached master block.
 
   // Tool used on EVERY Phase 2B job call — returns a `nodes` array, one object per requested targetId.
+  // For tables, the per-row sourceReferenceId + fact_anchor_justification fields are conditionally
+  // required: JS enforces them for table_type="quantitative" only; conceptual tables don't need
+  // factClaim binding (so those fields stay optional in the tool schema).
   const HYDRATE_CONTENT_BLOCK_TOOL = {
     name: 'hydrate_content_block',
     description: 'Provide the prose or data for the requested target IDs. Return exactly one object in `nodes` for every targetId listed in the prompt — same count, same ids.',
@@ -1709,8 +1730,8 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
             properties: {
               targetId: { type:'string', description:'One of the requested target IDs, exactly.' },
               prose: { type:'string', description:'Markdown-formatted prose for a paragraph / Direct Answer / FAQ answer / CTA hook. Leave empty ONLY when hydrating a table.' },
-              rows: { type:'array', description:'Table data rows — use ONLY when hydrating a table. Each row = { sourceReferenceId:"factClaim_NN", fact_anchor_justification:"<verbatim quote from that factClaim>", cells:[string,…] } where sourceReferenceId is the id of a Phase 1 factClaim that supports the row, fact_anchor_justification is the exact supporting phrase quoted from it, and cells align to the table headers (same count + order).', items:{ type:'object', required:['sourceReferenceId','fact_anchor_justification','cells'], additionalProperties:false,
-                properties:{ sourceReferenceId:{ type:'string', description:'The id of the Phase 1 factClaim that supports this row.' }, fact_anchor_justification:{ type:'string', description:'Before writing the cells for this row, quote the exact phrase from the factClaim (identified by sourceReferenceId) that supports this row\'s content. If you cannot find a verbatim supporting phrase in that factClaim, you must either select a different factClaim that does support it, or remove the row entirely. Do not proceed to cells until this field is filled with a real quote.' }, cells:{ type:'array', items:{type:'string'} } } } }
+              rows: { type:'array', description:'Table data rows — use ONLY when hydrating a table. For a QUANTITATIVE table each row = { sourceReferenceId:"factClaim_NN", fact_anchor_justification:"<verbatim quote from that factClaim>", cells:[string,…] } where sourceReferenceId is one of this section\'s assigned_facts ids and fact_anchor_justification is the exact supporting phrase quoted from it. For a CONCEPTUAL table each row = { cells:[string,…] } only — leave sourceReferenceId and fact_anchor_justification empty / omitted (no factClaim binding). Cells always align to the table headers (same count + order).', items:{ type:'object', required:['cells'], additionalProperties:false,
+                properties:{ sourceReferenceId:{ type:'string', description:'QUANTITATIVE tables only — the id of a Phase 1 factClaim from this section\'s assigned_facts that supports this row. Conceptual tables: leave empty.' }, fact_anchor_justification:{ type:'string', description:'QUANTITATIVE tables only — quote the exact phrase from that factClaim that supports this row before writing the cells. If no verbatim supporting phrase exists in the assigned factClaims, return the literal string "DELETE_ROW_UNSUPPORTED" as the sourceReferenceId and JS will drop the row. Conceptual tables: leave empty.' }, cells:{ type:'array', items:{type:'string'} } } } }
             }
           }
         }
@@ -1722,7 +1743,10 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
   // article: 1× directAnswer → for each CONTENT section: 1× {ALL its H2 + H3 paragraph ids batched}
   // + 1× per table → 1× conclusion_section (all its paragraph ids batched) → 1× faq_section (ALL its
   // intro_paragraph ids + ALL its qa_pair answer ids batched) → 1× CTA hook.
-  // Each job: { type, label, requiredIds:[…], contextHints, transitionLogic }.
+  // Each job carries its OWN allowedFactIds (the parent section's assigned_facts) so the per-job
+  // prompt can show Claude ONLY those factClaims — sectional fact allocation, enforced at the
+  // hydration boundary. Tables also carry tableType (quantitative | conceptual) so the prompt
+  // applies the right binding rules.
   // section_transitions in the narrative spine are keyed by HEADING TEXT (h2) — JS-assigned ids
   // don't exist when Phase 2A writes the spine — so getTransition matches on the heading.
   function buildSectionLevelQueue(frame, narrativeSpine){
@@ -1734,14 +1758,20 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
       const t = transitions.find(x => x && String(x.targetId||'').trim().toLowerCase() === want);
       return t ? String(t.bridge_logic||'') : '';
     };
-    // 1. Direct Answer
+    const asFactIds = (af) => (Array.isArray(af)?af:toArray(af)).map(x => String(x||'').trim()).filter(Boolean);
+    // 1. Direct Answer — pull from EVERY section's assigned_facts (the DA opens the article so it may legitimately reference the thesis-level data the rest of the piece will develop)
     if(frame.directAnswer && frame.directAnswer.id){
-      queue.push({ type:'directAnswer', label:'Direct Answer', requiredIds:[frame.directAnswer.id], contextHints:`Write the Direct Answer (200-300 words). Answer the topic question immediately and directly, in the client’s voice, and align with the thesis. This opens the article.`, transitionLogic:'' });
+      const daPool = new Set();
+      _secs(frame).forEach(s => asFactIds(s && s.assigned_facts).forEach(id => daPool.add(id)));
+      asFactIds(_concl(frame).assigned_facts).forEach(id => daPool.add(id));
+      asFactIds(_faqSec(frame).assigned_facts).forEach(id => daPool.add(id));
+      queue.push({ type:'directAnswer', label:'Direct Answer', requiredIds:[frame.directAnswer.id], allowedFactIds:[...daPool], contextHints:`Write the Direct Answer (200-300 words). Answer the topic question immediately and directly, in the client’s voice, and align with the thesis. This opens the article.`, transitionLogic:'' });
     }
     // 2. Content sections — ONE call per H2 (batching all paragraph ids from the H2 + all its H3s), then one isolated call per table
     _secs(frame).forEach(section => {
       if(!section || typeof section !== 'object') return;
       const h2 = String(section.h2 || '');
+      const sectionFactIds = asFactIds(section.assigned_facts);
       const linkHint = (Array.isArray(section.links) && section.links.length) ? ` Links available to weave in where natural: ${section.links.map(l=>`[${l.anchorText||''}](${l.url||''})`).join(', ')}.` : '';
       const sectionIds = [];
       const structureLines = [];
@@ -1755,16 +1785,20 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
       });
       if(sectionIds.length){
         queue.push({
-          type:'section', label:`section: "${h2}"`, requiredIds: sectionIds,
+          type:'section', label:`section: "${h2}"`, requiredIds: sectionIds, allowedFactIds: sectionFactIds, sectionId: section.id,
           contextHints: `Write ALL the body prose for H2 "${h2}" and its H3 subsections — one node object per paragraph id, in this order:\n${structureLines.join('\n')}\nWrite ONLY paragraph bodies (JS renders the H2/H3 headings — do not repeat them). Vary paragraph length; work in the narrative spine's callback where it fits.${linkHint}`,
           transitionLogic: getTransition(h2)
         });
       }
       toArray(section.tables).forEach(table => {
         if(!table || !table.id) return;
+        const tt = String(table.table_type||'').toLowerCase().trim() === 'conceptual' ? 'conceptual' : 'quantitative';
+        const tableHint = (tt === 'quantitative')
+          ? `A QUANTITATIVE data table under H2 "${h2}". Headers: [${(table.headers||[]).join(', ')}]. Return ROWS only — each row { cells, sourceReferenceId, fact_anchor_justification } where cells align to those headers (same count + order), sourceReferenceId is one of THIS section's assigned factClaim ids, and fact_anchor_justification is the verbatim phrase from that factClaim that supports the row. If you cannot find a verbatim supporting phrase in your assigned factClaims for a row, set sourceReferenceId to "DELETE_ROW_UNSUPPORTED" and JS will drop the row — do NOT invent data to fill cells.`
+          : `A CONCEPTUAL data table under H2 "${h2}". Headers: [${(table.headers||[]).join(', ')}]. Return ROWS only — each row { cells } aligned to those headers. This table organizes narrative comparisons / frameworks / structural information; rows DO NOT need to bind to a factClaim. Leave sourceReferenceId and fact_anchor_justification empty / omitted. Never invent specific numbers, percentages, dollar amounts, or named studies in the cells — keep them qualitative / structural.`;
         queue.push({
-          type:'table', label:`table under "${h2}"`, requiredIds:[table.id],
-          contextHints: `A data table under H2 "${h2}". Headers: [${(table.headers||[]).join(', ')}]. Return ROWS only — each row { cells, sourceReferenceId } where cells align to those headers (same count + order) and sourceReferenceId is the id of a Phase 1 factClaim that supports the data. Drop any row you cannot support; never invent numbers.`,
+          type:'table', label:`${tt} table under "${h2}"`, requiredIds:[table.id], allowedFactIds: sectionFactIds, tableType: tt, sectionId: section.id,
+          contextHints: tableHint,
           transitionLogic:''
         });
       });
@@ -1774,9 +1808,10 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
       const conclSec = _concl(frame);
       const conclH2 = String(conclSec.h2 || 'Conclusion');
       const conclIds = _conclParas(frame).filter(p => p && p.id).map(p => p.id);
+      const conclFactIds = asFactIds(conclSec.assigned_facts);
       if(conclIds.length){
         queue.push({
-          type:'conclusion', label:`conclusion: "${conclH2}"`, requiredIds: conclIds,
+          type:'conclusion', label:`conclusion: "${conclH2}"`, requiredIds: conclIds, allowedFactIds: conclFactIds, sectionId: conclSec.id,
           contextHints: `Write ALL the closing-section prose for H2 "${conclH2}" — one node object per paragraph id, in order: ${conclIds.join(', ')}. This is the article's WRAP-UP: synthesize, restate the thesis with conviction, land the narrative spine's callback. Write ONLY paragraph bodies (JS renders the heading — do not repeat it). No new statistics; no new claims.`,
           transitionLogic: getTransition(conclH2)
         });
@@ -1794,18 +1829,19 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
         faqLines.push(`  ${qp.answer.id} — answers the question: "${String(qp.question||'')}"`);
       });
       const allFaqIds = introIds.concat(ansIds);
+      const faqFactIds = asFactIds(faqSec.assigned_facts);
       if(allFaqIds.length){
         const introLines = introIds.length ? `  ${introIds.join(', ')} — the FAQ intro/framing paragraph(s) BEFORE the questions (set up why this FAQ matters, in voice).` : '';
         queue.push({
-          type:'faq_section', label:`FAQ section: ${introIds.length} intro + ${ansIds.length} answer${ansIds.length===1?'':'s'}`, requiredIds: allFaqIds,
+          type:'faq_section', label:`FAQ section: ${introIds.length} intro + ${ansIds.length} answer${ansIds.length===1?'':'s'}`, requiredIds: allFaqIds, allowedFactIds: faqFactIds, sectionId: faqSec.id,
           contextHints: `Write ALL the FAQ-section prose under H2 "${faqH2}" — one node object per id, in this order:\n${[introLines, ...faqLines].filter(Boolean).join('\n')}\nThe intro paragraph(s): 1-2 short framing paragraphs that lead into the questions. Each answer: tight, direct, in the client’s voice — do NOT restate the question text inside the answer, do NOT write the question or any heading — just the prose for each id.`,
           transitionLogic: getTransition(faqH2)
         });
       }
     }
-    // 5. CTA hook
+    // 5. CTA hook — has no assigned_facts of its own; it doesn't make data claims, so an empty pool is fine
     if(frame.cta && frame.cta.id){
-      queue.push({ type:'cta_hook', label:'CTA hook', requiredIds:[frame.cta.id], contextHints:`The hook prose that leads into the CTA link: [${frame.cta.anchorText||''}](${frame.cta.url||''}). 1-3 sentences, in voice, that naturally hands off to that link. The link itself is added by JS — write only the lead-in prose.`, transitionLogic: getTransition(frame.cta.anchorText) });
+      queue.push({ type:'cta_hook', label:'CTA hook', requiredIds:[frame.cta.id], allowedFactIds:[], contextHints:`The hook prose that leads into the CTA link: [${frame.cta.anchorText||''}](${frame.cta.url||''}). 1-3 sentences, in voice, that naturally hands off to that link. The link itself is added by JS — write only the lead-in prose. No new statistics; no specific numbers; this is the close.`, transitionLogic: getTransition(frame.cta.anchorText) });
     }
     return queue;
   }
@@ -1834,13 +1870,48 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
     return false;
   }
 
-  // The per-job user prompt: narrative spine + rolling draft + this job's ticket + a CRITICAL
+  // Build the section-scoped factClaim menu — only the assigned_facts entries for this job's section.
+  // This is the ONLY pool Claude is permitted to cite when hydrating this block.
+  function buildSectionFactMenu(allowedFactIds){
+    const ids = Array.isArray(allowedFactIds) ? allowedFactIds : [];
+    if(!ids.length) return '  (no factClaims assigned to this block — write qualitatively; do not introduce specific numbers, percentages, dollar amounts, or named studies.)';
+    const all = (S.research?.factClaims || []);
+    const lines = ids.map(id => {
+      const fc = all.find(x => x && String(x.id) === String(id));
+      if(!fc) return `  • ${id}: (not found in Phase 1 — escalate)`;
+      const dp = Array.isArray(fc.dataPoints) && fc.dataPoints.length ? ` | data: ${fc.dataPoints.join('; ')}` : '';
+      return `  • ${fc.id}: ${String(fc.claim||'').trim()}${fc.source ? ` | source: ${fc.source}` : ''}${dp}`;
+    });
+    return lines.join('\n');
+  }
+  // Render the framework_labels map as a locked reference block (or a neutral note if empty).
+  function buildFrameworkLabelsBlock(frame){
+    const fl = (frame && frame.framework_labels && typeof frame.framework_labels === 'object' && !Array.isArray(frame.framework_labels)) ? frame.framework_labels : {};
+    const keys = Object.keys(fl);
+    if(!keys.length) return '(no custom framework defined for this article — invent none.)';
+    return keys.map(k => `  • ${k} → "${String(fl[k]||'').replace(/"/g,'\\"')}"`).join('\n');
+  }
+
+  // The per-job user prompt: narrative spine + rolling draft + framework labels + section-scoped
+  // factClaim menu + citation-token + forbidden-entity rules + this job's ticket + a CRITICAL
   // instruction listing every required id and demanding exactly one `nodes` object per id.
   // (The cached master-context block carries 4.3A/4.3B/4.4 + research brief + thesis.)
   function buildHydrateJobPrompt(spine, rollingDraft, job, idx, total, frame, retryNote){
     const reminders = (spine && Array.isArray(spine.voice_reminders) && spine.voice_reminders.length) ? spine.voice_reminders.join('  |  ') : '(follow the 4.3A/4.3B voice rules)';
     const isTable = job.type === 'table';
     const reqIds = job.requiredIds || [];
+    const allowedFactIds = Array.isArray(job.allowedFactIds) ? job.allowedFactIds : [];
+    const factMenu = buildSectionFactMenu(allowedFactIds);
+    const labelsBlock = buildFrameworkLabelsBlock(frame);
+    const tableTypeNote = isTable
+      ? (job.tableType === 'conceptual'
+          ? `\nTABLE TYPE: conceptual — rows organize narrative information; DO NOT include a sourceReferenceId or fact_anchor_justification. Keep cells qualitative; never invent specific numbers / percentages / dollar amounts.`
+          : `\nTABLE TYPE: quantitative — every row MUST include sourceReferenceId (one of this section's assigned factClaim ids, listed below) AND fact_anchor_justification (the verbatim supporting phrase from that factClaim). If no assigned factClaim supports a row, set sourceReferenceId to the literal "DELETE_ROW_UNSUPPORTED" and JS will drop the row — never invent data to fill cells.`)
+      : '';
+    const proseToolHint = `prose: <markdown-formatted body prose for that node, in the client’s voice — with INLINE CITATION TOKENS [factClaim_NN] appended immediately after every specific figure (see citation rule above)>`;
+    const tableToolHint = (job.tableType === 'conceptual')
+      ? `rows: <the conceptual-table data — each row { cells:[…] } only; no factClaim binding>`
+      : `rows: <the quantitative-table data — each row { cells, sourceReferenceId, fact_anchor_justification } where sourceReferenceId is one of this section's assigned factClaims (or "DELETE_ROW_UNSUPPORTED")>`;
     return `You are hydrating one CONTENT BLOCK of an AEO article whose structure is already locked. This is block ${idx} of ${total} — ${job.label || job.type}.
 
 NARRATIVE SPINE (the through-line you must serve on every block):
@@ -1848,14 +1919,24 @@ NARRATIVE SPINE (the through-line you must serve on every block):
 - Setup / payoff (callback): ${(spine && spine.callback_setup) || '(none)'}
 - Voice reminders: ${reminders}
 
+FRAMEWORK LABELS (LOCKED — use these exact strings verbatim throughout this article; do not alter, abbreviate, or paraphrase them):
+${labelsBlock}
+
+FACTCLAIMS ASSIGNED TO THIS SECTION (the ONLY facts you are permitted to cite in this block; using anything outside this list is a hallucination):
+${factMenu}
+
+INLINE CITATION TOKEN RULE (NON-NEGOTIABLE): If you use any specific number, percentage, dollar amount, timeframe, or named study in your prose or table cells, you MUST immediately append the citation token in brackets directly after it. Example: "Agencies waste significant budget [factClaim_02] on tactics that don't build entity trust." Use ONLY tokens from the assigned factClaims listed above. If no assigned factClaim supports a specific figure, describe the concept qualitatively instead and use NO token. Never invent figures.
+
+ENTITY GUARDRAIL (NON-NEGOTIABLE): You are forbidden from inventing named software tools, agencies, competitors, fake case studies, or definitive timelines unless they appear verbatim in your assigned factClaims (above) or the 4.3B client identity document (already in context).
+
 DRAFT SO FAR (everything written before this block — keep this block coherent with it; do NOT repeat any of it; pick up where it leaves off):
 ${rollingDraft ? rollingDraft.slice(-8000) : '(this is the beginning of the article)'}
 
 CURRENT TASK — ${job.label || job.type}:
-${job.contextHints}
+${job.contextHints}${tableTypeNote}
   Transition rule: ${job.transitionLogic ? job.transitionLogic : 'Continue naturally from the draft so far.'}
 
-CRITICAL: You MUST use the hydrate_content_block tool and return a "nodes" array containing exactly ${reqIds.length} object(s) — one for each of these required IDs: [${reqIds.join(', ')}]. Each object = { targetId: <one of those exact ids>, ${isTable ? 'rows: <the table data — { cells, sourceReferenceId } per row, each citing a Phase 1 factClaim>' : 'prose: <markdown-formatted body prose for that node, in the client’s voice>'} }. ${isTable ? 'Do NOT include a `prose` field.' : 'Do NOT include a `rows` field. Do NOT write headings, and no list markup unless a paragraph IS a list.'} Do NOT return nodes for any id not in that list, and do NOT skip any of them.${retryNote ? `\n\n${retryNote}` : ''}`;
+CRITICAL: You MUST use the hydrate_content_block tool and return a "nodes" array containing exactly ${reqIds.length} object(s) — one for each of these required IDs: [${reqIds.join(', ')}]. Each object = { targetId: <one of those exact ids>, ${isTable ? tableToolHint : proseToolHint} }. ${isTable ? 'Do NOT include a `prose` field.' : 'Do NOT include a `rows` field. Do NOT write headings, and no list markup unless a paragraph IS a list.'} Do NOT return nodes for any id not in that list, and do NOT skip any of them.${retryNote ? `\n\n${retryNote}` : ''}`;
   }
 
   // The static "you are hydrating content blocks one at a time" framing — a small uncached system
@@ -1863,17 +1944,79 @@ CRITICAL: You MUST use the hydrate_content_block tool and return a "nodes" array
   // across all Phase 2B job calls — job 1 writes the cache, the rest read it.)
   function buildHydrateInstrBlock(){
     return { type:'text', text: `NUMERICAL ABSOLUTE RULE — THIS IS NON-NEGOTIABLE:
-You are strictly forbidden from inventing specific numbers, percentages, timeframes (e.g., '3-6 months', '12+ articles'), or dollar amounts in any table row or paragraph. You may ONLY use a concrete figure if it appears verbatim in the factClaim you are citing.
-ESCAPE HATCH: If the factClaim does not contain specific figures, synthesize the concept qualitatively instead (e.g., write 'requires significant capital expenditure' instead of '$30,000', write 'over several months' instead of '3-6 months'). Do not leave cells blank. Do not invent data to fill them.
+You are strictly forbidden from inventing specific numbers, percentages, timeframes (e.g., '3-6 months', '12+ articles'), or dollar amounts in any table row or paragraph. You may ONLY use a concrete figure if it appears verbatim in one of the factClaims listed as ASSIGNED to the current block.
+ESCAPE HATCH: If no assigned factClaim contains the specific figure, synthesize the concept qualitatively instead (e.g., write 'requires significant capital expenditure' instead of '$30,000', write 'over several months' instead of '3-6 months'). Do not leave cells blank. Do not invent data to fill them.
 
-PHASE 2B — SEQUENTIAL HYDRATION (the "Relay Race", section-level). You will be asked to write one content block at a time, in article order — the Direct Answer, then one block per H2 content section (ALL of that section's + its H3s' paragraphs together) with one block per table, then ONE block for the conclusion section (all its paragraphs), then ONE block for the FAQ section (its intro paragraph(s) + every Q&A answer), then the CTA hook. Each call carries a rolling draft of everything written so far. For each call: read the narrative spine and the draft so far, then call hydrate_content_block returning a "nodes" array with exactly one object per requested targetId — the "prose" field for paragraphs / the Direct Answer / conclusion paragraphs / FAQ intro paragraphs / FAQ answers / the CTA hook; the "rows" field for tables. Stay in the client's voice the whole way through. Never fabricate statistics or numbers — every table row must cite a Phase 1 factClaim by id, and for each row you must FIRST fill fact_anchor_justification with the verbatim phrase from that factClaim that supports the row before you write its cells (if no verbatim supporting phrase exists, pick a different factClaim or drop the row). Never repeat content already in the draft. Never write headings or table markup — just the nodes' content.` };
+SECTIONAL FACT ALLOCATION (NON-NEGOTIABLE): At Phase 2A the article assigned 1-3 factClaim IDs to each section. Each Phase 2B hydration call shows you ONLY that section's assigned factClaims — those are the ONLY facts you may cite in this block. Using a factClaim that wasn't assigned to this section is a hallucination and JS will reject the block.
+
+INLINE CITATION TOKEN RULE: If you use any specific number, percentage, dollar amount, timeframe, or named study in your prose or table cells, you MUST immediately append the citation token in brackets directly after it — e.g. "...waste significant budget [factClaim_02] on tactics...". The token must reference one of THIS section's assigned factClaim ids. If no assigned factClaim supports a specific figure, describe the concept qualitatively and append NO token. Phase 7 strips these tokens before the article goes live — they exist only to anchor every figure to its source.
+
+ENTITY GUARDRAIL: You are forbidden from inventing named software tools, agencies, competitors, fake case studies, or definitive timelines unless they appear verbatim in your assigned factClaims or the 4.3B client identity document.
+
+FRAMEWORK LABELS: If the frame defines custom multi-part labels (stages, phases, pillars, layers, steps), every hydration call hands you the locked label map. Use those labels verbatim — do not alter, abbreviate, or paraphrase them anywhere in your prose or tables.
+
+PHASE 2B — SEQUENTIAL HYDRATION (the "Relay Race", section-level). You will be asked to write one content block at a time, in article order — the Direct Answer, then one block per H2 content section (ALL of that section's + its H3s' paragraphs together) with one block per table (quantitative OR conceptual, declared per table), then ONE block for the conclusion section (all its paragraphs), then ONE block for the FAQ section (its intro paragraph(s) + every Q&A answer), then the CTA hook. Each call carries a rolling draft of everything written so far. For each call: read the narrative spine, the assigned factClaims, the framework labels, and the draft so far, then call hydrate_content_block returning a "nodes" array with exactly one object per requested targetId — the "prose" field for paragraphs / the Direct Answer / conclusion paragraphs / FAQ intro paragraphs / FAQ answers / the CTA hook; the "rows" field for tables (with sourceReferenceId + fact_anchor_justification per row for QUANTITATIVE tables, cells only for CONCEPTUAL tables). Stay in the client's voice the whole way through. Never fabricate statistics or numbers. Never repeat content already in the draft. Never write headings or table markup — just the nodes' content.` };
   }
 
   // The relay loop: clone the locked frame, build the section-level queue, walk it sequentially,
   // stitch every returned node + roll the draft. Never mutates `lockedFrame`. Returns the
   // (fully — or partially, with Phase 3A + the surgical fix catching gaps) hydrated clone.
+  // INLINE VALIDATION for a freshly hydrated section job: did all required ids land non-empty? did
+  // any returned prose cite a factClaim NOT in this section's assigned_facts (a hallucination flag)?
+  // Returns { ok:bool, reason:string }. Pure — no side effects.
+  function inlineValidateHydration(job, returnedNodes, postFrame){
+    const reqIds = job.requiredIds || [];
+    const allowed = new Set((Array.isArray(job.allowedFactIds)?job.allowedFactIds:[]).map(String));
+    const isTable = job.type === 'table';
+    // Coverage / non-empty checks
+    for(const id of reqIds){
+      const node = returnedNodes.find(n => String(n.targetId) === String(id));
+      if(!node) return { ok:false, reason:`required node id "${id}" was not returned` };
+      if(isTable){
+        if(!Array.isArray(node.rows) || !node.rows.length) return { ok:false, reason:`table "${id}" returned no rows` };
+      } else {
+        const prose = String(node.prose||'').trim();
+        if(!prose) return { ok:false, reason:`prose node "${id}" returned empty prose` };
+      }
+    }
+    // Citation-token integrity: any [factClaim_XX] token in returned prose / cells MUST be in allowed.
+    // (Empty allowed list ⇒ block must not introduce any tokens; e.g. the CTA hook.)
+    const tokenRe = /\[(factClaim_[A-Za-z0-9_-]+)\]/g;
+    for(const n of returnedNodes){
+      let text = '';
+      if(typeof n.prose === 'string') text += ' ' + n.prose;
+      if(Array.isArray(n.rows)){
+        n.rows.forEach(r => { if(r && Array.isArray(r.cells)) text += ' ' + r.cells.join(' '); });
+      }
+      let m;
+      while((m = tokenRe.exec(text)) !== null){
+        const tok = m[1];
+        if(allowed.size === 0) return { ok:false, reason:`prose cited factClaim "${tok}" but this block has no assigned_facts (use no token)` };
+        if(!allowed.has(tok)) return { ok:false, reason:`prose cited unassigned factClaim "${tok}" (allowed: ${[...allowed].join(', ') || 'none'})` };
+      }
+    }
+    return { ok:true, reason:'' };
+  }
+
+  // DELETE_ROW_UNSUPPORTED handling: drop any quantitative-table row that came back with that sentinel.
+  function applyDeleteRowSentinel(node, job){
+    if(!Array.isArray(node.rows)) return 0;
+    if(job.type !== 'table' || job.tableType === 'conceptual') return 0;
+    const before = node.rows.length;
+    node.rows = node.rows.filter(r => String(r && r.sourceReferenceId || '').trim() !== 'DELETE_ROW_UNSUPPORTED');
+    return before - node.rows.length;
+  }
+
+  // The relay loop: clone the locked frame, build the section-level queue, walk it sequentially,
+  // stitch every returned node + roll the draft. Never mutates `lockedFrame`. Returns the
+  // (fully — or partially, with Phase 3A + the surgical fix catching gaps) hydrated clone.
+  // SAVE STATE: after each section successfully hydrates and passes inline validation, the article
+  // JSON + rolling draft are snapshotted. If a section fails (network error / refusal / missing ids
+  // / hallucination flag), JS restores from the last snapshot and retries that section only — up to
+  // 2 retries with a targeted warning. After the cap the section RED-escalates; the rest of the
+  // article continues from the last good snapshot.
   async function executePhase2B(lockedFrame, akey){
-    const hydratedFrame = JSON.parse(JSON.stringify(lockedFrame)); // never mutate the locked frame
+    let hydratedFrame = JSON.parse(JSON.stringify(lockedFrame)); // never mutate the locked frame
     // belt-and-suspenders: the queue needs these node ids to exist + every prose container to have ≥1 slot
     if(!hydratedFrame.directAnswer || typeof hydratedFrame.directAnswer !== 'object') hydratedFrame.directAnswer = {};
     _secs(hydratedFrame).forEach(sec => {
@@ -1890,80 +2033,141 @@ PHASE 2B — SEQUENTIAL HYDRATION (the "Relay Race", section-level). You will be
     const queue = buildSectionLevelQueue(hydratedFrame, spine);
     const total = queue.length;
     const totalReqIds = queue.reduce((n,j)=>n+((j.requiredIds&&j.requiredIds.length)||0), 0);
-    log(`Phase 2 — sequential hydration ("relay race", section-level): ${total} content block(s) / ${totalReqIds} node(s) to write in order, each with rolling context.`, 'info');
+    log(`Phase 2 — sequential hydration ("relay race", section-level): ${total} content block(s) / ${totalReqIds} node(s) to write in order, each with rolling context + Save State per-section rollback.`, 'info');
     initRelayStrip('relayStrip2', queue);             // per-block status chips (Item 4: green = done OK)
     const masterCtx = buildPhase2ContextBlock();      // cached master context (same content as every Phase 2 call)
     const instrBlock = buildHydrateInstrBlock();      // small uncached "one block at a time" framing
-    let rollingDraft = '', failedIds = 0;
+    let rollingDraft = '', failedIds = 0, guillotinedRows = 0;
+    // Save State: last-good snapshot the article rolls back to on a section failure. Keyed in memory
+    // by the most recently completed job's sectionId; we keep a single rolling "last good" pair.
+    let saveStateFrame = JSON.parse(JSON.stringify(hydratedFrame));
+    let saveStateRollingDraft = '';
+    const sectionRedFailures = []; // [{ jobIdx, label, reason, sectionId }]
     for(let i = 0; i < total; i++){
       const job = queue[i];
       const reqIds = job.requiredIds || [];
       const reqSet = new Set(reqIds.map(String));
       const isTable = job.type === 'table';
       setPhase(2, 'active', `Hydrate ${i+1}/${total}`);
-      setRelayChip('relayStrip2', i, 'active');
       setG(`Phase 2 — hydration relay: block ${i+1}/${total} (${job.label || job.type})…`, true);
-      log(`Phase 2 — hydrating node ${i+1} of ${total} (${job.label || job.type}; ${reqIds.length} id${reqIds.length===1?'':'s'})…`, 'info');
-      let nodes = null, f6f = '', missingIds = [], hadWarn = false;
-      for(let attempt = 0; attempt < 2; attempt++){
-        let retryNote = '';
-        if(attempt > 0){
-          hadWarn = true;
-          if(f6f) retryNote = f6f;
-          else if(missingIds.length) retryNote = `NOTE: your previous response was MISSING these required node ids: [${missingIds.join(', ')}]. This time return ALL ${reqIds.length} ids in the "nodes" array: [${reqIds.join(', ')}].`;
-          else retryNote = `NOTE: your previous response could not be used (no usable tool call / invalid output / wrapped in markdown). Call hydrate_content_block cleanly with a "nodes" array of exactly ${reqIds.length} object(s) for these ids: [${reqIds.join(', ')}] — nothing else.`;
+      log(`Phase 2 — hydrating block ${i+1} of ${total} (${job.label || job.type}; ${reqIds.length} id${reqIds.length===1?'':'s'}; allowed factClaims: ${(job.allowedFactIds||[]).join(', ') || '(none)'})…`, 'info');
+      let sectionOK = false, lastSectionFailReason = '';
+      // ── SECTION-RETRY LOOP (Save State) — 1 first try + up to 2 retries with rollback in between ──
+      for(let sectionRetry = 0; sectionRetry <= 2; sectionRetry++){
+        if(sectionRetry > 0){
+          // Roll back to the last good snapshot before this section started
+          hydratedFrame = JSON.parse(JSON.stringify(saveStateFrame));
+          rollingDraft = saveStateRollingDraft;
+          log(`Phase 2 — Save State rollback #${sectionRetry}/2 for section "${job.label}": ${lastSectionFailReason}`, 'warn');
         }
-        let result;
-        try {
-          result = await callClaude({ systemBlocks:[masterCtx, instrBlock], userText: buildHydrateJobPrompt(spine, rollingDraft, job, i+1, total, hydratedFrame, retryNote), tools:[HYDRATE_CONTENT_BLOCK_TOOL], toolChoice:{type:'tool', name:'hydrate_content_block'}, akey, timeoutMs: 240000 });
-        } catch(e){
-          if(e.f4) throw e;
-          if(attempt < 1){ warnYellow('F2', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}) call errored (${e.message||e}) — retrying.`); continue; }
-          warnYellow('F2', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}) failed after retry (${e.message||e}) — ${reqIds.length} node(s) left un-hydrated; Phase 3A + the surgical fix will catch them.`); break;
+        setRelayChip('relayStrip2', i, 'active');
+        const inlineRetryWarning = sectionRetry > 0
+          ? `Your previous attempt was rejected. A specific number or claim you used was not supported by your assigned factClaims (or you cited a factClaim that wasn't assigned to this section). Retry this section strictly following the citation token rule. If no factClaim supports a specific figure, write it qualitatively. Reason from the previous attempt: ${lastSectionFailReason}`
+          : '';
+        let nodes = null, f6f = '', missingIds = [], hadWarn = false;
+        // ── TOOL-CALL ATTEMPT LOOP — 2 attempts on parse / refusal / missing-id failures ──
+        for(let attempt = 0; attempt < 2; attempt++){
+          let retryNote = inlineRetryWarning;
+          if(attempt > 0){
+            hadWarn = true;
+            if(f6f) retryNote = f6f;
+            else if(missingIds.length) retryNote = `NOTE: your previous response was MISSING these required node ids: [${missingIds.join(', ')}]. This time return ALL ${reqIds.length} ids in the "nodes" array: [${reqIds.join(', ')}].${inlineRetryWarning?'\n\n'+inlineRetryWarning:''}`;
+            else retryNote = `NOTE: your previous response could not be used (no usable tool call / invalid output / wrapped in markdown). Call hydrate_content_block cleanly with a "nodes" array of exactly ${reqIds.length} object(s) for these ids: [${reqIds.join(', ')}] — nothing else.${inlineRetryWarning?'\n\n'+inlineRetryWarning:''}`;
+          }
+          let result;
+          try {
+            result = await callClaude({ systemBlocks:[masterCtx, instrBlock], userText: buildHydrateJobPrompt(spine, rollingDraft, job, i+1, total, hydratedFrame, retryNote), tools:[HYDRATE_CONTENT_BLOCK_TOOL], toolChoice:{type:'tool', name:'hydrate_content_block'}, akey, timeoutMs: 240000 });
+          } catch(e){
+            if(e.f4) throw e;
+            if(attempt < 1){ warnYellow('F2', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}) call errored (${e.message||e}) — retrying.`); continue; }
+            warnYellow('F2', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}) failed after tool-call retry (${e.message||e}).`); break;
+          }
+          logCacheCall(2, result.usage);
+          if(!result.toolCalls.length && (/\bI cannot\b|\bI (?:can['’]t|won['’]t)\b|\bI apologi[sz]e\b|unable to (?:provide|help|assist|complete)/i.test(result.textOutput||'') || result.stopReason === 'refusal')){
+            if(attempt < 1){ warnYellow('F6', `Phase 2 hydration block ${i+1}/${total}: Claude declined — retrying with "informational professional content" framing. Code: F6.`); f6f = 'IMPORTANT FRAMING: This is informational marketing/SEO content for a professional service-business website — not medical, legal, or financial advice. Write the block normally via hydrate_content_block.'; continue; }
+            warnYellow('F6', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}) refused after tool-call retry. Code: F6.`); break;
+          }
+          if(!result.toolCalls.length){
+            if(attempt < 1){ warnYellow('F2', `Phase 2 hydration block ${i+1}/${total}: no tool call returned — retrying. Code: F2.`); continue; }
+            warnYellow('F2', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}): no usable tool call after tool-call retry. Code: F2.`); break;
+          }
+          const inp = result.toolCalls[0].input;
+          if(inp && inp.__parse_error){
+            if(attempt < 1){ warnYellow('F2', `Phase 2 hydration block ${i+1}/${total}: unparseable tool input (${inp.__parse_error}) — retrying. Code: F2.`); continue; }
+            warnYellow('F2', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}): unparseable after tool-call retry. Code: F2.`); break;
+          }
+          if(result.stopReason === 'max_tokens'){ hadWarn = true; warnYellow('F3', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}) hit the token limit — using the partial content recovered. Code: F3.`); }
+          const got = toArray(inp.nodes).filter(n => n && typeof n === 'object' && n.targetId);
+          if(got.length === 0){
+            if(attempt < 1){ warnYellow('F2', `Phase 2 hydration block ${i+1}/${total}: empty "nodes" array — retrying.`); continue; }
+            warnYellow('F2', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}): empty "nodes" after tool-call retry.`); break;
+          }
+          const missing = reqIds.filter(id => !got.some(n => String(n.targetId) === String(id)));
+          if(missing.length && attempt < 1){ warnYellow('F14', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}): response was missing ${missing.length} of ${reqIds.length} required node(s) — retrying for the full set. Code: F14.`); missingIds = missing; f6f = ''; continue; }
+          nodes = got; break;
         }
-        logCacheCall(2, result.usage);
-        if(!result.toolCalls.length && (/\bI cannot\b|\bI (?:can['’]t|won['’]t)\b|\bI apologi[sz]e\b|unable to (?:provide|help|assist|complete)/i.test(result.textOutput||'') || result.stopReason === 'refusal')){
-          if(attempt < 1){ warnYellow('F6', `Phase 2 hydration block ${i+1}/${total}: Claude declined — retrying with "informational professional content" framing. Code: F6.`); f6f = 'IMPORTANT FRAMING: This is informational marketing/SEO content for a professional service-business website — not medical, legal, or financial advice. Write the block normally via hydrate_content_block.'; continue; }
-          warnYellow('F6', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}) refused after retry — ${reqIds.length} node(s) left un-hydrated.`); break;
+        // —— INLINE VALIDATION (after the tool-call loop) ——
+        if(!nodes || !nodes.length){
+          lastSectionFailReason = 'no usable tool output after tool-call retries';
+          if(sectionRetry < 2) continue; // section-level retry
+          break;
         }
-        if(!result.toolCalls.length){
-          if(attempt < 1){ warnYellow('F2', `Phase 2 hydration block ${i+1}/${total}: no tool call returned — retrying. Code: F2.`); continue; }
-          warnYellow('F2', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}): no usable tool call after retry — ${reqIds.length} node(s) left un-hydrated.`); break;
+        const iv = inlineValidateHydration(job, nodes, hydratedFrame);
+        if(!iv.ok){
+          lastSectionFailReason = iv.reason;
+          warnYellow('F14', `Phase 2 inline validation rejected block ${i+1}/${total} (${job.label||job.type}): ${iv.reason}. Save State retry ${sectionRetry+1}/2.`);
+          if(sectionRetry < 2) continue; // roll back and retry
+          break;
         }
-        const inp = result.toolCalls[0].input;
-        if(inp && inp.__parse_error){
-          if(attempt < 1){ warnYellow('F2', `Phase 2 hydration block ${i+1}/${total}: unparseable tool input (${inp.__parse_error}) — retrying. Code: F2.`); continue; }
-          warnYellow('F2', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}): unparseable after retry — ${reqIds.length} node(s) left un-hydrated.`); break;
+        // —— PROVISIONALLY STITCH + ROLL THE DRAFT ——
+        let covered = 0;
+        for(const node of nodes){
+          // drop unsupported quantitative rows BEFORE stitching
+          guillotinedRows += applyDeleteRowSentinel(node, job);
+          const ok = stitchNode(hydratedFrame, { targetId: node.targetId, prose: node.prose, rows: node.rows });
+          if(!ok){ hadWarn = true; warnYellow('F13', `Phase 2 hydration block ${i+1}/${total}: returned targetId "${node.targetId}" which isn't in the frame — ignored. Code: F13.`); continue; }
+          if(reqSet.has(String(node.targetId))) covered++;
+          if(typeof node.prose === 'string' && node.prose.trim()) rollingDraft += `\n\n\n${node.prose.trim()}`;
+          else if(Array.isArray(node.rows) && node.rows.length) rollingDraft += `\n\n\n[Table inserted — ${node.targetId}, ${node.rows.length} row(s)]`;
         }
-        if(result.stopReason === 'max_tokens'){ hadWarn = true; warnYellow('F3', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}) hit the token limit — using the partial content recovered; Phase 3A will flag anything too short. Code: F3.`); }
-        const got = toArray(inp.nodes).filter(n => n && typeof n === 'object' && n.targetId);
-        if(got.length === 0){
-          if(attempt < 1){ warnYellow('F2', `Phase 2 hydration block ${i+1}/${total}: empty "nodes" array — retrying.`); continue; }
-          warnYellow('F2', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}): empty "nodes" after retry — ${reqIds.length} node(s) left un-hydrated.`); break;
+        const uncovered = reqIds.length - covered;
+        if(uncovered > 0){
+          // Should be caught by inlineValidation, but defensive
+          lastSectionFailReason = `${uncovered} of ${reqIds.length} required node(s) not stitched`;
+          if(sectionRetry < 2){ warnYellow('F14', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}): ${uncovered} of ${reqIds.length} required node(s) not stitched — Save State retry ${sectionRetry+1}/2.`); continue; }
+          break;
         }
-        const missing = reqIds.filter(id => !got.some(n => String(n.targetId) === String(id)));
-        if(missing.length && attempt < 1){ warnYellow('F14', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}): response was missing ${missing.length} of ${reqIds.length} required node(s) — retrying for the full set. Code: F14.`); missingIds = missing; f6f = ''; continue; }
-        nodes = got; break;
+        setRelayChip('relayStrip2', i, hadWarn ? 'warn' : 'done');
+        sectionOK = true;
+        break;
       }
-      // process whatever we got (may be partial after retries)
-      if(!nodes || !nodes.length){ failedIds += reqIds.length; setRelayChip('relayStrip2', i, 'fail'); continue; }
-      let covered = 0;
-      for(const node of nodes){
-        const ok = stitchNode(hydratedFrame, { targetId: node.targetId, prose: node.prose, rows: node.rows });
-        if(!ok){ hadWarn = true; warnYellow('F13', `Phase 2 hydration block ${i+1}/${total}: returned targetId "${node.targetId}" which isn't in the frame — ignored. Code: F13.`); continue; }
-        if(reqSet.has(String(node.targetId))) covered++;
-        if(typeof node.prose === 'string' && node.prose.trim()) rollingDraft += `\n\n\n${node.prose.trim()}`;
-        else if(Array.isArray(node.rows) && node.rows.length) rollingDraft += `\n\n\n[Table inserted — ${node.targetId}, ${node.rows.length} row(s)]`;
-      }
-      const uncovered = reqIds.length - covered;
-      if(uncovered > 0){ failedIds += uncovered; hadWarn = true; warnYellow('F14', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}): ${uncovered} of ${reqIds.length} required node(s) not returned — left un-hydrated; Phase 3A + the surgical fix will catch them. Code: F14.`); }
-      setRelayChip('relayStrip2', i, hadWarn ? 'warn' : 'done');   // green only when the block landed cleanly (Item 4)
       // Per-block: live JSON in the V2 Article tab + progress line in the Phase 2 meta. The Phase 2
       // panel (#o2) is written once at the end by the orchestrator (so the Frame attempts above stay).
-      const v2Pre = document.getElementById('v2Pre'); if(v2Pre) v2Pre.textContent = JSON.stringify(hydratedFrame, null, 2);
-      const m2 = document.getElementById('m2'); if(m2) m2.textContent = `Phase 2 hydration relay — ${i+1}/${total} block(s) done (last: ${job.label||job.type})${failedIds?`, ${failedIds} node(s) un-hydrated`:''}.`;
+      if(sectionOK){
+        // commit the new save state — last good baseline for any future section-retry
+        saveStateFrame = JSON.parse(JSON.stringify(hydratedFrame));
+        saveStateRollingDraft = rollingDraft;
+        const v2Pre = document.getElementById('v2Pre'); if(v2Pre) v2Pre.textContent = JSON.stringify(hydratedFrame, null, 2);
+        const m2 = document.getElementById('m2'); if(m2) m2.textContent = `Phase 2 hydration relay — ${i+1}/${total} block(s) done (last: ${job.label||job.type})${failedIds?`, ${failedIds} node(s) un-hydrated`:''}${guillotinedRows?`, ${guillotinedRows} unsupported row(s) guillotined`:''}.`;
+      } else {
+        // SECTION-LEVEL RED escalate for THIS section only — restore the last good snapshot so the
+        // rest of the relay isn't poisoned. RED is logged here; we continue with the next section.
+        failedIds += reqIds.length;
+        sectionRedFailures.push({ jobIdx:i, label:job.label||job.type, reason:lastSectionFailReason, sectionId:job.sectionId||'' });
+        hydratedFrame = JSON.parse(JSON.stringify(saveStateFrame));
+        rollingDraft = saveStateRollingDraft;
+        setRelayChip('relayStrip2', i, 'fail');
+        warnYellow('F14', `Phase 2 — section "${job.label||job.type}" FAILED after 2 Save State retries (${lastSectionFailReason}). ${reqIds.length} node(s) left un-hydrated; the rest of the article continues from the last good snapshot. RED escalation queued for this section.`);
+        const v2Pre = document.getElementById('v2Pre'); if(v2Pre) v2Pre.textContent = JSON.stringify(hydratedFrame, null, 2);
+        const m2 = document.getElementById('m2'); if(m2) m2.textContent = `Phase 2 hydration relay — ${i+1}/${total} block(s) processed; section "${job.label||job.type}" failed (Save State retries exhausted).`;
+      }
     }
-    if(failedIds) warnYellow('F2', `Phase 2 hydration relay: ${failedIds} of ${totalReqIds} node(s) left un-hydrated after retries — Phase 3A will flag them and the surgical fix will patch them (or CHK1 if it can't). Code: F2.`);
+    if(failedIds) warnYellow('F2', `Phase 2 hydration relay: ${failedIds} of ${totalReqIds} node(s) left un-hydrated after Save State retries — Phase 3A will flag them and the surgical fix will patch them (or CHK1 if it can't). Code: F2.`);
+    if(sectionRedFailures.length){
+      const detail = sectionRedFailures.map(s => `${s.label} (${s.reason})`).join(' | ');
+      escalateRed('CHK1', `Phase 2 — ${sectionRedFailures.length} section(s) failed Save State retry cap (2): ${detail}. Save State kept the rest of the article intact; only those sections' API costs were burned. Manual operator review required to re-hydrate them. Code: CHK1.`);
+    }
+    if(guillotinedRows) log(`Phase 2 — JS guillotine deleted ${guillotinedRows} unsupported quantitative-table row(s) (DELETE_ROW_UNSUPPORTED sentinel).`, 'warn');
     return hydratedFrame;
   }
 
@@ -2029,7 +2233,8 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
     }
     return [];
   }
-  // Table rows in V4.0 are { cells:[string,…], sourceReferenceId:"factClaim_NN" }.
+  // Table rows in V4.0 are { cells:[string,…], sourceReferenceId:"factClaim_NN" } (quantitative
+  // tables) or { cells:[string,…] } only (conceptual tables — no factClaim binding required).
   // Coerce legacy / malformed shapes (array-of-arrays, lone object, scalar) into that shape.
   function normalizeRow(r){
     if(Array.isArray(r)) return { cells: r.map(c => String(c == null ? '' : c)), sourceReferenceId: '' };
@@ -2045,22 +2250,43 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
       return toArray(x);
     };
     const normSection = sec => {
-      if(!sec || typeof sec !== 'object'){ coerced = true; return { h2: String(sec == null ? '' : sec), paragraphs: [], imagePrompts: [], links: [], tables: [], h3sections: [] }; }
+      if(!sec || typeof sec !== 'object'){ coerced = true; return { h2: String(sec == null ? '' : sec), paragraphs: [], imagePrompts: [], links: [], tables: [], h3sections: [], assigned_facts: [] }; }
       sec.paragraphs   = arr(sec.paragraphs);
       sec.h3sections   = arr(sec.h3sections).map(h3s => { if(h3s && typeof h3s === 'object') h3s.paragraphs = arr(h3s.paragraphs); return h3s; });
       sec.links        = arr(sec.links);
-      sec.tables       = arr(sec.tables).map(t => { if(t && typeof t === 'object'){ t.headers = arr(t.headers).map(h => String(h == null ? '' : h)); t.rows = arr(t.rows).map(normalizeRow); } return t; });
+      sec.tables       = arr(sec.tables).map(t => {
+        if(t && typeof t === 'object'){
+          t.headers = arr(t.headers).map(h => String(h == null ? '' : h));
+          t.rows = arr(t.rows).map(normalizeRow);
+          // table_type — coerce to "quantitative" if missing / unrecognized (the safer default — it forces factClaim binding)
+          const tt = String(t.table_type || '').toLowerCase().trim();
+          t.table_type = (tt === 'conceptual') ? 'conceptual' : 'quantitative';
+        }
+        return t;
+      });
       sec.imagePrompts = arr(sec.imagePrompts);
+      sec.assigned_facts = arr(sec.assigned_facts).map(x => String(x == null ? '' : x).trim()).filter(Boolean);
       return sec;
     };
     v1.content_sections = arr(v1.content_sections).map(normSection);
-    // conclusion_section { h2, paragraphs[] } — always an object
-    if(!v1.conclusion_section || typeof v1.conclusion_section !== 'object'){ if(v1.conclusion_section !== undefined && v1.conclusion_section !== null) coerced = true; v1.conclusion_section = { h2: '', paragraphs: [] }; }
+    // framework_labels — flat string→string map, default to {}
+    if(!v1.framework_labels || typeof v1.framework_labels !== 'object' || Array.isArray(v1.framework_labels)){
+      if(v1.framework_labels !== undefined && v1.framework_labels !== null) coerced = true;
+      v1.framework_labels = {};
+    } else {
+      const cleaned = {};
+      Object.keys(v1.framework_labels).forEach(k => { const v = v1.framework_labels[k]; if(typeof v === 'string') cleaned[String(k)] = v; else if(v != null) cleaned[String(k)] = String(v); });
+      v1.framework_labels = cleaned;
+    }
+    // conclusion_section { h2, paragraphs[], assigned_facts[] } — always an object
+    if(!v1.conclusion_section || typeof v1.conclusion_section !== 'object'){ if(v1.conclusion_section !== undefined && v1.conclusion_section !== null) coerced = true; v1.conclusion_section = { h2: '', paragraphs: [], assigned_facts: [] }; }
     v1.conclusion_section.paragraphs = arr(v1.conclusion_section.paragraphs);
-    // faq_section { h2, intro_paragraphs[], qa_pairs[] } — always an object
-    if(!v1.faq_section || typeof v1.faq_section !== 'object'){ if(v1.faq_section !== undefined && v1.faq_section !== null) coerced = true; v1.faq_section = { h2: '', intro_paragraphs: [], qa_pairs: [] }; }
+    v1.conclusion_section.assigned_facts = arr(v1.conclusion_section.assigned_facts).map(x => String(x == null ? '' : x).trim()).filter(Boolean);
+    // faq_section { h2, intro_paragraphs[], qa_pairs[], assigned_facts[] } — always an object
+    if(!v1.faq_section || typeof v1.faq_section !== 'object'){ if(v1.faq_section !== undefined && v1.faq_section !== null) coerced = true; v1.faq_section = { h2: '', intro_paragraphs: [], qa_pairs: [], assigned_facts: [] }; }
     v1.faq_section.intro_paragraphs = arr(v1.faq_section.intro_paragraphs);
     v1.faq_section.qa_pairs = arr(v1.faq_section.qa_pairs).map(qp => { if(qp && typeof qp === 'object' && qp.answer && typeof qp.answer !== 'object') qp.answer = { prose: String(qp.answer) }; return qp; });
+    v1.faq_section.assigned_facts = arr(v1.faq_section.assigned_facts).map(x => String(x == null ? '' : x).trim()).filter(Boolean);
     if(coerced){
       try { warnYellow('F14', 'A V1/frame structure came back with a non-array/non-object where the schema expects one (content_sections / conclusion_section / faq_section / paragraphs / links / tables / table rows / imagePrompts / qa_pairs). JS coerced it before validation — watch the V1 JSON tab; if this recurs the Tool Use schema or the tolerant parser needs attention.'); } catch(_){}
     }
@@ -2477,6 +2703,25 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
       qaPairs.forEach(qp => { if(!String(qp.question||'').trim()) F('faq_question_empty', 'every Q&A pair has a non-empty question', '(empty)', qp.id); });
     }
 
+    // SECTIONAL FACT ALLOCATION — every section (content / conclusion / faq) must declare 1-3
+    // assigned_facts ids drawn from the Phase 1 factClaim pool. Phase 2B uses ONLY these per
+    // section. table_type must also be declared on every table (quantitative | conceptual).
+    const validFactIds = validFactClaimIds();
+    const checkAssignedFacts = (sec, label, id) => {
+      const af = Array.isArray(sec && sec.assigned_facts) ? sec.assigned_facts : [];
+      if(af.length < 1){ F('assigned_facts_missing', `${label} has 1-3 assigned_facts factClaim IDs`, af.length, id); return; }
+      if(af.length > 3) F('assigned_facts_too_many', `${label} has at most 3 assigned_facts`, af.length, id);
+      af.forEach(fid => { const s = String(fid||'').trim(); if(!s) F('assigned_facts_blank', `${label}.assigned_facts has no blank entries`, '(empty)', id); else if(validFactIds.size && !validFactIds.has(s)) F('assigned_facts_unknown', `${label}.assigned_facts must reference a real Phase 1 factClaim id (one of: ${[...validFactIds].slice(0,8).join(', ')}${validFactIds.size>8?'…':''})`, `"${s}"`, id); });
+    };
+    sections.forEach((s, i) => checkAssignedFacts(s, `content_sections[${i}] "${String(s.h2||'').slice(0,40)}"`, s.id));
+    if(v1.conclusion_section && typeof v1.conclusion_section === 'object') checkAssignedFacts(v1.conclusion_section, 'conclusion_section', conclSec.id);
+    if(v1.faq_section && typeof v1.faq_section === 'object') checkAssignedFacts(v1.faq_section, 'faq_section', faqSec.id);
+    // table_type enum on every table
+    allTables.forEach(t => { const tt = String(t.table_type||'').toLowerCase().trim(); if(tt !== 'quantitative' && tt !== 'conceptual') F('table_type_invalid', 'every table declares table_type ∈ {quantitative, conceptual}', tt || '(empty)', t.id); });
+    // framework_labels — required key, must be a (possibly empty) plain object of strings
+    if(!v1.framework_labels || typeof v1.framework_labels !== 'object' || Array.isArray(v1.framework_labels)) F('framework_labels_missing', 'framework_labels is a flat object (empty {} if none)', JSON.stringify(v1.framework_labels === undefined ? null : v1.framework_labels).slice(0,80));
+    else Object.keys(v1.framework_labels).forEach(k => { if(typeof v1.framework_labels[k] !== 'string') F('framework_labels_value_invalid', 'every framework_labels value is a string', `${k}: ${typeof v1.framework_labels[k]}`); });
+
     if(!frameOnly){
       // Direct Answer 200-300 words
       const daWords = (v1.directAnswer?.prose || '').trim().split(/\s+/).filter(Boolean).length;
@@ -2495,18 +2740,32 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
       if(conclParas.filter(p => p && String(p.prose||'').trim()).length < 1) F('conclusion_paragraphs_empty', 'conclusion_section has >= 1 non-empty paragraph', conclParas.filter(p => p && String(p.prose||'').trim()).length, conclSec.id);
       if(faqIntro.filter(p => p && String(p.prose||'').trim()).length < 1) F('faq_intro_empty', 'faq_section.intro_paragraphs has >= 1 non-empty paragraph', faqIntro.filter(p => p && String(p.prose||'').trim()).length, faqSec.id);
       qaPairs.forEach(qp => { if(!String((qp.answer && qp.answer.prose)||'').trim()) F('faq_answer_empty', 'every Q&A pair has a non-empty answer', '(empty)', qp.answer && qp.answer.id); });
-      // Table data: non-empty, every row cites a real factClaim, cells align with headers
+      // Table data: non-empty, cells align with headers. For QUANTITATIVE tables each row must
+      // cite a real factClaim drawn from the parent section's assigned_facts pool. For CONCEPTUAL
+      // tables no factClaim binding is required (rows organize narrative information).
       const validFacts = validFactClaimIds();
+      const tableSectionAssigned = new Map(); // tableId → Set(assigned_facts)
+      sections.forEach(sec => {
+        const af = new Set((Array.isArray(sec.assigned_facts)?sec.assigned_facts:toArray(sec.assigned_facts)).map(x=>String(x||'').trim()).filter(Boolean));
+        secTables(sec).forEach(t => { if(t && t.id) tableSectionAssigned.set(t.id, af); });
+      });
       allTables.forEach(t => {
         const rows = Array.isArray(t.rows) ? t.rows : toArray(t.rows);
         const headerCount = Array.isArray(t.headers) ? t.headers.length : 0;
-        if(rows.length < 1) F('table_empty', 'each table has >= 1 data row (drop the table topic in 2A if no factClaim supports it)', 0, t.id);
+        const tt = String(t.table_type||'').toLowerCase().trim() || 'quantitative';
+        if(rows.length < 1) F('table_empty', 'each table has >= 1 data row (drop the table topic in 2A if it cannot be supported)', 0, t.id);
         rows.forEach((r, i) => {
-          const ref = String(r && r.sourceReferenceId || '').trim();
-          if(!ref) F('table_row_source_missing', 'every table row has a sourceReferenceId citing a Phase 1 factClaim', `row ${i+1} has none`, t.id);
-          else if(validFacts.size && !validFacts.has(ref)) F('table_row_source_invalid', `sourceReferenceId must be one of: ${[...validFacts].join(', ') || '(none)'}`, `row ${i+1} cites "${ref}"`, t.id);
           const cells = Array.isArray(r && r.cells) ? r.cells : toArray(r && r.cells);
           if(headerCount && cells.length !== headerCount) F('table_row_shape', `each row has ${headerCount} cells (matching headers)`, `row ${i+1} has ${cells.length}`, t.id);
+          if(tt === 'quantitative'){
+            const ref = String(r && r.sourceReferenceId || '').trim();
+            if(!ref) F('table_row_source_missing', 'every quantitative-table row has a sourceReferenceId citing a Phase 1 factClaim', `row ${i+1} has none`, t.id);
+            else if(validFacts.size && !validFacts.has(ref)) F('table_row_source_invalid', `quantitative-table sourceReferenceId must be one of: ${[...validFacts].join(', ') || '(none)'}`, `row ${i+1} cites "${ref}"`, t.id);
+            else {
+              const allowed = tableSectionAssigned.get(t.id);
+              if(allowed && allowed.size && !allowed.has(ref)) F('table_row_source_unassigned', `quantitative-table row's sourceReferenceId must be in this section's assigned_facts (allowed: ${[...allowed].join(', ')})`, `row ${i+1} cites "${ref}"`, t.id);
+            }
+          }
         });
       });
     }
@@ -2583,66 +2842,113 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
     return { passed: fails.length === 0, structuralFails: fails };
   }
 
-  // ─── PHASE 3B: GEMINI SEMANTIC VALIDATION ──────────────────
-  function buildPhase3BPrompt(v1, research){
-    return `You are a semantic fact-checker for an AEO article. You have exactly ONE job: verify (1) the article's factual claims align with the research brief, and (2) the article anchors around the clientSpecificThesis (it appears in the Direct Answer or the first section, and is threaded through the piece — not just summarized once).
+  // ─── PHASE 3B: GEMINI HALLUCINATION SWEEP (one job only) ──────────────────
+  // Stripped down from the old exhaustive semantic audit. Phase 3B now does ONE thing: scan the
+  // article and ask "are there specific numbers / percentages / dollar amounts / timeframes / named
+  // studies / invented software / invented agencies / fake case studies / definitive timelines in
+  // the prose or tables that DO NOT appear in the Phase 1 factClaims or the 4.3B identity doc?".
+  // No anchor-text checks. No stage-label consistency. No internal-link placement. No structural
+  // checks. No writing-quality checks. Just hallucinations. Routing per change 10:
+  //   • table-row hallucination → JS guillotine (delete that row, pipeline continues)
+  //   • prose-paragraph hallucination → RED escalate (Save State means the manual retry burns only
+  //     that one section's API cost, not the full article)
+  function buildPhase3BPrompt(v1, research, doc43B){
+    return `You are performing a HALLUCINATION SWEEP. Read the article. Read the Phase 1 factClaims and the 4.3B client identity document. Your ONLY job: did the author include any specific number, percentage, dollar amount, timeframe, or named study in the prose or tables that does NOT appear verbatim in the provided factClaims or in the 4.3B identity document? Also flag: invented software tool names, invented agency names, fake case studies, or definitive timelines not supported by the factClaims or 4.3B.
 
-MANDATE: You are performing an Exhaustive Audit. Do not stop scanning when you find the first violation. You must evaluate every single table row, paragraph, and heading against the factClaims and return a comprehensive, complete list of ALL violations in a single pass. Returning a partial list is a failure of your validation role.
+Do NOT check anchor text. Do NOT check stage / framework label consistency. Do NOT check internal-link placement. Do NOT check structural elements. Do NOT check writing quality, voice, tone, or style. ONLY check for invented facts, numbers, and entities.
 
-Return ONLY a JSON object: {"semanticFails": [{"nodeId": "<the JS-assigned id of the offending node — exactly as it appears in the V1 JSON: da_*, para_*, ans_*, table_*, link_*, cta_*, thesis_*, etc.>", "violationType": "<short category — e.g. unsupported_number, contradicts_research, fabricated_link, thesis_not_anchored>", "offendingText": "<the exact span of text (or the exact cell value / row) that is wrong>", "requiredAction": "<one sentence — what must change to fix it>"}]}
-If there are no problems, return {"semanticFails": []}. No code fences, no preamble. First char "{", last char "}". The nodeId MUST be a real id present in the V1 JSON below — the surgical fix loop targets it directly, so a wrong or missing nodeId makes the violation un-fixable.
+Return ONLY a JSON object. If you find NOTHING return exactly: {"verdict":"PASS","hallucinations":[]}. Otherwise return: {"verdict":"FAIL","hallucinations":[{"nodeId":"<the JS-assigned id of the offending node — e.g. da_*, para_*, ans_*, table_*, cta_*>","offendingText":"<the exact invented span of text (or the exact cell value / row)>","location":"table_row" | "prose"}]}. The location field is REQUIRED — "table_row" if the offending text is inside a table row's cells, "prose" if it's inside any paragraph (Direct Answer, body paragraph, conclusion paragraph, FAQ intro, FAQ answer, or CTA hook). No code fences, no preamble. First char "{", last char "}". The nodeId MUST be a real id present in the V1 JSON below.
 
-Be precise, not nitpicky: only flag claims that contradict or are not supported by the research brief / factClaims, or a genuine failure to anchor the thesis. Do NOT flag voice, tone, or style — that is not your job.
+PHASE 1 FACTCLAIMS (the ONLY numeric / named-entity facts the article is allowed to assert; everything else is a hallucination):
+${JSON.stringify((research && research.factClaims) || [], null, 2)}
 
-RESEARCH BRIEF (source of truth — includes factClaims):
-${JSON.stringify(research, null, 2)}
+4.3B CLIENT IDENTITY (the only other source of allowed proper-noun facts — the client's own brand, team, services, locations):
+${String(doc43B || '').slice(0, 12000)}
 
-CLIENT-SPECIFIC THESIS (must be anchored):
-${JSON.stringify(research?.clientSpecificThesis || {}, null, 2)}
-
-V1 ARTICLE (with JS-assigned IDs — use these exact IDs in nodeId):
+V1 ARTICLE (with JS-assigned IDs — use these exact IDs in nodeId; citation tokens like [factClaim_NN] in prose are internal markers, not part of the rendered text — ignore them):
 ${JSON.stringify(v1, null, 2)}
 
 Output the JSON now.`;
   }
-  async function validateV1Semantic(v1, research, gkey){
+  async function validateV1Semantic(v1, research, gkey, doc43B){
     let lastErr = null;
     for(let attempt = 0; attempt < 2; attempt++){
-      if(attempt > 0){ warnYellow('F19', 'Phase 3B returned malformed/empty output — retrying once.'); await sleep(3000); }
+      if(attempt > 0){ warnYellow('F19', 'Phase 3B (hallucination sweep) returned malformed/empty output — retrying once.'); await sleep(3000); }
       let raw;
-      try { raw = await callGemini(buildPhase3BPrompt(v1, research), gkey, { json: true, maxTokens: 8192 }); }
+      try { raw = await callGemini(buildPhase3BPrompt(v1, research, doc43B), gkey, { json: true, maxTokens: 8192 }); }
       catch(e){ if(e.f4) throw e; lastErr = e.message; continue; }
       try {
         const parsed = tolerantParseJSON(raw);
-        if(!parsed || !Array.isArray(parsed.semanticFails)){ lastErr = 'no semanticFails array'; continue; }
-        // ENFORCE the canonical shape — every item is an object with at least { nodeId, violationType, offendingText, requiredAction }.
-        // nodeId is the critical field (the surgical fix loop targets it). Tolerant of older/looser field names from the model.
-        const norm = parsed.semanticFails.map(it => {
+        if(!parsed || typeof parsed !== 'object'){ lastErr = 'unparseable response'; continue; }
+        // Tolerant of legacy key "semanticFails" — coerce into the new hallucinations[] shape.
+        const rawHalls = Array.isArray(parsed.hallucinations) ? parsed.hallucinations
+                       : Array.isArray(parsed.semanticFails) ? parsed.semanticFails
+                       : [];
+        const verdict = String(parsed.verdict || '').toUpperCase().trim();
+        const halls = rawHalls.map(it => {
           if(it == null) return null;
-          if(typeof it === 'string') return { nodeId:'', violationType:'unspecified', offendingText:'', requiredAction: it.trim() };
+          if(typeof it === 'string') return { nodeId:'', offendingText: it.trim(), location:'prose' };
           if(typeof it !== 'object') return null;
+          const nodeId = String(it.nodeId || it.targetId || it.id || '').trim();
+          const loc = String(it.location || '').toLowerCase().trim();
+          // Infer location if missing: any node id starting with "table_" is a table row
+          const inferred = (loc === 'table_row' || loc === 'table') ? 'table_row'
+                          : (loc === 'prose' || loc === 'paragraph') ? 'prose'
+                          : (/^table_/.test(nodeId) ? 'table_row' : 'prose');
           return {
-            nodeId: String(it.nodeId || it.targetId || it.id || '').trim(),
-            violationType: String(it.violationType || it.type || it.violation || it.issue || 'unspecified').trim(),
+            nodeId,
             offendingText: String(it.offendingText || it.offending || it.text || it.span || '').trim(),
-            requiredAction: String(it.requiredAction || it.suggestedRevision || it.fix || it.action || it.issue || '').trim()
+            location: inferred
           };
         }).filter(Boolean);
-        return { semanticFails: norm, raw };
+        if(verdict === 'PASS' || (verdict === '' && halls.length === 0)) return { hallucinations: [], raw, verdict: 'PASS' };
+        return { hallucinations: halls, raw, verdict: 'FAIL' };
       } catch(e){ lastErr = e.message; continue; }
     }
-    // Both attempts failed — RED F19 (article unsafe to publish without semantic validation)
-    escalateRed('F19', `Phase 3B semantic validation failed after retry — article unsafe to publish without it. Last error: ${lastErr || 'unknown'}`);
-    return { semanticFails: [], raw: '', failed: true };
+    // Both attempts failed — RED F19 (article unsafe to publish without the hallucination sweep)
+    escalateRed('F19', `Phase 3B hallucination sweep failed after retry — article unsafe to publish without it. Last error: ${lastErr || 'unknown'}`);
+    return { hallucinations: [], raw: '', verdict: 'FAIL', failed: true };
+  }
+
+  // JS guillotine: delete the table row whose cells contain the offending text. Searches every
+  // table in content_sections (the only place tables live). Returns true if a row was deleted.
+  // The fail.nodeId is typically a table_* id; if present we restrict the search to that table.
+  function guillotineTableRow(v1, fail){
+    const offending = String(fail && fail.offendingText || '').toLowerCase().trim();
+    if(!offending) return false;
+    const targetId = String(fail && fail.nodeId || '').trim();
+    const matchesRow = (r) => {
+      const cells = Array.isArray(r && r.cells) ? r.cells : [];
+      const text = cells.map(c => String(c==null?'':c).toLowerCase()).join(' | ');
+      return text.indexOf(offending) >= 0;
+    };
+    let deleted = false;
+    const tryTable = (t) => {
+      if(!t || !Array.isArray(t.rows) || !t.rows.length) return;
+      const before = t.rows.length;
+      t.rows = t.rows.filter(r => !matchesRow(r));
+      if(t.rows.length < before) deleted = true;
+    };
+    _secs(v1).forEach(sec => {
+      if(!sec || typeof sec !== 'object') return;
+      toArray(sec.tables).forEach(t => {
+        if(targetId && t && t.id !== targetId) return; // restrict to the named table if we have one
+        tryTable(t);
+      });
+    });
+    return deleted;
   }
 
   // ─── PHASE 3 RESULT RENDERING ──────────────────────────────
   // injectedThisAttempt: true when the M2 test-injection dropped a section this attempt —
   // so a section_count failure is unmistakably attributed to the test, not to Claude.
   // Each validation round is APPENDED to the Phase 3 panel (Item 4) — never overwritten.
-  function renderPhase3(structuralFails, semanticFails, attemptN, passed, injectedThisAttempt){
+  // Pass `hallucinations` here when rendering the Phase 3B one-shot (location-typed items).
+  // The legacy "semanticFails" arg name is kept for call-site compatibility but each item is now a
+  // hallucination {nodeId, offendingText, location}. Structural rounds still use this with []`hallucinations`.
+  function renderPhase3(structuralFails, hallucinations, attemptN, passed, injectedThisAttempt){
     const lines = [];
-    const which = attemptN === 0 ? 'initial validation' : `after surgical fix round ${attemptN} (cap: 1 round for semantic / 2 rounds for structural)`;
+    const which = attemptN === 0 ? 'initial validation' : `after surgical fix round ${attemptN} (cap: 2 structural rounds; 3B is a one-shot hallucination sweep)`;
     lines.push(`Validation ${which} — ${passed ? 'PASS ✓' : 'FAIL ✗'}${injectedThisAttempt ? '   [🧪 test injection active this attempt]' : ''}`);
     lines.push('');
     lines.push(`3A · JS STRUCTURAL — ${structuralFails.length ? structuralFails.length + ' fail(s):' : 'all checks pass'}`);
@@ -2651,8 +2957,8 @@ Output the JSON now.`;
       lines.push(`  • ${f.check}${f.id && f.id !== f.check ? ' ['+f.id+']' : ''}: expected ${f.expected}, got ${f.actual}${tag}`);
     });
     lines.push('');
-    lines.push(`3B · GEMINI SEMANTIC — ${semanticFails.length ? semanticFails.length + ' fail(s):' : 'aligned with research brief + thesis anchored'}`);
-    semanticFails.forEach(f => lines.push(`  • [${f.nodeId || '?'}] ${f.violationType ? f.violationType + ' — ' : ''}${f.offendingText ? '"' + f.offendingText + '" ' : ''}${f.requiredAction ? '→ ' + f.requiredAction : ''}`));
+    lines.push(`3B · GEMINI HALLUCINATION SWEEP — ${hallucinations.length ? hallucinations.length + ' hallucination(s):' : 'no invented facts / entities detected'}`);
+    hallucinations.forEach(f => lines.push(`  • [${f.nodeId || '?'}] (${f.location || 'prose'}) "${(f.offendingText || '').slice(0,200)}"`));
     pOut(3, lines.join('\n'), { append: true, heading: `Round ${attemptN + 1}` });
   }
   function formatValidationFeedback(structuralFails, semanticFails, research){
@@ -4001,71 +4307,46 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       log(`Phase 2 hydration relay complete (${_e2b}s) — ${sm}.`, 'ok');
 
       // ── PHASE 3 (3A structural + 3B Gemini semantic) + SURGICAL RETRY (max 2 rounds; never regenerates the V1) ──
+      // ── PHASE 3A: STRUCTURAL — up to 2 surgical-fix rounds (structural-only; 3B no longer
+      //    triggers surgical fix, see below). 3B is run ONCE after 3A is clean. ──
       let lastValidation = null;
+      let phase3aPassed = false;
       for(let attempt = 0; attempt <= 2; attempt++){
-        // 3A structural
-        setG('Phase 3A — JS structural validation (incl. every table row cites a Phase 1 factClaim)…', true);
+        setG('Phase 3A — JS structural validation (incl. assigned_facts / table_type / framework_labels / per-row factClaim binding)…', true);
         setPhase(3, 'active', 'Validating 3A');
         const v3a = validateV1Structure(v1, S.research, S.docs.doc43B);
-        let semanticFails = [];
-        if(v3a.passed){
-          // 3B semantic — only when the structure is clean (skip the Gemini call otherwise, per spec)
-          setG('Phase 3B — Gemini semantic validation (claims vs research brief + thesis anchor)…', true);
-          setPhase(3, 'active', 'Validating 3B');
-          const v3b = await validateV1Semantic(v1, S.research, gkey);
-          if(pipelineHalted) return; // F19 RED inside validateV1Semantic
-          semanticFails = v3b.semanticFails || [];
-        } else {
-          log(`Phase 3A found ${v3a.structuralFails.length} structural problem(s) — skipping the Gemini semantic call this round (per spec).`, 'warn');
-        }
         const structuralFails = v3a.structuralFails;
-        const passed = structuralFails.length === 0 && semanticFails.length === 0;
-        lastValidation = { structuralFails, semanticFails, passed };
+        lastValidation = { structuralFails, semanticFails: [], passed: structuralFails.length === 0 };
         S.validation = lastValidation;
-        renderPhase3(structuralFails, semanticFails, attempt, passed, false);
-        document.getElementById('m3').textContent = `Validation ${attempt===0?'(initial)':'after surgical fix round '+attempt} (caps: 1 round for semantic / 2 rounds for structural): 3A=${structuralFails.length} structural fail(s), 3B=${v3a.passed ? (semanticFails.length+' semantic fail(s)') : 'skipped (3A failed)'} → ${passed?'PASS':'FAIL'}`;
+        renderPhase3(structuralFails, [], attempt, structuralFails.length === 0, false);
+        document.getElementById('m3').textContent = `3A validation ${attempt===0?'(initial)':'after surgical fix round '+attempt} (cap: 2 structural rounds): ${structuralFails.length} structural fail(s) → ${structuralFails.length === 0 ? 'PASS' : 'FAIL'}`;
 
-        if(passed){ setPhase(3, 'done', 'PASS ✓'); refreshRightPanels(); log(`Phase 3 PASS on attempt ${attempt+1}.`, 'ok'); break; }
+        if(structuralFails.length === 0){ phase3aPassed = true; log(`Phase 3A PASS on attempt ${attempt+1}.`, 'ok'); break; }
 
-        // —— RETRY CAP — SPLIT BY FAILURE TYPE ——
-        //   attempt 0 = initial validation · attempt 1 = re-validation after surgical Round 1 · attempt 2 = re-validation after surgical Round 2.
-        //   SEMANTIC failures (factual hallucinations) get 1 surgical round → still failing after Round 1 ⇒ RED escalate (CHK1) immediately; Round 2 is NOT attempted.
-        //   STRUCTURAL failures get 2 surgical rounds → still failing after Round 2 ⇒ RED escalate (CHK1).
-        //   Both arrays empty after any round ⇒ pass (handled above). Round 2 is authorized ONLY when Round 1 left structural fails with the semantic list clean.
-        if(attempt === 1 && semanticFails.length > 0){
-          setPhase(3, 'error', 'Semantic cap (1 round)');
-          // M3.5 — this V1 (and the frame it sits on) is being discarded; kill its image queue + clear pasted URLs.
-          flushQueue(S.imageAttemptId);
-          escalateRed('CHK1', `Phase 3 — SEMANTIC retry cap hit (1 round). After surgical Round 1, the V1 still has ${semanticFails.length} semantic failure(s)${structuralFails.length ? ` plus ${structuralFails.length} structural failure(s)` : ''} — semantic failures are factual hallucinations, so Round 2 is NOT attempted. Unresolved: ${semanticFails.length} semantic + ${structuralFails.length} structural. See the Phase 3 card. Manual operator review required. Code: CHK1`);
-          return;
-        }
+        // STRUCTURAL retry cap: 2 surgical rounds. After round 2 still failing → CHK1.
         if(attempt >= 2){
           setPhase(3, 'error', 'Structural cap (2 rounds)');
           flushQueue(S.imageAttemptId);
-          escalateRed('CHK1', `Phase 3 — STRUCTURAL retry cap hit (2 rounds). After surgical Round 2, the V1 still fails validation: ${structuralFails.length} structural failure(s)${semanticFails.length ? ` + ${semanticFails.length} semantic failure(s)` : ''} unresolved. See the Phase 3 card. Manual operator review required. Code: CHK1`);
+          escalateRed('CHK1', `Phase 3A — STRUCTURAL retry cap hit (2 rounds). After surgical Round 2, the V1 still fails validation: ${structuralFails.length} structural failure(s) unresolved. See the Phase 3 card. Manual operator review required. Code: CHK1`);
           return;
         }
-        // → here only when: attempt 0 (initial fail → Round 1, any failure type) OR attempt 1 with the semantic list clean and structural fails remaining (→ Round 2).
 
-        // —— SURGICAL FIX: build packets for the failing nodes ONLY, one micro-call, apply in place ——
-        const { packets, unmappable } = buildFixPackets(v1, structuralFails, semanticFails);
+        // —— SURGICAL FIX: build packets for the failing structural nodes ONLY, one micro-call, apply in place ——
+        const { packets, unmappable } = buildFixPackets(v1, structuralFails, []);
         if(unmappable.length){
-          // count failures etc. aren't node-level — that means the frame regressed; bail rather than spin.
-          // (The Build Plan's "Phase 3 fails → loop back to Phase 2A" case: in this build that loop is a
-          //  hard stop to operator review — but the image queue is bound to the dead frame, so flush it here.)
           setPhase(3, 'error', 'Frame regression');
           flushQueue(S.imageAttemptId);
-          escalateRed('CHK1', `Phase 3 surfaced structural problems that aren't node-level and can't be surgically fixed (${unmappable.join(', ')}) — the frame would need rebuilding. Manual operator review required. Code: CHK1`);
+          escalateRed('CHK1', `Phase 3A surfaced structural problems that aren't node-level and can't be surgically fixed (${unmappable.join(', ')}) — the frame would need rebuilding. Manual operator review required. Code: CHK1`);
           return;
         }
         if(!packets.length){
           setPhase(3, 'error', 'No fixable node');
           flushQueue(S.imageAttemptId);
-          escalateRed('CHK1', `Phase 3 failed but produced no addressable node to fix — likely a Gemini targetId that doesn't exist in the V1. Manual operator review required.`);
+          escalateRed('CHK1', `Phase 3A failed but produced no addressable node to fix. Manual operator review required.`);
           return;
         }
         setPhase(3, 'active', `Fail → surgical fix ${attempt+1}`);
-        setG(`Phase 3 found ${structuralFails.length} structural + ${semanticFails.length} semantic issue(s) in ${packets.length} node(s) — running a surgical micro-call to fix ONLY those (Round ${attempt+1})…`, true);
+        setG(`Phase 3A found ${structuralFails.length} structural issue(s) in ${packets.length} node(s) — running a surgical micro-call to fix ONLY those (Round ${attempt+1})…`, true);
         log(`Surgical fix round ${attempt+1}: ${packets.length} node(s) — ${packets.map(p=>p.targetId).join(', ')}.`, 'warn');
         let fix;
         try { fix = await runSurgicalFix(akey, packets, `Surgical fix ${attempt+1}`); }
@@ -4083,6 +4364,54 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
         document.getElementById('v2Pre').textContent = JSON.stringify(v1, null, 2);
         refreshRightPanels();
         // loop → re-validate
+      }
+      if(pipelineHalted || !v1 || !phase3aPassed) return;
+
+      // ── PHASE 3B: HALLUCINATION SWEEP (one-shot). Table-row hallucinations → JS guillotine
+      //    (delete the row, pipeline continues). Prose hallucinations → RED escalate (the Save
+      //    State from Phase 2B is in memory so a manual retry burns only the failing section's
+      //    cost, not the full article). No surgical fix is run for 3B fails. ──
+      setG('Phase 3B — Gemini hallucination sweep (invented facts / entities only)…', true);
+      setPhase(3, 'active', 'Validating 3B');
+      const v3b = await validateV1Semantic(v1, S.research, gkey, S.docs.doc43B);
+      if(pipelineHalted) return; // F19 RED inside validateV1Semantic
+      const hallucinations = v3b.hallucinations || [];
+      lastValidation = { structuralFails: [], hallucinations, passed: hallucinations.length === 0 };
+      S.validation = lastValidation;
+      renderPhase3([], hallucinations, 0, hallucinations.length === 0, false);
+      if(hallucinations.length === 0){
+        setPhase(3, 'done', 'PASS ✓');
+        document.getElementById('m3').textContent = `3A PASS + 3B PASS — no hallucinations detected.`;
+        refreshRightPanels();
+        log('Phase 3B PASS — hallucination sweep found nothing.', 'ok');
+      } else {
+        // Route by location: table_row → JS guillotine; prose → collect for RED.
+        const proseFails = [];
+        let guillotined = 0;
+        const failedTableIds = [];
+        for(const h of hallucinations){
+          if(h.location === 'table_row'){
+            const deleted = guillotineTableRow(v1, h);
+            if(deleted){ guillotined++; failedTableIds.push(h.nodeId); }
+            else proseFails.push(Object.assign({}, h, { __note: 'table guillotine could not locate the row; routed as prose RED' }));
+          } else {
+            proseFails.push(h);
+          }
+        }
+        if(guillotined){
+          log(`Phase 3B — JS guillotine deleted ${guillotined} hallucinated table row(s) from: ${[...new Set(failedTableIds)].join(', ')}. Pipeline continues.`, 'warn');
+        }
+        if(proseFails.length){
+          setPhase(3, 'error', 'Prose hallucination → RED');
+          flushQueue(S.imageAttemptId);
+          const detail = proseFails.map(f => `[${f.nodeId || '?'}] "${(f.offendingText||'').slice(0,140)}"`).join(' | ');
+          escalateRed('CHK1', `Phase 3B — ${proseFails.length} prose-paragraph hallucination(s) detected: ${detail}. The Phase 2B Save State is held in memory — a manual retry would burn only the failing section's API cost, not the whole article. Manual operator review required. Code: CHK1.`);
+          return;
+        }
+        setPhase(3, 'done', 'PASS ✓ (with guillotines)');
+        document.getElementById('m3').textContent = `3A PASS + 3B FAIL → ${guillotined} table-row guillotine(s); no prose hallucinations; pipeline continues.`;
+        refreshRightPanels();
+        log(`Phase 3 complete — 3B fired ${guillotined} table-row guillotine(s); 0 prose hallucinations.`, 'ok');
       }
       if(pipelineHalted || !v1) return;
 
@@ -4828,9 +5157,16 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     return `${months[parseInt(m[2],10)-1]} ${parseInt(m[3],10)}, ${m[1]}`;
   }
+  // Strip inline citation tokens of the form [factClaim_XX] (also collapses the leading space if any).
+  // Phase 2B requires Claude to append these tokens after every cited figure; Phase 7 strips them
+  // before the article is rendered to the operator preview or written to the final .txt.
+  function stripCitationTokens(s){
+    return String(s == null ? '' : s).replace(/[ \t]?\[factClaim_[A-Za-z0-9_-]+\]/g, '');
+  }
   // Parse a prose string through marked.js — INLINE markdown only (bold, links, code, em) — no <p> wrap.
+  // Citation tokens ([factClaim_XX]) are stripped here so they never reach the rendered HTML.
   function mdInline(s){
-    const t = String(s == null ? '' : s).replace(/\r/g,'').trim();
+    const t = stripCitationTokens(String(s == null ? '' : s)).replace(/\r/g,'').trim();
     if(typeof marked !== 'undefined'){
       try { if(marked.parseInline) return marked.parseInline(t); } catch(_){}
       try { if(marked.parse) return marked.parse(t).replace(/^<p>/,'').replace(/<\/p>\s*$/,''); } catch(_){}
