@@ -506,7 +506,7 @@
         <div class="phase-num">3</div>
         <div class="phase-info">
           <div class="phase-title">Phase 3 — Dual Validation</div>
-          <div class="phase-desc">3A: JS structural checks (sections≥4, FAQ≥5, tables≥3 each non-empty, images≥H2, ≥1 paragraph per section/H3, link↔research match, internal-link domain, DA 200–300 words, CTA URL, checklist fields, thesis present+referenced — AND every table row carries a sourceReferenceId pointing at a real Phase 1 factClaim, with cells aligned to headers). A 3A fail skips the Gemini call. 3B: Gemini does an EXHAUSTIVE audit — every table row / paragraph / heading vs the factClaims, one complete pass — and returns { nodeId, violationType, offendingText, requiredAction } per violation (claims align w/ research + anchors clientSpecificThesis). Any fail → a surgical micro-call (subtractive scrub: remove unsupported numbers/claims, don't invent replacements) patches just the named nodes. RETRY CAP IS SPLIT: STRUCTURAL fails get 2 rounds; SEMANTIC fails (factual hallucinations) get 1 round → still failing after Round 1 ⇒ immediate RED escalation (Checkpoint 1), no Round 2. Every validation round is kept in this panel.</div>
+          <div class="phase-desc">3A: JS structural checks — content_sections≥4 (no conclusion/FAQ in there), tables≥3 each non-empty, images≥content-section count, ≥1 paragraph per content section/H3, link↔research match, internal-link domain, DA 200–300 words, CTA URL, checklist fields, thesis present+referenced — AND every table row carries a sourceReferenceId pointing at a real Phase 1 factClaim, with cells aligned to headers — AND hard checks for conclusion_section (present, ≥1 paragraph) + faq_section (present, intro_paragraphs ≥1, qa_pairs ≥5). A 3A fail skips the Gemini call. 3B: Gemini does an EXHAUSTIVE audit — every table row / paragraph / heading vs the factClaims, one complete pass — and returns { nodeId, violationType, offendingText, requiredAction } per violation (claims align w/ research + anchors clientSpecificThesis). Any fail → a surgical micro-call (subtractive scrub: remove unsupported numbers/claims, don't invent replacements) patches just the named nodes. RETRY CAP IS SPLIT: STRUCTURAL fails get 2 rounds; SEMANTIC fails (factual hallucinations) get 1 round → still failing after Round 1 ⇒ immediate RED escalation (Checkpoint 1), no Round 2. Every validation round is kept in this panel.</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b3">Waiting</div><span class="schev closed" id="c3">▼</span></div>
       </div>
@@ -572,7 +572,7 @@
         <div class="phase-num">7</div>
         <div class="phase-info">
           <div class="phase-title">Phase 7 — Final Assembly</div>
-          <div class="phase-desc">Runs after Phase 6 — but HARD-STOPS until every generated image (M3.5) has been uploaded to WordPress and its media URL pasted + validated in the Image panel (left column) AND a Publish Date is set there. 7A: JS assembles the complete article HTML from the V3 (→V2) JSON — canonical 4.3B stylesheet, marked.js prose (links + bold), collapsible ToC, byline, Last Updated, sections / images / tables / FAQ / CTA, github.io→.com link fix — and renders it into a READ-ONLY iframe in the Final HTML tab. 7B: operator visual formatting QC — PURE JS, no Claude, no rewrites; a pre-flight sidebar (Global Link Manager find/replace-a-domain, Metadata author-byline + publish-date, Re-Sync ToC Anchors, Re-render) plus a contextual modal on every clicked block (Direct Answer → "Force Paragraph Breaks"; image → set its WordPress URL; table → "Re-parse Table"; paragraph/FAQ/CTA → show the raw prose for reference). One-way data flow: JS owns the JSON, the iframe is wiped + re-rendered from it. 7C: "Finalize Article" → builds the clean final .txt + the checklist .html (SEO fields, cost report, BlogPosting + FAQPage + BreadcrumbList schema) and unlocks the two downloads. (Was Phase 6.)</div>
+          <div class="phase-desc">Runs after Phase 6 — but HARD-STOPS until every generated image (M3.5) has been uploaded to WordPress and its media URL pasted + validated in the Image panel (left column) AND a Publish Date is set there. 7A: JS assembles the complete article HTML deterministically from the V3 (→V2) JSON — canonical 4.3B stylesheet, marked.js prose (links + bold), collapsible ToC (content_sections H2s + conclusion_section H2 + faq_section H2, no text-matching), byline, Last Updated, content sections / images / tables / conclusion (no image slot ever) / FAQ (intro paras then qa_pairs, no image slot ever) / CTA, github.io→.com link fix — and renders it into a READ-ONLY iframe in the Final HTML tab. 7B: operator visual formatting QC — PURE JS, no Claude, no rewrites; a pre-flight sidebar (Global Link Manager find/replace-a-domain, Metadata author-byline + publish-date, Re-Sync ToC Anchors, Re-render) plus a contextual modal on every clicked block (Direct Answer → "Force Paragraph Breaks"; image → set its WordPress URL; table → "Re-parse Table"; paragraph/FAQ/CTA → show the raw prose for reference). One-way data flow: JS owns the JSON, the iframe is wiped + re-rendered from it. 7C: "Finalize Article" → builds the clean final .txt + the checklist .html (SEO fields, cost report, BlogPosting + FAQPage + BreadcrumbList schema) and unlocks the two downloads. (Was Phase 6.)</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b7">Waiting</div><span class="schev closed" id="c7">▼</span></div>
       </div>
@@ -809,7 +809,7 @@
     cta43BWarned: false,      // so the "4.3B CTA URL not parseable" YELLOW only fires once per run
     _extraLinksWarned: false, // so the "extra external links" YELLOW only fires once per run
     // ── M3.5 image generation (background queue; bound to the active Phase 2A frame attempt) ──
-    imagePrompts: [],         // [{prompt, alt, id, h2}] extracted from the validated 2A frame's sections[].imagePrompts
+    imagePrompts: [],         // [{prompt, alt, id, h2}] extracted from the validated 2A frame's content_sections[].imagePrompts
     imageData: {},            // idx → { data:<dataURL>, ext }
     imageUrls: {},            // idx → WordPress media URL (pasted by the VA)
     imageAttemptId: '',       // 'frame_v1_attempt1' (++on retry) — the frame the current image queue belongs to
@@ -1139,7 +1139,10 @@
       'intentLayer:     ' + (obj.intentLayer || S.intentLayer || '—')
     ].join('\n');
   }
-  // A readable rendering of the (V2 if present, else V1) article: H1, Direct Answer, sections (H2 + paras + H3 + paras + tables), FAQ, CTA.
+  // A readable rendering of the (V3 if present, else V2, else V1) article in deterministic render
+  // order: H1, Direct Answer, content sections (H2 + paras + H3 + paras + tables), conclusion (H2 +
+  // paras), FAQ (H2 + intro paras + per qa_pair: question + answer), CTA. No text-matching anywhere —
+  // FAQ + conclusion are rendered from their dedicated top-level keys.
   function formatArticleText(obj){
     if(!obj || typeof obj !== 'object') return '(no article yet)';
     const out = [];
@@ -1154,7 +1157,8 @@
       toArray(sec.h3sections).forEach(h3 => { if(!h3 || typeof h3 !== 'object') return; out.push('\n### ' + (h3.h3 || '')); toArray(h3.paragraphs).forEach(para); });
       toArray(sec.tables).forEach(tb => { if(!tb || typeof tb !== 'object') return; const hdr = Array.isArray(tb.headers) ? tb.headers : []; if(hdr.length){ out.push('\n| ' + hdr.join(' | ') + ' |'); out.push('| ' + hdr.map(()=>'---').join(' | ') + ' |'); } toArray(tb.rows).forEach(r => { const cells = Array.isArray(r && r.cells) ? r.cells : (Array.isArray(r) ? r : []); out.push('| ' + cells.join(' | ') + ' |' + (r && r.sourceReferenceId ? `   <!-- ${r.sourceReferenceId} -->` : '')); }); });
     });
-    if(Array.isArray(obj.faq) && obj.faq.length){ out.push('\n## FAQ'); toArray(obj.faq).forEach(f => { if(!f || typeof f !== 'object') return; out.push('\n**' + (f.question || '') + '**'); out.push(String((f.answer && f.answer.prose) || '').trim() || '(not written yet)'); }); }
+    { const cs = _concl(obj); const cps = _conclParas(obj); if(cps.length || String(cs.h2||'').trim()){ out.push('\n## ' + (cs.h2 || 'Conclusion')); cps.forEach(para); } }
+    { const fs = _faqSec(obj); const qps = _qaPairs(obj); const fIntro = _faqIntro(obj); if(qps.length || fIntro.length || String(fs.h2||'').trim()){ out.push('\n## ' + (fs.h2 || 'Frequently Asked Questions')); fIntro.forEach(para); qps.forEach(qp => { if(!qp || typeof qp !== 'object') return; out.push('\n**' + (qp.question || '') + '**'); out.push(String((qp.answer && qp.answer.prose) || '').trim() || '(not written yet)'); }); } }
     if(obj.cta && typeof obj.cta === 'object'){ out.push('\n## CTA'); const hp = String(obj.cta.hookProse||'').trim(); if(hp) out.push(hp); out.push(`[${obj.cta.anchorText||''}](${obj.cta.url||''})`); }
     return out.join('\n');
   }
@@ -1172,9 +1176,9 @@
       keywords: c.keywords || '',
       articleSection: c.category || '',
       image: featImg || undefined,
-      mainEntity: (Array.isArray(obj.faq) && obj.faq.length) ? {
+      mainEntity: (_qaPairs(obj).length) ? {
         '@type': 'FAQPage',
-        mainEntity: toArray(obj.faq).filter(f => f && f.question).map(f => ({ '@type':'Question', name: f.question, acceptedAnswer: { '@type':'Answer', text: String((f.answer && f.answer.prose) || '') } }))
+        mainEntity: _qaPairs(obj).filter(qp => qp && qp.question).map(qp => ({ '@type':'Question', name: qp.question, acceptedAnswer: { '@type':'Answer', text: String((qp.answer && qp.answer.prose) || '') } }))
       } : undefined
     };
     return '<!-- M5 will generate the full schema graph. This is a stub built from the metadata + FAQ + featured image. -->\n<script type="application/ld+json">\n' + JSON.stringify(schema, null, 2) + '\n<\/script>';
@@ -1597,7 +1601,7 @@ SHEET ROW (pipe-delimited): ${S.sheetRow}`;
 
   // ── PHASE 2A — STRUCTURE FRAME + NARRATIVE SPINE ──
   function buildPhase2ASystem(){
-    const instr = `PHASE 2A — STRUCTURE FRAME + NARRATIVE SPINE. Call submit_v1_frame with the article's structural skeleton AND its narrative spine. NO body prose. NO statistics. NO numerical claims. NO table data rows. NO FAQ answers. NO Direct Answer prose. (All of that is written in Phase 2 — one content block at a time, section by section, guided by the spine you write here.)
+    const instr = `PHASE 2A — STRUCTURE FRAME + NARRATIVE SPINE. Call submit_v1_frame with the article's structural skeleton AND its narrative spine. NO body prose. NO statistics. NO numerical claims. NO table data rows. NO FAQ answers. NO conclusion prose. NO Direct Answer prose. (All of that is written in Phase 2 — one content block at a time, section by section, guided by the spine you write here.)
 
 Produce:
 - checklist: the 7 SEO/URL fields — metaTitle, h1, permalink, fullUrl, metaDescription, keywords, category.
@@ -1605,23 +1609,24 @@ Produce:
 - narrative_spine: the writing plan that Phase 2B will follow node-by-node —
    • core_thesis: the one-sentence spine (same as thesis.statement).
    • callback_setup: a metaphor / framing / concept to ESTABLISH early in the article and PAY OFF later — the through-line that makes the piece read as one thing.
-   • section_transitions: one object per H2 section AND per H3 subsection — { targetId: the EXACT heading text of that section/subsection, bridge_logic: one sentence on how to bridge INTO it from the preceding context }.
+   • section_transitions: one object per H2 content section AND per H3 subsection AND for the conclusion heading AND the FAQ heading — { targetId: the EXACT heading text of that section/subsection, bridge_logic: one sentence on how to bridge INTO it from the preceding context }.
    • voice_reminders: 3-5 SPECIFIC reminders about the desired voice, pulled from the 4.3A / 4.3B context above (concrete — e.g. a banned phrase, a sentence-rhythm rule, a tone note — not generic platitudes).
 - directAnswer: a placeholder object — leave it exactly as {}. (JS assigns its id; Phase 2B writes its prose.)
-- sections: at least 4 H2 sections. Each section = { h2, paragraphs:[{},{},…], h3sections?:[{h3, paragraphs:[{},…]}], links?:[{anchorText,url,placementHint}], tables?:[{headers}], imagePrompts:[{prompt,alt}] }.
+- content_sections: at least 4 standard H2 content sections — STANDARD CONTENT ONLY. Do NOT put a conclusion section here. Do NOT put an FAQ section here. (The conclusion and the FAQ are separate top-level keys below.) Each content section = { h2, paragraphs:[{},{},…], h3sections?:[{h3, paragraphs:[{},…]}], links?:[{anchorText,url,placementHint}], tables?:[{headers}], imagePrompts:[{prompt,alt}] }.
    • paragraphs: an array of EMPTY objects — one {} per paragraph this section should have. You decide the COUNT (2-6 is typical); JS assigns each an id; Phase 2B writes the prose into them.
    • h3sections: optional — each has h3 (the heading) and its own paragraphs array of {} slots (at least one).
-- tables: at least 3 tables across all sections combined. For each table provide ONLY the headers array — leave the data rows to Phase 2B. Choose table topics the research brief's factClaims can actually back with data.
-- imagePrompts: at least 1 per H2 section. prompt + alt text only (this is placement).
-- links: prefer the research brief's anchorTextTargets — copy those anchorText + url pairs exactly. NEVER invent an internal link (a page on the client's own domain that isn't in the brief). A small number of additional reputable EXTERNAL citations is OK if genuinely needed. placementHint = which paragraph (by description) the link belongs to.
-- faq: at least 5 entries. Each = { question: the question text, answer: {} }. The QUESTION text only — leave answer as {} (JS assigns its id; Phase 2B writes the answer prose).
+   • tables: at least 3 tables across all content sections combined. For each table provide ONLY the headers array — leave the data rows to Phase 2B. Choose table topics the research brief's factClaims can actually back with data.
+   • imagePrompts: at least 1 per H2 content section. prompt + alt text only (this is placement). The conclusion and the FAQ never get images.
+   • links: prefer the research brief's anchorTextTargets — copy those anchorText + url pairs exactly. NEVER invent an internal link (a page on the client's own domain that isn't in the brief). A small number of additional reputable EXTERNAL citations is OK if genuinely needed. placementHint = which paragraph (by description) the link belongs to.
+- conclusion_section: REQUIRED. { h2: the conclusion heading text (e.g. "The Bottom Line", "Where This Leaves You" — your call, in voice), paragraphs:[{},{},…] } — one {} per closing paragraph (2-4 typical). NO image, NO table, NO links here. JS assigns ids; Phase 2B writes the prose. This is the article's wrap-up — it must always be present.
+- faq_section: REQUIRED. { h2: the FAQ heading text (e.g. "Frequently Asked Questions"), intro_paragraphs:[{},…] (one or two {} slots — the framing prose BEFORE the questions; JS assigns ids, Phase 2B writes them), qa_pairs:[{ question: the question text, answer: {} }, …] — at least 5 Q&A pairs. The QUESTION text only — leave each answer as {} (JS assigns its id; Phase 2B writes the answer prose). The FAQ section must always contain BOTH intro_paragraphs and qa_pairs. NO image, NO table here.
 - cta: { anchorText, url, placementHint }. The url MUST match the 4.3B Primary CTA destination (the "Destination:" line under the "Primary CTA" section, or a "Conversion Primary CTA URL" / "Primary CTA URL" field). placementHint = where in the article the CTA sits.
 
 Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_frame; never respond in plain text.`;
     return [ buildPhase2ContextBlock(), { type:'text', text: instr } ];
   }
   function buildPhase2AUserText(feedback, f2hint){
-    let t = `Build the STRUCTURE FRAME + NARRATIVE SPINE now by calling submit_v1_frame. Headings + empty paragraph slots, table headers (no data), FAQ questions (answers stay {}), link anchors, image slots, CTA placement, the checklist, thesis.statement, and a full narrative_spine (core_thesis, callback_setup, section_transitions keyed by heading text, 3-5 voice_reminders) — no body prose, no statistics.`;
+    let t = `Build the STRUCTURE FRAME + NARRATIVE SPINE now by calling submit_v1_frame. content_sections (≥4 standard H2 sections — no conclusion, no FAQ — each with empty paragraph slots, table headers without data, link anchors, image slots), a conclusion_section (heading + empty paragraph slots), a faq_section (heading + intro_paragraphs slots + ≥5 qa_pairs whose answers stay {}), CTA placement, the checklist, thesis.statement, and a full narrative_spine (core_thesis, callback_setup, section_transitions keyed by heading text — include the conclusion and FAQ headings — 3-5 voice_reminders) — no body prose, no statistics.`;
     if(feedback && feedback.trim()){
       t += `\n\n─────────────────────────────────────────\nYOUR PREVIOUS FRAME FAILED VALIDATION. Fix every problem below and resubmit the FULL frame via submit_v1_frame:\n${feedback}\n─────────────────────────────────────────`;
     }
@@ -1632,9 +1637,9 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
   }
   const V1_FRAME_TOOL = {
     name: 'submit_v1_frame',
-    description: 'Submit the V1 STRUCTURE FRAME + NARRATIVE SPINE — headings, empty paragraph slots, table headers (no data), FAQ questions + empty answer slots, link anchors, image slots, CTA placement, checklist, thesis statement, and the narrative_spine (core_thesis, callback_setup, section_transitions, voice_reminders) that Phase 2B follows node-by-node. No body prose, no table data. JS assigns ids; do not include id fields.',
+    description: 'Submit the V1 STRUCTURE FRAME + NARRATIVE SPINE — content_sections (standard H2 content only — headings, empty paragraph slots, table headers without data, link anchors, image slots), a dedicated conclusion_section (heading + empty paragraph slots), a dedicated faq_section (heading + intro_paragraph slots + qa_pairs with empty answer slots), CTA placement, checklist, thesis statement, and the narrative_spine (core_thesis, callback_setup, section_transitions, voice_reminders) that Phase 2B follows node-by-node. No body prose, no table data. JS assigns ids; do not include id fields. The conclusion_section and faq_section are ALWAYS required.',
     input_schema: {
-      type:'object', required:['checklist','narrative_spine','thesis','directAnswer','sections','faq','cta'], additionalProperties:false,
+      type:'object', required:['checklist','narrative_spine','thesis','directAnswer','content_sections','conclusion_section','faq_section','cta'], additionalProperties:false,
       properties: {
         checklist: { type:'object', required:['metaTitle','h1','permalink','fullUrl','metaDescription','keywords','category'], additionalProperties:false,
           properties: { metaTitle:{type:'string'}, h1:{type:'string'}, permalink:{type:'string'}, fullUrl:{type:'string'}, metaDescription:{type:'string'}, keywords:{type:'string'}, category:{type:'string'} } },
@@ -1643,13 +1648,13 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
             core_thesis: { type:'string', description:'The one-sentence spine of the article (same as thesis.statement).' },
             callback_setup: { type:'string', description:'A metaphor / framing / concept to establish early and pay off later — the through-line.' },
             section_transitions: { type:'array', items:{ type:'object', required:['targetId','bridge_logic'], additionalProperties:false,
-              properties:{ targetId:{ type:'string', description:'The EXACT H2 or H3 heading text of the section/subsection this transition leads INTO.' }, bridge_logic:{ type:'string', description:'One sentence: how to bridge into this section from the preceding context.' } } } },
+              properties:{ targetId:{ type:'string', description:'The EXACT H2/H3 heading text this transition leads INTO — including the conclusion heading and the FAQ heading.' }, bridge_logic:{ type:'string', description:'One sentence: how to bridge into this section from the preceding context.' } } } },
             voice_reminders: { type:'array', items:{ type:'string' }, description:'3-5 SPECIFIC voice reminders pulled from the 4.3A/4.3B context (concrete, not generic).' }
           } },
         thesis: { type:'object', required:['statement'], additionalProperties:false,
           properties: { statement:{ type:'string', description:'One-sentence spine. Same as narrative_spine.core_thesis. Mirror Phase 1 clientSpecificThesis.thesisStatement.' } } },
         directAnswer: { type:'object', additionalProperties:false, properties:{}, description:'Placeholder — leave it as {}. JS assigns its id; Phase 2B writes its prose.' },
-        sections: { type:'array', minItems:4, items: {
+        content_sections: { type:'array', minItems:4, description:'Standard H2 content sections ONLY — no conclusion section, no FAQ section (those are the dedicated conclusion_section / faq_section keys). Every entry here gets a ToC entry and an injected image.', items: {
           type:'object', required:['h2','paragraphs','imagePrompts'], additionalProperties:false,
           properties: {
             h2: { type:'string' },
@@ -1664,8 +1669,15 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
               properties:{ prompt:{type:'string'}, alt:{type:'string'} } } }
           }
         }},
-        faq: { type:'array', minItems:5, items:{ type:'object', required:['question','answer'], additionalProperties:false,
-          properties:{ question:{type:'string'}, answer:{ type:'object', additionalProperties:false, properties:{}, description:'Placeholder — leave it as {}. JS assigns its id; Phase 2B writes the answer prose.' } } } },
+        conclusion_section: { type:'object', required:['h2','paragraphs'], additionalProperties:false, description:'The article wrap-up — ALWAYS present. No image, no table, no links.',
+          properties:{ h2:{ type:'string', description:'The conclusion heading text (in the client voice).' }, paragraphs:{ type:'array', minItems:1, items:{ type:'object', additionalProperties:false, properties:{} }, description:'Empty paragraph slots — one {} per closing paragraph (2-4 typical). JS assigns ids; Phase 2B writes the prose.' } } },
+        faq_section: { type:'object', required:['h2','intro_paragraphs','qa_pairs'], additionalProperties:false, description:'The FAQ section — ALWAYS present, ALWAYS with both intro_paragraphs and qa_pairs. No image, no table.',
+          properties:{
+            h2:{ type:'string', description:'The FAQ heading text (e.g. "Frequently Asked Questions").' },
+            intro_paragraphs:{ type:'array', minItems:1, items:{ type:'object', additionalProperties:false, properties:{} }, description:'Empty paragraph slots for the framing prose BEFORE the questions — one or two {}. JS assigns ids; Phase 2B writes the prose.' },
+            qa_pairs:{ type:'array', minItems:5, items:{ type:'object', required:['question','answer'], additionalProperties:false,
+              properties:{ question:{type:'string'}, answer:{ type:'object', additionalProperties:false, properties:{}, description:'Placeholder — leave it as {}. JS assigns its id; Phase 2B writes the answer prose.' } } } }
+          } },
         cta: { type:'object', required:['anchorText','url','placementHint'], additionalProperties:false,
           properties:{ anchorText:{type:'string'}, url:{type:'string'}, placementHint:{type:'string'} } }
       }
@@ -1706,9 +1718,10 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
     }
   };
 
-  // Build the SECTION-LEVEL job queue from the (id-stamped) frame. Order:
-  //   1× directAnswer → for each section: 1× {ALL its H2 + H3 paragraph ids batched} + 1× per table
-  //   → 1× per FAQ answer → 1× CTA hook.
+  // Build the SECTION-LEVEL job queue from the (id-stamped) frame. Order matches the rendered
+  // article: 1× directAnswer → for each CONTENT section: 1× {ALL its H2 + H3 paragraph ids batched}
+  // + 1× per table → 1× conclusion_section (all its paragraph ids batched) → 1× faq_section (ALL its
+  // intro_paragraph ids + ALL its qa_pair answer ids batched) → 1× CTA hook.
   // Each job: { type, label, requiredIds:[…], contextHints, transitionLogic }.
   // section_transitions in the narrative spine are keyed by HEADING TEXT (h2) — JS-assigned ids
   // don't exist when Phase 2A writes the spine — so getTransition matches on the heading.
@@ -1725,8 +1738,8 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
     if(frame.directAnswer && frame.directAnswer.id){
       queue.push({ type:'directAnswer', label:'Direct Answer', requiredIds:[frame.directAnswer.id], contextHints:`Write the Direct Answer (200-300 words). Answer the topic question immediately and directly, in the client’s voice, and align with the thesis. This opens the article.`, transitionLogic:'' });
     }
-    // 2. Sections — ONE call per H2 (batching all paragraph ids from the H2 + all its H3s), then one isolated call per table
-    toArray(frame.sections).forEach(section => {
+    // 2. Content sections — ONE call per H2 (batching all paragraph ids from the H2 + all its H3s), then one isolated call per table
+    _secs(frame).forEach(section => {
       if(!section || typeof section !== 'object') return;
       const h2 = String(section.h2 || '');
       const linkHint = (Array.isArray(section.links) && section.links.length) ? ` Links available to weave in where natural: ${section.links.map(l=>`[${l.anchorText||''}](${l.url||''})`).join(', ')}.` : '';
@@ -1756,23 +1769,41 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
         });
       });
     });
-    // 3. FAQ answers — ONE call for ALL of them (every answer node id batched into requiredIds)
+    // 3. Conclusion section — ONE call batching all its paragraph ids
     {
-      const faqIds = [], faqLines = [];
-      toArray(frame.faq).forEach(faq => {
-        if(!faq || typeof faq !== 'object' || !faq.answer || !faq.answer.id) return;
-        faqIds.push(faq.answer.id);
-        faqLines.push(`  ${faq.answer.id} — answers the question: "${String(faq.question||'')}"`);
-      });
-      if(faqIds.length){
+      const conclSec = _concl(frame);
+      const conclH2 = String(conclSec.h2 || 'Conclusion');
+      const conclIds = _conclParas(frame).filter(p => p && p.id).map(p => p.id);
+      if(conclIds.length){
         queue.push({
-          type:'faq_answer', label:`all ${faqIds.length} FAQ answer${faqIds.length===1?'':'s'}`, requiredIds: faqIds,
-          contextHints: `Write ALL the FAQ answers — one node object per answer id, each matched to its question, in this order:\n${faqLines.join('\n')}\nEach answer: tight, direct, in the client’s voice. Do NOT restate the question text inside the answer. Do NOT write the question or any heading — just the answer prose for each id.`,
-          transitionLogic:''
+          type:'conclusion', label:`conclusion: "${conclH2}"`, requiredIds: conclIds,
+          contextHints: `Write ALL the closing-section prose for H2 "${conclH2}" — one node object per paragraph id, in order: ${conclIds.join(', ')}. This is the article's WRAP-UP: synthesize, restate the thesis with conviction, land the narrative spine's callback. Write ONLY paragraph bodies (JS renders the heading — do not repeat it). No new statistics; no new claims.`,
+          transitionLogic: getTransition(conclH2)
         });
       }
     }
-    // 4. CTA hook
+    // 4. FAQ section — ONE call batching its intro paragraph ids + ALL its qa_pair answer ids
+    {
+      const faqSec = _faqSec(frame);
+      const faqH2 = String(faqSec.h2 || 'Frequently Asked Questions');
+      const introIds = _faqIntro(frame).filter(p => p && p.id).map(p => p.id);
+      const ansIds = [], faqLines = [];
+      _qaPairs(frame).forEach(qp => {
+        if(!qp || typeof qp !== 'object' || !qp.answer || !qp.answer.id) return;
+        ansIds.push(qp.answer.id);
+        faqLines.push(`  ${qp.answer.id} — answers the question: "${String(qp.question||'')}"`);
+      });
+      const allFaqIds = introIds.concat(ansIds);
+      if(allFaqIds.length){
+        const introLines = introIds.length ? `  ${introIds.join(', ')} — the FAQ intro/framing paragraph(s) BEFORE the questions (set up why this FAQ matters, in voice).` : '';
+        queue.push({
+          type:'faq_section', label:`FAQ section: ${introIds.length} intro + ${ansIds.length} answer${ansIds.length===1?'':'s'}`, requiredIds: allFaqIds,
+          contextHints: `Write ALL the FAQ-section prose under H2 "${faqH2}" — one node object per id, in this order:\n${[introLines, ...faqLines].filter(Boolean).join('\n')}\nThe intro paragraph(s): 1-2 short framing paragraphs that lead into the questions. Each answer: tight, direct, in the client’s voice — do NOT restate the question text inside the answer, do NOT write the question or any heading — just the prose for each id.`,
+          transitionLogic: getTransition(faqH2)
+        });
+      }
+    }
+    // 5. CTA hook
     if(frame.cta && frame.cta.id){
       queue.push({ type:'cta_hook', label:'CTA hook', requiredIds:[frame.cta.id], contextHints:`The hook prose that leads into the CTA link: [${frame.cta.anchorText||''}](${frame.cta.url||''}). 1-3 sentences, in voice, that naturally hands off to that link. The link itself is added by JS — write only the lead-in prose.`, transitionLogic: getTransition(frame.cta.anchorText) });
     }
@@ -1835,7 +1866,7 @@ CRITICAL: You MUST use the hydrate_content_block tool and return a "nodes" array
 You are strictly forbidden from inventing specific numbers, percentages, timeframes (e.g., '3-6 months', '12+ articles'), or dollar amounts in any table row or paragraph. You may ONLY use a concrete figure if it appears verbatim in the factClaim you are citing.
 ESCAPE HATCH: If the factClaim does not contain specific figures, synthesize the concept qualitatively instead (e.g., write 'requires significant capital expenditure' instead of '$30,000', write 'over several months' instead of '3-6 months'). Do not leave cells blank. Do not invent data to fill them.
 
-PHASE 2B — SEQUENTIAL HYDRATION (the "Relay Race", section-level). You will be asked to write one content block at a time, in article order — the Direct Answer, then one block per H2 section (ALL of that section's + its H3s' paragraphs together), then one block per table, then one per FAQ answer, then the CTA hook. Each call carries a rolling draft of everything written so far. For each call: read the narrative spine and the draft so far, then call hydrate_content_block returning a "nodes" array with exactly one object per requested targetId — the "prose" field for paragraphs / the Direct Answer / FAQ answers / the CTA hook; the "rows" field for tables. Stay in the client's voice the whole way through. Never fabricate statistics or numbers — every table row must cite a Phase 1 factClaim by id, and for each row you must FIRST fill fact_anchor_justification with the verbatim phrase from that factClaim that supports the row before you write its cells (if no verbatim supporting phrase exists, pick a different factClaim or drop the row). Never repeat content already in the draft. Never write headings or table markup — just the nodes' content.` };
+PHASE 2B — SEQUENTIAL HYDRATION (the "Relay Race", section-level). You will be asked to write one content block at a time, in article order — the Direct Answer, then one block per H2 content section (ALL of that section's + its H3s' paragraphs together) with one block per table, then ONE block for the conclusion section (all its paragraphs), then ONE block for the FAQ section (its intro paragraph(s) + every Q&A answer), then the CTA hook. Each call carries a rolling draft of everything written so far. For each call: read the narrative spine and the draft so far, then call hydrate_content_block returning a "nodes" array with exactly one object per requested targetId — the "prose" field for paragraphs / the Direct Answer / conclusion paragraphs / FAQ intro paragraphs / FAQ answers / the CTA hook; the "rows" field for tables. Stay in the client's voice the whole way through. Never fabricate statistics or numbers — every table row must cite a Phase 1 factClaim by id, and for each row you must FIRST fill fact_anchor_justification with the verbatim phrase from that factClaim that supports the row before you write its cells (if no verbatim supporting phrase exists, pick a different factClaim or drop the row). Never repeat content already in the draft. Never write headings or table markup — just the nodes' content.` };
   }
 
   // The relay loop: clone the locked frame, build the section-level queue, walk it sequentially,
@@ -1843,18 +1874,18 @@ PHASE 2B — SEQUENTIAL HYDRATION (the "Relay Race", section-level). You will be
   // (fully — or partially, with Phase 3A + the surgical fix catching gaps) hydrated clone.
   async function executePhase2B(lockedFrame, akey){
     const hydratedFrame = JSON.parse(JSON.stringify(lockedFrame)); // never mutate the locked frame
-    // belt-and-suspenders: the queue needs these node ids to exist
+    // belt-and-suspenders: the queue needs these node ids to exist + every prose container to have ≥1 slot
     if(!hydratedFrame.directAnswer || typeof hydratedFrame.directAnswer !== 'object') hydratedFrame.directAnswer = {};
-    if(!hydratedFrame.directAnswer.id) hydratedFrame.directAnswer.id = genId('da');
-    if(hydratedFrame.cta && typeof hydratedFrame.cta === 'object' && !hydratedFrame.cta.id) hydratedFrame.cta.id = genId('cta');
-    toArray(hydratedFrame.faq).forEach(f => { if(f && typeof f === 'object'){ if(!f.answer || typeof f.answer !== 'object') f.answer = {}; if(!f.answer.id) f.answer.id = genId('ans'); } });
-    toArray(hydratedFrame.sections).forEach(sec => {
+    _secs(hydratedFrame).forEach(sec => {
       if(!sec || typeof sec !== 'object') return;
       if(!Array.isArray(sec.paragraphs) || !sec.paragraphs.length) sec.paragraphs = [{}];
-      sec.paragraphs.forEach(p => { if(p && typeof p === 'object' && !p.id) p.id = genId('para'); });
-      toArray(sec.h3sections).forEach(h3 => { if(h3 && typeof h3 === 'object'){ if(!Array.isArray(h3.paragraphs) || !h3.paragraphs.length) h3.paragraphs = [{}]; h3.paragraphs.forEach(p => { if(p && typeof p === 'object' && !p.id) p.id = genId('para'); }); } });
-      toArray(sec.tables).forEach(t => { if(t && typeof t === 'object' && !t.id) t.id = genId('table'); });
+      toArray(sec.h3sections).forEach(h3 => { if(h3 && typeof h3 === 'object' && (!Array.isArray(h3.paragraphs) || !h3.paragraphs.length)) h3.paragraphs = [{}]; });
     });
+    if(!hydratedFrame.conclusion_section || typeof hydratedFrame.conclusion_section !== 'object') hydratedFrame.conclusion_section = { h2:'Conclusion', paragraphs:[{}] };
+    if(!Array.isArray(hydratedFrame.conclusion_section.paragraphs) || !hydratedFrame.conclusion_section.paragraphs.length) hydratedFrame.conclusion_section.paragraphs = [{}];
+    if(!hydratedFrame.faq_section || typeof hydratedFrame.faq_section !== 'object') hydratedFrame.faq_section = { h2:'Frequently Asked Questions', intro_paragraphs:[{}], qa_pairs:[] };
+    if(!Array.isArray(hydratedFrame.faq_section.intro_paragraphs) || !hydratedFrame.faq_section.intro_paragraphs.length) hydratedFrame.faq_section.intro_paragraphs = [{}];
+    assignIds(hydratedFrame); // assign-if-missing — backfills any node id the locked frame somehow lacks
     const spine = hydratedFrame.narrative_spine || hydratedFrame.narrativeSpine || {};
     const queue = buildSectionLevelQueue(hydratedFrame, spine);
     const total = queue.length;
@@ -1986,7 +2017,7 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
   // Claude (and especially the tolerant parser recovering a truncated/retried tool
   // call) sometimes hands back an object with numeric keys ({"0":{…},"1":{…}}) — or a
   // lone object — where the schema expects a JSON array. Those make .reduce()/.forEach()
-  // throw ("(v1.sections || []).reduce is not a function"). Coerce every expected array
+  // throw ("(v1.content_sections || []).reduce is not a function"). Coerce every expected array
   // field to a real array first so downstream counting/iteration can't blow up.
   function toArray(x){
     if(Array.isArray(x)) return x;
@@ -2013,7 +2044,7 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
       if(x !== undefined && x !== null) coerced = true; // a real value sat where an array belongs
       return toArray(x);
     };
-    v1.sections = arr(v1.sections).map(sec => {
+    const normSection = sec => {
       if(!sec || typeof sec !== 'object'){ coerced = true; return { h2: String(sec == null ? '' : sec), paragraphs: [], imagePrompts: [], links: [], tables: [], h3sections: [] }; }
       sec.paragraphs   = arr(sec.paragraphs);
       sec.h3sections   = arr(sec.h3sections).map(h3s => { if(h3s && typeof h3s === 'object') h3s.paragraphs = arr(h3s.paragraphs); return h3s; });
@@ -2021,10 +2052,17 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
       sec.tables       = arr(sec.tables).map(t => { if(t && typeof t === 'object'){ t.headers = arr(t.headers).map(h => String(h == null ? '' : h)); t.rows = arr(t.rows).map(normalizeRow); } return t; });
       sec.imagePrompts = arr(sec.imagePrompts);
       return sec;
-    });
-    v1.faq = arr(v1.faq).map(f => { if(f && typeof f === 'object' && f.answer && typeof f.answer !== 'object') f.answer = { prose: String(f.answer) }; return f; });
+    };
+    v1.content_sections = arr(v1.content_sections).map(normSection);
+    // conclusion_section { h2, paragraphs[] } — always an object
+    if(!v1.conclusion_section || typeof v1.conclusion_section !== 'object'){ if(v1.conclusion_section !== undefined && v1.conclusion_section !== null) coerced = true; v1.conclusion_section = { h2: '', paragraphs: [] }; }
+    v1.conclusion_section.paragraphs = arr(v1.conclusion_section.paragraphs);
+    // faq_section { h2, intro_paragraphs[], qa_pairs[] } — always an object
+    if(!v1.faq_section || typeof v1.faq_section !== 'object'){ if(v1.faq_section !== undefined && v1.faq_section !== null) coerced = true; v1.faq_section = { h2: '', intro_paragraphs: [], qa_pairs: [] }; }
+    v1.faq_section.intro_paragraphs = arr(v1.faq_section.intro_paragraphs);
+    v1.faq_section.qa_pairs = arr(v1.faq_section.qa_pairs).map(qp => { if(qp && typeof qp === 'object' && qp.answer && typeof qp.answer !== 'object') qp.answer = { prose: String(qp.answer) }; return qp; });
     if(coerced){
-      try { warnYellow('F14', 'A V1/frame structure came back with a non-array where the schema expects an array (sections / faq / paragraphs / links / tables / table rows / imagePrompts). JS coerced it before validation — watch the V1 JSON tab; if this recurs the Tool Use schema or the tolerant parser needs attention.'); } catch(_){}
+      try { warnYellow('F14', 'A V1/frame structure came back with a non-array/non-object where the schema expects one (content_sections / conclusion_section / faq_section / paragraphs / links / tables / table rows / imagePrompts / qa_pairs). JS coerced it before validation — watch the V1 JSON tab; if this recurs the Tool Use schema or the tolerant parser needs attention.'); } catch(_){}
     }
     return v1;
   }
@@ -2041,12 +2079,12 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
   }
   function assignIds(v1){
     if(!v1 || typeof v1 !== 'object') return v1;
-    normalizeV1Shape(v1); // belt-and-suspenders — guarantees the arrays below are real arrays
+    normalizeV1Shape(v1); // belt-and-suspenders — guarantees the arrays/objects below are real
     const id = (o, p) => { if(o && typeof o === 'object' && !o.id) o.id = genId(p); };
     id(v1.directAnswer, 'da');
     id(v1.thesis, 'thesis');
-    if(Array.isArray(v1.sections)){
-      v1.sections.forEach(sec => {
+    if(Array.isArray(v1.content_sections)){
+      v1.content_sections.forEach(sec => {
         if(!sec || typeof sec !== 'object') return;
         id(sec, 'section');
         toArray(sec.paragraphs).forEach(p => id(p, 'para'));
@@ -2060,11 +2098,17 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
         toArray(sec.imagePrompts).forEach(im => id(im, 'img'));
       });
     }
-    if(Array.isArray(v1.faq)){
-      v1.faq.forEach(f => {
-        if(!f || typeof f !== 'object') return;
-        id(f, 'faq');
-        if(f.answer && typeof f.answer === 'object') id(f.answer, 'ans');
+    if(v1.conclusion_section && typeof v1.conclusion_section === 'object'){
+      id(v1.conclusion_section, 'concl');
+      toArray(v1.conclusion_section.paragraphs).forEach(p => id(p, 'para'));
+    }
+    if(v1.faq_section && typeof v1.faq_section === 'object'){
+      id(v1.faq_section, 'faq');
+      toArray(v1.faq_section.intro_paragraphs).forEach(p => id(p, 'para'));
+      toArray(v1.faq_section.qa_pairs).forEach(qp => {
+        if(!qp || typeof qp !== 'object') return;
+        id(qp, 'qa');
+        if(qp.answer && typeof qp.answer === 'object') id(qp.answer, 'ans');
       });
     }
     id(v1.cta, 'cta');
@@ -2384,7 +2428,8 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
   // Pure(ish) — reads S.research / S.docs.doc43B / S.v1 via the params passed.
   // opts.frameOnly = true → validate a Phase 2A frame (no DA prose, no paragraphs, no table
   // rows yet): run only the checks that apply to the skeleton (counts, headings, link
-  // discipline, checklist fields, CTA url, thesis present). Used between 2A and 2B.
+  // discipline, checklist fields, CTA url, thesis present, conclusion_section present,
+  // faq_section present with qa_pairs). Used between 2A and 2B.
   function validateV1Structure(v1, research, doc43B, opts){
     const frameOnly = !!(opts && opts.frameOnly);
     const fails = [];
@@ -2392,8 +2437,12 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
 
     // Be paranoid about shape — Claude/tolerant-parser can hand back objects where arrays
     // are expected. assignIds() already runs normalizeV1Shape(), but never assume.
-    const sections = (Array.isArray(v1.sections) ? v1.sections : toArray(v1.sections)).filter(s => s && typeof s === 'object');
-    const faq = (Array.isArray(v1.faq) ? v1.faq : toArray(v1.faq)).filter(f => f && typeof f === 'object');
+    const sections = _secs(v1).filter(s => s && typeof s === 'object');
+    const conclSec = _concl(v1);
+    const conclParas = _conclParas(v1);
+    const faqSec = _faqSec(v1);
+    const qaPairs = _qaPairs(v1);
+    const faqIntro = _faqIntro(v1);
     const secTables = s => Array.isArray(s.tables) ? s.tables : toArray(s.tables);
     const secImages = s => Array.isArray(s.imagePrompts) ? s.imagePrompts : toArray(s.imagePrompts);
     const secLinks  = s => Array.isArray(s.links) ? s.links : toArray(s.links);
@@ -2404,29 +2453,48 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
     const totalImages = sections.reduce((n,s)=>n+secImages(s).length,0);
     const h2Count = sections.length;
 
-    if(sections.length < 4) F('section_count', '>= 4', sections.length);
-    if(faq.length < 5) F('faq_count', '>= 5', faq.length);
-    if(totalTables < 3) F('table_count', '>= 3 (across all sections)', totalTables);
-    if(totalImages < h2Count) F('image_prompt_count', `>= H2 count (${h2Count})`, totalImages);
-    sections.forEach(s => { if(!String(s.h2||'').trim()) F('section_h2_empty', 'every section has non-empty h2', '(empty)', s.id); });
-    faq.forEach(f => { if(!String(f.question||'').trim()) F('faq_question_empty', 'every FAQ has a non-empty question', '(empty)', f.id); });
+    if(sections.length < 4) F('content_section_count', '>= 4 content sections', sections.length);
+    if(totalTables < 3) F('table_count', '>= 3 (across all content sections)', totalTables);
+    if(totalImages < h2Count) F('image_prompt_count', `>= content-section count (${h2Count})`, totalImages);
+    sections.forEach(s => { if(!String(s.h2||'').trim()) F('section_h2_empty', 'every content section has non-empty h2', '(empty)', s.id); });
     allTables.forEach(t => { if(!(Array.isArray(t.headers) && t.headers.length && t.headers.every(h => String(h||'').trim()))) F('table_headers_empty', 'every table has non-empty headers', JSON.stringify(t.headers||[]), t.id); });
     sections.forEach(s => secImages(s).forEach(im => { if(!im || !String(im.prompt||'').trim() || !String(im.alt||'').trim()) F('image_prompt_incomplete', 'each image has non-empty prompt + alt', JSON.stringify(im||{}), im && im.id); }));
+
+    // HARD: the conclusion section must exist, be an object, and have ≥1 paragraph slot. Same
+    // failure behavior as missing tables — a fail here forces a Phase 2A frame retry.
+    if(!v1.conclusion_section || typeof v1.conclusion_section !== 'object' || conclParas.length < 1){
+      F('conclusion_section_missing', 'conclusion_section present with >= 1 paragraph', (!v1.conclusion_section ? '(absent)' : conclParas.length === 0 ? 'no paragraphs' : '(not an object)'), conclSec.id);
+    } else if(!String(conclSec.h2||'').trim()){
+      F('conclusion_section_h2_empty', 'conclusion_section.h2 non-empty', '(empty)', conclSec.id);
+    }
+    // HARD: the FAQ section must exist, be an object, and have qa_pairs (≥5) plus intro_paragraphs (≥1).
+    if(!v1.faq_section || typeof v1.faq_section !== 'object' || qaPairs.length < 1){
+      F('faq_section_missing', 'faq_section present with qa_pairs', (!v1.faq_section ? '(absent)' : qaPairs.length === 0 ? 'no qa_pairs' : '(not an object)'), faqSec.id);
+    } else {
+      if(!String(faqSec.h2||'').trim()) F('faq_section_h2_empty', 'faq_section.h2 non-empty', '(empty)', faqSec.id);
+      if(qaPairs.length < 5) F('faq_qa_count', '>= 5 Q&A pairs (faq_section.qa_pairs)', qaPairs.length, faqSec.id);
+      if(faqIntro.length < 1) F('faq_intro_missing', '>= 1 faq_section.intro_paragraphs slot', faqIntro.length, faqSec.id);
+      qaPairs.forEach(qp => { if(!String(qp.question||'').trim()) F('faq_question_empty', 'every Q&A pair has a non-empty question', '(empty)', qp.id); });
+    }
 
     if(!frameOnly){
       // Direct Answer 200-300 words
       const daWords = (v1.directAnswer?.prose || '').trim().split(/\s+/).filter(Boolean).length;
       if(daWords < 200 || daWords > 300) F('direct_answer_word_count', '200–300 words', daWords, v1.directAnswer?.id);
-      // Every section (and h3) must have at least one non-empty paragraph
+      // Every content section (and h3) must have at least one non-empty paragraph
       sections.forEach(s => {
         const ps = secParas(s).filter(p => p && String(p.prose||'').trim());
-        if(ps.length < 1) F('section_paragraphs_empty', 'each section has >= 1 non-empty paragraph', ps.length, s.id);
+        if(ps.length < 1) F('section_paragraphs_empty', 'each content section has >= 1 non-empty paragraph', ps.length, s.id);
         toArray(s.h3sections).forEach(h => {
           if(!h || typeof h !== 'object') return;
           const hp = toArray(h.paragraphs).filter(p => p && String(p.prose||'').trim());
           if(hp.length < 1) F('h3_paragraphs_empty', 'each H3 has >= 1 non-empty paragraph', hp.length, h.id);
         });
       });
+      // Conclusion + FAQ-intro prose hydrated, FAQ answers hydrated
+      if(conclParas.filter(p => p && String(p.prose||'').trim()).length < 1) F('conclusion_paragraphs_empty', 'conclusion_section has >= 1 non-empty paragraph', conclParas.filter(p => p && String(p.prose||'').trim()).length, conclSec.id);
+      if(faqIntro.filter(p => p && String(p.prose||'').trim()).length < 1) F('faq_intro_empty', 'faq_section.intro_paragraphs has >= 1 non-empty paragraph', faqIntro.filter(p => p && String(p.prose||'').trim()).length, faqSec.id);
+      qaPairs.forEach(qp => { if(!String((qp.answer && qp.answer.prose)||'').trim()) F('faq_answer_empty', 'every Q&A pair has a non-empty answer', '(empty)', qp.answer && qp.answer.id); });
       // Table data: non-empty, every row cites a real factClaim, cells align with headers
       const validFacts = validFactClaimIds();
       allTables.forEach(t => {
@@ -2579,7 +2647,7 @@ Output the JSON now.`;
     lines.push('');
     lines.push(`3A · JS STRUCTURAL — ${structuralFails.length ? structuralFails.length + ' fail(s):' : 'all checks pass'}`);
     structuralFails.forEach(f => {
-      const tag = (injectedThisAttempt && f.check === 'section_count') ? '  ← 🧪 caused by the test injection (Claude did not produce this; reset Test injection to Off for real runs)' : '';
+      const tag = (injectedThisAttempt && f.check === 'content_section_count') ? '  ← 🧪 caused by the test injection (Claude did not produce this; reset Test injection to Off for real runs)' : '';
       lines.push(`  • ${f.check}${f.id && f.id !== f.check ? ' ['+f.id+']' : ''}: expected ${f.expected}, got ${f.actual}${tag}`);
     });
     lines.push('');
@@ -2589,7 +2657,7 @@ Output the JSON now.`;
   }
   function formatValidationFeedback(structuralFails, semanticFails, research){
     const parts = [];
-    parts.push('HARD STRUCTURAL MINIMUMS YOU MUST MEET (these are not optional): sections >= 4 H2 sections, faq >= 5, tables >= 3 across all sections combined, imagePrompts >= 1 PER H2 section (every section needs its own imagePrompts array with at least one entry), directAnswer.prose 200-300 words.');
+    parts.push('HARD STRUCTURAL MINIMUMS YOU MUST MEET (these are not optional): content_sections >= 4 standard H2 sections (no conclusion / FAQ in there), tables >= 3 across all content sections combined, imagePrompts >= 1 PER content H2 section, a conclusion_section with prose, a faq_section with intro_paragraphs prose AND >= 5 qa_pairs each with a non-empty answer, directAnswer.prose 200-300 words.');
     if(structuralFails.length){
       parts.push('STRUCTURAL PROBLEMS IN YOUR LAST V1 (3A):');
       structuralFails.forEach(f => parts.push(`- ${f.check}${f.id && f.id !== f.check ? ' ('+f.id+')' : ''}: expected ${f.expected}, you produced ${f.actual}. Fix this.`));
@@ -2606,7 +2674,7 @@ Output the JSON now.`;
   }
   // Feedback for a failed Phase 2A frame retry — frame-appropriate (no DA/prose minimums).
   function formatFrameFeedback(structuralFails, research){
-    const parts = ['HARD STRUCTURAL MINIMUMS FOR THE FRAME (not optional): >= 4 H2 sections, >= 5 FAQ questions, >= 3 tables across all sections combined (headers only — no data rows), >= 1 imagePrompt per H2 section, a CTA whose url matches the 4.3B Primary CTA destination, and all 7 checklist fields filled. NO body prose, NO statistics — that comes in Phase 2B.'];
+    const parts = ['HARD STRUCTURAL MINIMUMS FOR THE FRAME (not optional): content_sections >= 4 standard H2 sections (NO conclusion section, NO FAQ section in there), >= 3 tables across all content sections combined (headers only — no data rows), >= 1 imagePrompt per content H2 section, a conclusion_section { h2, paragraphs:[{}…] } (ALWAYS required), a faq_section { h2, intro_paragraphs:[{}…], qa_pairs:[{question, answer:{}}…] } with >= 5 qa_pairs (ALWAYS required, ALWAYS with both intro_paragraphs and qa_pairs), a CTA whose url matches the 4.3B Primary CTA destination, and all 7 checklist fields filled. NO body prose, NO statistics — that comes in Phase 2B.'];
     if(structuralFails.length){
       parts.push('PROBLEMS IN YOUR LAST FRAME:');
       structuralFails.forEach(f => parts.push(`- ${f.check}${f.id && f.id !== f.check ? ' ('+f.id+')' : ''}: expected ${f.expected}, you produced ${f.actual}. Fix this.`));
@@ -2685,7 +2753,7 @@ Output the JSON now.`;
   function buildFixPackets(v1, structuralFails, semanticFails){
     // index every addressable node by id + remember its enclosing section h2 + neighbours
     const idx = {}; // id → { node, kind, sectionH2, neighbours:[prevProse,nextProse] }
-    toArray(v1.sections).forEach(sec => {
+    _secs(v1).forEach(sec => {
       if(!sec || typeof sec !== 'object') return;
       const h2 = String(sec.h2 || '');
       const ps = toArray(sec.paragraphs);
@@ -2698,11 +2766,19 @@ Output the JSON now.`;
       toArray(sec.tables).forEach(t => { if(t && t.id) idx[t.id] = { node:t, kind:'table', sectionH2:h2 }; });
       toArray(sec.links).forEach(l => { if(l && l.id) idx[l.id] = { node:l, kind:'link', sectionH2:h2 }; });
     });
-    toArray(v1.faq).forEach(f => {
-      if(!f || typeof f !== 'object') return;
-      if(f.id) idx[f.id] = { node:f, kind:'faq', sectionH2:'FAQ' };
-      if(f.answer && f.answer.id) idx[f.answer.id] = { node:f.answer, kind:'ans', sectionH2:`FAQ — Q: ${String(f.question||'')}` };
-    });
+    // conclusion_section paragraphs — addressable like any other prose node (semantic-fail target)
+    { const conclSec = _concl(v1); const conclH2 = String(conclSec.h2 || 'Conclusion'); const cps = _conclParas(v1);
+      cps.forEach((p, i) => { if(p && p.id) idx[p.id] = { node:p, kind:'para', sectionH2:`Conclusion — ${conclH2}`, neighbours:[cps[i-1]?.prose||'', cps[i+1]?.prose||''] }; });
+    }
+    // faq_section — intro paragraphs (prose nodes) + qa_pair containers + answers
+    { const faqSec = _faqSec(v1); const faqH2 = String(faqSec.h2 || 'Frequently Asked Questions'); const intro = _faqIntro(v1);
+      intro.forEach((p, i) => { if(p && p.id) idx[p.id] = { node:p, kind:'para', sectionH2:`FAQ intro — ${faqH2}`, neighbours:[intro[i-1]?.prose||'', intro[i+1]?.prose||''] }; });
+      _qaPairs(v1).forEach(qp => {
+        if(!qp || typeof qp !== 'object') return;
+        if(qp.id) idx[qp.id] = { node:qp, kind:'faq', sectionH2:`FAQ — ${faqH2}` };
+        if(qp.answer && qp.answer.id) idx[qp.answer.id] = { node:qp.answer, kind:'ans', sectionH2:`FAQ — Q: ${String(qp.question||'')}` };
+      });
+    }
     if(v1.directAnswer && v1.directAnswer.id) idx[v1.directAnswer.id] = { node:v1.directAnswer, kind:'da', sectionH2:'Direct Answer' };
     if(v1.thesis && v1.thesis.id) idx[v1.thesis.id] = { node:v1.thesis, kind:'thesis', sectionH2:'Thesis' };
     if(v1.cta && v1.cta.id) idx[v1.cta.id] = { node:v1.cta, kind:'cta', sectionH2:'CTA' };
@@ -2733,14 +2809,16 @@ Output the JSON now.`;
   function applyCorrections(v1, corrections){
     let applied = 0, orphaned = 0;
     const idx = {};
-    toArray(v1.sections).forEach(sec => {
+    _secs(v1).forEach(sec => {
       if(!sec || typeof sec !== 'object') return;
       toArray(sec.paragraphs).forEach(p => { if(p && p.id) idx[p.id] = p; });
       toArray(sec.h3sections).forEach(h => { if(h && typeof h==='object') toArray(h.paragraphs).forEach(p => { if(p && p.id) idx[p.id] = p; }); });
       toArray(sec.tables).forEach(t => { if(t && t.id) idx[t.id] = t; });
       toArray(sec.links).forEach(l => { if(l && l.id) idx[l.id] = l; });
     });
-    toArray(v1.faq).forEach(f => { if(!f || typeof f!=='object') return; if(f.id) idx[f.id] = f; if(f.answer && f.answer.id) idx[f.answer.id] = f.answer; });
+    _conclParas(v1).forEach(p => { if(p && p.id) idx[p.id] = p; });
+    _faqIntro(v1).forEach(p => { if(p && p.id) idx[p.id] = p; });
+    _qaPairs(v1).forEach(qp => { if(!qp || typeof qp !== 'object') return; if(qp.id) idx[qp.id] = qp; if(qp.answer && qp.answer.id) idx[qp.answer.id] = qp.answer; });
     if(v1.directAnswer && v1.directAnswer.id) idx[v1.directAnswer.id] = v1.directAnswer;
     if(v1.thesis && v1.thesis.id) idx[v1.thesis.id] = v1.thesis;
     if(v1.cta && v1.cta.id) idx[v1.cta.id] = v1.cta;
@@ -2861,14 +2939,16 @@ Output the JSON now.`;
   }
 
   // ─── ALLOWED PROSE-NODE REGISTRY (Phase 5.2 allowed / 5.3 disallowed) ───
-  // Allowed targets: directAnswer.id, sections[].paragraphs[].id, sections[].h3sections[].paragraphs[].id,
-  // faq[].answer.id, cta.id (hookProse). DISALLOWED: section/h3/link/table/img ids, thesis.id, faq[].id.
+  // Allowed targets: directAnswer.id, content_sections[].paragraphs[].id + their h3sections[].paragraphs[].id,
+  // conclusion_section.paragraphs[].id, faq_section.intro_paragraphs[].id, faq_section.qa_pairs[].answer.id,
+  // cta.id (hookProse). DISALLOWED: section/h3/link/table/img ids, thesis.id, conclusion_section.id,
+  // faq_section.id, faq_section.qa_pairs[].id (the QUESTION text container).
   function buildVoiceTargetRegistry(v1){
     const allowed = new Map(); const disallowed = new Set();
     if(v1.directAnswer && v1.directAnswer.id) allowed.set(v1.directAnswer.id, { kind:'da', label:'Direct Answer prose' });
     if(v1.thesis && v1.thesis.id) disallowed.add(v1.thesis.id);
     if(v1.cta && v1.cta.id) allowed.set(v1.cta.id, { kind:'cta', label:'CTA hook prose' });
-    toArray(v1.sections).forEach((sec, si) => {
+    _secs(v1).forEach((sec, si) => {
       if(!sec || typeof sec !== 'object') return;
       if(sec.id) disallowed.add(sec.id);
       const h2 = String(sec.h2 || `Section ${si + 1}`);
@@ -2883,11 +2963,21 @@ Output the JSON now.`;
       toArray(sec.tables).forEach(t => { if(t && t.id) disallowed.add(t.id); });
       toArray(sec.imagePrompts).forEach(im => { if(im && im.id) disallowed.add(im.id); });
     });
-    toArray(v1.faq).forEach((f, fi) => {
-      if(!f || typeof f !== 'object') return;
-      if(f.id) disallowed.add(f.id); // the QUESTION text is disallowed; the ANSWER prose is allowed
-      if(f.answer && f.answer.id) allowed.set(f.answer.id, { kind:'ans', label:`FAQ answer #${fi + 1} ("${String(f.question||'').slice(0,55)}")` });
-    });
+    // conclusion_section paragraphs — allowed (same treatment as content section paragraphs)
+    { const conclSec = _concl(v1); const conclH2 = String(conclSec.h2 || 'Conclusion');
+      if(conclSec.id) disallowed.add(conclSec.id);
+      _conclParas(v1).forEach((p, pi) => { if(p && p.id) allowed.set(p.id, { kind:'para', label:`conclusion "${conclH2}" — paragraph ${pi + 1}` }); });
+    }
+    // faq_section — intro_paragraphs allowed, qa_pairs.answer allowed, container + qa_pair containers disallowed
+    { const faqSec = _faqSec(v1); const faqH2 = String(faqSec.h2 || 'Frequently Asked Questions');
+      if(faqSec.id) disallowed.add(faqSec.id);
+      _faqIntro(v1).forEach((p, pi) => { if(p && p.id) allowed.set(p.id, { kind:'para', label:`FAQ intro "${faqH2}" — paragraph ${pi + 1}` }); });
+      _qaPairs(v1).forEach((qp, fi) => {
+        if(!qp || typeof qp !== 'object') return;
+        if(qp.id) disallowed.add(qp.id); // QUESTION container; the ANSWER prose is allowed
+        if(qp.answer && qp.answer.id) allowed.set(qp.answer.id, { kind:'ans', label:`FAQ answer #${fi + 1} ("${String(qp.question||'').slice(0,55)}")` });
+      });
+    }
     return { allowed, disallowed };
   }
   function allowedTargetsListText(reg){
@@ -2952,9 +3042,11 @@ Output the JSON now.`;
     }
   };
 
-  // Build the SECTION-LEVEL voice-relay queue from the frozen V1 + the registry. Order: 1× DA → for
-  // each H2: 1× block batching ALL its + its H3s' paragraph ids → 1× block for ALL FAQ answers → 1×
-  // CTA hook. (No per-table block.) Each job: { type, label, requiredIds:[…], contextHints, transitionLogic }.
+  // Build the SECTION-LEVEL voice-relay queue from the frozen V1 + the registry. Order matches the
+  // rendered article: 1× DA → for each content H2: 1× block batching ALL its + its H3s' paragraph
+  // ids → 1× block batching ALL conclusion paragraph ids → 1× block batching ALL faq_section intro
+  // paragraph ids + every qa_pair answer id → 1× CTA hook. (No per-table block.)
+  // Each job: { type, label, requiredIds:[…], contextHints, transitionLogic }.
   function buildVoiceQueue(v1, narrativeSpine, reg){
     const queue = [];
     const allowed = reg.allowed; // Map(id → {kind,label})
@@ -2969,8 +3061,8 @@ Output the JSON now.`;
     if(v1.directAnswer && v1.directAnswer.id && allowed.has(v1.directAnswer.id)){
       queue.push({ type:'directAnswer', label:'Direct Answer', requiredIds:[v1.directAnswer.id], contextHints:`Re-voice the Direct Answer in the client’s voice — it opens the article, so strong POV from sentence one and plant the callback_phrase here. Keep every data anchor verbatim. Aim ~200-300 words unless a "short punch" is clearly stronger.`, transitionLogic:'' });
     }
-    // 2. Sections — ONE block per H2 (batching every paragraph id from the H2 + all its H3s). NO per-table block.
-    toArray(v1.sections).forEach(section => {
+    // 2. Content sections — ONE block per H2 (batching every paragraph id from the H2 + all its H3s). NO per-table block.
+    _secs(v1).forEach(section => {
       if(!section || typeof section !== 'object') return;
       const h2 = String(section.h2 || '');
       const linkHint = (Array.isArray(section.links) && section.links.length) ? ` Links already placed in this section (do NOT add/remove/move links — just write naturally around them): ${section.links.map(l=>`[${l.anchorText||''}](${l.url||''})`).join(', ')}.` : '';
@@ -2989,15 +3081,27 @@ Output the JSON now.`;
         });
       }
     });
-    // 3. FAQ answers — ONE block for ALL of them
+    // 3. Conclusion section — ONE block batching all its paragraph ids
     {
+      const conclSec = _concl(v1); const conclH2 = String(conclSec.h2 || 'Conclusion');
       const ids = [], lines = [];
-      toArray(v1.faq).forEach(f => { if(f && typeof f === 'object' && f.answer && f.answer.id && allowed.has(f.answer.id)){ ids.push(f.answer.id); lines.push(`  ${f.answer.id} — answers the question: "${String(f.question||'')}"`); } });
+      _conclParas(v1).forEach(p => { if(p && p.id && allowed.has(p.id)){ ids.push(p.id); lines.push(`  conclusion "${conclH2}" — ${p.id}`); } });
       if(ids.length){
-        queue.push({ type:'faq_answer', label:`all ${ids.length} FAQ answer${ids.length===1?'':'s'}`, requiredIds: ids, contextHints:`Re-voice ALL the FAQ answers — one node object per answer id, each matched to its question, in this order:\n${lines.join('\n')}\nEach answer: tight, direct, in the client’s voice. Do NOT restate the question. Do NOT write the question or any heading. Keep every data anchor verbatim.`, transitionLogic:'' });
+        queue.push({ type:'conclusion', label:`conclusion: "${conclH2}"`, requiredIds: ids, contextHints:`Re-voice ALL the conclusion paragraphs in H2 "${conclH2}" — one node object per id, in this order:\n${lines.join('\n')}\nThis is the article's WRAP-UP — land the callback_phrase here. Synthesize, restate the thesis with conviction. Keep every data anchor verbatim. Do NOT touch any heading, table, link, or image.`, transitionLogic: getTransition(conclH2) });
       }
     }
-    // 4. CTA hook
+    // 4. FAQ section — ONE block batching intro paragraph ids + ALL qa_pair answer ids
+    {
+      const faqSec = _faqSec(v1); const faqH2 = String(faqSec.h2 || 'Frequently Asked Questions');
+      const introIds = [], answerIds = [], lines = [];
+      _faqIntro(v1).forEach(p => { if(p && p.id && allowed.has(p.id)){ introIds.push(p.id); lines.push(`  FAQ intro "${faqH2}" — ${p.id}`); } });
+      _qaPairs(v1).forEach(qp => { if(qp && qp.answer && qp.answer.id && allowed.has(qp.answer.id)){ answerIds.push(qp.answer.id); lines.push(`  ${qp.answer.id} — answers the question: "${String(qp.question||'')}"`); } });
+      const ids = introIds.concat(answerIds);
+      if(ids.length){
+        queue.push({ type:'faq_section', label:`FAQ: ${introIds.length} intro + ${answerIds.length} answer${answerIds.length===1?'':'s'}`, requiredIds: ids, contextHints:`Re-voice ALL the FAQ-section prose under H2 "${faqH2}" — one node object per id, in this order:\n${lines.join('\n')}\nIntro paragraph(s): 1-2 short framing paragraphs that lead into the questions, in voice. Each answer: tight, direct, in the client’s voice — do NOT restate the question, do NOT write the question or any heading. Keep every data anchor verbatim.`, transitionLogic: getTransition(faqH2) });
+      }
+    }
+    // 5. CTA hook
     if(v1.cta && v1.cta.id && allowed.has(v1.cta.id)){
       queue.push({ type:'cta_hook', label:'CTA hook', requiredIds:[v1.cta.id], contextHints:`Re-voice the hook prose that leads into the CTA link [${v1.cta.anchorText||''}](${v1.cta.url||''}). 1-3 sentences, in voice; land the callback_phrase here. The link itself is rendered by JS — write only the lead-in prose.`, transitionLogic: getTransition(v1.cta.anchorText) });
     }
@@ -3007,7 +3111,7 @@ Output the JSON now.`;
   // ─── PHASE 5 SYSTEM BLOCK #2 (uncached): voice rules + AI-tell list + intent + exemplars +
   //     Option-E framing + the verbatim tone-anchor rule. (Block #1 is buildPhase2ContextBlock().) ───
   function buildPhase5InstrBlock(intentLayer, exemplarText){
-    const txt = `PHASE 5 — VOICE DRAFT (Option E — Unified Chain-of-Thought, run as a SECTION-LEVEL RELAY). You re-voice the article's PROSE nodes one content block at a time, in article order — the Direct Answer, then one block per H2 section (ALL of its + its H3s' paragraphs together), then one block for ALL the FAQ answers, then the CTA hook. JS owns structure; you own prose. The structure is FROZEN — headings (h2/h3), table headers, table ROWS, FAQ questions, links/anchors/URLs, images, the checklist, and the thesis statement are immutable; you cannot touch them. You address each prose node by its JS-assigned id.
+    const txt = `PHASE 5 — VOICE DRAFT (Option E — Unified Chain-of-Thought, run as a SECTION-LEVEL RELAY). You re-voice the article's PROSE nodes one content block at a time, in article order — the Direct Answer, then one block per content H2 section (ALL of its + its H3s' paragraphs together), then ONE block for the conclusion section (all its paragraphs), then ONE block for the FAQ section (its intro paragraph(s) + every Q&A answer), then the CTA hook. JS owns structure; you own prose. The structure is FROZEN — headings (h2/h3), table headers, table ROWS, FAQ questions, links/anchors/URLs, images, the checklist, and the thesis statement are immutable; you cannot touch them. You address each prose node by its JS-assigned id.
 
 ON THE FIRST BLOCK ONLY: also return a "voice_architecture" object — core_conviction (the aggressive stance), friction_setup (where you agitate the problem), callback_phrase (a punchy phrase planted in the Direct Answer and repeated near the end), pacing_strategy (where the tone is rapid-fire vs where it slows), thesis_reinforcement (how the clientSpecificThesis manifests across sections). It is your GLOBAL PLAN — every later block executes it.
 
@@ -3128,11 +3232,13 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     const proseIndex = {};
     if(frozenV1.directAnswer && frozenV1.directAnswer.id) proseIndex[frozenV1.directAnswer.id] = { kind:'da', prose:String(frozenV1.directAnswer.prose||''), listItems: Array.isArray(frozenV1.directAnswer.listItems)?frozenV1.directAnswer.listItems:[] };
     if(frozenV1.cta && frozenV1.cta.id) proseIndex[frozenV1.cta.id] = { kind:'cta', prose:String(frozenV1.cta.hookProse||''), listItems: Array.isArray(frozenV1.cta.listItems)?frozenV1.cta.listItems:[] };
-    toArray(frozenV1.sections).forEach(sec => { if(!sec||typeof sec!=='object') return;
+    _secs(frozenV1).forEach(sec => { if(!sec||typeof sec!=='object') return;
       toArray(sec.paragraphs).forEach(p => { if(p && p.id) proseIndex[p.id] = { kind:'para', prose:String(p.prose||''), listItems: Array.isArray(p.listItems)?p.listItems:[] }; });
       toArray(sec.h3sections).forEach(h3 => { if(h3 && typeof h3 === 'object') toArray(h3.paragraphs).forEach(p => { if(p && p.id) proseIndex[p.id] = { kind:'para', prose:String(p.prose||''), listItems: Array.isArray(p.listItems)?p.listItems:[] }; }); });
     });
-    toArray(frozenV1.faq).forEach(f => { if(f && typeof f === 'object' && f.answer && f.answer.id) proseIndex[f.answer.id] = { kind:'ans', prose:String(f.answer.prose||''), listItems: Array.isArray(f.answer.listItems)?f.answer.listItems:[] }; });
+    _conclParas(frozenV1).forEach(p => { if(p && p.id) proseIndex[p.id] = { kind:'para', prose:String(p.prose||''), listItems: Array.isArray(p.listItems)?p.listItems:[] }; });
+    _faqIntro(frozenV1).forEach(p => { if(p && p.id) proseIndex[p.id] = { kind:'para', prose:String(p.prose||''), listItems: Array.isArray(p.listItems)?p.listItems:[] }; });
+    _qaPairs(frozenV1).forEach(qp => { if(qp && qp.answer && qp.answer.id) proseIndex[qp.answer.id] = { kind:'ans', prose:String(qp.answer.prose||''), listItems: Array.isArray(qp.answer.listItems)?qp.answer.listItems:[] }; });
 
     log(`Phase 5 — voice relay (section-level): ${total} content block(s) to re-voice in order, each carrying the full rolling V2 draft.`, 'info');
     initRelayStrip('relayStrip5', queue);
@@ -3229,12 +3335,14 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     const idx = {};
     if(v2.directAnswer && v2.directAnswer.id) idx[v2.directAnswer.id] = v2.directAnswer;
     if(v2.cta && v2.cta.id) idx[v2.cta.id] = v2.cta;
-    toArray(v2.sections).forEach(sec => {
+    _secs(v2).forEach(sec => {
       if(!sec || typeof sec !== 'object') return;
       toArray(sec.paragraphs).forEach(p => { if(p && p.id) idx[p.id] = p; });
       toArray(sec.h3sections).forEach(h3 => { if(h3 && typeof h3 === 'object') toArray(h3.paragraphs).forEach(p => { if(p && p.id) idx[p.id] = p; }); });
     });
-    toArray(v2.faq).forEach(f => { if(f && typeof f === 'object' && f.answer && f.answer.id) idx[f.answer.id] = f.answer; });
+    _conclParas(v2).forEach(p => { if(p && p.id) idx[p.id] = p; });
+    _faqIntro(v2).forEach(p => { if(p && p.id) idx[p.id] = p; });
+    _qaPairs(v2).forEach(qp => { if(qp && qp.answer && qp.answer.id) idx[qp.answer.id] = qp.answer; });
     let applied = 0;
     (validRewrites || []).forEach(rw => {
       const node = idx[rw.targetId]; if(!node) return;
@@ -3314,7 +3422,10 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     }
     return [...out].filter(x => x && x.length >= 3 && x.length <= 40 && /[a-z]/i.test(x)).slice(0, 60);
   }
-  // Ordered list of every body paragraph's text (DA → sections' paras + h3 paras → FAQ answers → CTA hook).
+  // Ordered list of every body paragraph's text in render order: DA → content sections' paras + h3
+  // paras → conclusion paras → FAQ intro paras + FAQ answers → CTA hook. Used by QC2 (callback
+  // verifier — top-20%/bottom-20%) and QC6 (semantic anchor check), so the order MUST match how
+  // the article actually renders so "near the end" means the same thing both places.
   function articleParagraphTexts(obj){
     const out = [];
     if(obj && obj.directAnswer) out.push(String(obj.directAnswer.prose || ''));
@@ -3323,7 +3434,9 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
       toArray(sec.paragraphs).forEach(p => out.push(String((p && p.prose) || '')));
       toArray(sec.h3sections).forEach(h3 => { if(h3) toArray(h3.paragraphs).forEach(p => out.push(String((p && p.prose) || ''))); });
     });
-    toArray(obj && obj.faq).forEach(f => { if(f && f.answer) out.push(String(f.answer.prose || '')); });
+    _conclParas(obj).forEach(p => out.push(String((p && p.prose) || '')));
+    _faqIntro(obj).forEach(p => out.push(String((p && p.prose) || '')));
+    _qaPairs(obj).forEach(qp => { if(qp && qp.answer) out.push(String(qp.answer.prose || '')); });
     if(obj && obj.cta) out.push(String(obj.cta.hookProse || ''));
     return out.filter(p => p.trim());
   }
@@ -3408,7 +3521,7 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
 
   // Phase 6 system block #2 (uncached): the ruthless-editor framing + AI-Tell list. (Block #1 = buildPhase2ContextBlock().)
   function buildPhase6InstrBlock(){
-    return { type:'text', text: `PHASE 6 — FORENSIC CRITIQUE. You are a RUTHLESS EDITOR doing a final pass over an AEO article whose structure is FROZEN. You only rewrite PROSE paragraphs — the Direct Answer, body paragraphs, FAQ answers, and the CTA hook — each addressed by the JS-assigned id you are given. You CANNOT touch headings, tables, table rows, FAQ questions, links/anchors/URLs, images, the checklist, or the thesis; JS rejects any of those.
+    return { type:'text', text: `PHASE 6 — FORENSIC CRITIQUE. You are a RUTHLESS EDITOR doing a final pass over an AEO article whose structure is FROZEN. You only rewrite PROSE paragraphs — the Direct Answer, body paragraphs in the content sections, conclusion paragraphs, FAQ intro paragraphs, FAQ answers, and the CTA hook — each addressed by the JS-assigned id you are given. You CANNOT touch headings, tables, table rows, FAQ questions, links/anchors/URLs, images, the checklist, or the thesis; JS rejects any of those.
 
 For each call you get: (a) the editorial brief in the user message — follow it literally; (b) the current prose of this block's paragraphs, with ids; and (c) for body sections, how the previous section ends and how the next section begins (the "sliding window" — use it to judge whether the section's transitions actually hold).
 
@@ -3421,10 +3534,12 @@ ${aiTellListText()}
 Also: never use any term the 4.3B Terminology Lock bans; always use the client's canonical terms from 4.3B.` };
   }
 
-  // Build the Phase 6 relay queue from V3 + the registry. Order: one job per H2 section (article order)
-  // → one job for ALL FAQ answers → one for the Direct Answer → one for the CTA hook. Returns
-  // { queue, lastSectionJobIdx } — lastSectionJobIdx is where the QC2 (callback) + QC6 (semantic anchor)
-  // checks run ("only on the final section").
+  // Build the Phase 6 relay queue from V3 + the registry. Order: one job per content H2 section (article
+  // order) → the conclusion job (type:'section' so QC1/QC3 run on it; flagged isConclusion so QC2/QC6
+  // get "this is literally the conclusion") → one job for the FAQ section (intro paragraphs + every
+  // qa_pair answer batched) → one for the Direct Answer → one for the CTA hook. Returns { queue,
+  // lastSectionJobIdx } — lastSectionJobIdx is where the QC2 (callback) + QC6 (semantic anchor) checks
+  // run ("only on the final section"). The conclusion job IS that final section.
   function buildCritiqueQueue(v3, reg){
     const queue = []; const allowed = reg.allowed;
     _secs(v3).filter(s => s && typeof s === 'object').forEach((sec, si) => {
@@ -3434,8 +3549,18 @@ Also: never use any term the 4.3B Terminology Lock bans; always use the client's
       toArray(sec.h3sections).forEach(h3 => { if(h3) toArray(h3.paragraphs).forEach(p => { if(p && p.id && allowed.has(p.id)) ids.push(p.id); }); });
       if(ids.length) queue.push({ type:'section', label:`section: "${h2}"`, h2, requiredIds: ids, sectionIdx: si });
     });
-    const lastSectionJobIdx = queue.length - 1; // queue is all-section-jobs so far
-    { const ids = []; toArray(v3.faq).forEach(f => { if(f && f.answer && f.answer.id && allowed.has(f.answer.id)) ids.push(f.answer.id); }); if(ids.length) queue.push({ type:'faq_answer', label:`all ${ids.length} FAQ answer${ids.length===1?'':'s'}`, requiredIds: ids }); }
+    // conclusion job — same type:'section' so QC1/QC3 apply; isConclusion flips the sliding window into "before the FAQ"
+    { const conclSec = _concl(v3); const conclH2 = String(conclSec.h2 || 'Conclusion'); const ids = [];
+      _conclParas(v3).forEach(p => { if(p && p.id && allowed.has(p.id)) ids.push(p.id); });
+      if(ids.length) queue.push({ type:'section', label:`conclusion: "${conclH2}"`, h2: conclH2, requiredIds: ids, isConclusion: true });
+    }
+    const lastSectionJobIdx = queue.length - 1; // QC2 (callback) + QC6 (semantic anchor) fire on this job
+    // FAQ section — intro paragraphs + every qa_pair answer batched into ONE block
+    { const ids = []; const faqSec = _faqSec(v3);
+      _faqIntro(v3).forEach(p => { if(p && p.id && allowed.has(p.id)) ids.push(p.id); });
+      _qaPairs(v3).forEach(qp => { if(qp && qp.answer && qp.answer.id && allowed.has(qp.answer.id)) ids.push(qp.answer.id); });
+      if(ids.length) queue.push({ type:'faq_section', label:`FAQ section (${ids.length} prose node${ids.length===1?'':'s'})`, h2: String(faqSec.h2||'Frequently Asked Questions'), requiredIds: ids });
+    }
     if(v3.directAnswer && v3.directAnswer.id && allowed.has(v3.directAnswer.id)) queue.push({ type:'directAnswer', label:'Direct Answer', requiredIds:[v3.directAnswer.id] });
     if(v3.cta && v3.cta.id && allowed.has(v3.cta.id)) queue.push({ type:'cta_hook', label:'CTA hook', requiredIds:[v3.cta.id] });
     return { queue, lastSectionJobIdx };
@@ -3488,7 +3613,9 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
           toArray(sec.paragraphs).forEach(p => { if(p && p.id) v1ProseById[p.id] = String(p.prose || ''); });
           toArray(sec.h3sections).forEach(h3 => { if(h3) toArray(h3.paragraphs).forEach(p => { if(p && p.id) v1ProseById[p.id] = String(p.prose || ''); }); });
         });
-        toArray(_v1.faq).forEach(f => { if(f && f.answer && f.answer.id) v1ProseById[f.answer.id] = String(f.answer.prose || ''); });
+        _conclParas(_v1).forEach(p => { if(p && p.id) v1ProseById[p.id] = String(p.prose || ''); });
+        _faqIntro(_v1).forEach(p => { if(p && p.id) v1ProseById[p.id] = String(p.prose || ''); });
+        _qaPairs(_v1).forEach(qp => { if(qp && qp.answer && qp.answer.id) v1ProseById[qp.answer.id] = String(qp.answer.prose || ''); });
       }
     }
     if(!v2draft || typeof v2draft !== 'object') return { v3: v2draft, correctionCount: 0, blocksProcessed: 0, failedBlocks: 0, qcWarnings: 0, elapsed: '0.0', skipped: 'no V2 draft' };
@@ -3503,7 +3630,13 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       toArray(sec.paragraphs).forEach(p => { if(p && p.id){ idx[p.id] = p; idMeta[p.id] = { kind:'para', h2, h3:'' }; } });
       toArray(sec.h3sections).forEach(h3 => { if(h3) toArray(h3.paragraphs).forEach(p => { if(p && p.id){ idx[p.id] = p; idMeta[p.id] = { kind:'para', h2, h3:String(h3.h3 || '') }; } }); });
     });
-    toArray(v3.faq).forEach(f => { if(f && f.answer && f.answer.id){ idx[f.answer.id] = f.answer; idMeta[f.answer.id] = { kind:'ans', h3:'' }; } });
+    { const conclH2 = String(_concl(v3).h2 || 'Conclusion');
+      _conclParas(v3).forEach(p => { if(p && p.id){ idx[p.id] = p; idMeta[p.id] = { kind:'para', h2: conclH2, h3:'' }; } });
+    }
+    { const faqH2 = String(_faqSec(v3).h2 || 'Frequently Asked Questions');
+      _faqIntro(v3).forEach(p => { if(p && p.id){ idx[p.id] = p; idMeta[p.id] = { kind:'para', h2: faqH2, h3:'' }; } });
+      _qaPairs(v3).forEach(qp => { if(qp && qp.answer && qp.answer.id){ idx[qp.answer.id] = qp.answer; idMeta[qp.answer.id] = { kind:'ans', h2: faqH2, h3:'' }; } });
+    }
     const getProse = id => { const n = idx[id]; if(!n) return ''; return (idMeta[id] && idMeta[id].kind === 'cta') ? String(n.hookProse || '') : String(n.prose || ''); };
     const setProse = (id, c) => {
       const n = idx[id]; if(!n) return false;
@@ -3524,7 +3657,12 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       toArray(sec.paragraphs).forEach(p => { if(p && p.id) v2ProseById[p.id] = String(p.prose || ''); });
       toArray(sec.h3sections).forEach(h3 => { if(h3) toArray(h3.paragraphs).forEach(p => { if(p && p.id) v2ProseById[p.id] = String(p.prose || ''); }); });
     });
-    toArray(v2draft.faq).forEach(f => { if(f && f.answer && f.answer.id) v2ProseById[f.answer.id] = String(f.answer.prose || ''); });
+    _conclParas(v2draft).forEach(p => { if(p && p.id) v2ProseById[p.id] = String(p.prose || ''); });
+    _faqIntro(v2draft).forEach(p => { if(p && p.id) v2ProseById[p.id] = String(p.prose || ''); });
+    _qaPairs(v2draft).forEach(qp => { if(qp && qp.answer && qp.answer.id) v2ProseById[qp.answer.id] = String(qp.answer.prose || ''); });
+    const v2ConclIds = _conclParas(v2draft).filter(p => p && p.id).map(p => p.id);
+    const v2FaqIntroIds = _faqIntro(v2draft).filter(p => p && p.id).map(p => p.id);
+    const v2FaqAnsIds = _qaPairs(v2draft).filter(qp => qp && qp.answer && qp.answer.id).map(qp => qp.answer.id);
     const secObjs = _secs(v3).filter(s => s && typeof s === 'object');
     const secParaIds = secObjs.map(sec => { const ids = []; toArray(sec.paragraphs).forEach(p => { if(p && p.id) ids.push(p.id); }); toArray(sec.h3sections).forEach(h3 => { if(h3) toArray(h3.paragraphs).forEach(p => { if(p && p.id) ids.push(p.id); }); }); return ids; });
     const lastParaOfSec = si => { const ids = secParaIds[si] || []; for(let k = ids.length - 1; k >= 0; k--){ const tt = String(v2ProseById[ids[k]] || '').trim(); if(tt) return tt; } return ''; };
@@ -3554,18 +3692,23 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
 
       // sliding window
       let prevTail = '', nextHead = '';
-      if(job.type === 'section'){
+      const firstV2 = (ids) => { for(const id of (ids||[])){ const t = String(v2ProseById[id]||'').trim(); if(t) return t; } return ''; };
+      if(job.isConclusion){
+        // Conclusion sits AFTER the last content section, BEFORE the FAQ
+        prevTail = secObjs.length ? (lastParaOfSec(secObjs.length - 1) || `(content section "${secHeading(secObjs.length-1)}" has no prose)`) : '(the article body precedes this conclusion)';
+        nextHead = firstV2(v2FaqIntroIds) || firstV2(v2FaqAnsIds) || '(the FAQ section follows this conclusion)';
+      } else if(job.type === 'section'){
         const si = job.sectionIdx;
         prevTail = (si > 0) ? (lastParaOfSec(si - 1) || `(section "${secHeading(si-1)}" has no prose)`) : '(this is the FIRST body section — there is no preceding section)';
-        nextHead = (si < secObjs.length - 1) ? (firstParaOfSec(si + 1) || `(section "${secHeading(si+1)}" begins)`) : '(this is the LAST body section — there is no following section)';
+        nextHead = (si < secObjs.length - 1) ? (firstParaOfSec(si + 1) || `(section "${secHeading(si+1)}" begins)`) : (firstV2(v2ConclIds) || '(the conclusion section follows)');
       } else if(job.type === 'directAnswer'){
         prevTail = '(this is the article opener — there is no preceding section)';
         nextHead = secObjs.length ? (firstParaOfSec(0) || `(the article continues into section "${secHeading(0)}")`) : '(the article continues into the body)';
       } else if(job.type === 'cta_hook'){
-        prevTail = secObjs.length ? (lastParaOfSec(secObjs.length - 1) || '(the article body ends just before this)') : '(the article body ends just before this)';
+        prevTail = firstV2(v2FaqAnsIds.slice(-1)) || (secObjs.length ? (lastParaOfSec(secObjs.length - 1) || '(the article body ends just before this)') : '(the article body ends just before this)');
         nextHead = '(this is the closing CTA — nothing follows it)';
-      } else { // faq_answer batch
-        prevTail = secObjs.length ? (lastParaOfSec(secObjs.length - 1) || '(the article body precedes the FAQ)') : '(the article body precedes the FAQ)';
+      } else { // faq_section batch (intro paragraphs + every qa_pair answer)
+        prevTail = firstV2(v2ConclIds.slice(-1)) || (secObjs.length ? (lastParaOfSec(secObjs.length - 1) || '(the conclusion precedes the FAQ)') : '(the article body precedes the FAQ)');
         nextHead = (v2draft.cta && v2draft.cta.hookProse) ? String(v2draft.cta.hookProse) : '(the CTA closes the article after the FAQ)';
       }
 
@@ -3790,16 +3933,16 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
         // 'recover' fires ONLY on the first frame attempt; 'escalate' fires every attempt.
         let injectedThisAttempt = false;
         if((inject === 'escalate') || (inject === 'recover' && fa === 0)){
-          if(Array.isArray(frame.sections) && frame.sections.length > 3){
-            frame.sections = frame.sections.slice(0, 3);
+          if(Array.isArray(frame.content_sections) && frame.content_sections.length > 3){
+            frame.content_sections = frame.content_sections.slice(0, 3);
             injectedThisAttempt = true;
-            log(`🧪 TEST INJECTION (mode=${inject}, frame attempt ${fa+1}): dropped sections past index 2 — frame now has ${frame.sections.length} (below the ≥4 minimum). Frame validation should catch this${inject==='recover' ? ' — and it will NOT fire again on the next attempt' : ''}.`, 'warn');
+            log(`🧪 TEST INJECTION (mode=${inject}, frame attempt ${fa+1}): dropped content_sections past index 2 — frame now has ${frame.content_sections.length} (below the ≥4 minimum). Frame validation should catch this${inject==='recover' ? ' — and it will NOT fire again on the next attempt' : ''}.`, 'warn');
           }
         } else if(inject === 'recover' && fa > 0){
           log(`🧪 TEST INJECTION (mode=recover): no-op on frame attempt ${fa+1} — by design it only fires on attempt 1. Any frame failure now came from Claude, not the test.`, 'info');
         }
 
-        const fsum = `sections:${frame.sections?.length||0}  faq:${frame.faq?.length||0}  tables:${countTables(frame)}  links:${countLinks(frame)}  images:${countImages(frame)}`;
+        const fsum = `content_sections:${_secs(frame).length}  conclusion paras:${_conclParas(frame).length}  faq qa_pairs:${_qaPairs(frame).length} (+${_faqIntro(frame).length} intro)  tables:${countTables(frame)}  links:${countLinks(frame)}  images:${countImages(frame)}`;
         document.getElementById('v2Pre').textContent = JSON.stringify(frame, null, 2); // V2 Article tab shows the frame-in-progress
         const _mp = document.getElementById('metaPre'); if(_mp) _mp.textContent = buildMetaText(frame); // Metadata tab populates from the frame's checklist
         log(`Phase 2 frame ${fa>0?'(retry '+fa+') ':''}— in ${p2a.elapsed}s — ${fsum}`, 'ok');
@@ -3843,9 +3986,13 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       assignIds(v1);                                 // assign-if-missing — backfill any node id not already set (no-op if all are)
       S.v1 = v1;
       const _e2b = ((Date.now()-_t2b)/1000).toFixed(1);
-      const rowCount  = toArray(v1.sections).reduce((n,s)=>n+toArray(s.tables).reduce((m,t)=>m+(Array.isArray(t.rows)?t.rows.length:0),0),0);
-      const paraCount = toArray(v1.sections).reduce((n,s)=>n+(Array.isArray(s.paragraphs)?s.paragraphs.filter(p=>p&&String(p.prose||'').trim()).length:0)+toArray(s.h3sections).reduce((m,h)=>m+(Array.isArray(h.paragraphs)?h.paragraphs.filter(p=>p&&String(p.prose||'').trim()).length:0),0),0);
-      const sm = `sections:${v1.sections?.length||0}  hydrated paras:${paraCount}  faq:${v1.faq?.length||0}  table rows:${rowCount}  tables:${countTables(v1)}  images:${countImages(v1)}`;
+      const rowCount  = _secs(v1).reduce((n,s)=>n+toArray(s.tables).reduce((m,t)=>m+(Array.isArray(t.rows)?t.rows.length:0),0),0);
+      const _hydrated = p => p && String(p.prose||'').trim();
+      const paraCount = _secs(v1).reduce((n,s)=>n+toArray(s.paragraphs).filter(_hydrated).length+toArray(s.h3sections).reduce((m,h)=>m+toArray(h.paragraphs).filter(_hydrated).length,0),0)
+                      + _conclParas(v1).filter(_hydrated).length
+                      + _faqIntro(v1).filter(_hydrated).length;
+      const ansCount  = _qaPairs(v1).filter(qp => qp && qp.answer && String(qp.answer.prose||'').trim()).length;
+      const sm = `content_sections:${_secs(v1).length}  hydrated paras:${paraCount}  faq answers:${ansCount}/${_qaPairs(v1).length}  table rows:${rowCount}  tables:${countTables(v1)}  images:${countImages(v1)}`;
       pOut(2, `── V1 (frame + Phase 2 hydration relay) ──\n${sm}\nDA: ${(v1.directAnswer?.prose||'').trim().split(/\s+/).filter(Boolean).length} words.\n\n${JSON.stringify(v1, null, 2).slice(0, 8000)}${JSON.stringify(v1,null,2).length>8000?'\n…(truncated — full V1 is in the V2 Article tab)…':''}`, { append: true, heading: 'Hydration relay — merged V1' });
       document.getElementById('v2Pre').textContent = JSON.stringify(v1, null, 2);
       document.getElementById('m2').textContent = `V1 hydrated in ${_e2b}s via the relay race — ${sm}. DA: ${(v1.directAnswer?.prose||'').trim().split(/\s+/).filter(Boolean).length} words.`;
@@ -3946,11 +4093,11 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       deepFreeze(v1);
       S.v1Frozen = true;
       const artifactKey = saveV1Artifact(S.client.name, v1);
-      const _rowCount = (v1.sections||[]).reduce((n,s)=>n+(toArray(s.tables).reduce((m,t)=>m+(Array.isArray(t.rows)?t.rows.length:0),0)),0);
+      const _rowCount = _secs(v1).reduce((n,s)=>n+(toArray(s.tables).reduce((m,t)=>m+(Array.isArray(t.rows)?t.rows.length:0),0)),0);
       const _daWords = (v1.directAnswer?.prose||'').trim().split(/\s+/).filter(Boolean).length;
       document.getElementById('o4').textContent =
         `V1 frozen — Object.frozen=${Object.isFrozen(v1)} (recursive). Built: 2A frame + narrative spine → 2B sequential hydration (the "relay race", section-level) → JS stitch.\n` +
-        `Structural minimums met: sections=${v1.sections.length}, faq=${v1.faq.length}, tables=${countTables(v1)} (rows=${_rowCount}, each row citing a Phase 1 factClaim), images=${countImages(v1)}, DA=${_daWords} words.\n` +
+        `Structural minimums met: content_sections=${_secs(v1).length}, conclusion paras=${_conclParas(v1).length}, faq qa_pairs=${_qaPairs(v1).length} (+${_faqIntro(v1).length} intro), tables=${countTables(v1)} (rows=${_rowCount}, each row citing a Phase 1 factClaim), images=${countImages(v1)}, DA=${_daWords} words.\n` +
         `Thesis: "${v1.thesis?.statement || '(none)'}"\n` +
         (artifactKey ? `Snapshot saved to localStorage key: ${artifactKey}` : 'Snapshot save failed (see YELLOW F16).') +
         `\nBones are immutable from here. Phases 5 (voice draft) and 6 (forensic critique) may only rewrite prose against assigned IDs — they physically cannot move the structure.`;
@@ -3990,9 +4137,13 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       const va = p5res.voiceArchitecture || {};
       const _wc = txt => String(txt||'').trim().split(/\s+/).filter(Boolean).length;
       const _bodyWords = _wc(v2.directAnswer?.prose)
-        + toArray(v2.sections).reduce((n,s) => n + toArray(s.paragraphs).reduce((m,p)=>m+_wc(p.prose),0) + toArray(s.h3sections).reduce((m,h)=>m+toArray(h.paragraphs).reduce((k,p)=>k+_wc(p.prose),0),0), 0)
-        + toArray(v2.faq).reduce((n,f)=>n+_wc(f.answer?.prose),0);
-      const _lists = toArray(v2.sections).reduce((n,s) => n + toArray(s.paragraphs).filter(p=>p.pacingDirective==='list extraction').length + toArray(s.h3sections).reduce((m,h)=>m+toArray(h.paragraphs).filter(p=>p.pacingDirective==='list extraction').length,0), 0);
+        + _secs(v2).reduce((n,s) => n + toArray(s.paragraphs).reduce((m,p)=>m+_wc(p.prose),0) + toArray(s.h3sections).reduce((m,h)=>m+toArray(h.paragraphs).reduce((k,p)=>k+_wc(p.prose),0),0), 0)
+        + _conclParas(v2).reduce((n,p)=>n+_wc(p.prose),0)
+        + _faqIntro(v2).reduce((n,p)=>n+_wc(p.prose),0)
+        + _qaPairs(v2).reduce((n,qp)=>n+_wc(qp.answer && qp.answer.prose),0);
+      const _lists = _secs(v2).reduce((n,s) => n + toArray(s.paragraphs).filter(p=>p.pacingDirective==='list extraction').length + toArray(s.h3sections).reduce((m,h)=>m+toArray(h.paragraphs).filter(p=>p.pacingDirective==='list extraction').length,0), 0)
+        + _conclParas(v2).filter(p=>p.pacingDirective==='list extraction').length
+        + _faqIntro(v2).filter(p=>p.pacingDirective==='list extraction').length;
       document.getElementById('o5').textContent =
         `VOICE DRAFT (Phase 5 — Option E, section-level relay${p5res.failedBlocks?` · ${p5res.failedBlocks} block(s) failed → those nodes keep V1 prose`:''}). Intent layer: ${S.intentLayer}. Exemplars: ${exemplarText.trim() ? 'loaded' : 'none (voice rules only)'}.\n\n` +
         `voice_architecture:\n` +
@@ -4086,7 +4237,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       { const b = document.getElementById('btnDlFinal'); if(b) b.disabled = true; }
       if(typeof p7RefreshSidebar === 'function') p7RefreshSidebar();
       document.getElementById('o7').textContent = `7A — assembled (${_built7.finalTxt.length.toLocaleString()} chars). Live preview is in the Final HTML tab. Now do 7B: review it; fix any formatting with the sidebar (Global Link Manager / Metadata / Re-Sync ToC) or by clicking a block in the preview; then "Finalize Article" (7C) to unlock the downloads.`;
-      document.getElementById('m7').textContent = `Assembled — ${_secs(_article7).length} H2 section(s), ${(Array.isArray(_article7.faq)?_article7.faq.length:0)} FAQ, ${S.expectedImageCount?`${Object.keys(S.imageUrls).length}/${S.expectedImageCount} image(s)`:'no images'}. Awaiting 7B QC + Finalize.`;
+      document.getElementById('m7').textContent = `Assembled — ${_secs(_article7).length} content section(s) + conclusion + FAQ (${_qaPairs(_article7).length} Q&A), ${S.expectedImageCount?`${Object.keys(S.imageUrls).length}/${S.expectedImageCount} image(s)`:'no images'}. Awaiting 7B QC + Finalize.`;
       updateArtifactImageUrls();
       switchTab('html');
       log(`Phase 7A complete — final HTML assembled (${_built7.finalTxt.length} chars; schema: BlogPosting + FAQPage + BreadcrumbList). Awaiting operator 7B formatting QC + 7C finalize.`, 'ok');
@@ -4105,7 +4256,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       if(mode === 'calibration'){ incrementCalibratedCount(S.client.name); renderModeUI(); }
 
       const cacheVerdict = S.cacheLog[0]?.verdict || '—';
-      const _p5applied = toArray(S.v2 && S.v2.sections).reduce((n,s)=>n+toArray(s.paragraphs).filter(p=>p.transitionLogic!==undefined).length+toArray(s.h3sections).reduce((m,h)=>m+toArray(h.paragraphs).filter(p=>p.transitionLogic!==undefined).length,0),0) + (S.v2&&S.v2.directAnswer&&S.v2.directAnswer.transitionLogic!==undefined?1:0) + (S.v2&&S.v2.cta&&S.v2.cta.transitionLogic!==undefined?1:0) + toArray(S.v2&&S.v2.faq).filter(f=>f.answer&&f.answer.transitionLogic!==undefined).length;
+      const _p5applied = _secs(S.v2).reduce((n,s)=>n+toArray(s.paragraphs).filter(p=>p.transitionLogic!==undefined).length+toArray(s.h3sections).reduce((m,h)=>m+toArray(h.paragraphs).filter(p=>p.transitionLogic!==undefined).length,0),0) + (S.v2&&S.v2.directAnswer&&S.v2.directAnswer.transitionLogic!==undefined?1:0) + (S.v2&&S.v2.cta&&S.v2.cta.transitionLogic!==undefined?1:0) + _conclParas(S.v2).filter(p=>p.transitionLogic!==undefined).length + _faqIntro(S.v2).filter(p=>p.transitionLogic!==undefined).length + _qaPairs(S.v2).filter(qp=>qp&&qp.answer&&qp.answer.transitionLogic!==undefined).length;
       const _p6corr = (p6res && p6res.correctionCount) || 0;
       setG(`✓ Phases 1–7 complete — article assembled & finalized. V2 voiced (${_p5applied} prose rewrite(s)), V3 forensic-critiqued (${_p6corr} paragraph correction(s)${p6res&&p6res.failedBlocks?`, ${p6res.failedBlocks} block(s) hit the QC retry cap`:''}). Intent: ${S.intentLayer||'?'}. Mode: ${mode}${mode==='calibration' ? ` (now ${getCalibratedCount(S.client.name)} calibrated)` : ''}. Cache: ${cacheVerdict}. Download the checklist .html + final .txt in the Final HTML tab.`);
       setCacheBtnsDisabled(false);
@@ -4204,15 +4355,23 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     document.getElementById('stopBtn').style.display = 'none';
   }
 
-  // ─── COUNTING HELPERS (array-safe — never assume Claude gave us real arrays) ──
-  function _secs(v1){ return Array.isArray(v1?.sections) ? v1.sections : toArray(v1?.sections); }
+  // ─── STRUCTURE ACCESSORS (array-safe — never assume Claude gave us real arrays) ──
+  // V4.0 schema: content_sections[] (standard H2 content only — these are the ONLY sections
+  // that get a ToC entry + an injected image), faq_section { id, h2, intro_paragraphs[], qa_pairs[] },
+  // conclusion_section { id, h2, paragraphs[] }. No generic `sections` array, no `faq` array.
+  function _secs(v1){ return Array.isArray(v1?.content_sections) ? v1.content_sections : toArray(v1?.content_sections); }
+  function _faqSec(v1){ return (v1 && v1.faq_section && typeof v1.faq_section === 'object') ? v1.faq_section : {}; }
+  function _qaPairs(v1){ return toArray(_faqSec(v1).qa_pairs).filter(q => q && typeof q === 'object'); }
+  function _faqIntro(v1){ return toArray(_faqSec(v1).intro_paragraphs).filter(p => p && typeof p === 'object'); }
+  function _concl(v1){ return (v1 && v1.conclusion_section && typeof v1.conclusion_section === 'object') ? v1.conclusion_section : {}; }
+  function _conclParas(v1){ return toArray(_concl(v1).paragraphs).filter(p => p && typeof p === 'object'); }
   function countTables(v1){ return _secs(v1).reduce((n,s)=>n+(Array.isArray(s?.tables)?s.tables.length:0), 0); }
   function countLinks(v1){ return _secs(v1).reduce((n,s)=>n+(Array.isArray(s?.links)?s.links.length:0), 0); }
   function countImages(v1){ return _secs(v1).reduce((n,s)=>n+(Array.isArray(s?.imagePrompts)?s.imagePrompts.length:0), 0); }
 
   // ═══════════════════════════════════════════════════════════
   // MILESTONE 3.5 — IMAGE GENERATION (ported & adapted from V3.1 aeo_article_creation.html)
-  // V4.0 differences: prompts come from the structured frame (sections[].imagePrompts — JS already
+  // V4.0 differences: prompts come from the structured frame (content_sections[].imagePrompts — JS already
   // stamped img_ ids), the queue fires the moment the Phase 2A FRAME validates (not after Phase 4)
   // and runs in the background through Phases 2B–5, and it is BOUND to the active frame attempt_id
   // (frame_v1_attempt1, ++ on retry). If that frame is invalidated, flushQueue() kills the pending
@@ -4652,8 +4811,11 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
   }
   // Slug for a heading node — prefers a stored ._slug (set by p7ReSyncToc, which de-duplicates), else slugifies the text.
   function slugOf(node, text){ return (node && typeof node === 'object' && node._slug) ? String(node._slug) : slugifyHeading(text); }
-  // The faq H2's anchor (de-duplicated by p7ReSyncToc, else just "faq").
-  function faqAnchorOf(article){ return (article && article._faqSlug) ? String(article._faqSlug) : 'faq'; }
+  // The faq H2's anchor (de-duplicated by p7ReSyncToc, else just "faq"). Reads _faqSlug from the
+  // article, or from faq_section._slug, then falls back to the literal "faq".
+  function faqAnchorOf(article){ const fs = _faqSec(article); return (article && article._faqSlug) ? String(article._faqSlug) : (fs && fs._slug ? String(fs._slug) : 'faq'); }
+  // The conclusion H2's anchor (de-duplicated by p7ReSyncToc, else slugifies the heading text).
+  function conclAnchorOf(article){ const cs = _concl(article); return (cs && cs._slug) ? String(cs._slug) : slugifyHeading(String((cs && cs.h2) || 'conclusion')); }
   function permalinkSlug(article){
     const raw = (article && article.checklist && article.checklist.permalink) || '';
     const s = String(raw).replace(/^\/+|\/+$/g,'').split('/').pop().replace(/[^a-z0-9-]+/gi,'-').replace(/-{2,}/g,'-').replace(/^-+|-+$/g,'').toLowerCase();
@@ -4810,7 +4972,10 @@ table td { background: #ffffff; }
 </style>`;
   }
 
-  // ── Collapsible ToC built from the article's headings, nesting H3s under their H2. ids prefer a stored ._slug (set by p7ReSyncToc), else slugified text. ──
+  // ── Collapsible ToC, built strictly from three sources (NO text-matching anywhere): every
+  // content_section H2 (with its h3sections under it), the conclusion_section H2 (single entry,
+  // no h3s), and the faq_section H2 (with each qa_pair question as an H3 underneath). ids prefer
+  // a stored ._slug (set by p7ReSyncToc), else slugified text. ──
   function collectArticleHeadings(article){
     const out = [];
     _secs(article).forEach((sec, si) => {
@@ -4819,10 +4984,8 @@ table td { background: #ffffff; }
       out.push({ tag:'h2', id: slugOf(sec, h2), text: h2 });
       toArray(sec.h3sections).forEach(h3 => { if(h3 && typeof h3 === 'object' && String(h3.h3||'').trim()) out.push({ tag:'h3', id: slugOf(h3, h3.h3), text: String(h3.h3) }); });
     });
-    if(Array.isArray(article.faq) && article.faq.length){
-      out.push({ tag:'h2', id: faqAnchorOf(article), text:'Frequently Asked Questions' });
-      toArray(article.faq).forEach(f => { if(f && typeof f === 'object' && String(f.question||'').trim()) out.push({ tag:'h3', id: slugOf(f, f.question), text: String(f.question) }); });
-    }
+    { const cs = _concl(article); if(_conclParas(article).length || String(cs.h2||'').trim()){ const conclH2 = String(cs.h2 || 'Conclusion'); out.push({ tag:'h2', id: conclAnchorOf(article), text: conclH2 }); } }
+    { const fs = _faqSec(article); const qps = _qaPairs(article); if(qps.length || _faqIntro(article).length || String(fs.h2||'').trim()){ const faqH2 = String(fs.h2 || 'Frequently Asked Questions'); out.push({ tag:'h2', id: faqAnchorOf(article), text: faqH2 }); qps.forEach(qp => { if(qp && typeof qp === 'object' && String(qp.question||'').trim()) out.push({ tag:'h3', id: slugOf(qp, qp.question), text: String(qp.question) }); }); } }
     return out;
   }
   function buildArticleTocHTML(headings){
@@ -4906,14 +5069,28 @@ table td { background: #ffffff; }
       });
       toArray(sec.tables).forEach(tb => { const h = renderArticleTable(tb, ea(tb && tb.id)); if(h) parts.push(ind(h, 2)); });
     });
-    if(Array.isArray(article.faq) && article.faq.length){
-      parts.push(`  <h2 id="${faqAnchorOf(article)}"${ea('__faqheading')}>Frequently Asked Questions</h2>`);
-      toArray(article.faq).forEach(f => {
-        if(!f || typeof f !== 'object') return;
-        const q = String(f.question || '');
-        parts.push(`  <h3 id="${slugOf(f, q)}"${ea(f.id || '__faqq')}>${escapeHtml(q)}</h3>`);
-        parts.push(ind(proseToParagraphs((f.answer && f.answer.prose) || '', '', ea(f.answer && f.answer.id)), 2));
-      });
+    // CONCLUSION — render strictly from conclusion_section. NO image, NO image slot. Ever.
+    { const cs = _concl(article); const cps = _conclParas(article);
+      if(cps.length || String(cs.h2||'').trim()){
+        const conclH2 = String(cs.h2 || 'Conclusion');
+        parts.push(`  <h2 id="${conclAnchorOf(article)}"${ea(cs.id || '__conclheading')}>${escapeHtml(conclH2)}</h2>`);
+        cps.forEach(p => { const h = renderProseNode(p, ea(p && p.id)); if(h) parts.push(ind(h, 2)); });
+      }
+    }
+    // FAQ — render strictly from faq_section: heading → intro_paragraphs as regular <p> → each
+    // qa_pair as H3 (question) + answer prose. NO image, NO image slot. Ever.
+    { const fs = _faqSec(article); const qps = _qaPairs(article); const fIntro = _faqIntro(article);
+      if(qps.length || fIntro.length || String(fs.h2||'').trim()){
+        const faqH2 = String(fs.h2 || 'Frequently Asked Questions');
+        parts.push(`  <h2 id="${faqAnchorOf(article)}"${ea(fs.id || '__faqheading')}>${escapeHtml(faqH2)}</h2>`);
+        fIntro.forEach(p => { const h = renderProseNode(p, ea(p && p.id)); if(h) parts.push(ind(h, 2)); });
+        qps.forEach(qp => {
+          if(!qp || typeof qp !== 'object') return;
+          const q = String(qp.question || '');
+          parts.push(`  <h3 id="${slugOf(qp, q)}"${ea(qp.id || '__faqq')}>${escapeHtml(q)}</h3>`);
+          parts.push(ind(proseToParagraphs((qp.answer && qp.answer.prose) || '', '', ea(qp.answer && qp.answer.id)), 2));
+        });
+      }
     }
     if(article.cta && typeof article.cta === 'object'){
       const hook = String(article.cta.hookProse || ''), anchor = String(article.cta.anchorText || ''), url = String(article.cta.url || '');
@@ -4958,9 +5135,9 @@ table td { background: #ffffff; }
     if(featuredUrl) blogPosting.image = featuredUrl;
     if(pd){ blogPosting.datePublished = pd; blogPosting.dateModified = pd; }
     blogPosting.author = author; blogPosting.publisher = publisher;
-    const faqPage = (Array.isArray(article.faq) && article.faq.length) ? {
+    const faqPage = (_qaPairs(article).length) ? {
       '@context':'https://schema.org', '@type':'FAQPage',
-      mainEntity: toArray(article.faq).filter(f=>f && f.question).map(f => ({ '@type':'Question', name: String(f.question), acceptedAnswer: { '@type':'Answer', text: stripMdToText(String((f.answer && f.answer.prose) || '')) } }))
+      mainEntity: _qaPairs(article).filter(qp => qp && qp.question).map(qp => ({ '@type':'Question', name: String(qp.question), acceptedAnswer: { '@type':'Answer', text: stripMdToText(String((qp.answer && qp.answer.prose) || '')) } }))
     } : null;
     const home = (b.orgUrl || 'https://itechvalet.com').replace(/\/+$/,'') + '/';
     const crumbs = [{ '@type':'ListItem', position: 1, name: 'Home', item: home }];
@@ -5061,7 +5238,12 @@ ${schemaRow}
       toArray(sec.h3sections).forEach(h3 => { if(r||!h3||typeof h3!=='object') return; toArray(h3.paragraphs).forEach(p => { if(!r && p && p.id === id) r = { node:p, kind:'para', label:`paragraph in "${h3.h3||''}"` }; }); });
     });
     if(r) return r;
-    toArray(a.faq).forEach(f => { if(!r && f && f.answer && f.answer.id === id) r = { node:f.answer, kind:'ans', label:`FAQ answer ("${String(f.question||'').slice(0,40)}")` }; });
+    { const cH2 = String(_concl(a).h2 || 'Conclusion'); _conclParas(a).forEach(p => { if(!r && p && p.id === id) r = { node:p, kind:'para', label:`conclusion paragraph in "${cH2}"` }; }); }
+    if(r) return r;
+    { const fH2 = String(_faqSec(a).h2 || 'Frequently Asked Questions');
+      _faqIntro(a).forEach(p => { if(!r && p && p.id === id) r = { node:p, kind:'para', label:`FAQ intro paragraph in "${fH2}"` }; });
+      _qaPairs(a).forEach(qp => { if(!r && qp && qp.answer && qp.answer.id === id) r = { node:qp.answer, kind:'ans', label:`FAQ answer ("${String(qp.question||'').slice(0,40)}")` }; });
+    }
     return r;
   }
   function p7NodeCurrentText(rec){
@@ -5149,7 +5331,9 @@ ${schemaRow}
       toArray(sec.tables).forEach(tb => { if(tb && typeof tb === 'object'){ if(Array.isArray(tb.headers)) tb.headers = tb.headers.map(x => sub(x)); toArray(tb.rows).forEach(r => { const cells = Array.isArray(r && r.cells) ? r.cells : (Array.isArray(r) ? r : null); if(cells) for(let i=0;i<cells.length;i++) cells[i] = sub(cells[i]); }); } });
       toArray(sec.links).forEach(lk => { if(lk && typeof lk === 'object' && typeof lk.url === 'string') lk.url = sub(lk.url); });
     });
-    toArray(a.faq).forEach(f => { if(f && f.answer && typeof f.answer === 'object' && typeof f.answer.prose === 'string') f.answer.prose = sub(f.answer.prose); });
+    _conclParas(a).forEach(p => { if(p && typeof p === 'object'){ if(typeof p.prose === 'string') p.prose = sub(p.prose); if(Array.isArray(p.listItems)) p.listItems = p.listItems.map(x => sub(x)); } });
+    _faqIntro(a).forEach(p => { if(p && typeof p === 'object'){ if(typeof p.prose === 'string') p.prose = sub(p.prose); if(Array.isArray(p.listItems)) p.listItems = p.listItems.map(x => sub(x)); } });
+    _qaPairs(a).forEach(qp => { if(qp && qp.answer && typeof qp.answer === 'object' && typeof qp.answer.prose === 'string') qp.answer.prose = sub(qp.answer.prose); });
     Object.keys(S.imageUrls || {}).forEach(k => { const nv = sub(S.imageUrls[k]); if(nv !== S.imageUrls[k]){ S.imageUrls[k] = nv; const inp = document.getElementById('iurl'+k); if(inp) inp.value = nv; } });
     if(typeof updateArtifactImageUrls === 'function') updateArtifactImageUrls();
     renderPhase7Preview();
@@ -5177,10 +5361,12 @@ ${schemaRow}
         toArray(sec.h3sections).forEach(h3 => { if(h3 && typeof h3 === 'object' && String(h3.h3||'').trim()) h3._slug = uniq(slugifyHeading(String(h3.h3))); });
       }
     });
-    if(Array.isArray(a.faq) && a.faq.length){
-      a._faqSlug = uniq('faq');
-      toArray(a.faq).forEach(f => { if(f && typeof f === 'object' && String(f.question||'').trim()) f._slug = uniq(slugifyHeading(String(f.question))); });
-    }
+    { const cs = _concl(a); if(_conclParas(a).length || String(cs.h2||'').trim()){ cs._slug = uniq(slugifyHeading(String(cs.h2 || 'conclusion'))); } }
+    { const fs = _faqSec(a); const qps = _qaPairs(a); if(qps.length || _faqIntro(a).length || String(fs.h2||'').trim()){
+        fs._slug = uniq(slugifyHeading(String(fs.h2 || 'faq')));
+        a._faqSlug = fs._slug;
+        qps.forEach(qp => { if(qp && typeof qp === 'object' && String(qp.question||'').trim()) qp._slug = uniq(slugifyHeading(String(qp.question))); });
+    } }
     renderPhase7Preview();
     log('Phase 7 — ToC anchors re-synced (every H2/H3 got a slugified, de-duplicated id; ToC links rebuilt).', 'ok');
     p7MarkStaleIfFinalized();
@@ -5218,7 +5404,7 @@ ${schemaRow}
         <button class="btn-p7" style="width:100%;" onclick="p7ReparseTable()">Re-parse Table & re-render →</button>
         <div class="pcx-note">JS re-evaluates the rows array: splits any cell that still contains a "|" into separate cells, drops markdown separator rows (e.g. <code>--- | ---</code>), trims whitespace — then re-renders the table.</div>`;
       }
-    } else if(/^(__|section_|h3_|faq_)/.test(nodeId)){
+    } else if(/^(__|section_|h3_|faq_|faqsec_|qa_|concl_|conclsec_)/.test(nodeId)){
       title = 'Heading / metadata';
       html = `<div class="pcx-raw">${escapeHtml(domText || '(no text)')}</div>
         <div class="pcx-note">No JS formatting options for this element. Headings auto-slugify — use <strong>Re-Sync ToC Anchors</strong> in the sidebar to force unique anchor ids and rebuild the ToC links. The byline and the publish date are in the sidebar's <strong>Metadata</strong> panel.</div>`;
