@@ -1623,6 +1623,7 @@ Produce:
      ► table_type: "conceptual" — rows organize narrative comparisons, frameworks, or structural information that DOES NOT depend on specific statistics (no factClaim binding required).
    • imagePrompts: at least 1 per H2 content section. prompt + alt text only (this is placement). The conclusion and the FAQ never get images.
    • links: prefer the research brief's anchorTextTargets — copy those anchorText + url pairs exactly. NEVER invent an internal link (a page on the client's own domain that isn't in the brief). A small number of additional reputable EXTERNAL citations is OK if genuinely needed. placementHint = which paragraph (by description) the link belongs to.
+   • UNIQUE LINK MANDATE (NON-NEGOTIABLE): Internal URLs from the anchorTextTargets array are single-use tokens. Once you assign an internal URL to any section, that URL is EXHAUSTED and cannot be used again anywhere else in content_sections, conclusion_section, or faq_section. Every internal link in the article body must point to a unique destination. Treat the anchorTextTargets list as an inventory — each item can be consumed exactly once. If you run out of unused internal URLs, omit the link rather than repeating one. (The CTA url is separate from this inventory and is allowed to repeat one of the body anchors if the 4.3B Primary CTA happens to match.)
    • assigned_facts: REQUIRED. An array of 1-4 factClaim IDs from the Phase 1 research brief (e.g. ["factClaim_02","factClaim_05"]) that are most relevant to this section's topic. Phase 2B will see ONLY these factClaims when hydrating this section. A factClaim MAY be assigned to multiple sections. Every content_section MUST have at least 1.
    • FINAL CONTENT SECTION CONSTRAINT (NON-NEGOTIABLE): The content_sections array must end ABRUPTLY on a specific, granular sub-topic — for example: a specific implementation step, a technical component, a named process, a pricing detail, or a tactical how-to. You are strictly forbidden from writing a "narrative climax," "cost of inaction," "widening gap," "stakes summary," or ANY synthesizing/urgency section as the final content_section entry. All stakes, urgency, synthesis, and narrative payoff belong EXCLUSIVELY in conclusion_section. The final content_section must contain H3 sub-sections OR a table (or both) — if it cannot support that granular depth, replace it with a section that can.
 - conclusion_section: REQUIRED. { h2: the conclusion heading text (e.g. "The Bottom Line", "Where This Leaves You" — your call, in voice), paragraphs:[{},{},…], assigned_facts:["factClaim_NN",…] } — one {} per closing paragraph (2-4 typical). NO image, NO table, NO links here. JS assigns ids; Phase 2B writes the prose. assigned_facts: OPTIONAL — 0-4 factClaim IDs. If the conclusion synthesizes existing arguments with no new data, pass an empty array []. If it will repeat any specific figure already cited earlier in the article, list the supporting factClaim ids here so Phase 2B can re-emit the [factClaim_NN] tokens.
@@ -2971,6 +2972,46 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
     if(extraExternal.length && !S._extraLinksWarned){
       S._extraLinksWarned = true;
       warnYellow('P3A', `V1 has ${extraExternal.length} external link(s) not in the research brief's anchorTextTargets (allowed — extra citations, not blocking): ${extraExternal.slice(0,8).join('; ')}${extraExternal.length>8?' …':''}`);
+    }
+
+    // DUPLICATE INTERNAL URL CHECK
+    // Enforces the Unique Link Mandate: every internal URL from anchorTextTargets is a single-use
+    // token. Same URL in two body sections = hard fail (the operator either ships duplicate links
+    // or one of them is silently removed by the WordPress editor — both are bad). The CTA is
+    // EXCLUSIVELY EXCLUDED — the 4.3B Primary CTA is a separate destination by design and may
+    // happen to repeat one of the body anchors.
+    // Normalize each URL to its path only (strip protocol + domain + www., normalize trailing
+    // slash to always-present) so absolute and relative variants of the same destination collapse.
+    {
+      const normLinkUrl = u => {
+        if(!u) return '';
+        let s = String(u).trim().toLowerCase();
+        s = s.replace(/^https?:\/\/(www\.)?[^/]+/, '');     // strip protocol + (www.)? + domain
+        if(s && !s.startsWith('/')) s = '/' + s;             // ensure leading slash
+        if(s && !s.endsWith('/')) s = s + '/';               // ensure trailing slash (normalize variants)
+        return s;
+      };
+      const allBodyLinks = [];
+      sections.forEach(sec => secLinks(sec).forEach(l => { if(l && l.url) allBodyLinks.push({ url:l.url, id:l.id, section:String(sec.h2||'') }); }));
+      // conclusion_section + faq_section don't carry links per the V4.0 schema, but if a future
+      // shape ever does, secLinks() safely returns [] for any missing property — defensive only.
+      secLinks(_concl(v1)).forEach(l => { if(l && l.url) allBodyLinks.push({ url:l.url, id:l.id, section:'conclusion' }); });
+      secLinks(_faqSec(v1)).forEach(l => { if(l && l.url) allBodyLinks.push({ url:l.url, id:l.id, section:'faq' }); });
+      // CTA url is INTENTIONALLY not added here.
+      const internalBodyLinks = allBodyLinks.filter(l => isInternalUrl(l.url, clientDomain));
+      const seenPaths = new Map(); // normalized path → first section that used it
+      internalBodyLinks.forEach(l => {
+        const path = normLinkUrl(l.url);
+        if(!path) return;
+        if(seenPaths.has(path)){
+          F('duplicate_internal_url',
+            'each internal URL may appear at most once in the article body — replace duplicates with unused anchorTextTargets URLs or omit',
+            `"${l.url}" already used in section "${seenPaths.get(path)}" — duplicated in "${l.section}"`,
+            l.id);
+        } else {
+          seenPaths.set(path, l.section);
+        }
+      });
     }
 
     // CTA url matches the 4.3B Primary CTA destination (if extractable). The tool adapts to
