@@ -1,5 +1,5 @@
 AEO ARTICLE CREATION PIPELINE — MASTER REFERENCE DOC  (WORKING COPY — sessions of May 11–13, 2026)
-Last Updated: May 13, 2026 (Claude Code build session — V4.0 schema refactor + hallucination-sweep recalibration + assembly-time delivery polish + multiple live end-to-end runs against real iTV topics — bugs surfaced + patched in-session + a SECOND WAVE of M5.5 polish at the end of the day: conclusion regex expansion, Phase 3B link/entity recalibration, structural threshold loosening, Phase 6 QC1/QC3 demotion to informational, Phase 2A final-section constraint + Phase 3A granularity trap, Phase 7A render order swapped to FAQ-before-conclusion per 4.3A) | V3.1 (production) | V4.0 (LIVE-TESTED — ALL 7 PHASES BUILT [M1–M5] + post-M5 schema upgrade [content_sections / conclusion_section / faq_section / sectional fact allocation / framework_labels / table_type / Save State per-section rollback / inline citation tokens / Phase 3B is now hallucination-sweep-only with FLAG/IGNORE recalibration + link_/entity carveouts]; multiple end-to-end runs completed against real iTV topics this session; live-run bug catches patched same-day [byline title duplication, consecutive duplicate paragraphs, conclusion content landing in content_sections, narrative-climax sections like "The Widening Gap" / "The Verdict" getting an image + ToC entry instead of going to conclusion_section, FAQ rendering after conclusion]; M6 side-by-side V3.1↔V4.0 + M7 ship still pending)
+Last Updated: May 13, 2026 (Claude Code build session — V4.0 schema refactor + hallucination-sweep recalibration + assembly-time delivery polish + multiple live end-to-end runs against real iTV topics — bugs surfaced + patched in-session + a SECOND WAVE of M5.5 polish at the end of the day: conclusion regex expansion, Phase 3B link/entity recalibration, structural threshold loosening, Phase 6 QC1/QC3 demotion to informational, Phase 2A final-section constraint + Phase 3A granularity trap, Phase 7A render order swapped to FAQ-before-conclusion per 4.3A, Phase 2A Unique Link Mandate + Phase 3A duplicate_internal_url trap) | V3.1 (production) | V4.0 (LIVE-TESTED — ALL 7 PHASES BUILT [M1–M5] + post-M5 schema upgrade [content_sections / conclusion_section / faq_section / sectional fact allocation / framework_labels / table_type / Save State per-section rollback / inline citation tokens / Phase 3B is now hallucination-sweep-only with FLAG/IGNORE recalibration + link_/entity carveouts]; multiple end-to-end runs completed against real iTV topics this session; live-run bug catches patched same-day [byline title duplication, consecutive duplicate paragraphs, conclusion content landing in content_sections, narrative-climax sections like "The Widening Gap" / "The Verdict" getting an image + ToC entry instead of going to conclusion_section, FAQ rendering after conclusion]; M6 side-by-side V3.1↔V4.0 + M7 ship still pending)
 ================================================
 
 ⚠️ V4.0 ARCHITECTURAL REBUILD — LIVE-TESTING IN PROGRESS (Claude Code)
@@ -1113,15 +1113,61 @@ aeo_v4.html. The 7-phase pipeline shape is unchanged; the schema, the Phase
         after the conclusion in the relay — write-order is
         independent of render-order.
 
-  STATUS after the second wave: all 5 commits live on main, all
+  • PHASE 2A UNIQUE LINK MANDATE + PHASE 3A duplicate_internal_url
+    TRAP (commit 70dd293, May 13). Closes the duplicate-internal-link
+    failure class observed in live runs (Claude reusing the same
+    /services/ URL in two body sections; the operator either ships
+    duplicate links or WordPress silently strips one — both bad).
+    Same defense-in-depth pattern as the granularity trap: prompt
+    addition tells Claude where the line is at frame time, JS
+    enforces it in Phase 3A regardless of what Claude does. The
+    prompt addition reframes the constraint as positive structural
+    reinforcement — anchorTextTargets is an INVENTORY of single-use
+    tokens that get EXHAUSTED on use, not a list with a prohibition
+    layered on top.
+      — Phase 2A prompt addition (NON-NEGOTIABLE): "Internal URLs
+        from the anchorTextTargets array are single-use tokens. Once
+        you assign an internal URL to any section, that URL is
+        EXHAUSTED and cannot be used again anywhere else in
+        content_sections, conclusion_section, or faq_section. Every
+        internal link in the article body must point to a unique
+        destination. Treat the anchorTextTargets list as an
+        inventory — each item can be consumed exactly once. If you
+        run out of unused internal URLs, omit the link rather than
+        repeating one." Added as the closing sub-bullet on the
+        content_sections.links instruction.
+      — Phase 3A enforcement: new duplicate_internal_url structural
+        fail in validateV1Structure, added immediately after the
+        existing link-discipline block (internal_link_not_in_research
+        / internal_link_domain). Self-contained scope block.
+        Collects every link.url from content_sections + (defensively)
+        _concl(v1) + _faqSec(v1). CTA is EXCLUSIVELY EXCLUDED from
+        the inventory (explicit comment in the code). Filters to
+        internal links via the existing isInternalUrl helper.
+        Normalizes each URL via a new normLinkUrl helper that strips
+        protocol + (www.)? + domain, ensures leading slash, ensures
+        trailing slash — so https://itechvalet.com/services/ and
+        /services/ collapse to /services/. Walks the list with
+        Map(path → first section); duplicate path emits a fail with
+        a message naming the URL, the first section that used it,
+        and the section that repeated it. Drives the surgical-fix
+        loop (cap 2 rounds), then CHK1 RED if Phase 2A can't repair.
+      — INTENTIONALLY NOT EXTENDED: external links are not deduped
+        — multiple sections citing the same authoritative source
+        URL is legitimate, and operator calibration already
+        downgraded extra external links to YELLOW (not a hard
+        fail). Only internal URLs (anchorTextTargets type:"internal"
+        plus anything on the client domain) are inventoried.
+
+  STATUS after the second wave: all 6 commits live on main, all
   syntax-clean, none yet live-tested as a batch. Cumulative
-  M5.5 commit count: 11 aeo_v4.html commits across May 12–13
+  M5.5 commit count: 12 aeo_v4.html commits across May 12–13
   (282b03c, 832dde1, 9dcfad8, 04e8c55, 09250e1, 45f1d0c, bfecf3d,
-  234775d, e0efe2a, 21ae084, 5c20630, 6e2bc33, 631e1f5, 613be17 —
-  that's 14 including the two from before M5.5 was formalized).
-  Combined effect: every architectural failure mode surfaced in
-  live testing has either a fix shipped or a kill-only RED with a
-  bounded-cost retry path.
+  234775d, e0efe2a, 21ae084, 5c20630, 6e2bc33, 631e1f5, 613be17,
+  70dd293 — 15 total including the two from before M5.5 was
+  formalized). Combined effect: every architectural failure mode
+  surfaced in live testing has either a fix shipped or a kill-only
+  RED with a bounded-cost retry path.
 
 ────────────────────────────────────────────────────────────
 PHASE RENUMBERING (May 12, 2026)
@@ -2109,6 +2155,31 @@ next clean end-to-end run before being closed.
     write-order also needs to swap (e.g. conclusion gets
     awkward because Claude has already written the FAQ when
     composing it), that's a separate change.
+
+11. DUPLICATE INTERNAL URLS IN ARTICLE BODY — FIX PUSHED (commit
+    70dd293, May 13). Live runs showed Claude reusing the same
+    /services/ URL across two body sections; the operator either
+    ships duplicate links or WordPress silently strips one — both
+    are bad outcomes. Defense-in-depth: Phase 2A prompt's UNIQUE
+    LINK MANDATE reframes anchorTextTargets as an inventory of
+    single-use tokens (positive structural reinforcement, not a
+    prohibition). Phase 3A's new duplicate_internal_url
+    structural fail in validateV1Structure normalizes every
+    internal URL in the article body to its path
+    (https://itechvalet.com/services/ and /services/ both
+    collapse to /services/) and hard-fails on the first
+    repetition. CTA is intentionally excluded from the inventory
+    (it's a separate destination by design, may legitimately
+    match one of the body anchors). WATCH: confirm on the next
+    live run that internal links across body sections are all
+    unique. If the 3A check fires and the surgical fix can't
+    replace the duplicate with an unused anchorTextTargets
+    entry, it's a CHK1 RED — that's the right behavior (the
+    operator can see exactly which two sections collided and
+    decide whether to expand anchorTextTargets in 4.2 / 4.3).
+    External links are NOT deduped — multiple sections citing
+    the same authoritative source URL is legitimate sourcing
+    (kept as YELLOW per existing operator calibration).
 
 
 NEXT SESSION PRIORITIES
@@ -3267,6 +3338,33 @@ the initial wave; five aeo_v4.html commits + this Master Doc commit):
             NOT CHANGED: Phase 2B/5/6 relay queue WRITE orders kept
             conclusion-before-FAQ — write order independent of render
             order. All 4 automated verification checks PASS.]
+  70dd293  fix: Phase 2A unique link mandate + Phase 3A duplicate internal
+           URL trap
+           [Closes the duplicate-internal-link failure class. Same
+            defense-in-depth as the granularity trap — prompt addition
+            tells Claude where the line is at frame time, JS enforces it
+            in Phase 3A regardless. (1) Phase 2A prompt UNIQUE LINK
+            MANDATE added as the closing sub-bullet of the content_
+            sections.links instruction — reframes anchorTextTargets as
+            an INVENTORY of single-use tokens that get EXHAUSTED on use
+            (positive structural reinforcement, not a prohibition). CTA
+            explicitly carved out. (2) Phase 3A new
+            duplicate_internal_url structural fail: collects every link
+            url from content_sections + (defensively) conclusion +
+            faq_section, filters to internal via existing isInternalUrl
+            helper, normalizes via new normLinkUrl (strip protocol +
+            (www.)? + domain, ensure leading slash, ensure trailing
+            slash — so https://itechvalet.com/services/ and /services/
+            collapse to /services/), walks with Map(path → first
+            section), emits a fail on the first repetition naming both
+            sections. CTA INTENTIONALLY excluded from the inventory.
+            External links NOT deduped (legitimate sourcing). Drives
+            the surgical-fix loop then CHK1 RED. Verified end-to-end:
+            parse clean, Mandate at offset 115282 inside buildPhase2A
+            System (110695-121090), normLinkUrl smoke-tested on 9
+            inputs all PASS including both spec-required forms
+            collapsing to /services/, no v1.cta / article.cta
+            reference in the new block. 41 insertions, 0 deletions.]
 
 ═══════════════════════════════════════════════════════════════
 END OF MASTER DOC
