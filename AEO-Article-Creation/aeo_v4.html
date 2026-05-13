@@ -2168,6 +2168,31 @@ PHASE 2B — SEQUENTIAL HYDRATION (the "Relay Race", section-level). You will be
     }
     if(failedIds) warnYellow('F2', `Phase 2 hydration relay: ${failedIds} of ${totalReqIds} node(s) left un-hydrated after Save State retries — Phase 3A will flag them and the surgical fix will patch them (or CHK1 if it can't). Code: F2.`);
     if(guillotinedRows) log(`Phase 2 — JS guillotine deleted ${guillotinedRows} unsupported quantitative-table row(s) (DELETE_ROW_UNSUPPORTED sentinel).`, 'warn');
+    // ── CONCLUSION-SECTION INTEGRITY CHECK ──
+    // After hydration, verify conclusion_section is a top-level key with ≥1 paragraph carrying
+    // non-empty prose. If it's missing/empty but a content_section's H2 looks like a conclusion
+    // (heuristic match against common closing-section labels) AND that section has hydrated prose,
+    // log a YELLOW pointing at the misplaced node ids. DO NOT auto-move — this is diagnostic only,
+    // so we can tell whether the Phase 2A frame is putting conclusion content in the wrong slot.
+    {
+      const hasTopLevel = !!(hydratedFrame.conclusion_section && typeof hydratedFrame.conclusion_section === 'object');
+      const conclProseCount = _conclParas(hydratedFrame).filter(p => p && String(p.prose||'').trim()).length;
+      if(!hasTopLevel || conclProseCount === 0){
+        const conclusionH2Re = /\b(conclusion|conclud|bottom\s+line|wrap(?:ping)?\s+up|final\s+(?:thought|word|takeaway)s?|in\s+closing|to\s+sum\s+up|takeaway|summary|the\s+last\s+word|where\s+this\s+leaves\s+you)\b/i;
+        const misplaced = [];
+        _secs(hydratedFrame).forEach((sec, si) => {
+          if(!sec || typeof sec !== 'object') return;
+          const h2 = String(sec.h2 || '');
+          if(!conclusionH2Re.test(h2)) return;
+          const hydratedIds = toArray(sec.paragraphs).filter(p => p && p.id && String(p.prose||'').trim()).map(p => p.id);
+          if(hydratedIds.length) misplaced.push(`content_sections[${si}] h2 "${h2}" — ${hydratedIds.length} hydrated paragraph(s): ${hydratedIds.join(', ')}`);
+        });
+        if(misplaced.length){
+          const state = !hasTopLevel ? 'is MISSING' : 'is PRESENT but EMPTY (no paragraph prose)';
+          warnYellow('F14', `Phase 2B hydration: conclusion_section ${state}, but ${misplaced.length} content_section(s) look like misplaced conclusion content. JS did NOT auto-move them — flag for diagnosis: ${misplaced.join(' | ')}. Phase 3A's conclusion_paragraphs_empty check will fail next.`);
+        }
+      }
+    }
     return hydratedFrame;
   }
 
@@ -5382,9 +5407,26 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
   // ── BRANDING from 4.3B (freeform text — best-effort regex with fallbacks) ──
   function extractBrandingFrom43B(doc43B){
     const s = String(doc43B || '');
-    const get = (re, fb='') => { const m = s.match(re); return m ? String(m[1]).trim().replace(/\*\*$/,'').trim() : fb; };
-    const authorName  = get(/Author(?:\s*Name)?\s*:\s*([^\r\n|]+?)\s*(?:\(|\||[\r\n]|$)/i) || get(/(?:Byline|Written by)\s*:\s*([^\r\n|]+)/i);
-    const authorTitle = get(/Author\s*Title\s*:\s*([^\r\n|]+?)\s*(?:\(|\||[\r\n]|$)/i) || get(/Author[^\r\n]*?,\s*([A-Z][^\r\n|]+?)\s*(?:\(|\||[\r\n]|$)/i);
+    // get(re, fb) — capture group 1, trim, strip surrounding markdown bold (** on either side).
+    const get = (re, fb='') => {
+      const m = s.match(re); if(!m) return fb;
+      let v = String(m[1] || '').trim();
+      v = v.replace(/^\*+\s*/, '').replace(/\s*\*+$/, '').trim();
+      return v;
+    };
+    // authorName — stops at COMMA, the literal "Author Title:" on the same line, pipe, newline,
+    // or end. Comma-stop prevents "Author: Gerek Allen, Founder" from sweeping the title into the
+    // name. The lookahead-style "Author Title:" stop prevents a malformed single-line
+    // "Author: Gerek Allen Author Title: Founder" from doing the same. The Byline/Written-by
+    // fallback intentionally has no comma stop (it's a verbatim override).
+    let authorName  = get(/Author(?:\s*Name)?\s*\**\s*:\s*\**\s*([^\r\n,|]+?)\s*\**\s*(?:\bAuthor\s*Title\s*\**\s*:|,|\(|\||[\r\n]|$)/i)
+                   || get(/(?:Byline|Written by)\s*\**\s*:\s*\**\s*([^\r\n|]+)/i);
+    // authorTitle — primary regex anchors on the literal "Author Title:" label. The capture group
+    // excludes asterisks so markdown bold around the value (e.g. **Founder**) doesn't leak in.
+    let authorTitle = get(/Author\s*Title\s*\**\s*:\s*\**\s*([^\r\n|*]+?)\s*\**\s*(?:\(|\||[\r\n]|$)/i)
+                   || get(/Author[^\r\n]*?,\s*([A-Z][^\r\n,|]+?)\s*(?:\(|\||[\r\n]|$)/i);
+    // Belt-and-suspenders: scrub any leaked "Author Title:" / "Title:" prefix from the captured title.
+    if(authorTitle) authorTitle = authorTitle.replace(/^Author\s*Title\s*:\s*/i, '').replace(/^Title\s*:\s*/i, '').replace(/^\*+\s*/, '').replace(/\s*\*+$/, '').trim();
     const authorUrl   = get(/Author[^\r\n]*?(https?:\/\/(?:www\.)?linkedin\.com\/[^\s)\]"',]+)/i) || get(/(https?:\/\/(?:www\.)?linkedin\.com\/in\/[^\s)\]"',]+)/i);
     const orgName     = get(/(?:Organization|Company|Business|Publisher|Brand)\s*Name\s*:\s*([^\r\n|]+?)\s*(?:\(|\||[\r\n]|$)/i) || (S.client && S.client.name) || 'iTech Valet';
     let orgUrl        = get(/(?:Organization|Company|Business|Publisher|Website|Homepage|Site)\s*(?:URL|Website|Site|Address)?\s*:\s*(https?:\/\/[^\s)\]"',]+)/i);
@@ -5557,31 +5599,71 @@ table td { background: #ffffff; }
       parts.push(`  <div class="direct-answer"${ea(article.directAnswer.id || '__da')}>\n${ind(proseToParagraphs(article.directAnswer.prose || '', '', ''), 4)}\n  </div>`);
     }
     parts.push(`  <p class="last-updated"${ea('__lastupdated')}>Last Updated: ${escapeHtml(pubFormatted || '(date not set)')}</p>`);
-    { // byline — operator override (S.p7AuthorByline) wins; else the 4.3B-derived author
+    { // byline — operator override (S.p7AuthorByline) wins; else the 4.3B-derived author.
+      // Guard: if authorTitle already appears at the end of authorName (case-insensitive, with
+      // or without a comma separator), don't append it again — that's how "Gerek Allen, Founder,
+      // Founder" used to slip through when 4.3B had Author: "Name, Title" on the same line.
       const ov = String(S.p7AuthorByline || '').trim();
       let bylineText = '';
       if(ov) bylineText = ov.replace(/^by\s+/i, '');
-      else if(branding.authorName) bylineText = branding.authorTitle ? `${branding.authorName}, ${branding.authorTitle}` : branding.authorName;
+      else if(branding.authorName){
+        const name = String(branding.authorName || '').trim();
+        const title = String(branding.authorTitle || '').trim();
+        if(title){
+          const nameLower = name.toLowerCase();
+          const titleLower = title.toLowerCase();
+          const alreadyHas = nameLower === titleLower
+            || nameLower.endsWith(', ' + titleLower)
+            || nameLower.endsWith(' ' + titleLower)
+            || nameLower.endsWith(titleLower);
+          bylineText = alreadyHas ? name : `${name}, ${title}`;
+        } else {
+          bylineText = name;
+        }
+      }
       if(bylineText) parts.push(`  <p class="author-byline"${ea('__byline')}><em>By ${escapeHtml(bylineText)}</em></p>`);
     }
     const tocHTML = buildArticleTocHTML(headings);
     if(tocHTML) parts.push(ind(tocHTML, 2));
+    // ── CONSECUTIVE-DUPLICATE PARAGRAPH GUARD ──
+    // Compares the current prose node to the IMMEDIATELY preceding one (exact string, trimmed).
+    // When the relay's stitching hiccups produce two back-to-back paragraphs with identical prose,
+    // skip the second so the rendered article doesn't show the same paragraph twice. Resets between
+    // sections / H3s / conclusion / FAQ-intro so non-consecutive matches still render.
+    const _dupTracker = { last: '' };
+    const _dupReset = () => { _dupTracker.last = ''; };
+    let _dupSkipped = 0;
+    const _isConsecutiveDup = (p) => {
+      if(!p || typeof p !== 'object') return false;
+      const cur = String(p.prose || '').trim();
+      if(!cur) return false;       // empty prose already filtered by renderProseNode
+      if(cur === _dupTracker.last){ _dupSkipped++; return true; }
+      _dupTracker.last = cur;
+      return false;
+    };
+    const _pushParaIfNotDup = (p) => {
+      if(_isConsecutiveDup(p)) return;
+      const h = renderProseNode(p, ea(p && p.id));
+      if(h) parts.push(ind(h, 2));
+    };
     _secs(article).forEach((sec, si) => {
       if(!sec || typeof sec !== 'object') return;
       const h2 = String(sec.h2 || `Section ${si+1}`);
       parts.push(`  <h2 id="${slugOf(sec, h2)}"${ea(sec.id || ('__sec'+si))}>${escapeHtml(h2)}</h2>`);
+      _dupReset(); // each H2 starts fresh — only consecutive dupes within this section count
       toArray(sec.imagePrompts).forEach(im => {
         if(!im || typeof im !== 'object') return;
         const url = (im.id && imgUrlById[im.id]) ? imgUrlById[im.id] : '';
         if(url) parts.push(`  <img src="${escapeHtml(url)}" alt="${escapeHtml(String(im.alt||''))}"${ea(im.id)} />`);
         else if(im.id && imgInQueue(im.id)) parts.push(`  <div${ea(im.id)} style="border:2px dashed #bbb;border-radius:8px;padding:24px;text-align:center;color:#888;font-style:italic;margin-bottom:20px;">📷 image not uploaded yet${im.alt?` — alt: ${escapeHtml(String(im.alt))}`:''} (click to paste its WordPress URL, or use the Image panel)</div>`);
       });
-      toArray(sec.paragraphs).forEach(p => { const h = renderProseNode(p, ea(p && p.id)); if(h) parts.push(ind(h, 2)); });
+      toArray(sec.paragraphs).forEach(_pushParaIfNotDup);
       toArray(sec.h3sections).forEach((h3, hi) => {
         if(!h3 || typeof h3 !== 'object') return;
         const h3t = String(h3.h3 || '');
         if(h3t.trim()) parts.push(`  <h3 id="${slugOf(h3, h3t)}"${ea(h3.id || ('__h3_'+si+'_'+hi))}>${escapeHtml(h3t)}</h3>`);
-        toArray(h3.paragraphs).forEach(p => { const h = renderProseNode(p, ea(p && p.id)); if(h) parts.push(ind(h, 2)); });
+        _dupReset(); // H3 starts its own paragraph stream
+        toArray(h3.paragraphs).forEach(_pushParaIfNotDup);
       });
       toArray(sec.tables).forEach(tb => { const h = renderArticleTable(tb, ea(tb && tb.id)); if(h) parts.push(ind(h, 2)); });
     });
@@ -5590,7 +5672,8 @@ table td { background: #ffffff; }
       if(cps.length || String(cs.h2||'').trim()){
         const conclH2 = String(cs.h2 || 'Conclusion');
         parts.push(`  <h2 id="${conclAnchorOf(article)}"${ea(cs.id || '__conclheading')}>${escapeHtml(conclH2)}</h2>`);
-        cps.forEach(p => { const h = renderProseNode(p, ea(p && p.id)); if(h) parts.push(ind(h, 2)); });
+        _dupReset();
+        cps.forEach(_pushParaIfNotDup);
       }
     }
     // FAQ — render strictly from faq_section: heading → intro_paragraphs as regular <p> → each
@@ -5599,7 +5682,8 @@ table td { background: #ffffff; }
       if(qps.length || fIntro.length || String(fs.h2||'').trim()){
         const faqH2 = String(fs.h2 || 'Frequently Asked Questions');
         parts.push(`  <h2 id="${faqAnchorOf(article)}"${ea(fs.id || '__faqheading')}>${escapeHtml(faqH2)}</h2>`);
-        fIntro.forEach(p => { const h = renderProseNode(p, ea(p && p.id)); if(h) parts.push(ind(h, 2)); });
+        _dupReset();
+        fIntro.forEach(_pushParaIfNotDup);
         qps.forEach(qp => {
           if(!qp || typeof qp !== 'object') return;
           const q = String(qp.question || '');
@@ -5607,6 +5691,9 @@ table td { background: #ffffff; }
           parts.push(ind(proseToParagraphs((qp.answer && qp.answer.prose) || '', '', ea(qp.answer && qp.answer.id)), 2));
         });
       }
+    }
+    if(_dupSkipped > 0 && typeof log === 'function'){
+      log(`Phase 7A — skipped ${_dupSkipped} consecutive-duplicate paragraph(s) during assembly.`, 'warn');
     }
     if(article.cta && typeof article.cta === 'object'){
       const hook = String(article.cta.hookProse || ''), anchor = String(article.cta.anchorText || ''), url = String(article.cta.url || '');
