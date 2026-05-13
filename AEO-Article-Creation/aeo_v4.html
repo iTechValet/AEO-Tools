@@ -2984,7 +2984,7 @@ FLAG these:
   • Specific percentages or fractions presented as research-backed facts not present in factClaims
   • Specific dollar amounts presented as facts not present in factClaims
   • Named research studies, reports, or case studies not present in factClaims
-  • Named companies, software tools, or agencies not present in 4.3B or factClaims
+  • Named companies or agencies presented as specific case studies, proprietary data sources, or partners — only when not present in factClaims or 4.3B. Do NOT flag ubiquitous industry tools or platforms (e.g., Google, Bing, WordPress, Google Analytics) used as casual rhetorical examples or industry-standard references.
 
 IGNORE these entirely — do not flag, do not mention:
   • Conversational timeframes ('in six weeks,' 'within a quarter,' 'a few months')
@@ -2992,9 +2992,10 @@ IGNORE these entirely — do not flag, do not mention:
   • Qualitative comparisons ('most businesses,' 'many practices,' 'the majority')
   • General duration or frequency language
   • Any prose that sounds specific but makes no claim to be sourced data
+  • All URLs and domain names (e.g., https://hbr.org, hbr.org). Links are validated separately by a different system — do not flag them.
 
 If you find nothing in the FLAG list: return exactly {"verdict":"PASS","hallucinations":[]}. Do not mention anything from the IGNORE list.
-If you find something in the FLAG list: return {"verdict":"FAIL","hallucinations":[{"nodeId":"<JS-assigned id of the offending node — e.g. da_*, para_*, ans_*, table_*, cta_*>","offendingText":"<the exact offending span verbatim — the fabricated stat / dollar amount / study name / company name as written>","location":"table_row" | "prose"}]}. The location field is REQUIRED — "table_row" if the offending text is inside a table row's cells, "prose" if it's inside any paragraph (Direct Answer, body paragraph, conclusion paragraph, FAQ intro, FAQ answer, or CTA hook). No code fences, no preamble. First char "{", last char "}". The nodeId MUST be a real id present in the V1 JSON below.
+If you find something in the FLAG list: return {"verdict":"FAIL","hallucinations":[{"nodeId":"<JS-assigned id of the offending node — e.g. da_*, para_*, ans_*, table_*, cta_* — do NOT return link_* ids; links are out of scope for this check>","offendingText":"<the exact offending span verbatim — the fabricated stat / dollar amount / study name / company name as written>","location":"table_row" | "prose"}]}. The location field is REQUIRED — "table_row" if the offending text is inside a table row's cells, "prose" if it's inside any paragraph (Direct Answer, body paragraph, conclusion paragraph, FAQ intro, FAQ answer, or CTA hook). No code fences, no preamble. First char "{", last char "}". The nodeId MUST be a real id present in the V1 JSON below.
 
 PHASE 1 FACTCLAIMS (the ONLY numeric / named-entity facts the article is allowed to assert; everything else is a hallucination):
 ${JSON.stringify((research && research.factClaims) || [], null, 2)}
@@ -4569,6 +4570,8 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
         const queue3b = buildSectionLevelQueue(v1, v1.narrative_spine || {});
         const affected = new Map(); // sectionKey → { job, sectionH2, fails:[...] }
         for(const h of proseFails){
+          // link_ nodes are deterministically validated by Phase 3A — silently drop any that slip through
+          if(String(h.nodeId || '').startsWith('link_')){ continue; }
           const job = findJobByNodeId(queue3b, h.nodeId);
           if(!job){
             // Can't locate the offending section → cannot retry → immediate RED
