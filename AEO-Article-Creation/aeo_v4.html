@@ -2178,7 +2178,7 @@ PHASE 2B — SEQUENTIAL HYDRATION (the "Relay Race", section-level). You will be
       const hasTopLevel = !!(hydratedFrame.conclusion_section && typeof hydratedFrame.conclusion_section === 'object');
       const conclProseCount = _conclParas(hydratedFrame).filter(p => p && String(p.prose||'').trim()).length;
       if(!hasTopLevel || conclProseCount === 0){
-        const conclusionH2Re = /\b(conclusion|conclud|bottom\s+line|wrap(?:ping)?\s+up|final\s+(?:thought|word|takeaway)s?|in\s+closing|to\s+sum\s+up|takeaway|summary|the\s+last\s+word|where\s+this\s+leaves\s+you)\b/i;
+        const conclusionH2Re = /\b(conclusion|conclud|bottom\s+line|wrap(?:ping)?\s+up|final\s+(?:thought|word|takeaway)s?|in\s+closing|to\s+sum\s+up|takeaway|summary|the\s+last\s+word|where\s+this\s+leaves\s+you|the\s+widening\s+gap|widening\s+gap|the\s+verdict|the\s+truth|the\s+reality|the\s+stakes?|the\s+road\s+ahead|the\s+long\s+view|closing\s+thoughts?|closing\s+(?:notes?|word)|in\s+summary|next\s+steps?|moving\s+forward|the\s+path\s+forward|where\s+do\s+(?:you|we)\s+go|the\s+choice|the\s+decision|the\s+outcome|what\s+(?:this\s+means|now|happens?\s+next)|the\s+cost\s+of\s+waiting)\b/i;
         const misplaced = [];
         _secs(hydratedFrame).forEach((sec, si) => {
           if(!sec || typeof sec !== 'object') return;
