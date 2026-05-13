@@ -1621,12 +1621,12 @@ Produce:
      ► table_type: "conceptual" — rows organize narrative comparisons, frameworks, or structural information that DOES NOT depend on specific statistics (no factClaim binding required).
    • imagePrompts: at least 1 per H2 content section. prompt + alt text only (this is placement). The conclusion and the FAQ never get images.
    • links: prefer the research brief's anchorTextTargets — copy those anchorText + url pairs exactly. NEVER invent an internal link (a page on the client's own domain that isn't in the brief). A small number of additional reputable EXTERNAL citations is OK if genuinely needed. placementHint = which paragraph (by description) the link belongs to.
-   • assigned_facts: REQUIRED. An array of 1-3 factClaim IDs from the Phase 1 research brief (e.g. ["factClaim_02","factClaim_05"]) that are most relevant to this section's topic. Phase 2B will see ONLY these factClaims when hydrating this section. A factClaim MAY be assigned to multiple sections. Every content_section MUST have at least 1.
-- conclusion_section: REQUIRED. { h2: the conclusion heading text (e.g. "The Bottom Line", "Where This Leaves You" — your call, in voice), paragraphs:[{},{},…], assigned_facts:["factClaim_NN",…] } — one {} per closing paragraph (2-4 typical). NO image, NO table, NO links here. JS assigns ids; Phase 2B writes the prose. assigned_facts: same rule (1-3 factClaim IDs, at least 1).
-- faq_section: REQUIRED. { h2: the FAQ heading text (e.g. "Frequently Asked Questions"), intro_paragraphs:[{},…] (one or two {} slots — the framing prose BEFORE the questions), qa_pairs:[{ question: the question text, answer: {} }, …] — at least 5 Q&A pairs (questions only; leave each answer as {}), assigned_facts:["factClaim_NN",…] } — same assigned_facts rule (1-3 factClaim IDs, at least 1; the whole FAQ section shares one allocation since the intro + every answer pulls from the same allowed set). NO image, NO table here.
+   • assigned_facts: REQUIRED. An array of 1-4 factClaim IDs from the Phase 1 research brief (e.g. ["factClaim_02","factClaim_05"]) that are most relevant to this section's topic. Phase 2B will see ONLY these factClaims when hydrating this section. A factClaim MAY be assigned to multiple sections. Every content_section MUST have at least 1.
+- conclusion_section: REQUIRED. { h2: the conclusion heading text (e.g. "The Bottom Line", "Where This Leaves You" — your call, in voice), paragraphs:[{},{},…], assigned_facts:["factClaim_NN",…] } — one {} per closing paragraph (2-4 typical). NO image, NO table, NO links here. JS assigns ids; Phase 2B writes the prose. assigned_facts: OPTIONAL — 0-4 factClaim IDs. If the conclusion synthesizes existing arguments with no new data, pass an empty array []. If it will repeat any specific figure already cited earlier in the article, list the supporting factClaim ids here so Phase 2B can re-emit the [factClaim_NN] tokens.
+- faq_section: REQUIRED. { h2: the FAQ heading text (e.g. "Frequently Asked Questions"), intro_paragraphs:[{},…] (one or two {} slots — the framing prose BEFORE the questions), qa_pairs:[{ question: the question text, answer: {} }, …] — at least 4 Q&A pairs (questions only; leave each answer as {}), assigned_facts:["factClaim_NN",…] } — same assigned_facts rule (1-4 factClaim IDs, at least 1; the whole FAQ section shares one allocation since the intro + every answer pulls from the same allowed set). NO image, NO table here.
 - cta: { anchorText, url, placementHint }. The url MUST match the 4.3B Primary CTA destination (the "Destination:" line under the "Primary CTA" section, or a "Conversion Primary CTA URL" / "Primary CTA URL" field). placementHint = where in the article the CTA sits.
 
-FACT-ALLOCATION RULE (NON-NEGOTIABLE): For every section in content_sections, the conclusion_section, and the faq_section you MUST assign 1-3 factClaim IDs from the Phase 1 research brief that are most relevant to that section's topic. A factClaim may be assigned to multiple sections if relevant. Every section must have at least 1 assigned factClaim. No section may use a factClaim not assigned to it (Phase 2B enforces this — sections see ONLY their assigned factClaims).
+FACT-ALLOCATION RULE (NON-NEGOTIABLE): For every content_section AND the faq_section you MUST assign 1-4 factClaim IDs from the Phase 1 research brief that are most relevant to that section's topic — at least 1 each. The conclusion_section's assigned_facts is OPTIONAL (0-4 IDs; an empty array [] is valid if the conclusion synthesizes existing arguments with no new data). A factClaim may be assigned to multiple sections if relevant. No section may use a factClaim not assigned to it (Phase 2B enforces this — sections see ONLY their assigned factClaims).
 
 FRAMEWORK-LABEL RULE (NON-NEGOTIABLE): If you create any numbered or named multi-part framework in this article (stages, phases, pillars, layers, steps), you MUST log every label exactly as defined in the framework_labels field. These labels are locked. You must use them verbatim throughout the article — Phase 2B receives this map and treats it as immutable.
 
@@ -1634,7 +1634,7 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
     return [ buildPhase2ContextBlock(), { type:'text', text: instr } ];
   }
   function buildPhase2AUserText(feedback, f2hint){
-    let t = `Build the STRUCTURE FRAME + NARRATIVE SPINE + FACT-ALLOCATION PLAN + FRAMEWORK-LABEL REGISTRY now by calling submit_v1_frame. content_sections (≥4 standard H2 sections — no conclusion, no FAQ — each with empty paragraph slots, table headers + table_type, link anchors, image slots, and an assigned_facts array of 1-3 factClaim IDs), a conclusion_section (heading + empty paragraph slots + assigned_facts), a faq_section (heading + intro_paragraphs slots + ≥5 qa_pairs whose answers stay {} + assigned_facts), CTA placement, the checklist, thesis.statement, a full narrative_spine (core_thesis, callback_setup, section_transitions keyed by heading text — include the conclusion and FAQ headings — 3-5 voice_reminders), and framework_labels (flat map of every custom multi-part label you invent; {} if none) — no body prose, no statistics.`;
+    let t = `Build the STRUCTURE FRAME + NARRATIVE SPINE + FACT-ALLOCATION PLAN + FRAMEWORK-LABEL REGISTRY now by calling submit_v1_frame. content_sections (≥4 standard H2 sections — no conclusion, no FAQ — each with empty paragraph slots, table headers + table_type, link anchors, image slots, and an assigned_facts array of 1-4 factClaim IDs), a conclusion_section (heading + empty paragraph slots + an optional assigned_facts array — 0-4 factClaim IDs, [] is allowed if the conclusion synthesizes existing arguments with no new data), a faq_section (heading + intro_paragraphs slots + ≥4 qa_pairs whose answers stay {} + an assigned_facts array of 1-4 factClaim IDs), CTA placement, the checklist, thesis.statement, a full narrative_spine (core_thesis, callback_setup, section_transitions keyed by heading text — include the conclusion and FAQ headings — 3-5 voice_reminders), and framework_labels (flat map of every custom multi-part label you invent; {} if none) — no body prose, no statistics.`;
     if(feedback && feedback.trim()){
       t += `\n\n─────────────────────────────────────────\nYOUR PREVIOUS FRAME FAILED VALIDATION. Fix every problem below and resubmit the FULL frame via submit_v1_frame:\n${feedback}\n─────────────────────────────────────────`;
     }
@@ -1679,22 +1679,22 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
               } } },
             imagePrompts: { type:'array', minItems:1, items:{ type:'object', required:['prompt','alt'], additionalProperties:false,
               properties:{ prompt:{type:'string'}, alt:{type:'string'} } } },
-            assigned_facts: { type:'array', minItems:1, maxItems:3, items:{ type:'string' }, description:'1-3 factClaim IDs from the Phase 1 research brief (e.g. ["factClaim_02","factClaim_05"]) that Phase 2B is permitted to cite when hydrating this section. A factClaim may be assigned to multiple sections.' }
+            assigned_facts: { type:'array', minItems:1, maxItems:4, items:{ type:'string' }, description:'1-4 factClaim IDs from the Phase 1 research brief (e.g. ["factClaim_02","factClaim_05"]) that Phase 2B is permitted to cite when hydrating this section. A factClaim may be assigned to multiple sections.' }
           }
         }},
         conclusion_section: { type:'object', required:['h2','paragraphs','assigned_facts'], additionalProperties:false, description:'The article wrap-up — ALWAYS present. No image, no table, no links. Has its own assigned_facts allocation.',
           properties:{
             h2:{ type:'string', description:'The conclusion heading text (in the client voice).' },
             paragraphs:{ type:'array', minItems:1, items:{ type:'object', additionalProperties:false, properties:{} }, description:'Empty paragraph slots — one {} per closing paragraph (2-4 typical). JS assigns ids; Phase 2B writes the prose.' },
-            assigned_facts:{ type:'array', minItems:1, maxItems:3, items:{ type:'string' }, description:'1-3 factClaim IDs the Phase 2B conclusion job is permitted to cite.' }
+            assigned_facts:{ type:'array', minItems:0, maxItems:4, items:{ type:'string' }, description:'OPTIONAL — 0-4 factClaim IDs the Phase 2B conclusion job is permitted to cite. Pass an empty array [] if the conclusion synthesizes existing arguments with no new sourced data; otherwise list the factClaims that support any specific figures the conclusion will repeat.' }
           } },
         faq_section: { type:'object', required:['h2','intro_paragraphs','qa_pairs','assigned_facts'], additionalProperties:false, description:'The FAQ section — ALWAYS present, ALWAYS with intro_paragraphs + qa_pairs + assigned_facts. No image, no table.',
           properties:{
             h2:{ type:'string', description:'The FAQ heading text (e.g. "Frequently Asked Questions").' },
             intro_paragraphs:{ type:'array', minItems:1, items:{ type:'object', additionalProperties:false, properties:{} }, description:'Empty paragraph slots for the framing prose BEFORE the questions — one or two {}. JS assigns ids; Phase 2B writes the prose.' },
-            qa_pairs:{ type:'array', minItems:5, items:{ type:'object', required:['question','answer'], additionalProperties:false,
+            qa_pairs:{ type:'array', minItems:4, items:{ type:'object', required:['question','answer'], additionalProperties:false,
               properties:{ question:{type:'string'}, answer:{ type:'object', additionalProperties:false, properties:{}, description:'Placeholder — leave it as {}. JS assigns its id; Phase 2B writes the answer prose.' } } } },
-            assigned_facts:{ type:'array', minItems:1, maxItems:3, items:{ type:'string' }, description:'1-3 factClaim IDs the Phase 2B faq job is permitted to cite for BOTH the intro paragraphs AND every Q&A answer in this section.' }
+            assigned_facts:{ type:'array', minItems:1, maxItems:4, items:{ type:'string' }, description:'1-4 factClaim IDs the Phase 2B faq job is permitted to cite for BOTH the intro paragraphs AND every Q&A answer in this section.' }
           } },
         cta: { type:'object', required:['anchorText','url','placementHint'], additionalProperties:false,
           properties:{ anchorText:{type:'string'}, url:{type:'string'}, placementHint:{type:'string'} } }
@@ -1759,13 +1759,14 @@ Do NOT include id fields anywhere — JS assigns them. Always invoke submit_v1_f
       return t ? String(t.bridge_logic||'') : '';
     };
     const asFactIds = (af) => (Array.isArray(af)?af:toArray(af)).map(x => String(x||'').trim()).filter(Boolean);
-    // 1. Direct Answer — pull from EVERY section's assigned_facts (the DA opens the article so it may legitimately reference the thesis-level data the rest of the piece will develop)
+    // 1. Direct Answer — pulls from the FULL Phase 1 factClaim pool, not just the union of
+    //    section-level assigned_facts. The DA opens the article and may legitimately cite any
+    //    factClaim from the research brief, even one that no individual section ended up
+    //    consuming. Restricting it to the sectional-union would block the DA from referencing
+    //    a thesis-level statistic the article body chose not to develop.
     if(frame.directAnswer && frame.directAnswer.id){
-      const daPool = new Set();
-      _secs(frame).forEach(s => asFactIds(s && s.assigned_facts).forEach(id => daPool.add(id)));
-      asFactIds(_concl(frame).assigned_facts).forEach(id => daPool.add(id));
-      asFactIds(_faqSec(frame).assigned_facts).forEach(id => daPool.add(id));
-      queue.push({ type:'directAnswer', label:'Direct Answer', requiredIds:[frame.directAnswer.id], allowedFactIds:[...daPool], contextHints:`Write the Direct Answer (200-300 words). Answer the topic question immediately and directly, in the client’s voice, and align with the thesis. This opens the article.`, transitionLogic:'' });
+      const daPool = (typeof validFactClaimIds === 'function') ? [...validFactClaimIds()] : [];
+      queue.push({ type:'directAnswer', label:'Direct Answer', requiredIds:[frame.directAnswer.id], allowedFactIds: daPool, contextHints:`Write the Direct Answer (150-400 words). Answer the topic question immediately and directly, in the client’s voice, and align with the thesis. This opens the article.`, transitionLogic:'' });
     }
     // 2. Content sections — ONE call per H2 (batching all paragraph ids from the H2 + all its H3s), then one isolated call per table
     _secs(frame).forEach(section => {
@@ -1947,7 +1948,7 @@ CRITICAL: You MUST use the hydrate_content_block tool and return a "nodes" array
 You are strictly forbidden from inventing specific numbers, percentages, timeframes (e.g., '3-6 months', '12+ articles'), or dollar amounts in any table row or paragraph. You may ONLY use a concrete figure if it appears verbatim in one of the factClaims listed as ASSIGNED to the current block.
 ESCAPE HATCH: If no assigned factClaim contains the specific figure, synthesize the concept qualitatively instead (e.g., write 'requires significant capital expenditure' instead of '$30,000', write 'over several months' instead of '3-6 months'). Do not leave cells blank. Do not invent data to fill them.
 
-SECTIONAL FACT ALLOCATION (NON-NEGOTIABLE): At Phase 2A the article assigned 1-3 factClaim IDs to each section. Each Phase 2B hydration call shows you ONLY that section's assigned factClaims — those are the ONLY facts you may cite in this block. Using a factClaim that wasn't assigned to this section is a hallucination and JS will reject the block.
+SECTIONAL FACT ALLOCATION (NON-NEGOTIABLE): At Phase 2A the article assigned factClaim IDs to each section (1-4 per content/FAQ section; 0-4 on the conclusion). Each Phase 2B hydration call shows you ONLY that section's assigned factClaims — those are the ONLY facts you may cite in this block. Using a factClaim that wasn't assigned to this section is a hallucination and JS will reject the block. A block with an empty assigned_facts list (e.g. the conclusion when it synthesizes existing arguments) must not introduce any [factClaim_NN] tokens — write qualitatively.
 
 INLINE CITATION TOKEN RULE: If you use any specific number, percentage, dollar amount, timeframe, or named study in your prose or table cells, you MUST immediately append the citation token in brackets directly after it — e.g. "...waste significant budget [factClaim_02] on tactics...". The token must reference one of THIS section's assigned factClaim ids. If no assigned factClaim supports a specific figure, describe the concept qualitatively and append NO token. Phase 7 strips these tokens before the article goes live — they exist only to anchor every figure to its source.
 
@@ -2806,7 +2807,7 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
     const h2Count = sections.length;
 
     if(sections.length < 4) F('content_section_count', '>= 4 content sections', sections.length);
-    if(totalTables < 3) F('table_count', '>= 3 (across all content sections)', totalTables);
+    if(totalTables < 2) F('table_count', '>= 2 (across all content sections)', totalTables);
     if(totalImages < h2Count) F('image_prompt_count', `>= content-section count (${h2Count})`, totalImages);
     sections.forEach(s => { if(!String(s.h2||'').trim()) F('section_h2_empty', 'every content section has non-empty h2', '(empty)', s.id); });
     allTables.forEach(t => { if(!(Array.isArray(t.headers) && t.headers.length && t.headers.every(h => String(h||'').trim()))) F('table_headers_empty', 'every table has non-empty headers', JSON.stringify(t.headers||[]), t.id); });
@@ -2819,12 +2820,12 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
     } else if(!String(conclSec.h2||'').trim()){
       F('conclusion_section_h2_empty', 'conclusion_section.h2 non-empty', '(empty)', conclSec.id);
     }
-    // HARD: the FAQ section must exist, be an object, and have qa_pairs (≥5) plus intro_paragraphs (≥1).
+    // HARD: the FAQ section must exist, be an object, and have qa_pairs (≥4) plus intro_paragraphs (≥1).
     if(!v1.faq_section || typeof v1.faq_section !== 'object' || qaPairs.length < 1){
       F('faq_section_missing', 'faq_section present with qa_pairs', (!v1.faq_section ? '(absent)' : qaPairs.length === 0 ? 'no qa_pairs' : '(not an object)'), faqSec.id);
     } else {
       if(!String(faqSec.h2||'').trim()) F('faq_section_h2_empty', 'faq_section.h2 non-empty', '(empty)', faqSec.id);
-      if(qaPairs.length < 5) F('faq_qa_count', '>= 5 Q&A pairs (faq_section.qa_pairs)', qaPairs.length, faqSec.id);
+      if(qaPairs.length < 4) F('faq_qa_count', '>= 4 Q&A pairs (faq_section.qa_pairs)', qaPairs.length, faqSec.id);
       if(faqIntro.length < 1) F('faq_intro_missing', '>= 1 faq_section.intro_paragraphs slot', faqIntro.length, faqSec.id);
       qaPairs.forEach(qp => { if(!String(qp.question||'').trim()) F('faq_question_empty', 'every Q&A pair has a non-empty question', '(empty)', qp.id); });
     }
@@ -2833,15 +2834,19 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
     // assigned_facts ids drawn from the Phase 1 factClaim pool. Phase 2B uses ONLY these per
     // section. table_type must also be declared on every table (quantitative | conceptual).
     const validFactIds = validFactClaimIds();
-    const checkAssignedFacts = (sec, label, id) => {
+    // required = true  → 1-4 assigned_facts mandatory (content sections + FAQ)
+    // required = false → empty list is fine (conclusion may synthesize without new data); when
+    //                    ids ARE present they still must be real factClaims and within the 0-4 cap
+    const checkAssignedFacts = (sec, label, id, required) => {
+      if(required === undefined) required = true;
       const af = Array.isArray(sec && sec.assigned_facts) ? sec.assigned_facts : [];
-      if(af.length < 1){ F('assigned_facts_missing', `${label} has 1-3 assigned_facts factClaim IDs`, af.length, id); return; }
-      if(af.length > 3) F('assigned_facts_too_many', `${label} has at most 3 assigned_facts`, af.length, id);
+      if(required && af.length < 1){ F('assigned_facts_missing', `${label} has 1-4 assigned_facts factClaim IDs`, af.length, id); return; }
+      if(af.length > 4) F('assigned_facts_too_many', `${label} has at most 4 assigned_facts`, af.length, id);
       af.forEach(fid => { const s = String(fid||'').trim(); if(!s) F('assigned_facts_blank', `${label}.assigned_facts has no blank entries`, '(empty)', id); else if(validFactIds.size && !validFactIds.has(s)) F('assigned_facts_unknown', `${label}.assigned_facts must reference a real Phase 1 factClaim id (one of: ${[...validFactIds].slice(0,8).join(', ')}${validFactIds.size>8?'…':''})`, `"${s}"`, id); });
     };
-    sections.forEach((s, i) => checkAssignedFacts(s, `content_sections[${i}] "${String(s.h2||'').slice(0,40)}"`, s.id));
-    if(v1.conclusion_section && typeof v1.conclusion_section === 'object') checkAssignedFacts(v1.conclusion_section, 'conclusion_section', conclSec.id);
-    if(v1.faq_section && typeof v1.faq_section === 'object') checkAssignedFacts(v1.faq_section, 'faq_section', faqSec.id);
+    sections.forEach((s, i) => checkAssignedFacts(s, `content_sections[${i}] "${String(s.h2||'').slice(0,40)}"`, s.id, true));
+    if(v1.conclusion_section && typeof v1.conclusion_section === 'object') checkAssignedFacts(v1.conclusion_section, 'conclusion_section', conclSec.id, false);
+    if(v1.faq_section && typeof v1.faq_section === 'object') checkAssignedFacts(v1.faq_section, 'faq_section', faqSec.id, true);
     // table_type enum on every table
     allTables.forEach(t => { const tt = String(t.table_type||'').toLowerCase().trim(); if(tt !== 'quantitative' && tt !== 'conceptual') F('table_type_invalid', 'every table declares table_type ∈ {quantitative, conceptual}', tt || '(empty)', t.id); });
     // framework_labels — required key, must be a (possibly empty) plain object of strings
@@ -2851,7 +2856,7 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
     if(!frameOnly){
       // Direct Answer 200-300 words
       const daWords = (v1.directAnswer?.prose || '').trim().split(/\s+/).filter(Boolean).length;
-      if(daWords < 200 || daWords > 300) F('direct_answer_word_count', '200–300 words', daWords, v1.directAnswer?.id);
+      if(daWords < 150 || daWords > 400) F('direct_answer_word_count', '150–400 words', daWords, v1.directAnswer?.id);
       // Every content section (and h3) must have at least one non-empty paragraph
       sections.forEach(s => {
         const ps = secParas(s).filter(p => p && String(p.prose||'').trim());
@@ -3892,20 +3897,26 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
   // The 6 JS quality checks. Returns { fails:[{check,code,reason}], passed:bool }. Mutates nothing.
   function runQualityChecks(opts){
     const { job, v3, sectionParaNodes, appliedCorrections, isFinalSectionJob, bannedTerms, semanticAnchor, v1ProseById, reqIds } = opts;
-    const fails = [];
+    const fails = [];      // BLOCKING — drives Phase 6 retries (QC2 / QC4 / QC5 / QC6)
+    const infoFails = [];  // INFORMATIONAL — logged YELLOW once per block, never drives retries (QC1 / QC3)
     const paras = (sectionParaNodes || []).map(n => String(n.prose || '')).filter(p => p.trim());
     const sectionText = paras.join('\n\n');
     const sectionWords = countWords(sectionText);
-    // 1 — Pronoun/Noun Start Ratio (H2-section blocks with ≥3 paragraphs)
+    // 1 — Pronoun/Noun Start Ratio (H2-section blocks with ≥3 paragraphs). DEMOTED to informational
+    //     — flagging it caused retry-thrash on sections where Claude's prose was structurally fine
+    //     but the opener style happened to skew noun-heavy. YELLOW only, block is accepted on first
+    //     pass.
     if(job.type === 'section' && paras.length >= 3){
       const dry = paras.filter(isDryNounOpener).length;
       const ratio = dry / paras.length;
-      if(ratio > 0.6) fails.push({ check:'pronoun_noun_start', code:'QC1', reason:`${Math.round(ratio*100)}% of this section's paragraphs open with a dry subject noun (${dry}/${paras.length}). Rewrite more openers as conversational transitions (But, And, So, Here's the thing, That means, Now, Look…) — target ≤60%.` });
+      if(ratio > 0.6) infoFails.push({ check:'pronoun_noun_start', code:'QC1', reason:`${Math.round(ratio*100)}% of this section's paragraphs open with a dry subject noun (${dry}/${paras.length}). Rewrite more openers as conversational transitions (But, And, So, Here's the thing, That means, Now, Look…) — target ≤60%. INFORMATIONAL — no retry triggered.` });
     }
-    // 3 — Question Mark Density (H2-section blocks with ≥150 words): need ≥1 rhetorical question / 500 words
+    // 3 — Question Mark Density (H2-section blocks with ≥150 words). DEMOTED to informational —
+    //     same rationale: legitimate sections that argue without rhetorical questions kept getting
+    //     re-voiced for a metric that doesn't measure quality. YELLOW only.
     if(job.type === 'section' && sectionWords >= 150){
       const q = countQuestionMarks(sectionText);
-      if(q * 500 < sectionWords) fails.push({ check:'question_density', code:'QC3', reason:`Only ${q} rhetorical question(s) across ${sectionWords} words — need ≥1 per 500 words (≥${Math.ceil(sectionWords/500)}). Add rhetorical questions to break monotony / introduce friction.` });
+      if(q * 500 < sectionWords) infoFails.push({ check:'question_density', code:'QC3', reason:`Only ${q} rhetorical question(s) across ${sectionWords} words — target ≥1 per 500 words (≥${Math.ceil(sectionWords/500)}). INFORMATIONAL — no retry triggered.` });
     }
     // 4 — AI-Tell Scan (every block). The universal AI-Tell Kill List is ABSOLUTE — those hits are never suppressed.
     //     4.3B Terminology-Lock hits are suppressed if either: (a) QC5 Anchor Override — the same term is one of the
@@ -3963,7 +3974,9 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
         fails.push({ check:'semantic_anchor', code:'QC6', reason:`The SEMANTIC_ANCHOR phrase "${semanticAnchor}" (from the 4.2 sheet row) does NOT appear verbatim anywhere in the article body. Work it into one of this section's paragraphs — exact phrasing.` });
       }
     }
-    return { fails, passed: fails.length === 0 };
+    // passed === true means NO BLOCKING fails — QC1/QC3 informational results live in infoFails
+    // and never affect the retry decision. The consumer logs infoFails YELLOW once per block.
+    return { fails, infoFails, passed: fails.length === 0 };
   }
 
   // Phase 6 system block #2 (uncached): the ruthless-editor framing + AI-Tell list. (Block #1 = buildPhase2ContextBlock().)
@@ -4159,7 +4172,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
         nextHead = (v2draft.cta && v2draft.cta.hookProse) ? String(v2draft.cta.hookProse) : '(the CTA closes the article after the FAQ)';
       }
 
-      let bestApplied = null, qcFailedThisBlock = false, hadWarn = false, lastFails = [], f6framing = '';
+      let bestApplied = null, qcFailedThisBlock = false, hadWarn = false, lastFails = [], lastInfoFails = [], f6framing = '';
       const correctedIds = new Set();   // union over attempts — accurate even if a retry only re-touches a subset
       for(let attempt = 0; attempt <= 2; attempt++){
         const blockNodes = reqIds.map(id => { const mm = idMeta[id] || {}; return { id, prose: getProse(id), h3: mm.h3 || '' }; });
@@ -4204,7 +4217,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
         // —— RUN THE 6 JS QUALITY CHECKS ON THE (now-corrected) BLOCK ——
         const sectionParaNodes = reqIds.map(id => ({ id, prose: getProse(id) }));
         const qc = runQualityChecks({ job, v3, sectionParaNodes, appliedCorrections: applied, isFinalSectionJob, bannedTerms: qcCtx.bannedTerms, semanticAnchor: qcCtx.semanticAnchor, v1ProseById, reqIds });
-        bestApplied = applied; lastFails = qc.fails;
+        bestApplied = applied; lastFails = qc.fails; lastInfoFails = qc.infoFails || [];
         if(qc.passed){
           log(`Phase 6 block ${i+1}/${total}: ${applied.length} paragraph(s) corrected; all quality checks pass${attempt>0?` (on retry ${attempt})`:''}.`, 'ok');
           qcFailedThisBlock = false; break;
@@ -4218,6 +4231,11 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       const appliedN = correctedIds.size;
       correctionCount += appliedN;
       if(qcFailedThisBlock) failedBlocks++;
+      // ── INFORMATIONAL QC (QC1 pronoun/noun, QC3 question density) — log YELLOW once per block ──
+      // These are demoted from retry triggers. Visible to the operator, never drives a re-voice.
+      if(lastInfoFails && lastInfoFails.length){
+        warnYellow('F14', `Phase 6 block ${i+1}/${total} (${job.label||job.type}): informational QC notes — ${lastInfoFails.map(f => `[${f.code}] ${f.check}`).join(' · ')}. NO retry triggered. ${lastInfoFails.map(f => `${f.code}: ${f.reason}`).join('  ||  ')}`);
+      }
       setRelayChip('relayStrip6', i, (qcFailedThisBlock || hadWarn) ? 'warn' : 'done');
       const corrLines = (bestApplied || []).map(c => {
         const txt = (c.pacingDirective === 'list extraction') ? ('• ' + (c.newListItems || []).join('\n  • ')) : String(c.newProse || '');
@@ -4225,7 +4243,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       }).join('\n\n');
       const _status = (bestApplied === null) ? ' · ⚠ block could not be reviewed (relay call failed after retries) — Phase 5 prose kept'
         : qcFailedThisBlock ? ` · STILL FAILING [${lastFails.map(f=>f.code).join(', ')}] after 2 retries — best prose kept`
-        : (lastFails.length === 0 ? ' · all applicable quality checks pass' : '');
+        : (lastFails.length === 0 ? (lastInfoFails.length ? ` · all blocking checks pass; informational notes: [${lastInfoFails.map(f=>f.code).join(', ')}]` : ' · all applicable quality checks pass') : '');
       pOut(6, `${appliedN} paragraph(s) corrected${_status}${lastFails.length ? `\nQuality-check notes: ${lastFails.map(f=>f.code+' — '+f.reason).join('  |  ')}` : ''}\n${corrLines || '  (nothing flagged — block left unchanged)'}`, { append: true, heading: `Block ${i+1}/${total} — ${job.label||job.type}` });
       document.getElementById('m6').textContent = `Phase 6 relay — ${i+1}/${total} block(s) reviewed; ${correctionCount} paragraph(s) corrected so far${failedBlocks?`, ${failedBlocks} block(s) hit the retry cap`:''}.`;
       refreshRightPanels();
