@@ -506,7 +506,7 @@
         <div class="phase-num">3</div>
         <div class="phase-info">
           <div class="phase-title">Phase 3 — Dual Validation</div>
-          <div class="phase-desc">3A: JS structural checks (sections≥4, FAQ≥5, tables≥3 each non-empty, images≥H2, ≥1 paragraph per section/H3, link↔research match, internal-link domain, DA 200–300 words, CTA URL, checklist fields, thesis present+referenced — AND every table row carries a sourceReferenceId pointing at a real Phase 1 factClaim, with cells aligned to headers). A 3A fail skips the Gemini call. 3B: Gemini semantic (claims align w/ research + anchors clientSpecificThesis). Any fail → a surgical micro-call patches just the named nodes (max 2 rounds → Checkpoint 1). Every validation round is kept in this panel.</div>
+          <div class="phase-desc">3A: JS structural checks (sections≥4, FAQ≥5, tables≥3 each non-empty, images≥H2, ≥1 paragraph per section/H3, link↔research match, internal-link domain, DA 200–300 words, CTA URL, checklist fields, thesis present+referenced — AND every table row carries a sourceReferenceId pointing at a real Phase 1 factClaim, with cells aligned to headers). A 3A fail skips the Gemini call. 3B: Gemini does an EXHAUSTIVE audit — every table row / paragraph / heading vs the factClaims, one complete pass — and returns { nodeId, violationType, offendingText, requiredAction } per violation (claims align w/ research + anchors clientSpecificThesis). Any fail → a surgical micro-call (subtractive scrub: remove unsupported numbers/claims, don't invent replacements) patches just the named nodes. RETRY CAP IS SPLIT: STRUCTURAL fails get 2 rounds; SEMANTIC fails (factual hallucinations) get 1 round → still failing after Round 1 ⇒ immediate RED escalation (Checkpoint 1), no Round 2. Every validation round is kept in this panel.</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b3">Waiting</div><span class="schev closed" id="c3">▼</span></div>
       </div>
@@ -1934,7 +1934,15 @@ CRITICAL: You MUST use the hydrate_content_block tool and return a "nodes" array
 
   // ── SURGICAL CORRECTION (replaces ONLY the failing nodes — never regenerates the V1) ──
   function buildSurgicalFixSystem(){
-    const instr = `SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY the nodes listed in the user message — nothing else. Do NOT change structure (no heading/table/FAQ/link changes). For each correction keep the role the node plays and preserve transitions to neighbouring paragraphs where relevant. For a table_* node return replacement rows — each row { cells, sourceReferenceId } citing a real factClaim from the Phase 1 brief; drop rows you cannot support rather than inventing data. For a checklist.<field> target return newValue. Always invoke submit_v1_corrections; never respond in plain text.`;
+    const instr = `CRITICAL RECOVERY MANDATE — READ BEFORE ACTING:
+You are correcting factual hallucinations. Your role is subtractive, not generative.
+
+1. SUBTRACT, DO NOT ADD: Do not invent new details to replace removed errors. Remove the hallucinated claim and stitch the remaining sentences together naturally.
+2. NUMERICAL ABSOLUTE RULE: You are strictly forbidden from using any specific number, percentage, timeframe (e.g., '3-6 months'), or dollar amount in any table row or paragraph UNLESS that exact figure appears verbatim in the factClaim you are citing. If no factClaim supports a specific number, remove the number entirely and describe the concept qualitatively.
+3. EXACT FACTCLAIM ALIGNMENT: Before assigning a sourceReferenceId to any row, verify that the semantic meaning of your row content actually matches what that factClaim says. If you cannot find a factClaim that supports the row's content, delete the row entirely rather than misattributing it.
+4. DO NOT TOUCH passing nodes. Return corrections only for the nodes listed in this message.
+
+SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY the nodes listed in the user message — nothing else. Do NOT change structure (no heading/table/FAQ/link changes). For each correction keep the role the node plays and preserve transitions to neighbouring paragraphs where relevant. For a table_* node return replacement rows — each row { cells, sourceReferenceId } citing a real factClaim from the Phase 1 brief; drop rows you cannot support rather than inventing data. For a checklist.<field> target return newValue. Always invoke submit_v1_corrections; never respond in plain text.`;
     return [ buildPhase2ContextBlock(), { type:'text', text: instr } ];
   }
   // ctx packets describe each failing node + its problem + a little surrounding context.
@@ -2507,18 +2515,20 @@ CRITICAL: You MUST use the hydrate_content_block tool and return a "nodes" array
   function buildPhase3BPrompt(v1, research){
     return `You are a semantic fact-checker for an AEO article. You have exactly ONE job: verify (1) the article's factual claims align with the research brief, and (2) the article anchors around the clientSpecificThesis (it appears in the Direct Answer or the first section, and is threaded through the piece — not just summarized once).
 
-Return ONLY a JSON object: {"semanticFails": [{"targetId": "<the id of the offending box>", "issue": "<one sentence>", "suggestedRevision": "<one sentence>"}]}
-If there are no problems, return {"semanticFails": []}. No code fences, no preamble. First char "{", last char "}".
+MANDATE: You are performing an Exhaustive Audit. Do not stop scanning when you find the first violation. You must evaluate every single table row, paragraph, and heading against the factClaims and return a comprehensive, complete list of ALL violations in a single pass. Returning a partial list is a failure of your validation role.
 
-Be precise, not nitpicky: only flag claims that contradict or are not supported by the research brief, or a genuine failure to anchor the thesis. Do NOT flag voice, tone, or style — that is not your job.
+Return ONLY a JSON object: {"semanticFails": [{"nodeId": "<the JS-assigned id of the offending node — exactly as it appears in the V1 JSON: da_*, para_*, ans_*, table_*, link_*, cta_*, thesis_*, etc.>", "violationType": "<short category — e.g. unsupported_number, contradicts_research, fabricated_link, thesis_not_anchored>", "offendingText": "<the exact span of text (or the exact cell value / row) that is wrong>", "requiredAction": "<one sentence — what must change to fix it>"}]}
+If there are no problems, return {"semanticFails": []}. No code fences, no preamble. First char "{", last char "}". The nodeId MUST be a real id present in the V1 JSON below — the surgical fix loop targets it directly, so a wrong or missing nodeId makes the violation un-fixable.
 
-RESEARCH BRIEF (source of truth):
+Be precise, not nitpicky: only flag claims that contradict or are not supported by the research brief / factClaims, or a genuine failure to anchor the thesis. Do NOT flag voice, tone, or style — that is not your job.
+
+RESEARCH BRIEF (source of truth — includes factClaims):
 ${JSON.stringify(research, null, 2)}
 
 CLIENT-SPECIFIC THESIS (must be anchored):
 ${JSON.stringify(research?.clientSpecificThesis || {}, null, 2)}
 
-V1 ARTICLE (with JS-assigned IDs — use these IDs in targetId):
+V1 ARTICLE (with JS-assigned IDs — use these exact IDs in nodeId):
 ${JSON.stringify(v1, null, 2)}
 
 Output the JSON now.`;
@@ -2533,7 +2543,20 @@ Output the JSON now.`;
       try {
         const parsed = tolerantParseJSON(raw);
         if(!parsed || !Array.isArray(parsed.semanticFails)){ lastErr = 'no semanticFails array'; continue; }
-        return { semanticFails: parsed.semanticFails, raw };
+        // ENFORCE the canonical shape — every item is an object with at least { nodeId, violationType, offendingText, requiredAction }.
+        // nodeId is the critical field (the surgical fix loop targets it). Tolerant of older/looser field names from the model.
+        const norm = parsed.semanticFails.map(it => {
+          if(it == null) return null;
+          if(typeof it === 'string') return { nodeId:'', violationType:'unspecified', offendingText:'', requiredAction: it.trim() };
+          if(typeof it !== 'object') return null;
+          return {
+            nodeId: String(it.nodeId || it.targetId || it.id || '').trim(),
+            violationType: String(it.violationType || it.type || it.violation || it.issue || 'unspecified').trim(),
+            offendingText: String(it.offendingText || it.offending || it.text || it.span || '').trim(),
+            requiredAction: String(it.requiredAction || it.suggestedRevision || it.fix || it.action || it.issue || '').trim()
+          };
+        }).filter(Boolean);
+        return { semanticFails: norm, raw };
       } catch(e){ lastErr = e.message; continue; }
     }
     // Both attempts failed — RED F19 (article unsafe to publish without semantic validation)
@@ -2547,7 +2570,7 @@ Output the JSON now.`;
   // Each validation round is APPENDED to the Phase 3 panel (Item 4) — never overwritten.
   function renderPhase3(structuralFails, semanticFails, attemptN, passed, injectedThisAttempt){
     const lines = [];
-    const which = attemptN === 0 ? 'initial validation' : `after surgical fix ${attemptN} of 2`;
+    const which = attemptN === 0 ? 'initial validation' : `after surgical fix round ${attemptN} (cap: 1 round for semantic / 2 rounds for structural)`;
     lines.push(`Validation ${which} — ${passed ? 'PASS ✓' : 'FAIL ✗'}${injectedThisAttempt ? '   [🧪 test injection active this attempt]' : ''}`);
     lines.push('');
     lines.push(`3A · JS STRUCTURAL — ${structuralFails.length ? structuralFails.length + ' fail(s):' : 'all checks pass'}`);
@@ -2557,8 +2580,8 @@ Output the JSON now.`;
     });
     lines.push('');
     lines.push(`3B · GEMINI SEMANTIC — ${semanticFails.length ? semanticFails.length + ' fail(s):' : 'aligned with research brief + thesis anchored'}`);
-    semanticFails.forEach(f => lines.push(`  • [${f.targetId || '?'}] ${f.issue}${f.suggestedRevision ? '  → '+f.suggestedRevision : ''}`));
-    pOut(3, lines.join('\n'), { append: true, heading: `Round ${attemptN + 1} of 3` });
+    semanticFails.forEach(f => lines.push(`  • [${f.nodeId || '?'}] ${f.violationType ? f.violationType + ' — ' : ''}${f.offendingText ? '"' + f.offendingText + '" ' : ''}${f.requiredAction ? '→ ' + f.requiredAction : ''}`));
+    pOut(3, lines.join('\n'), { append: true, heading: `Round ${attemptN + 1}` });
   }
   function formatValidationFeedback(structuralFails, semanticFails, research){
     const parts = [];
@@ -2573,7 +2596,7 @@ Output the JSON now.`;
     }
     if(semanticFails.length){
       parts.push('SEMANTIC PROBLEMS (3B — your content vs the research brief / thesis):');
-      semanticFails.forEach(f => parts.push(`- Box ${f.targetId || '(unspecified)'}: ${f.issue}. Suggested fix: ${f.suggestedRevision || '(use your judgment, anchored to the research brief)'}`));
+      semanticFails.forEach(f => parts.push(`- Node ${f.nodeId || '(unspecified)'}: ${f.violationType || 'violation'}${f.offendingText ? ` — offending text: "${f.offendingText}"` : ''}. Required action: ${f.requiredAction || '(use your judgment, anchored to the research brief)'}`));
     }
     return parts.join('\n');
   }
@@ -2694,7 +2717,7 @@ Output the JSON now.`;
       byId[id].problems.push(problem); return true;
     };
     structuralFails.forEach(f => add(f.id, `${f.check}: expected ${f.expected}, got ${f.actual}`));
-    semanticFails.forEach(f => add(f.targetId, `semantic: ${f.issue}${f.suggestedRevision ? ` → ${f.suggestedRevision}` : ''}`));
+    semanticFails.forEach(f => add(f.nodeId, `semantic [${f.violationType || 'violation'}]${f.offendingText ? ` — offending text: "${f.offendingText}"` : ''}${f.requiredAction ? ` → ${f.requiredAction}` : ''}`));
 
     const packets = Object.values(byId).map(b => ({ targetId:b.targetId, kind:b.kind, problem:b.problems.join(' ; '), context:b.context, node:b.node }));
     // structural fails that didn't map to a node (count failures etc.) → can't be surgically fixed
@@ -3849,17 +3872,29 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
         lastValidation = { structuralFails, semanticFails, passed };
         S.validation = lastValidation;
         renderPhase3(structuralFails, semanticFails, attempt, passed, false);
-        document.getElementById('m3').textContent = `Attempt ${attempt+1} of 3 (${attempt===0?'initial validation':'after surgical fix '+attempt+'/2'}): 3A=${structuralFails.length} structural fail(s), 3B=${v3a.passed ? (semanticFails.length+' semantic fail(s)') : 'skipped (3A failed)'} → ${passed?'PASS':'FAIL'}`;
+        document.getElementById('m3').textContent = `Validation ${attempt===0?'(initial)':'after surgical fix round '+attempt} (caps: 1 round for semantic / 2 rounds for structural): 3A=${structuralFails.length} structural fail(s), 3B=${v3a.passed ? (semanticFails.length+' semantic fail(s)') : 'skipped (3A failed)'} → ${passed?'PASS':'FAIL'}`;
 
         if(passed){ setPhase(3, 'done', 'PASS ✓'); refreshRightPanels(); log(`Phase 3 PASS on attempt ${attempt+1}.`, 'ok'); break; }
 
-        if(attempt >= 2){
-          setPhase(3, 'error', 'Failed × 3');
+        // —— RETRY CAP — SPLIT BY FAILURE TYPE ——
+        //   attempt 0 = initial validation · attempt 1 = re-validation after surgical Round 1 · attempt 2 = re-validation after surgical Round 2.
+        //   SEMANTIC failures (factual hallucinations) get 1 surgical round → still failing after Round 1 ⇒ RED escalate (CHK1) immediately; Round 2 is NOT attempted.
+        //   STRUCTURAL failures get 2 surgical rounds → still failing after Round 2 ⇒ RED escalate (CHK1).
+        //   Both arrays empty after any round ⇒ pass (handled above). Round 2 is authorized ONLY when Round 1 left structural fails with the semantic list clean.
+        if(attempt === 1 && semanticFails.length > 0){
+          setPhase(3, 'error', 'Semantic cap (1 round)');
           // M3.5 — this V1 (and the frame it sits on) is being discarded; kill its image queue + clear pasted URLs.
           flushQueue(S.imageAttemptId);
-          escalateRed('CHK1', `V1 failed validation after 2 surgical retries (Checkpoint 1). Unresolved: ${structuralFails.length} structural + ${semanticFails.length} semantic. See the Phase 3 card. Manual operator review required.`);
+          escalateRed('CHK1', `Phase 3 — SEMANTIC retry cap hit (1 round). After surgical Round 1, the V1 still has ${semanticFails.length} semantic failure(s)${structuralFails.length ? ` plus ${structuralFails.length} structural failure(s)` : ''} — semantic failures are factual hallucinations, so Round 2 is NOT attempted. Unresolved: ${semanticFails.length} semantic + ${structuralFails.length} structural. See the Phase 3 card. Manual operator review required. Code: CHK1`);
           return;
         }
+        if(attempt >= 2){
+          setPhase(3, 'error', 'Structural cap (2 rounds)');
+          flushQueue(S.imageAttemptId);
+          escalateRed('CHK1', `Phase 3 — STRUCTURAL retry cap hit (2 rounds). After surgical Round 2, the V1 still fails validation: ${structuralFails.length} structural failure(s)${semanticFails.length ? ` + ${semanticFails.length} semantic failure(s)` : ''} unresolved. See the Phase 3 card. Manual operator review required. Code: CHK1`);
+          return;
+        }
+        // → here only when: attempt 0 (initial fail → Round 1, any failure type) OR attempt 1 with the semantic list clean and structural fails remaining (→ Round 2).
 
         // —— SURGICAL FIX: build packets for the failing nodes ONLY, one micro-call, apply in place ——
         const { packets, unmappable } = buildFixPackets(v1, structuralFails, semanticFails);
@@ -3879,7 +3914,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
           return;
         }
         setPhase(3, 'active', `Fail → surgical fix ${attempt+1}`);
-        setG(`Phase 3 found ${structuralFails.length + semanticFails.length} issue(s) in ${packets.length} node(s) — running a surgical micro-call to fix ONLY those (round ${attempt+1}/2)…`, true);
+        setG(`Phase 3 found ${structuralFails.length} structural + ${semanticFails.length} semantic issue(s) in ${packets.length} node(s) — running a surgical micro-call to fix ONLY those (Round ${attempt+1})…`, true);
         log(`Surgical fix round ${attempt+1}: ${packets.length} node(s) — ${packets.map(p=>p.targetId).join(', ')}.`, 'warn');
         let fix;
         try { fix = await runSurgicalFix(akey, packets, `Surgical fix ${attempt+1}`); }
