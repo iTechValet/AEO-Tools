@@ -1,5 +1,5 @@
 AEO ARTICLE CREATION PIPELINE — MASTER REFERENCE DOC  (WORKING COPY — sessions of May 11–13, 2026)
-Last Updated: May 13, 2026 (Claude Code build session — V4.0 schema refactor + hallucination-sweep recalibration + assembly-time delivery polish + multiple live end-to-end runs against real iTV topics — bugs surfaced + patched in-session + a SECOND WAVE of M5.5 polish at the end of the day: conclusion regex expansion, Phase 3B link/entity recalibration, structural threshold loosening, Phase 6 QC1/QC3 demotion to informational, Phase 2A final-section constraint + Phase 3A granularity trap, Phase 7A render order swapped to FAQ-before-conclusion per 4.3A, Phase 2A Unique Link Mandate + Phase 3A duplicate_internal_url trap, Phase 2A CTA URL Reservation + Phase 3A cta_url_in_body trap) | V3.1 (production) | V4.0 (LIVE-TESTED — ALL 7 PHASES BUILT [M1–M5] + post-M5 schema upgrade [content_sections / conclusion_section / faq_section / sectional fact allocation / framework_labels / table_type / Save State per-section rollback / inline citation tokens / Phase 3B is now hallucination-sweep-only with FLAG/IGNORE recalibration + link_/entity carveouts]; multiple end-to-end runs completed against real iTV topics this session; live-run bug catches patched same-day [byline title duplication, consecutive duplicate paragraphs, conclusion content landing in content_sections, narrative-climax sections like "The Widening Gap" / "The Verdict" getting an image + ToC entry instead of going to conclusion_section, FAQ rendering after conclusion]; M6 side-by-side V3.1↔V4.0 + M7 ship still pending)
+Last Updated: May 13, 2026 (Claude Code build session — V4.0 schema refactor + hallucination-sweep recalibration + assembly-time delivery polish + multiple live end-to-end runs against real iTV topics — bugs surfaced + patched in-session + a SECOND WAVE of M5.5 polish at the end of the day: conclusion regex expansion, Phase 3B link/entity recalibration, structural threshold loosening, Phase 6 QC1/QC3 demotion to informational, Phase 2A final-section constraint + Phase 3A granularity trap, Phase 7A render order swapped to FAQ-before-conclusion per 4.3A, Phase 2A Unique Link Mandate + Phase 3A duplicate_internal_url trap, Phase 2A CTA URL Reservation + Phase 3A cta_url_in_body trap, Phase 7A silent URL normalization + Phase 7B Link Manager rebuilt as a status-toggled Link Audit drawer) | V3.1 (production) | V4.0 (LIVE-TESTED — ALL 7 PHASES BUILT [M1–M5] + post-M5 schema upgrade [content_sections / conclusion_section / faq_section / sectional fact allocation / framework_labels / table_type / Save State per-section rollback / inline citation tokens / Phase 3B is now hallucination-sweep-only with FLAG/IGNORE recalibration + link_/entity carveouts]; multiple end-to-end runs completed against real iTV topics this session; live-run bug catches patched same-day [byline title duplication, consecutive duplicate paragraphs, conclusion content landing in content_sections, narrative-climax sections like "The Widening Gap" / "The Verdict" getting an image + ToC entry instead of going to conclusion_section, FAQ rendering after conclusion]; M6 side-by-side V3.1↔V4.0 + M7 ship still pending)
 ================================================
 
 ⚠️ V4.0 ARCHITECTURAL REBUILD — LIVE-TESTING IN PROGRESS (Claude Code)
@@ -1202,15 +1202,104 @@ aeo_v4.html. The 7-phase pipeline shape is unchanged; the schema, the Phase
         absolute / relative / www-variant all fire (correct),
         different-path / external link both silent (correct).
 
-  STATUS after the second wave: all 7 commits live on main, all
+  • PHASE 7A SILENT URL NORMALIZATION + PHASE 7B LINK MANAGER
+    REBUILT AS A LINK AUDIT DRAWER (commit 92f281e, May 13). Two
+    connected refactors. The data-layer URL normalization replaces
+    a post-assembly string-replace safety net; the heavy
+    find/replace UI in the Phase 7B sidebar becomes a status-bar +
+    collapsible audit drawer that surfaces only the problems that
+    actually exist.
+      — Phase 7A: new module-level normalizeArticleUrls(article)
+        helper, called as the FIRST line of assemblePhase7HTML
+        after the null check, BEFORE any HTML is generated.
+        Mutates link URLs in place on the article JSON. Two
+        transforms applied to every link.url field
+        (content_sections + defensive walks on conclusion_section
+        / faq_section) AND cta.url:
+          (1) Relative path "/services/" → absolute
+              "https://<client-domain>/services/"
+          (2) "https://itechvalet.github.io/..." →
+              "https://<client-domain>/..."
+        Removed the two post-assembly regex lines that did the
+        github.io string replacement on articleWrap — those are
+        now structurally unnecessary because URLs are canonical
+        at the data layer. DEVIATION FROM LITERAL SPEC: prepended
+        "https://" to the client-domain prefix because
+        getClientDomainV4() returns a bare host
+        ("itechvalet.com"); the spec's literal "clientDomain + u"
+        would produce invalid absolute hrefs and trip
+        isInternalUrl()'s relative-detection downstream.
+        REGRESSION RISK FLAGGED in the code comment: URLs
+        embedded inside prose markdown links "[text](url)" are
+        NOT rewritten by this helper. The removed post-assembly
+        regex caught those because it operated on the rendered
+        HTML. If a future iTV run surfaces a github.io URL in
+        body prose, expand normalizeArticleUrls to walk prose
+        strings too.
+      — Phase 7B: removed the old Global Link Manager UI entirely
+        — the find/replace inputs (p7LinkFind, p7LinkReplace),
+        the Apply button (p7LinkReplaceBtn), the domain-chip
+        list (p7DomainList), and the associated JS functions
+        (p7ReplaceDomain, p7CollectDomains + its consumer block
+        inside p7RefreshSidebar). Added a full-width status bar
+        above the iframe row:
+          • Green:  "✔ N Links Audited — All Valid" (not
+                    toggleable, drawer stays collapsed, iframe
+                    takes full width)
+          • Orange: "⚠ N Links Audited — X Warning(s) Detected"
+                    (clickable, opens the drawer alongside the
+                    iframe)
+      — Audit drawer (#p7LinkDrawer): flex sibling to the iframe,
+        hidden by default, opens to 420px so the iframe shrinks
+        predictably. Contains a table with columns URL | Anchor |
+        # | Location | Status, plus a per-row replacement form
+        that appears below the table when a flagged row is
+        clicked.
+      — buildLinkAuditData(article): collects every body link
+        from content_sections + defensively from conclusion_section
+        / faq_section (CTA INTENTIONALLY excluded so it can't
+        false-positive as a 'duplicate' of itself), groups by
+        (internal-ness + normalized path), counts occurrences,
+        assigns one of three statuses: 🔴 duplicate (same internal
+        URL appears > 1 time in body), 🟡 cta-in-body (Primary
+        CTA URL appears in a body section), ✅ ok. External
+        duplicates are NOT flagged (legitimate sourcing — matches
+        the operator calibration that already keeps extra
+        external links as YELLOW in Phase 3A). Reuses the
+        existing isInternalUrl + extract43BCtaUrl helpers; _audNorm
+        collapses absolute / relative / www variants of the same
+        path to the same key (same shape as Phase 3A's
+        normLinkUrl, duplicated here because that one is a local
+        const inside validateV1Structure).
+      — Per-row replacement form: dropdown of anchorTextTargets
+        URLs that are NOT already in use elsewhere in the article
+        (filter prevents creating new duplicates); CTA URL
+        filtered out unconditionally; last option "+ Enter Custom
+        URL" reveals a text input. Apply walks every body
+        link.url, rewrites the matches, calls normalizeArticleUrls
+        → renderPhase7Preview → renderLinkAudit (banner +
+        drawer table refresh).
+      — Existing sidebar (Metadata / Rebuild Structure / QC Notes)
+        unchanged — only the Link Manager sub-section was removed
+        from it.
+      — Verified end-to-end: parse clean (431,265 chars), all 7
+        manual placement/scope checks PASS, buildLinkAuditData
+        smoke-tested on a 4-section / 5-link fixture (internal
+        dup flagged, external dup correctly NOT flagged, cta-in-
+        body flagged) — 4/4 PASS.
+
+  STATUS after the second wave: all 8 commits live on main, all
   syntax-clean, none yet live-tested as a batch. Cumulative
-  M5.5 commit count: 13 aeo_v4.html commits across May 12–13
+  M5.5 commit count: 14 aeo_v4.html commits across May 12–13
   (282b03c, 832dde1, 9dcfad8, 04e8c55, 09250e1, 45f1d0c, bfecf3d,
   234775d, e0efe2a, 21ae084, 5c20630, 6e2bc33, 631e1f5, 613be17,
-  70dd293, 8a54b42 — 16 total including the two from before M5.5
-  was formalized). Combined effect: every architectural failure
-  mode surfaced in live testing has either a fix shipped or a
-  kill-only RED with a bounded-cost retry path.
+  70dd293, 8a54b42, 92f281e — 17 total including the two from
+  before M5.5 was formalized). Combined effect: every
+  architectural failure mode surfaced in live testing has either
+  a fix shipped or a kill-only RED with a bounded-cost retry
+  path, AND the operator-facing Phase 7B surfaces only the
+  problems that actually exist (clean article = quiet sidebar,
+  flagged article = orange banner + actionable drawer).
 
 ────────────────────────────────────────────────────────────
 PHASE RENUMBERING (May 12, 2026)
@@ -2224,6 +2313,48 @@ next clean end-to-end run before being closed.
     External links are NOT deduped — multiple sections citing
     the same authoritative source URL is legitimate sourcing
     (kept as YELLOW per existing operator calibration).
+
+13. PHASE 7B LINK MANAGER UI — REBUILT AS A LINK AUDIT DRAWER
+    (commit 92f281e, May 13). The old find/replace pattern (two
+    inputs + Apply button + a list of domain chips in the
+    sidebar) was a hammer for a problem the operator rarely had:
+    most articles needed zero link surgery. The new pattern
+    surfaces ONLY the actual problems via a status bar above the
+    iframe — green ("✔ N Links Audited — All Valid") on a clean
+    article (drawer stays collapsed, iframe full width), orange +
+    clickable ("⚠ N Links Audited — X Warning(s) Detected") when
+    warnings exist. Clicking the orange banner opens a side-by-
+    side drawer (420px) with a per-link table (URL / Anchor / # /
+    Location / 🔴 duplicate / 🟡 cta-in-body / ✅ ok) and a
+    per-row replacement form (dropdown of UNUSED anchorTextTargets
+    URLs, with the CTA URL filtered out and any already-used URLs
+    filtered to prevent introducing new dups, plus a "+ Enter
+    Custom URL" option). Apply walks the JSON, rewrites, re-
+    normalizes URLs via normalizeArticleUrls, re-renders, and
+    refreshes the audit. WATCH: confirm next live run shows the
+    banner green on a clean article (no operator interaction
+    needed) and surfaces actionable warnings on a flagged one.
+    The sidebar still carries Metadata / Rebuild Structure / QC
+    Notes — only the Link Manager sub-section was removed.
+
+14. PHASE 7A URL NORMALIZATION MOVED TO DATA LAYER (commit
+    92f281e, May 13 — same commit as item 13). The two post-
+    assembly regex lines that rewrote itechvalet.github.io →
+    itechvalet.com on articleWrap are gone. A new
+    normalizeArticleUrls(article) helper runs as the FIRST line
+    of assemblePhase7HTML and mutates link.url + cta.url in place
+    (relative paths → absolute, github.io → client domain). The
+    deviations from the literal spec are documented in the code
+    comment: (a) prepended "https://" to the client-domain prefix
+    so the produced URLs are valid absolute hrefs (the spec's
+    bare-host concatenation would produce invalid URLs and trip
+    isInternalUrl()'s relative-detection); (b) the helper walks
+    link.url + cta.url only — URLs embedded inside prose markdown
+    links "[text](url)" are NOT rewritten (the removed post-
+    assembly regex caught those because it operated on the
+    rendered HTML). WATCH: if a future iTV run surfaces a
+    github.io URL inside body prose markdown, expand
+    normalizeArticleUrls to walk prose strings too.
 
 12. PRIMARY CTA URL APPEARING AS A BODY LINK — FIX PUSHED
     (commit 8a54b42, May 13 — addendum to 70dd293). The original
@@ -3472,6 +3603,67 @@ the initial wave; five aeo_v4.html commits + this Master Doc commit):
             variants all fire correctly; different-path /services/
             and external https://hbr.org/2024/article both correctly
             silent) — 11/11 PASS. 17 insertions, 1 deletion.]
+  92f281e  fix: Phase 7A silent URL normalization + Phase 7B Link Manager
+           rebuilt as a Link Audit drawer
+           [Two paired changes addressing live-run UI pain in the
+            operator-facing Phase 7. (1) PHASE 7A SILENT URL NORMALIZATION
+            — new helper normalizeArticleUrls(article) walks
+            content_sections[].links, conclusion_section.links,
+            faq_section.links, and cta.url; rewrites root-relative paths
+            (starting with /) to absolute https://<client-domain>/path
+            form, and rewrites any stray https://itechvalet.github.io/*
+            previews to the production client domain. Called as the FIRST
+            line inside assemblePhase7HTML(article) so all downstream
+            rendering + link-audit logic sees canonical hrefs. The legacy
+            post-assembly regex pass (which had rewritten URLs in the
+            already-rendered HTML string) was removed — the data-layer
+            pass is the single source of truth. DEVIATION FROM LITERAL
+            SPEC: the spec showed `clientDomain + u` where clientDomain
+            was the bare host returned by getClientDomainV4(); that would
+            have produced invalid hrefs like itechvalet.com/services/
+            that isInternalUrl()'s relative-vs-absolute detection would
+            misclassify. Implementation prepends https:// to form valid
+            absolute URLs (documented inline). REGRESSION RISK FLAGGED:
+            prose markdown URLs (e.g. inline [text](url) inside paragraph
+            body) are NOT touched by the new helper — only structured
+            .links[].url entries and cta.url. The removed post-assembly
+            regex had caught those. User accepted as-is per discipline;
+            tracked as a watch item. (2) PHASE 7B LINK MANAGER REBUILT
+            AS A LINK AUDIT DRAWER — the operator-heavy Global Link
+            Manager find/replace UI replaced with a "surface only actual
+            problems" pattern. New buildLinkAuditData(article) walks the
+            same link surface, groups by normalized path via local
+            _audNorm(u), classifies each as 🔴 duplicate (same path used
+            twice across sections), 🟡 cta-in-body (body link normalizes
+            to the Primary CTA URL), or ✅ ok. New #p7LinkStatus banner
+            sits above .p7-main and toggles between green ("✅ All
+            internal links unique. No CTA duplication.") and orange
+            (problem count + "Review →" button that opens the drawer).
+            New #p7LinkDrawer is a flex sibling that slides open via
+            togglePhase7LinkDrawer() / closePhase7LinkDrawer(); contains
+            a .p7-link-table summarizing each link row with its status
+            badge, anchor, normalized path, owning section, and an
+            inline "Replace" button that expands a per-row form
+            (openLinkReplaceForm / onReplaceSelectChange /
+            applyLinkReplace) populated from
+            S.research.anchorTextTargets minus already-used paths.
+            renderPhase7Preview() now invokes renderLinkAudit() on every
+            render so the banner+drawer stay in sync with edits.
+            resetPhase7UI() rewired to close the drawer, clear the
+            banner, and empty the table. The old Global Link Manager
+            section in the p7-sidebar (find input, replace input, scope
+            radios, apply button, undo button) is gone — operators now
+            only see the surface where there's actually something to
+            fix. CSS: new .p7-link-status (green default, .warn variant
+            orange), .p7-link-drawer (display:none / .open), .p7-link-
+            table (zebra rows, status badge column), .p7-link-replace
+            (inline form layout). Verified end-to-end on the May 13
+            live-run V1 artifact: parse clean, normalizeArticleUrls
+            rewrites both root-relative and itechvalet.github.io
+            previews to https://itechvalet.com/* form, buildLinkAudit
+            Data correctly flags a planted duplicate path and a planted
+            CTA-in-body case, banner toggles green↔orange correctly,
+            drawer Replace dropdown excludes already-used paths.]
 
 ═══════════════════════════════════════════════════════════════
 END OF MASTER DOC
