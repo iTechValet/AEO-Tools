@@ -1623,7 +1623,8 @@ Produce:
      ► table_type: "conceptual" — rows organize narrative comparisons, frameworks, or structural information that DOES NOT depend on specific statistics (no factClaim binding required).
    • imagePrompts: at least 1 per H2 content section. prompt + alt text only (this is placement). The conclusion and the FAQ never get images.
    • links: prefer the research brief's anchorTextTargets — copy those anchorText + url pairs exactly. NEVER invent an internal link (a page on the client's own domain that isn't in the brief). A small number of additional reputable EXTERNAL citations is OK if genuinely needed. placementHint = which paragraph (by description) the link belongs to.
-   • UNIQUE LINK MANDATE (NON-NEGOTIABLE): Internal URLs from the anchorTextTargets array are single-use tokens. Once you assign an internal URL to any section, that URL is EXHAUSTED and cannot be used again anywhere else in content_sections, conclusion_section, or faq_section. Every internal link in the article body must point to a unique destination. Treat the anchorTextTargets list as an inventory — each item can be consumed exactly once. If you run out of unused internal URLs, omit the link rather than repeating one. (The CTA url is separate from this inventory and is allowed to repeat one of the body anchors if the 4.3B Primary CTA happens to match.)
+   • UNIQUE LINK MANDATE (NON-NEGOTIABLE): Internal URLs from the anchorTextTargets array are single-use tokens. Once you assign an internal URL to any section, that URL is EXHAUSTED and cannot be used again anywhere else in content_sections, conclusion_section, or faq_section. Every internal link in the article body must point to a unique destination. Treat the anchorTextTargets list as an inventory — each item can be consumed exactly once. If you run out of unused internal URLs, omit the link rather than repeating one.
+   • CTA URL RESERVATION (NON-NEGOTIABLE): The Primary CTA URL (from the client's 4.3B identity card) is RESERVED. It must NEVER be used as a body link in any content_section, conclusion_section, or faq_section. It belongs exclusively to the CTA block. Do not assign it to any section's links array under any circumstances.
    • assigned_facts: REQUIRED. An array of 1-4 factClaim IDs from the Phase 1 research brief (e.g. ["factClaim_02","factClaim_05"]) that are most relevant to this section's topic. Phase 2B will see ONLY these factClaims when hydrating this section. A factClaim MAY be assigned to multiple sections. Every content_section MUST have at least 1.
    • FINAL CONTENT SECTION CONSTRAINT (NON-NEGOTIABLE): The content_sections array must end ABRUPTLY on a specific, granular sub-topic — for example: a specific implementation step, a technical component, a named process, a pricing detail, or a tactical how-to. You are strictly forbidden from writing a "narrative climax," "cost of inaction," "widening gap," "stakes summary," or ANY synthesizing/urgency section as the final content_section entry. All stakes, urgency, synthesis, and narrative payoff belong EXCLUSIVELY in conclusion_section. The final content_section must contain H3 sub-sections OR a table (or both) — if it cannot support that granular depth, replace it with a section that can.
 - conclusion_section: REQUIRED. { h2: the conclusion heading text (e.g. "The Bottom Line", "Where This Leaves You" — your call, in voice), paragraphs:[{},{},…], assigned_facts:["factClaim_NN",…] } — one {} per closing paragraph (2-4 typical). NO image, NO table, NO links here. JS assigns ids; Phase 2B writes the prose. assigned_facts: OPTIONAL — 0-4 factClaim IDs. If the conclusion synthesizes existing arguments with no new data, pass an empty array []. If it will repeat any specific figure already cited earlier in the article, list the supporting factClaim ids here so Phase 2B can re-emit the [factClaim_NN] tokens.
@@ -3012,6 +3013,21 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
           seenPaths.set(path, l.section);
         }
       });
+      // CTA URL RESERVATION CHECK — the Primary CTA URL must not appear as a body link.
+      // The CTA block uses extract43BCtaUrl(doc43B) as its source of truth; we normalize the
+      // same way as the body links and fail any body link whose normalized path matches it.
+      // The CTA url itself is intentionally not collected into allBodyLinks (see above).
+      const ctaUrlNorm = normLinkUrl(extract43BCtaUrl(doc43B));
+      if(ctaUrlNorm){
+        internalBodyLinks.forEach(l => {
+          if(normLinkUrl(l.url) === ctaUrlNorm){
+            F('cta_url_in_body',
+              'the Primary CTA URL is reserved — it must not appear as a body link in any content_section, conclusion_section, or faq_section',
+              `CTA URL "${l.url}" found in body section "${l.section}"`,
+              l.id);
+          }
+        });
+      }
     }
 
     // CTA url matches the 4.3B Primary CTA destination (if extractable). The tool adapts to
