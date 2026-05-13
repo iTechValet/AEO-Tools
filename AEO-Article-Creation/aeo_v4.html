@@ -62,7 +62,7 @@
 
   .gstatus { font-size:12px; color:var(--accent); min-height:16px; font-weight:400; padding:6px 0 2px; }
 
-  .layout { max-width:1700px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; }
+  .layout { max-width:1700px; margin:0 auto; display:grid; grid-template-columns:2fr 3fr; gap:20px; align-items:start; }   /* 40% left (phase cards + images) / 60% right (tabs + preview) */
   .left-col, .right-col { min-width:0; }
 
   .pipeline { display:flex; flex-direction:column; gap:7px; }
@@ -3304,7 +3304,7 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
 
   // The 6 JS quality checks. Returns { fails:[{check,code,reason}], passed:bool }. Mutates nothing.
   function runQualityChecks(opts){
-    const { job, v3, sectionParaNodes, appliedCorrections, isFinalSectionJob, bannedTerms, semanticAnchor } = opts;
+    const { job, v3, sectionParaNodes, appliedCorrections, isFinalSectionJob, bannedTerms, semanticAnchor, v1ProseById, reqIds } = opts;
     const fails = [];
     const paras = (sectionParaNodes || []).map(n => String(n.prose || '')).filter(p => p.trim());
     const sectionText = paras.join('\n\n');
@@ -3320,9 +3320,30 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
       const q = countQuestionMarks(sectionText);
       if(q * 500 < sectionWords) fails.push({ check:'question_density', code:'QC3', reason:`Only ${q} rhetorical question(s) across ${sectionWords} words — need ≥1 per 500 words (≥${Math.ceil(sectionWords/500)}). Add rhetorical questions to break monotony / introduce friction.` });
     }
-    // 4 — AI-Tell Scan (every block) — universal kill list + 4.3B Terminology Lock
+    // 4 — AI-Tell Scan (every block). The universal AI-Tell Kill List is ABSOLUTE — those hits are never suppressed.
+    //     4.3B Terminology-Lock hits are suppressed if either: (a) QC5 Anchor Override — the same term is one of the
+    //     data anchors the operator/model marked to preserve (so keeping it verbatim is intentional), or (b) V1 Delta
+    //     Check — the term was already present in the FROZEN V1 prose for these nodes, so Phase 5/6 did not introduce
+    //     it and re-flagging it would only churn the rewrite without ever clearing. A Terminology-Lock term must
+    //     survive BOTH checks to cause a failure.
     {
-      const hits = scanAITells(sectionText, bannedTerms);
+      const killOnly   = scanAITells(sectionText, []);             // AI-Tell Kill List only — always absolute
+      const withBanned = scanAITells(sectionText, bannedTerms);    // + 4.3B Terminology-Lock terms (suffixed "  [4.3B Terminology Lock]")
+      const killSet = new Set(killOnly);
+      const termHits = withBanned.filter(h => !killSet.has(h));     // isolate just the Terminology-Lock hits
+      // (a) QC5 Anchor Override — collect every data anchor from the applied corrections, lowercased
+      const anchorSet = new Set();
+      (appliedCorrections || []).forEach(c => (c.dataAnchors || []).forEach(a => { const s = String(a == null ? '' : a).trim().toLowerCase(); if(s) anchorSet.add(s); }));
+      // (b) V1 Delta Check — the frozen V1 prose for every id in this block, joined + lowercased
+      const v1Joined = ((reqIds || []).map(id => String((v1ProseById && v1ProseById[id]) || '')).join('\n')).toLowerCase();
+      const survivingTermHits = termHits.filter(h => {
+        const raw = String(h).replace(/\s*\[4\.3B Terminology Lock\]\s*$/i, '').trim().toLowerCase();
+        if(!raw) return false;
+        if(anchorSet.has(raw)) return false;                       // (a) suppressed — it's an explicit data anchor
+        if(v1Joined && v1Joined.indexOf(raw) >= 0) return false;   // (b) suppressed — already in V1
+        return true;
+      });
+      const hits = killOnly.concat(survivingTermHits);
       if(hits.length) fails.push({ check:'ai_tell_scan', code:'QC4', reason:`AI-Tell / banned-term scan flagged: ${hits.join(', ')}. Remove every one of these from the rewritten prose.` });
     }
     // 5 — Data Anchor Preservation (per applied correction)
@@ -3427,6 +3448,22 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
   //     the cap; never RED on a QC failure), merge each block's corrections into V3. ───
   async function executePhase6(v2draft, akey, reg, qcCtx){
     const t0 = Date.now(); qcCtx = qcCtx || {};
+    // flat lookup: node id → its FROZEN V1 prose string. QC4's V1-delta check uses this to suppress a 4.3B
+    // Terminology-Lock hit that was ALREADY in V1 — Phase 5/6 didn't introduce it, so re-flagging it would
+    // only churn the rewrite without ever clearing. Covers DA prose, CTA hookProse, every section + H3
+    // paragraph prose, and every FAQ answer prose. (V1 nodes carry the same JS-assigned ids as V2/V3.)
+    const v1ProseById = {};
+    { const _v1 = qcCtx.v1;
+      if(_v1 && typeof _v1 === 'object'){
+        if(_v1.directAnswer && _v1.directAnswer.id) v1ProseById[_v1.directAnswer.id] = String(_v1.directAnswer.prose || '');
+        if(_v1.cta && _v1.cta.id) v1ProseById[_v1.cta.id] = String(_v1.cta.hookProse || '');
+        _secs(_v1).forEach(sec => { if(!sec || typeof sec !== 'object') return;
+          toArray(sec.paragraphs).forEach(p => { if(p && p.id) v1ProseById[p.id] = String(p.prose || ''); });
+          toArray(sec.h3sections).forEach(h3 => { if(h3) toArray(h3.paragraphs).forEach(p => { if(p && p.id) v1ProseById[p.id] = String(p.prose || ''); }); });
+        });
+        toArray(_v1.faq).forEach(f => { if(f && f.answer && f.answer.id) v1ProseById[f.answer.id] = String(f.answer.prose || ''); });
+      }
+    }
     if(!v2draft || typeof v2draft !== 'object') return { v3: v2draft, correctionCount: 0, blocksProcessed: 0, failedBlocks: 0, qcWarnings: 0, elapsed: '0.0', skipped: 'no V2 draft' };
     const v3 = JSON.parse(JSON.stringify(v2draft)); // un-frozen clone — Phase 6 mutates this
     S.v3 = v3;
@@ -3549,7 +3586,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
         inBlock.forEach(c => { if(setProse(c.targetId, c)){ applied.push(c); correctedIds.add(String(c.targetId)); } });
         // —— RUN THE 6 JS QUALITY CHECKS ON THE (now-corrected) BLOCK ——
         const sectionParaNodes = reqIds.map(id => ({ id, prose: getProse(id) }));
-        const qc = runQualityChecks({ job, v3, sectionParaNodes, appliedCorrections: applied, isFinalSectionJob, bannedTerms: qcCtx.bannedTerms, semanticAnchor: qcCtx.semanticAnchor });
+        const qc = runQualityChecks({ job, v3, sectionParaNodes, appliedCorrections: applied, isFinalSectionJob, bannedTerms: qcCtx.bannedTerms, semanticAnchor: qcCtx.semanticAnchor, v1ProseById, reqIds });
         bestApplied = applied; lastFails = qc.fails;
         if(qc.passed){
           log(`Phase 6 block ${i+1}/${total}: ${applied.length} paragraph(s) corrected; all quality checks pass${attempt>0?` (on retry ${attempt})`:''}.`, 'ok');
@@ -3946,7 +3983,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       if(_bannedTerms.length) log(`Phase 6 — the AI-Tell scan will also block ${_bannedTerms.length} 4.3B Terminology-Lock term(s): ${_bannedTerms.slice(0,8).join(', ')}${_bannedTerms.length>8?'…':''}.`, 'info');
       if(!_semanticAnchor) log(`Phase 6 — no SEMANTIC_ANCHOR column in the 4.2 sheet row; the semantic-anchor check (QC6) is skipped.`, 'info');
       let p6res;
-      try { p6res = await executePhase6(S.v2, akey, voiceReg, { bannedTerms: _bannedTerms, semanticAnchor: _semanticAnchor }); }
+      try { p6res = await executePhase6(S.v2, akey, voiceReg, { bannedTerms: _bannedTerms, semanticAnchor: _semanticAnchor, v1: S.v1 }); }
       catch(e){ if(e.f4){ escalateRed('F4', `Claude/proxy unavailable during Phase 6 forensic critique. (${e.message})`); return; } throw e; }
       if(pipelineHalted) return;
       S.v3 = p6res.v3 || S.v2;
@@ -3968,7 +4005,8 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       //   validated in the Image panel AND a Publish Date is set there (needed for the Last Updated
       //   line + the schema dates). The pipeline parks here; validateImages() releases it. ──
       {
-        const imagesReady = () => !(S.expectedImageCount > 0) || (imagesValidated && Object.keys(S.imageUrls).length >= S.expectedImageCount);
+        // STRICT: the Phase 7 gate is "images ready" only when there is ≥1 expected image AND it's been validated AND every URL is filled — a zero-image frame never counts as ready (a valid 2A frame always has ≥1 image per H2 section).
+        const imagesReady = () => S.expectedImageCount > 0 && imagesValidated && Object.keys(S.imageUrls).length >= S.expectedImageCount;
         const pubDateSet  = () => !!(document.getElementById('publishDate')?.value || '').trim();
         if(!imagesReady() || !pubDateSet()){
           const need = [];
@@ -4311,7 +4349,8 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     else { if(badge){ badge.textContent = `${prompts.length}/${prompts.length} generated`; badge.className = 'img-panel-badge'; } log(`M3.5 — all ${prompts.length} image(s) generated.`, 'ok'); }
     const hint2 = document.getElementById('imgHint'); if(hint2) hint2.textContent = 'Upload each image to WordPress, paste its media URL above — Phase 7 unblocks when all are in.';
     updateImageUIState();
-    checkUrls();
+    // image generation finishing must NEVER move the gate/button backward — only re-evaluate the button if it isn't already validated/green.
+    if(!imagesValidated) checkUrls();
   }
 
   // Generate one image. When !finalPass: up to 2 in-line attempts — attempt 1 with a 35s timeout, then
@@ -4446,19 +4485,22 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
   function getFeatured(){ const s = document.querySelector('input[name="featImg"]:checked'); return s ? parseInt(s.value,10) : 0; }
 
   // VA pastes WordPress URLs (and sets the Publish Date) → tracked here; when everything is in, auto-validate (300ms debounce, V3.1 pattern).
+  // GATE RULE: the Phase 7 gate releases (and the button goes green) ONLY when ALL of these hold simultaneously —
+  //   (1) there is at least one expected image, (2) every expected image URL field is filled, (3) the Publish Date is set.
+  // A zero-image frame or any empty URL field keeps the gate closed regardless of the date.
   function checkUrls(){
     const total = S.imagePrompts.length;
     const btn = document.getElementById('imgValidateBtn');
     const hint = document.getElementById('imgHint');
     // keep the Phase 7 sidebar's publish-date field mirrored to the Image-panel one
     { const pdSb = document.getElementById('p7PubDate'); if(pdSb && document.activeElement !== pdSb) pdSb.value = document.getElementById('publishDate')?.value || ''; }
-    if(imagesValidated) return;
+    if(imagesValidated) return;                                         // already released — never re-evaluate / downgrade
+    if(btn && btn.classList.contains('ready')) return;                  // belt-and-suspenders: a green button is never moved backward by a re-eval (e.g. image generation finishing)
     const pubDate = (document.getElementById('publishDate')?.value || '').trim();
     if(total === 0){
-      if(btn) btn.disabled = false;
-      if(!pubDate){ if(hint) hint.textContent = 'No images for this article — set the Publish Date above, then click Validate to clear the Phase 7 gate.'; return; }
-      if(hint) hint.textContent = 'No images + Publish Date set — auto-clearing the Phase 7 gate…';
-      setTimeout(()=>{ if(!imagesValidated) validateImages(); }, 300);
+      // a valid 2A frame always has ≥1 image per H2 section, so this only happens if something is wrong — keep the gate CLOSED so the operator investigates.
+      if(btn) btn.disabled = true;
+      if(hint) hint.textContent = 'No image slots on this frame — the Phase 7 gate stays closed (a valid frame has ≥1 image per H2 section). Investigate, or stop and re-run.';
       return;
     }
     let filled = 0;
@@ -4469,11 +4511,12 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       else { delete S.imageUrls[i]; if(inp) inp.classList.remove('filled'); }
     }
     updateArtifactImageUrls();
-    if(filled === total && pubDate){
+    const allUrls = (filled === total);                                // strictly: every expected URL field filled
+    if(allUrls && pubDate){
       if(btn) btn.disabled = false;
       if(hint) hint.textContent = 'All URLs + Publish Date in — auto-validating…';
       setTimeout(()=>{ if(!imagesValidated) validateImages(); }, 300);
-    } else if(filled === total && !pubDate){
+    } else if(allUrls && !pubDate){
       if(btn) btn.disabled = false;
       if(hint) hint.textContent = `All ${total} image URL${total===1?'':'s'} entered — now set the Publish Date above, then it auto-validates.`;
     } else {
@@ -4484,21 +4527,22 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
   function validateImages(){
     const total = S.imagePrompts.length;
     const hint = document.getElementById('imgHint');
+    if(imagesValidated) return;                                          // already released
     const pubDate = (document.getElementById('publishDate')?.value || '').trim();
+    // STRICT gate — release only if ALL THREE hold at once: ≥1 image, every URL field filled, Publish Date set.
+    if(total <= 0){ if(hint) hint.textContent = 'No image slots on this frame — the Phase 7 gate stays closed (a valid frame has ≥1 image per H2 section). Investigate, or stop and re-run.'; return; }
     if(!pubDate){ if(hint) hint.textContent = 'Set the Publish Date above before validating — Phase 7 needs it (Last Updated line + schema dates).'; return; }
-    if(total > 0){
-      for(let i=0;i<total;i++){
-        const v = document.getElementById(`iurl${i}`)?.value.trim();
-        if(!v){ if(hint) hint.textContent = 'Some image URLs are still missing!'; return; }
-        S.imageUrls[i] = v;
-      }
+    for(let i=0;i<total;i++){
+      const v = document.getElementById(`iurl${i}`)?.value.trim();
+      if(!v){ if(hint) hint.textContent = 'Some image URLs are still missing!'; return; }
+      S.imageUrls[i] = v;
     }
     imagesValidated = true;
     const btn = document.getElementById('imgValidateBtn');
     if(btn){ btn.textContent = 'Images Ready ✓'; btn.classList.add('ready'); btn.disabled = true; btn.onclick = null; }
     if(hint) hint.textContent = _phase6Resolve ? 'All set — continuing to Phase 7 assembly…' : 'All set ✓ — images + Publish Date locked in.';
     updateArtifactImageUrls();
-    log(`M3.5 — Phase 7 inputs validated: ${total ? `${Object.keys(S.imageUrls).length}/${S.expectedImageCount} image URL(s), featured = image ${getFeatured()+1}` : 'no images'}, publish date ${pubDate}.`, 'ok');
+    log(`M3.5 — Phase 7 inputs validated: ${Object.keys(S.imageUrls).length}/${S.expectedImageCount} image URL(s), featured = image ${getFeatured()+1}, publish date ${pubDate}.`, 'ok');
     // release the Phase 7 prerequisite hard stop if the pipeline is parked on it
     if(_phase6Resolve){ const r = _phase6Resolve; _phase6Resolve = null; r(); }
   }
