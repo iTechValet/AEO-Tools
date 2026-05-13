@@ -240,32 +240,45 @@
   .toast.toast-warn { background:var(--orange); }
   @keyframes toastIn { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
 
-  /* ── PHASE 7 (Final Assembly) UI — in the HTML Stub tab ── */
+  /* ── PHASE 7 (Final Assembly) UI — in the Final HTML tab. Pure-JS formatting QC: a read-only iframe preview + a pre-flight sidebar + a contextual modal. NO Claude calls anywhere in this step. ── */
   .p7-wrap { display:flex; flex-direction:column; gap:10px; }
   .p7-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 10px; background:#eef3f8; border:1px solid var(--border); border-radius:8px; }
   .p7-toolbar .p7-status { flex:1; min-width:140px; font-size:11px; color:var(--muted); }
   .btn-p7 { background:var(--blue); color:#fff; border:none; border-radius:6px; padding:6px 13px; font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1px; cursor:pointer; transition:opacity .2s; }
   .btn-p7:hover { opacity:.85; }
   .btn-p7:disabled { opacity:.35; cursor:not-allowed; }
-  .btn-p7.on { background:var(--green); }
   .btn-p7.finalize { background:var(--orange); }
   .btn-p7.dl { background:var(--accent); }
-  .p7-frame { width:100%; height:760px; border:1px solid var(--border); border-radius:8px; background:#fff; }
+  .btn-p7.sb { background:none; border:1px solid var(--border); color:var(--blue); font-size:11px; padding:6px 10px; }
+  .btn-p7.sb:hover { border-color:var(--accent); color:var(--accent); opacity:1; }
+  .p7-main { display:flex; gap:12px; align-items:flex-start; }
+  .p7-frame { flex:1; min-width:0; height:760px; border:1px solid var(--border); border-radius:8px; background:#fff; }
+  .p7-sidebar { width:252px; flex-shrink:0; display:flex; flex-direction:column; gap:10px; }
+  .p7-sb-section { background:#fff; border:1px solid var(--border); border-radius:8px; padding:10px 12px; }
+  .p7-sb-title { font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1.5px; color:var(--blue); margin-bottom:6px; }
+  .p7-sb-hint { font-size:10px; color:var(--muted); line-height:1.45; margin-bottom:6px; }
+  .p7-sb-lbl { display:block; font-size:9px; text-transform:uppercase; letter-spacing:1.5px; color:var(--faint); margin:7px 0 3px; font-weight:400; }
+  .p7-sb-input { width:100%; background:#f9f9f9; border:1px solid var(--border); border-radius:6px; padding:6px 9px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:11px; outline:none; transition:border-color .2s; }
+  .p7-sb-input:focus { border-color:var(--accent); }
+  .p7-sb-textarea { width:100%; min-height:58px; resize:vertical; background:#f9f9f9; border:1px solid var(--border); border-radius:6px; padding:7px 9px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:11px; line-height:1.6; outline:none; }
+  .p7-domain-list { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:4px; }
+  .p7-domain-list:empty:before { content:'(no links found yet)'; color:var(--faint); font-size:10px; font-style:italic; }
+  .p7-domain-chip { font-family:'SF Mono',Menlo,monospace; font-size:10px; background:#eef3f8; border:1px solid var(--border); border-radius:4px; padding:2px 7px; color:var(--blue); cursor:pointer; transition:border-color .2s,background .2s; word-break:break-all; }
+  .p7-domain-chip:hover { border-color:var(--accent); background:#e3eef8; }
   .p7-src { display:none; max-height:340px; overflow:auto; }
   .p7-src.open { display:block; }
   .p7-src pre { background:#fff; border:1px solid var(--border); border-radius:6px; padding:10px 12px; font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.5; white-space:pre-wrap; word-break:break-word; margin:0; }
-  .p7-notes label { display:block; font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1.5px; color:var(--blue); opacity:.6; margin-bottom:4px; }
-  .p7-notes textarea { width:100%; min-height:60px; resize:vertical; background:#fff; border:1px solid var(--border); border-radius:6px; padding:8px 10px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:11px; line-height:1.6; outline:none; }
-  .p7-edit-panel { position:fixed; right:24px; bottom:24px; width:min(420px, calc(100vw - 48px)); background:#fff; border:1px solid var(--accent); border-radius:10px; box-shadow:0 8px 28px rgba(0,0,0,.22); padding:14px 16px; z-index:10001; display:none; }
-  .p7-edit-panel.open { display:block; }
-  .p7-edit-panel .pe-head { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
-  .p7-edit-panel .pe-title { flex:1; font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1.5px; color:var(--blue); }
-  .p7-edit-panel .pe-close { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; padding:2px 8px; font-size:14px; line-height:1; cursor:pointer; }
-  .p7-edit-panel .pe-current { background:#f6f8fa; border:1px solid var(--border); border-radius:6px; padding:8px 10px; font-size:11px; line-height:1.6; color:var(--blue); max-height:140px; overflow:auto; margin-bottom:8px; white-space:pre-wrap; word-break:break-word; }
-  .p7-edit-panel .pe-input { width:100%; min-height:54px; resize:vertical; background:#fff; border:1px solid var(--border); border-radius:6px; padding:7px 9px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:12px; line-height:1.6; outline:none; margin-bottom:8px; }
-  .p7-edit-panel .pe-input:focus { border-color:var(--accent); }
-  .p7-edit-panel .pe-actions { display:flex; gap:8px; align-items:center; }
-  .p7-edit-panel .pe-busy { font-size:11px; color:var(--accent); }
+  /* ── Contextual hover modal — opens when a block in the preview is clicked. JS-only formatting options for that element type. ── */
+  .p7-ctx-modal { position:fixed; right:24px; bottom:24px; width:min(440px, calc(100vw - 48px)); background:#fff; border:1px solid var(--accent); border-radius:10px; box-shadow:0 8px 28px rgba(0,0,0,.22); padding:14px 16px; z-index:10001; display:none; }
+  .p7-ctx-modal.open { display:block; }
+  .p7-ctx-modal .pcx-head { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .p7-ctx-modal .pcx-title { flex:1; font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1.5px; color:var(--blue); }
+  .p7-ctx-modal .pcx-close { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; padding:2px 8px; font-size:14px; line-height:1; cursor:pointer; }
+  .p7-ctx-modal .pcx-body { font-size:11px; line-height:1.6; color:var(--blue); }
+  .p7-ctx-modal .pcx-raw { background:#f6f8fa; border:1px solid var(--border); border-radius:6px; padding:8px 10px; font-size:11px; line-height:1.6; max-height:170px; overflow:auto; margin:6px 0 8px; white-space:pre-wrap; word-break:break-word; }
+  .p7-ctx-modal .pcx-input { width:100%; background:#fff; border:1px solid var(--border); border-radius:6px; padding:7px 9px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:12px; outline:none; margin:6px 0 8px; }
+  .p7-ctx-modal .pcx-input:focus { border-color:var(--accent); }
+  .p7-ctx-modal .pcx-note { font-size:10px; color:var(--muted); line-height:1.45; margin-top:6px; }
   .pub-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 16px; border-top:1px solid var(--border); background:#fff8f4; }
   .pub-row label { font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1.5px; color:var(--orange); }
   .pub-row input[type=date] { background:#fff; border:1px solid var(--orange); border-radius:6px; padding:5px 9px; color:var(--blue); font-family:'Lexend',sans-serif; font-size:12px; outline:none; }
@@ -291,7 +304,7 @@
 <div class="top-bar">
   <div style="flex:1;">
     <h1>iTech Valet <span>AEO V4.0</span><span class="ver-badge">M2</span><span class="build-stamp" id="buildStamp">build …</span></h1>
-    <p class="subtitle">Phase 1 (research+thesis) → Phase 2 (V1 frame → frame validation → [M3.5: fire image gen, bound to the frame attempt_id] → hydration relay, table rows cite factClaims) → Phase 3 dual validation + surgical fixes (node-level, never a full regen) → Phase 4 freeze → Phase 5 voice draft (section-level relay race) → Phase 6 forensic critique + quality checks (M4 stub) → Phase 7 final assembly (still a stub; hard-stops on image URLs). Error recovery F1–F4 + F13/F16/F19. Calibration/Production modes.</p>
+    <p class="subtitle">Phase 1 (research+thesis) → Phase 2 (V1 frame → frame validation → [M3.5: fire image gen, bound to the frame attempt_id] → hydration relay, table rows cite factClaims) → Phase 3 dual validation + surgical fixes (node-level, never a full regen) → Phase 4 freeze → Phase 5 voice draft (section-level relay race) → Phase 6 forensic critique + 6 JS quality checks (section-level relay) → Phase 7 final assembly (7A JS HTML build → 7B read-only preview + pure-JS formatting QC: Global Link Manager / Metadata / Re-Sync ToC / click-a-block modal → 7C finalize → checklist .html + final .txt + schema; hard-stops on image URLs + Publish Date). Error recovery F1–F4 + F13/F16/F19. Calibration/Production modes.</p>
   </div>
   <div style="text-align:right;">
     <div class="cp-label" style="opacity:.55;">Client Mode</div>
@@ -558,8 +571,8 @@
       <div class="phase-header" onclick="togglePhase(7)">
         <div class="phase-num">7</div>
         <div class="phase-info">
-          <div class="phase-title">Phase 7 — Final Assembly (still a stub)</div>
-          <div class="phase-desc">Runs after Phase 6 — but HARD-STOPS until every generated image (M3.5) has been uploaded to WordPress and its media URL pasted + validated in the Image panel (left column, below the phase cards): image_urls.length must equal expected_image_count. Currently emits the minimal H1 + DA stub HTML (from the Phase 6 V3 draft, falling back to the Phase 5 V2). Real assembly (sections, FAQ, schema, ToC, byline, image embeds) = Milestone 5. (Was Phase 6.)</div>
+          <div class="phase-title">Phase 7 — Final Assembly</div>
+          <div class="phase-desc">Runs after Phase 6 — but HARD-STOPS until every generated image (M3.5) has been uploaded to WordPress and its media URL pasted + validated in the Image panel (left column) AND a Publish Date is set there. 7A: JS assembles the complete article HTML from the V3 (→V2) JSON — canonical 4.3B stylesheet, marked.js prose (links + bold), collapsible ToC, byline, Last Updated, sections / images / tables / FAQ / CTA, github.io→.com link fix — and renders it into a READ-ONLY iframe in the Final HTML tab. 7B: operator visual formatting QC — PURE JS, no Claude, no rewrites; a pre-flight sidebar (Global Link Manager find/replace-a-domain, Metadata author-byline + publish-date, Re-Sync ToC Anchors, Re-render) plus a contextual modal on every clicked block (Direct Answer → "Force Paragraph Breaks"; image → set its WordPress URL; table → "Re-parse Table"; paragraph/FAQ/CTA → show the raw prose for reference). One-way data flow: JS owns the JSON, the iframe is wiped + re-rendered from it. 7C: "Finalize Article" → builds the clean final .txt + the checklist .html (SEO fields, cost report, BlogPosting + FAQPage + BreadcrumbList schema) and unlocks the two downloads. (Was Phase 6.)</div>
         </div>
         <div class="phase-right"><div class="pbadge b-waiting" id="b7">Waiting</div><span class="schev closed" id="c7">▼</span></div>
       </div>
@@ -674,19 +687,45 @@
     <div class="ppane" id="pane-html">
       <div class="p7-wrap" id="p7Wrap">
         <div class="p7-toolbar">
-          <button class="btn-p7" id="btnEditMode" onclick="togglePhase7EditMode()" disabled>✏ Edit Mode: OFF</button>
-          <button class="btn-p7" id="btnViewSource" onclick="togglePhase7Source()" disabled>⌄ View HTML source</button>
-          <span class="p7-status" id="p7Status">Phase 7 (Final Assembly) renders here once Phases 1–6 finish and the image URLs + Publish Date are in.</span>
+          <span class="p7-status" id="p7Status">Phase 7 (Final Assembly) renders here once Phases 1–6 finish and the image URLs + Publish Date are in. The preview is read-only — fix formatting with the sidebar or by clicking a block.</span>
+          <button class="btn-p7 sb" id="btnViewSource" onclick="togglePhase7Source()" disabled>⌄ View HTML source</button>
           <button class="btn-p7 finalize" id="btnFinalize" onclick="finalizePhase7()" disabled>✓ Finalize Article</button>
           <button class="btn-p7 dl" id="btnDlChecklist" onclick="dlChecklistHTML()" disabled>↓ Checklist .html</button>
           <button class="btn-p7 dl" id="btnDlFinal" onclick="dlFinalTxt()" disabled>↓ Final .txt</button>
         </div>
-        <iframe class="p7-frame" id="p7Frame" title="Phase 7 — assembled article preview"></iframe>
-        <div class="p7-src" id="p7Src"><pre id="htmlPre">The clean article HTML (style block + article-wrap) appears here after Phase 7 assembly.</pre></div>
-        <div class="p7-notes">
-          <label for="p7Notes">7B — operator QC notes (free-form, saved locally, never sent to Claude)</label>
-          <textarea id="p7Notes" placeholder="Notes to yourself while reviewing — things to remember, things you fixed, things to flag…"></textarea>
+        <div class="p7-main">
+          <iframe class="p7-frame" id="p7Frame" title="Phase 7 — assembled article preview (read-only — click a block for JS formatting fixes)"></iframe>
+          <div class="p7-sidebar" id="p7Sidebar">
+            <div class="p7-sb-section">
+              <div class="p7-sb-title">Global Link Manager</div>
+              <div class="p7-sb-hint">Unique domains found in the assembled article. Click a chip to fill "Find", then Replace All — JS rewrites every matching URL in the article JSON and re-renders.</div>
+              <div class="p7-domain-list" id="p7DomainList"></div>
+              <label class="p7-sb-lbl">Find domain</label>
+              <input class="p7-sb-input" id="p7LinkFind" placeholder="e.g. itechvalet.github.io" />
+              <label class="p7-sb-lbl">Replace with</label>
+              <input class="p7-sb-input" id="p7LinkReplace" placeholder="e.g. itechvalet.com" />
+              <button class="btn-p7" id="p7LinkReplaceBtn" onclick="p7ReplaceDomain()" style="margin-top:8px;width:100%;">Replace All →</button>
+            </div>
+            <div class="p7-sb-section">
+              <div class="p7-sb-title">Metadata</div>
+              <label class="p7-sb-lbl">Author byline (overrides the 4.3B-derived byline; blank = use 4.3B)</label>
+              <input class="p7-sb-input" id="p7AuthorByline" placeholder="Name, Title" oninput="p7SetAuthorByline()" />
+              <label class="p7-sb-lbl">Publish date (shared with the Image panel)</label>
+              <input type="date" class="p7-sb-input" id="p7PubDate" onchange="p7SetPubDate()" />
+            </div>
+            <div class="p7-sb-section">
+              <div class="p7-sb-title">Rebuild Structure</div>
+              <button class="btn-p7" onclick="p7ReSyncToc()" style="width:100%;margin-bottom:6px;">↺ Re-Sync ToC Anchors</button>
+              <button class="btn-p7" onclick="renderPhase7Preview()" style="width:100%;background:var(--accent);">⟳ Re-render Article</button>
+              <div class="p7-sb-hint" style="margin-top:6px;margin-bottom:0;">Re-Sync forces a slugified, de-duplicated <code>id</code> on every H2/H3 and rebuilds the ToC links. Re-render rebuilds the whole article from the current JSON.</div>
+            </div>
+            <div class="p7-sb-section">
+              <div class="p7-sb-title">QC Notes <span style="font-size:9px;letter-spacing:1px;color:var(--faint);">(local only — never sent anywhere)</span></div>
+              <textarea class="p7-sb-textarea" id="p7Notes" placeholder="Scratchpad while reviewing — things you fixed, things to flag…"></textarea>
+            </div>
+          </div>
         </div>
+        <div class="p7-src" id="p7Src"><pre id="htmlPre">The clean article HTML (style block + article-wrap) appears here after Phase 7 assembly.</pre></div>
       </div>
     </div>
   </div>
@@ -695,19 +734,13 @@
 </div>
 </div>
 
-<!-- PHASE 7B — click-to-edit panel (shown when you click a prose block while Edit Mode is ON) -->
-<div class="p7-edit-panel" id="p7EditPanel">
-  <div class="pe-head">
-    <span class="pe-title" id="p7EditTitle">Fix this paragraph</span>
-    <button class="pe-close" onclick="closePhase7EditPanel()" title="Close">×</button>
+<!-- PHASE 7B — contextual hover modal (opens when a block in the preview is clicked). JS-only formatting fixes — no Claude, no rewrites. -->
+<div class="p7-ctx-modal" id="p7CtxModal">
+  <div class="pcx-head">
+    <span class="pcx-title" id="p7CtxTitle">Block</span>
+    <button class="pcx-close" onclick="closeP7Ctx()" title="Close">×</button>
   </div>
-  <div class="pe-current" id="p7EditCurrent"></div>
-  <textarea class="pe-input" id="p7EditInstruction" placeholder="What's the fix? e.g. 'tighten this — cut the second sentence', 'make the opener a question', 'this reads like a textbook, make it conversational'…" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter')submitPhase7Edit();"></textarea>
-  <div class="pe-actions">
-    <button class="btn-p7" id="p7EditSubmit" onclick="submitPhase7Edit()">Submit fix →</button>
-    <span class="pe-busy" id="p7EditBusy" style="display:none;"><span class="spinner"></span>Asking Claude…</span>
-    <span style="font-size:10px;color:var(--faint);margin-left:auto;">Ctrl+Enter to submit</span>
-  </div>
+  <div class="pcx-body" id="p7CtxBody"></div>
 </div>
 
 <div class="toast-stack" id="toastStack"></div>
@@ -769,6 +802,7 @@
     finalTXT: '',             // Phase 7 — the clean article HTML (style block + article-wrap div) that goes into WordPress
     finalSchema: '',          // Phase 7 — BlogPosting + FAQPage + BreadcrumbList JSON-LD (three <script> blocks)
     checklistHTML: '',        // Phase 7 — the downloadable checklist .html (SEO fields + cost report + schema)
+    p7AuthorByline: '',       // Phase 7 — operator override for the author byline (blank = use the 4.3B-derived byline)
     tokens: { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 },
     cacheLog: [],             // [{phase, callIndex, cacheCreate, cacheRead, input, output, verdict, ts}]
     escalationsRed: [],       // per-run RED escalations [{code, msg, ts}]
@@ -793,7 +827,7 @@
   let _activeImgAbort = null;        // AbortController for the in-flight image fetch (so flushQueue can kill it)
   // ── Phase 7 (Final Assembly) control ──
   let _phase7FinalizeResolve = null; // resolves the 7B operator-QC checkpoint when "Finalize Article" is clicked
-  let _phase7EditMode = false;       // 7B Edit Mode toggle (click-to-edit prose blocks in the preview)
+  let _p7CtxNodeId = null;           // node id of the block whose contextual modal is open
   // ── relay-strip state (per-block status chips for Phase 2B + Phase 5) ──
   let _relayStates = {};             // stripId → [{label, state}] where state ∈ pending|active|done|warn|fail
 
@@ -3925,8 +3959,11 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
 
       // ── PHASE 7 — FINAL ASSEMBLY ──────────────────────────────────────────────────────────────
       //   7A: JS assembles the complete HTML from the article JSON (no API call). 7B: operator visual
-      //   QC — Edit Mode + click-to-edit (the only non-negotiable human checkpoint). 7C: "Finalize
-      //   Article" → build + unlock the checklist .html + the clean final .txt downloads.
+      //   formatting QC — a READ-ONLY iframe preview + a pre-flight sidebar (Global Link Manager,
+      //   Metadata, Re-Sync ToC / Re-render) + a contextual modal per clicked block (DA → force
+      //   paragraph breaks; image → set WP URL; table → re-parse rows; paragraph → show raw prose).
+      //   PURE JS — no Claude calls, no rewrites. Content is final; this step fixes rendering only.
+      //   7C: "Finalize Article" → build + unlock the checklist .html + the clean final .txt downloads.
       //   Hard stop first: Phase 7 cannot run until every generated image's WordPress URL is pasted +
       //   validated in the Image panel AND a Publish Date is set there (needed for the Last Updated
       //   line + the schema dates). The pipeline parks here; validateImages() releases it. ──
@@ -3959,27 +3996,28 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       if(!_pubRaw){ setPhase(7, 'error', 'No publish date'); escalateRed('CHK1', 'Phase 7 — no Publish Date set (it is required: Last Updated line + schema dates). Set it in the Image panel.'); return; } // hard stop if publish date empty
       await sleep(300);
       let _built7;
-      try { _built7 = assemblePhase7HTML(_article7, { editMode:false }); }
+      try { _built7 = assemblePhase7HTML(_article7); }
       catch(e){ setPhase(7, 'error', 'Assembly error'); escalateRed('CHK1', `Phase 7 — HTML assembly failed: ${e.message||e}. Manual operator review required.`); return; }
       S.finalTXT = _built7.finalTxt;
       { const fr = document.getElementById('p7Frame'); if(fr) fr.srcdoc = _built7.fullDoc; }
       { const pre = document.getElementById('htmlPre'); if(pre) pre.textContent = _built7.finalTxt; }
       S.finalSchema = buildSchemaJSONLD(_article7, S.docs.doc43B, _pubRaw, (S.expectedImageCount>0 ? (S.imageUrls[getFeatured()]||'') : ''));
       { const sc = document.getElementById('schemaPre'); if(sc) sc.textContent = S.finalSchema; }
-      // enable the 7A/7B controls; the two download buttons stay disabled until 7C "Finalize Article"
-      ['btnEditMode','btnViewSource','btnFinalize'].forEach(id => { const b = document.getElementById(id); if(b){ b.disabled = false; if(id==='btnEditMode'){ b.textContent='✏ Edit Mode: OFF'; b.classList.remove('on'); } } });
+      // enable the 7B controls (View source / Finalize); the two download buttons stay disabled until 7C "Finalize Article"
+      ['btnViewSource','btnFinalize'].forEach(id => { const b = document.getElementById(id); if(b) b.disabled = false; });
       { const b = document.getElementById('btnDlChecklist'); if(b) b.disabled = true; }
       { const b = document.getElementById('btnDlFinal'); if(b) b.disabled = true; }
-      document.getElementById('o7').textContent = `7A — assembled (${_built7.finalTxt.length.toLocaleString()} chars). Live preview is in the Final HTML tab. Now do 7B: review it, toggle Edit Mode to click-fix any paragraph, then "Finalize Article" (7C) to unlock the downloads.`;
+      if(typeof p7RefreshSidebar === 'function') p7RefreshSidebar();
+      document.getElementById('o7').textContent = `7A — assembled (${_built7.finalTxt.length.toLocaleString()} chars). Live preview is in the Final HTML tab. Now do 7B: review it; fix any formatting with the sidebar (Global Link Manager / Metadata / Re-Sync ToC) or by clicking a block in the preview; then "Finalize Article" (7C) to unlock the downloads.`;
       document.getElementById('m7').textContent = `Assembled — ${_secs(_article7).length} H2 section(s), ${(Array.isArray(_article7.faq)?_article7.faq.length:0)} FAQ, ${S.expectedImageCount?`${Object.keys(S.imageUrls).length}/${S.expectedImageCount} image(s)`:'no images'}. Awaiting 7B QC + Finalize.`;
       updateArtifactImageUrls();
       switchTab('html');
-      log(`Phase 7A complete — final HTML assembled (${_built7.finalTxt.length} chars; schema: BlogPosting + FAQPage + BreadcrumbList). Awaiting operator 7B QC + 7C finalize.`, 'ok');
+      log(`Phase 7A complete — final HTML assembled (${_built7.finalTxt.length} chars; schema: BlogPosting + FAQPage + BreadcrumbList). Awaiting operator 7B formatting QC + 7C finalize.`, 'ok');
 
-      // 7B — operator visual QC. The ONLY non-negotiable human checkpoint. Park until "Finalize Article".
+      // 7B — operator visual formatting QC (read-only iframe + sidebar + contextual modal — pure JS, no Claude). The ONLY non-negotiable human checkpoint. Park until "Finalize Article".
       setPhase(7, 'active', '7B — operator QC');
-      setG('Phase 7B — operator visual QC. Review the preview in the Final HTML tab; toggle Edit Mode to click-fix paragraphs; then "Finalize Article".', true);
-      { const st = document.getElementById('p7Status'); if(st) st.textContent = '7B — review the article, toggle Edit Mode to click-fix any paragraph, then click "Finalize Article" to lock it in and unlock the downloads.'; }
+      setG('Phase 7B — operator formatting QC. Review the read-only preview; fix links / byline / date / ToC anchors with the sidebar, or click a block for JS formatting options; then "Finalize Article".', true);
+      { const st = document.getElementById('p7Status'); if(st) st.textContent = '7B — review the read-only preview. Fix formatting via the sidebar (Global Link Manager / Metadata / Re-Sync ToC) or by clicking a block, then "Finalize Article" to lock it in and unlock the downloads.'; }
       await new Promise(res => { _phase7FinalizeResolve = res; });
       if(pipelineHalted || !running) return; // operator stop / new run while parked
       // 7C ran inside finalizePhase7() — it built S.checklistHTML + S.finalSchema + S.finalTXT, enabled the downloads, and set Phase 7 → 'Finalized ✓'.
@@ -4412,6 +4450,8 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     const total = S.imagePrompts.length;
     const btn = document.getElementById('imgValidateBtn');
     const hint = document.getElementById('imgHint');
+    // keep the Phase 7 sidebar's publish-date field mirrored to the Image-panel one
+    { const pdSb = document.getElementById('p7PubDate'); if(pdSb && document.activeElement !== pdSb) pdSb.value = document.getElementById('publishDate')?.value || ''; }
     if(imagesValidated) return;
     const pubDate = (document.getElementById('publishDate')?.value || '').trim();
     if(total === 0){
@@ -4503,12 +4543,20 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
   }
 
   // ═══════════════════════════════════════════════════════════
-  // PHASE 7 — FINAL ASSEMBLY. 7A: JS builds the complete HTML from the article JSON (no API call) and
-  // renders it in the Final HTML tab. 7B: operator visual QC — Edit Mode toggle + click-to-edit (a click
-  // on a prose block sends only that paragraph + the operator's instruction to Claude → corrected prose
-  // swapped into the article JSON by node id → HTML re-renders). 7C: "Finalize Article" → build + unlock
-  // the checklist .html download and the clean final .txt download. Canonical stylesheet from 4.3B
-  // branding; all prose parsed through marked.js (links + bold native); itechvalet.github.io → .com.
+  // PHASE 7 — FINAL ASSEMBLY.
+  //  7A: JS builds the complete article HTML from the article JSON (no API call) and renders it into a
+  //      READ-ONLY iframe in the Final HTML tab. Canonical stylesheet from 4.3B branding; all prose
+  //      parsed through marked.js (links + bold native); itechvalet.github.io → itechvalet.com.
+  //  7B: operator visual FORMATTING QC — PURE JS, no Claude, no rewrites. Content is final; this step
+  //      fixes rendering errors only. (a) a pre-flight SIDEBAR: Global Link Manager (find/replace a
+  //      domain across every URL in the JSON), Metadata editor (author byline override + publish date),
+  //      Re-Sync ToC Anchors + Re-render Article. (b) a CONTEXTUAL MODAL — every rendered block carries
+  //      data-node-id; clicking it opens JS-only options for that block type: DA → "Force Paragraph
+  //      Breaks"; image → set the WordPress URL; table → "Re-parse Table"; paragraph/FAQ/CTA → show the
+  //      raw prose for reference. ONE-WAY DATA FLOW: the iframe is strictly read-only (never
+  //      contenteditable); the operator acts via the sidebar or the modal; JS mutates the master
+  //      article JSON; JS wipes + re-renders the iframe from the updated JSON. Never mutates the DOM.
+  //  7C: "Finalize Article" → build + unlock the checklist .html download and the clean final .txt download.
   // ═══════════════════════════════════════════════════════════
 
   // The latest article object Phase 7 assembles + edits from (V3 forensic-critique → V2 voice → V1).
@@ -4519,6 +4567,10 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       .replace(/&/g,' and ').replace(/['‘’"“”`]/g,'')
       .replace(/[^a-z0-9]+/g,'-').replace(/-{2,}/g,'-').replace(/^-+|-+$/g,'') || 'section';
   }
+  // Slug for a heading node — prefers a stored ._slug (set by p7ReSyncToc, which de-duplicates), else slugifies the text.
+  function slugOf(node, text){ return (node && typeof node === 'object' && node._slug) ? String(node._slug) : slugifyHeading(text); }
+  // The faq H2's anchor (de-duplicated by p7ReSyncToc, else just "faq").
+  function faqAnchorOf(article){ return (article && article._faqSlug) ? String(article._faqSlug) : 'faq'; }
   function permalinkSlug(article){
     const raw = (article && article.checklist && article.checklist.permalink) || '';
     const s = String(raw).replace(/^\/+|\/+$/g,'').split('/').pop().replace(/[^a-z0-9-]+/gi,'-').replace(/-{2,}/g,'-').replace(/^-+|-+$/g,'').toLowerCase();
@@ -4541,26 +4593,26 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     return escapeHtml(t).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,'<a href="$2">$1</a>');
   }
   function stripMdToText(s){ return mdInline(s).replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/\s+/g,' ').trim(); }
-  // A prose string → one or more <p> elements (split on blank lines). tagAttr e.g. ' class="punch"'. editAttr e.g. ' data-node-id="…"' (added in Edit Mode).
-  function proseToParagraphs(prose, tagAttr, editAttr){
+  // A prose string → one or more <p> elements (split on blank lines). tagAttr e.g. ' class="punch"'. naAttr e.g. ' data-node-id="…"' (so the preview iframe can map a clicked block back to its JSON node).
+  function proseToParagraphs(prose, tagAttr, naAttr){
     const chunks = String(prose || '').replace(/\r/g,'').split(/\n{2,}/).map(c=>c.trim()).filter(Boolean);
-    if(!chunks.length) return `<p${tagAttr||''}${editAttr||''}></p>`;
-    return chunks.map(c => `<p${tagAttr||''}${editAttr||''}>${mdInline(c.replace(/\n+/g,' '))}</p>`).join('\n');
+    if(!chunks.length) return `<p${tagAttr||''}${naAttr||''}></p>`;
+    return chunks.map(c => `<p${tagAttr||''}${naAttr||''}>${mdInline(c.replace(/\n+/g,' '))}</p>`).join('\n');
   }
-  function renderProseNode(p, editAttr){
+  function renderProseNode(p, naAttr){
     if(!p || typeof p !== 'object') return '';
     const pd = String(p.pacingDirective || 'standard expansion');
     if(pd === 'list extraction' && Array.isArray(p.listItems) && p.listItems.length){
-      return `<ul${editAttr||''}>${p.listItems.map(li => `<li>${mdInline(String(li||''))}</li>`).join('')}</ul>`;
+      return `<ul${naAttr||''}>${p.listItems.map(li => `<li>${mdInline(String(li||''))}</li>`).join('')}</ul>`;
     }
-    if(pd === 'short punch') return proseToParagraphs(p.prose || '', ' class="punch"', editAttr);
-    return proseToParagraphs(p.prose || '', '', editAttr); // 'standard expansion' or any unknown directive → plain <p> (never crash)
+    if(pd === 'short punch') return proseToParagraphs(p.prose || '', ' class="punch"', naAttr);
+    return proseToParagraphs(p.prose || '', '', naAttr); // 'standard expansion' or any unknown directive → plain <p> (never crash)
   }
-  function renderArticleTable(tb){
+  function renderArticleTable(tb, naAttr){
     const headers = Array.isArray(tb && tb.headers) ? tb.headers : [];
     const rows = toArray(tb && tb.rows).map(r => Array.isArray(r && r.cells) ? r.cells : (Array.isArray(r) ? r : [])).filter(r => r.length);
     if(!headers.length && !rows.length) return '';
-    let h = '<table class="article-table">';
+    let h = `<table class="article-table"${naAttr||''}>`;
     if(headers.length) h += `<thead><tr>${headers.map(c=>`<th>${mdInline(String(c||''))}</th>`).join('')}</tr></thead>`;
     h += `<tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${mdInline(String(c||''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
     return h;
@@ -4675,18 +4727,18 @@ table td { background: #ffffff; }
 </style>`;
   }
 
-  // ── Collapsible ToC built from the article's headings (slugified ids), nesting H3s under their H2 ──
+  // ── Collapsible ToC built from the article's headings, nesting H3s under their H2. ids prefer a stored ._slug (set by p7ReSyncToc), else slugified text. ──
   function collectArticleHeadings(article){
     const out = [];
     _secs(article).forEach((sec, si) => {
       if(!sec || typeof sec !== 'object') return;
       const h2 = String(sec.h2 || `Section ${si+1}`);
-      out.push({ tag:'h2', id: slugifyHeading(h2), text: h2 });
-      toArray(sec.h3sections).forEach(h3 => { if(h3 && typeof h3 === 'object' && String(h3.h3||'').trim()) out.push({ tag:'h3', id: slugifyHeading(h3.h3), text: String(h3.h3) }); });
+      out.push({ tag:'h2', id: slugOf(sec, h2), text: h2 });
+      toArray(sec.h3sections).forEach(h3 => { if(h3 && typeof h3 === 'object' && String(h3.h3||'').trim()) out.push({ tag:'h3', id: slugOf(h3, h3.h3), text: String(h3.h3) }); });
     });
     if(Array.isArray(article.faq) && article.faq.length){
-      out.push({ tag:'h2', id:'faq', text:'Frequently Asked Questions' });
-      toArray(article.faq).forEach(f => { if(f && typeof f === 'object' && String(f.question||'').trim()) out.push({ tag:'h3', id: slugifyHeading(f.question), text: String(f.question) }); });
+      out.push({ tag:'h2', id: faqAnchorOf(article), text:'Frequently Asked Questions' });
+      toArray(article.faq).forEach(f => { if(f && typeof f === 'object' && String(f.question||'').trim()) out.push({ tag:'h3', id: slugOf(f, f.question), text: String(f.question) }); });
     }
     return out;
   }
@@ -4718,66 +4770,72 @@ table td { background: #ffffff; }
   }
 
   // ── 7A — assemble the complete article HTML from the article JSON ──
-  // Returns { styleBlock, articleWrap, finalTxt, fullDoc }. finalTxt = styleBlock + '\n' + articleWrap (clean — what goes into WordPress).
-  // opts.editMode → prose elements get data-node-id attrs; fullDoc gets a hover <style> + a click→postMessage <script> for 7B.
-  function assemblePhase7HTML(article, opts){
-    opts = opts || {};
-    const editMode = !!opts.editMode;
+  // Returns { styleBlock, articleWrap, finalTxt, fullDoc }.
+  //  - articleWrap: the <div class="article-wrap"> markup WITH data-node-id attrs on every rendered block (used in the preview iframe).
+  //  - finalTxt: styleBlock + '\n' + (articleWrap with the data-node-id attrs stripped) — the clean HTML that goes into WordPress.
+  //  - fullDoc: a complete doc for the read-only preview iframe — styleBlock + a hover <style> + articleWrap + a click→postMessage <script> (so a clicked block opens the contextual modal in the parent).
+  function assemblePhase7HTML(article){
     if(!article || typeof article !== 'object') throw new Error('no article object');
     const styleBlock = buildStylesheetFrom43B(S.docs.doc43B);
     const branding = extractBrandingFrom43B(S.docs.doc43B);
     const pubFormatted = formatPublishDateP7((document.getElementById('publishDate')?.value || '').trim());
     const headings = collectArticleHeadings(article);
     const h1Text = String((article.checklist && (article.checklist.h1 || article.checklist.metaTitle)) || S.topic || 'Untitled');
-    // map img_ ids → pasted WordPress URL
+    // map img_ ids → pasted WordPress URL (S.imageUrls is keyed by index into S.imagePrompts)
     const imgUrlById = {}; (S.imagePrompts||[]).forEach((p, i) => { if(p && p.id) imgUrlById[p.id] = (S.imageUrls && S.imageUrls[i]) ? S.imageUrls[i] : ''; });
-    const ea = id => editMode ? ` data-node-id="${escapeHtml(String(id||''))}"` : '';
+    const imgInQueue = id => (S.imagePrompts||[]).some(p => p && p.id === id);
+    // every rendered block gets a data-node-id so the preview iframe can map a click back to its JSON node
+    const ea = id => { const s = String(id == null ? '' : id).trim(); return s ? ` data-node-id="${escapeHtml(s)}"` : ''; };
     const ind = (str, n) => str.split('\n').map(l => l ? (' '.repeat(n) + l) : l).join('\n');
 
     const parts = [];
     parts.push(`<div class="article-wrap">`);
-    parts.push(`  <h1 id="${slugifyHeading(h1Text)}">${escapeHtml(h1Text)}</h1>`);
+    parts.push(`  <h1 id="${slugifyHeading(h1Text)}"${ea('__h1')}>${escapeHtml(h1Text)}</h1>`);
     if(article.directAnswer && typeof article.directAnswer === 'object'){
-      parts.push(`  <div class="direct-answer">\n${ind(proseToParagraphs(article.directAnswer.prose || '', '', ea(article.directAnswer.id)), 4)}\n  </div>`);
+      parts.push(`  <div class="direct-answer"${ea(article.directAnswer.id || '__da')}>\n${ind(proseToParagraphs(article.directAnswer.prose || '', '', ''), 4)}\n  </div>`);
     }
-    parts.push(`  <p class="last-updated">Last Updated: ${escapeHtml(pubFormatted || '(date not set)')}</p>`);
-    if(branding.authorName){
-      const byline = branding.authorTitle ? `${branding.authorName}, ${branding.authorTitle}` : branding.authorName;
-      parts.push(`  <p class="author-byline"><em>By ${escapeHtml(byline)}</em></p>`);
+    parts.push(`  <p class="last-updated"${ea('__lastupdated')}>Last Updated: ${escapeHtml(pubFormatted || '(date not set)')}</p>`);
+    { // byline — operator override (S.p7AuthorByline) wins; else the 4.3B-derived author
+      const ov = String(S.p7AuthorByline || '').trim();
+      let bylineText = '';
+      if(ov) bylineText = ov.replace(/^by\s+/i, '');
+      else if(branding.authorName) bylineText = branding.authorTitle ? `${branding.authorName}, ${branding.authorTitle}` : branding.authorName;
+      if(bylineText) parts.push(`  <p class="author-byline"${ea('__byline')}><em>By ${escapeHtml(bylineText)}</em></p>`);
     }
     const tocHTML = buildArticleTocHTML(headings);
     if(tocHTML) parts.push(ind(tocHTML, 2));
     _secs(article).forEach((sec, si) => {
       if(!sec || typeof sec !== 'object') return;
       const h2 = String(sec.h2 || `Section ${si+1}`);
-      parts.push(`  <h2 id="${slugifyHeading(h2)}">${escapeHtml(h2)}</h2>`);
+      parts.push(`  <h2 id="${slugOf(sec, h2)}"${ea(sec.id || ('__sec'+si))}>${escapeHtml(h2)}</h2>`);
       toArray(sec.imagePrompts).forEach(im => {
         if(!im || typeof im !== 'object') return;
         const url = (im.id && imgUrlById[im.id]) ? imgUrlById[im.id] : '';
-        if(url) parts.push(`  <img src="${escapeHtml(url)}" alt="${escapeHtml(String(im.alt||''))}" />`);
+        if(url) parts.push(`  <img src="${escapeHtml(url)}" alt="${escapeHtml(String(im.alt||''))}"${ea(im.id)} />`);
+        else if(im.id && imgInQueue(im.id)) parts.push(`  <div${ea(im.id)} style="border:2px dashed #bbb;border-radius:8px;padding:24px;text-align:center;color:#888;font-style:italic;margin-bottom:20px;">📷 image not uploaded yet${im.alt?` — alt: ${escapeHtml(String(im.alt))}`:''} (click to paste its WordPress URL, or use the Image panel)</div>`);
       });
       toArray(sec.paragraphs).forEach(p => { const h = renderProseNode(p, ea(p && p.id)); if(h) parts.push(ind(h, 2)); });
-      toArray(sec.h3sections).forEach(h3 => {
+      toArray(sec.h3sections).forEach((h3, hi) => {
         if(!h3 || typeof h3 !== 'object') return;
         const h3t = String(h3.h3 || '');
-        if(h3t.trim()) parts.push(`  <h3 id="${slugifyHeading(h3t)}">${escapeHtml(h3t)}</h3>`);
+        if(h3t.trim()) parts.push(`  <h3 id="${slugOf(h3, h3t)}"${ea(h3.id || ('__h3_'+si+'_'+hi))}>${escapeHtml(h3t)}</h3>`);
         toArray(h3.paragraphs).forEach(p => { const h = renderProseNode(p, ea(p && p.id)); if(h) parts.push(ind(h, 2)); });
       });
-      toArray(sec.tables).forEach(tb => { const h = renderArticleTable(tb); if(h) parts.push(ind(h, 2)); });
+      toArray(sec.tables).forEach(tb => { const h = renderArticleTable(tb, ea(tb && tb.id)); if(h) parts.push(ind(h, 2)); });
     });
     if(Array.isArray(article.faq) && article.faq.length){
-      parts.push(`  <h2 id="faq">Frequently Asked Questions</h2>`);
+      parts.push(`  <h2 id="${faqAnchorOf(article)}"${ea('__faqheading')}>Frequently Asked Questions</h2>`);
       toArray(article.faq).forEach(f => {
         if(!f || typeof f !== 'object') return;
         const q = String(f.question || '');
-        parts.push(`  <h3 id="${slugifyHeading(q)}">${escapeHtml(q)}</h3>`);
+        parts.push(`  <h3 id="${slugOf(f, q)}"${ea(f.id || '__faqq')}>${escapeHtml(q)}</h3>`);
         parts.push(ind(proseToParagraphs((f.answer && f.answer.prose) || '', '', ea(f.answer && f.answer.id)), 2));
       });
     }
     if(article.cta && typeof article.cta === 'object'){
       const hook = String(article.cta.hookProse || ''), anchor = String(article.cta.anchorText || ''), url = String(article.cta.url || '');
-      parts.push(`  <div class="article-cta">`);
-      if(hook.trim()) parts.push(ind(proseToParagraphs(hook, '', ea(article.cta.id)), 4));
+      parts.push(`  <div class="article-cta"${ea(article.cta.id || '__cta')}>`);
+      if(hook.trim()) parts.push(ind(proseToParagraphs(hook, '', ''), 4));
       if(anchor || url) parts.push(`    <p><a href="${escapeHtml(url)}">${escapeHtml(anchor || url || 'Learn more')}</a></p>`);
       parts.push(`  </div>`);
     }
@@ -4787,11 +4845,12 @@ table td { background: #ffffff; }
     articleWrap = articleWrap.replace(/(href|src)=("|')([^"']*itechvalet\.github\.io[^"']*)\2/gi, (m, attr, q, val) => `${attr}=${q}${val.replace(/itechvalet\.github\.io/gi,'itechvalet.com')}${q}`);
     articleWrap = articleWrap.replace(/https?:\/\/itechvalet\.github\.io/gi, 'https://itechvalet.com');
 
-    const finalTxt = `${styleBlock}\n${articleWrap}`;
-    const editStyle = editMode ? `<style>[data-node-id]{cursor:pointer;transition:outline .12s,background .12s;}[data-node-id]:hover{outline:2px dashed #2494e0;outline-offset:3px;background:rgba(36,148,224,.08);}</style>` : '';
-    const editScript = editMode ? `<scr`+`ipt>document.addEventListener("click",function(e){var el=e.target&&e.target.closest&&e.target.closest("[data-node-id]");if(el){e.preventDefault();e.stopPropagation();try{window.parent.postMessage({__p7edit:true,nodeId:el.getAttribute("data-node-id"),text:(el.textContent||"")},"*");}catch(_){}}},true);<\/scr`+`ipt>` : '';
-    const fullDoc = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">${styleBlock}${editStyle}</head><body>${articleWrap}${editScript}</body></html>`;
-    return { styleBlock, articleWrap, finalTxt, fullDoc };
+    const cleanWrap = articleWrap.replace(/\s+data-node-id="[^"]*"/g, '');  // the version that goes into WordPress — no instrumentation
+    const finalTxt = `${styleBlock}\n${cleanWrap}`;
+    const hoverStyle = `<style>[data-node-id]{cursor:pointer;}[data-node-id]:hover{outline:2px dashed #2494e0;outline-offset:3px;background:rgba(36,148,224,.08);}</style>`;
+    const clickScript = `<scr`+`ipt>document.addEventListener("click",function(e){var el=e.target&&e.target.closest&&e.target.closest("[data-node-id]");if(el){e.preventDefault();e.stopPropagation();try{window.parent.postMessage({__p7ctx:true,nodeId:el.getAttribute("data-node-id"),text:(el.textContent||"")},"*");}catch(_){}}},true);<\/scr`+`ipt>`;
+    const fullDoc = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">${styleBlock}${hoverStyle}</head><body>${articleWrap}${clickScript}</body></html>`;
+    return { styleBlock, articleWrap: cleanWrap, finalTxt, fullDoc };
   }
 
   // ── SCHEMA — BlogPosting + FAQPage + BreadcrumbList, each as its own <script type="application/ld+json"> ──
@@ -4907,9 +4966,8 @@ ${schemaRow}
 ` + '<scr' + 'ipt>\nfunction clCopy(btn){var ta=btn.previousElementSibling;ta.select();try{document.execCommand("copy");btn.textContent="Copied!";btn.classList.add("copied");setTimeout(function(){btn.textContent="Copy";btn.classList.remove("copied");},2000);}catch(e){btn.textContent="Select & Ctrl+C";setTimeout(function(){btn.textContent="Copy";},2500);}}\ndocument.querySelectorAll(".cl-ta:not(.cl-ta-schema)").forEach(function(ta){ta.style.height="auto";ta.style.height=Math.max(36,ta.scrollHeight)+"px";});\n<\/scr' + 'ipt>\n</body>\n</html>';
   }
 
-  // ── 7B — Edit Mode toggle, click-to-edit, preview rendering ──
-  let _p7EditNodeId = null;
-  const PHASE7_EDIT_TOOL = { name:'submit_corrected_prose', description:'Return the corrected version of the single paragraph the operator asked you to fix — nothing else.', input_schema: { type:'object', required:['newProse'], additionalProperties:false, properties:{ newProse:{ type:'string', description:'The corrected prose, in Markdown (links as [anchor text](url), bold as **text**). No headings, no HTML tags.' } } } };
+  // ── 7B — pure-JS formatting QC: preview rendering, the pre-flight sidebar, and the contextual modal. NO Claude calls anywhere below. ──
+  // Look up an editable prose node in the current article by its data-node-id.
   function p7NodeById(id){
     const a = currentArticle(); if(!a || !id) return null;
     if(a.directAnswer && a.directAnswer.id === id) return { node:a.directAnswer, kind:'da', label:'Direct Answer' };
@@ -4929,78 +4987,222 @@ ${schemaRow}
     if(Array.isArray(rec.node.listItems) && rec.node.listItems.length) return rec.node.listItems.map(x=>'- '+String(x||'')).join('\n');
     return String(rec.node.prose || '');
   }
+  function p7TableNodeById(id){
+    const a = currentArticle(); if(!a || !id) return null;
+    let found = null;
+    _secs(a).forEach(sec => { if(found||!sec||typeof sec!=='object') return; toArray(sec.tables).forEach(tb => { if(!found && tb && tb.id === id) found = tb; }); });
+    return found;
+  }
+  // Re-render the whole preview iframe from the current JSON state. ONE-WAY: JS owns the JSON; the iframe is wiped + rebuilt from it.
   function renderPhase7Preview(){
     const a = currentArticle();
     const fr = document.getElementById('p7Frame'), pre = document.getElementById('htmlPre');
     if(!a){ if(fr) fr.srcdoc = '<!DOCTYPE html><body style="font-family:sans-serif;color:#888;padding:24px;">(no article yet — run the pipeline first)</body>'; return null; }
-    let built; try { built = assemblePhase7HTML(a, { editMode: _phase7EditMode }); } catch(e){ if(fr) fr.srcdoc = `<!DOCTYPE html><body style="font-family:sans-serif;color:#c0392b;padding:24px;">Assembly error: ${escapeHtml(e.message||String(e))}</body>`; return null; }
+    let built; try { built = assemblePhase7HTML(a); } catch(e){ if(fr) fr.srcdoc = `<!DOCTYPE html><body style="font-family:sans-serif;color:#c0392b;padding:24px;">Assembly error: ${escapeHtml(e.message||String(e))}</body>`; return null; }
     S.finalTXT = built.finalTxt;
     if(fr) fr.srcdoc = built.fullDoc;
     if(pre) pre.textContent = built.finalTxt;
+    p7RefreshSidebar();
     return built;
-  }
-  function togglePhase7EditMode(){
-    _phase7EditMode = !_phase7EditMode;
-    const b = document.getElementById('btnEditMode');
-    if(b){ b.textContent = _phase7EditMode ? '✏ Edit Mode: ON' : '✏ Edit Mode: OFF'; b.classList.toggle('on', _phase7EditMode); }
-    closePhase7EditPanel();
-    renderPhase7Preview();
-    const st = document.getElementById('p7Status');
-    if(st) st.textContent = _phase7EditMode ? '✏ Edit Mode ON — click any paragraph in the preview below to fix it. Toggle off for a clean preview.' : 'Clean preview. Toggle Edit Mode to click-fix paragraphs, or "Finalize Article" when you\'re done reviewing.';
   }
   function togglePhase7Source(){
     const el = document.getElementById('p7Src'); if(el) el.classList.toggle('open');
     const b = document.getElementById('btnViewSource'); if(b) b.textContent = (el && el.classList.contains('open')) ? '⌃ Hide HTML source' : '⌄ View HTML source';
   }
-  function openPhase7EditPanel(nodeId, domText){
-    if(!_phase7EditMode) return;
-    const rec = p7NodeById(nodeId);
-    _p7EditNodeId = nodeId;
-    const panel = document.getElementById('p7EditPanel'); if(!panel) return;
-    document.getElementById('p7EditTitle').textContent = `Fix this ${rec ? rec.label : 'block'}`;
-    document.getElementById('p7EditCurrent').textContent = (rec ? (p7NodeCurrentText(rec) || '(empty)') : (domText || '(could not locate this block in the article JSON)'));
-    const inst = document.getElementById('p7EditInstruction'); inst.value = '';
-    document.getElementById('p7EditBusy').style.display = 'none';
-    document.getElementById('p7EditSubmit').disabled = false;
-    panel.classList.add('open');
-    setTimeout(()=>{ try{ inst.focus(); }catch(_){} }, 30);
+
+  // ── Pre-flight sidebar ──
+  function p7CollectDomains(article){
+    let blob = '';
+    try { blob += JSON.stringify(article || {}); } catch(_){}
+    try { blob += ' ' + JSON.stringify(S.imageUrls || {}); } catch(_){}
+    const set = new Set(); let m;
+    const re = /https?:\/\/([a-z0-9](?:[a-z0-9.-]*[a-z0-9])?)/gi;
+    while((m = re.exec(blob)) !== null){ const h = String(m[1]).toLowerCase().replace(/^www\./,''); if(h.indexOf('.') > 0) set.add(h); }
+    return Array.from(set).sort();
   }
-  function closePhase7EditPanel(){ const p = document.getElementById('p7EditPanel'); if(p) p.classList.remove('open'); _p7EditNodeId = null; }
-  async function submitPhase7Edit(){
-    const nodeId = _p7EditNodeId; if(!nodeId){ return; }
-    const instruction = (document.getElementById('p7EditInstruction')?.value || '').trim();
-    if(!instruction){ document.getElementById('p7EditInstruction').focus(); return; }
-    const akey = document.getElementById('keyAnthropic').value.trim();
-    if(!akey){ alert('Anthropic API key required.'); return; }
-    const rec = p7NodeById(nodeId); if(!rec){ alert('Could not find that node in the article JSON.'); return; }
-    const cur = p7NodeCurrentText(rec);
-    document.getElementById('p7EditBusy').style.display = 'inline-flex';
-    document.getElementById('p7EditSubmit').disabled = true;
-    try {
-      const sys = [{ type:'text', text:`You are a copy editor making ONE small, surgical fix to a single paragraph of a finished AEO article in the client's voice. The operator tells you exactly what to change. Return ONLY the corrected paragraph via the submit_corrected_prose tool — same voice, Markdown formatting (links as [anchor text](url), bold as **text**), no headings, no HTML tags. Preserve every hard fact / number / proper noun unless the instruction says otherwise; don't add or remove links unless asked.` }];
-      const usr = `CURRENT PARAGRAPH (${rec.label}):\n${cur || '(empty)'}\n\nOPERATOR'S FIX INSTRUCTION:\n${instruction}\n\nReturn the corrected paragraph now via submit_corrected_prose.`;
-      const result = await callClaude({ systemBlocks: sys, userText: usr, tools:[PHASE7_EDIT_TOOL], toolChoice:{type:'tool', name:'submit_corrected_prose'}, akey, timeoutMs: 180000 });
-      logCacheCall(7, result.usage);
-      const inp = result.toolCalls && result.toolCalls[0] && result.toolCalls[0].input;
-      const corrected = (inp && typeof inp.newProse === 'string') ? inp.newProse.trim() : '';
-      if(!corrected){ alert('Claude did not return a usable correction — try rephrasing the instruction.'); document.getElementById('p7EditBusy').style.display='none'; document.getElementById('p7EditSubmit').disabled=false; return; }
-      // swap into the article JSON by node id
-      if(rec.kind === 'cta'){ rec.node.hookProse = corrected; if('listItems' in rec.node) delete rec.node.listItems; }
-      else { rec.node.prose = corrected; if(rec.node.pacingDirective === 'list extraction') rec.node.pacingDirective = 'standard expansion'; if('listItems' in rec.node) delete rec.node.listItems; }
-      log(`Phase 7 — 7B edit applied to ${nodeId} ("${instruction.slice(0,60).replace(/\s+/g,' ')}").`, 'ok');
-      closePhase7EditPanel();
-      renderPhase7Preview();
-      // if the article was already finalized, the downloads are now stale → require re-finalize
-      if(S.checklistHTML || S.finalSchema){
-        S.checklistHTML = '';
-        const dlc = document.getElementById('btnDlChecklist'), dlf = document.getElementById('btnDlFinal');
-        if(dlc) dlc.disabled = true; if(dlf) dlf.disabled = true;
-        const st = document.getElementById('p7Status'); if(st) st.textContent = '⚠ Edited after finalize — click "Finalize Article" again to refresh the downloads + schema.';
-      }
-    } catch(e){
-      alert(`Phase 7 edit failed: ${e.message || e}`);
-      document.getElementById('p7EditBusy').style.display='none'; document.getElementById('p7EditSubmit').disabled=false;
+  function p7RefreshSidebar(){
+    const a = currentArticle();
+    const dl = document.getElementById('p7DomainList');
+    if(dl){
+      dl.innerHTML = '';
+      p7CollectDomains(a).forEach(host => {
+        const chip = document.createElement('span');
+        chip.className = 'p7-domain-chip'; chip.textContent = host; chip.title = 'Click to fill "Find domain"';
+        chip.onclick = () => { const f = document.getElementById('p7LinkFind'); if(f){ f.value = host; f.focus(); } };
+        dl.appendChild(chip);
+      });
     }
+    const ab = document.getElementById('p7AuthorByline');
+    if(ab){
+      const b = extractBrandingFrom43B(S.docs.doc43B);
+      ab.placeholder = b.authorName ? (b.authorTitle ? `${b.authorName}, ${b.authorTitle}` : b.authorName) : '(no author in 4.3B — type one to add a byline)';
+      if(document.activeElement !== ab) ab.value = String(S.p7AuthorByline || '');
+    }
+    const pd = document.getElementById('p7PubDate'), pdMain = document.getElementById('publishDate');
+    if(pd && pdMain && document.activeElement !== pd) pd.value = pdMain.value || '';
+  }
+  function p7MarkStaleIfFinalized(){
+    if(!(S.checklistHTML || S.finalSchema)) return;
+    S.checklistHTML = '';
+    ['btnDlChecklist','btnDlFinal'].forEach(id => { const el = document.getElementById(id); if(el) el.disabled = true; });
+    const st = document.getElementById('p7Status'); if(st) st.textContent = '⚠ Formatting changed after finalize — click "Finalize Article" again to refresh the downloads + schema.';
+  }
+  function p7ReplaceDomain(){
+    const find = String(document.getElementById('p7LinkFind')?.value || '').trim();
+    const repl = String(document.getElementById('p7LinkReplace')?.value || '').trim();
+    if(!find){ alert('Enter the domain to find.'); document.getElementById('p7LinkFind')?.focus(); return; }
+    if(!repl){ alert('Enter the replacement domain.'); document.getElementById('p7LinkReplace')?.focus(); return; }
+    if(find === repl) return;
+    const a = currentArticle(); if(!a){ alert('No article to update.'); return; }
+    let count = 0;
+    const sub = s => { const t = String(s == null ? '' : s); if(t.indexOf(find) < 0) return s; count += t.split(find).length - 1; return t.split(find).join(repl); };
+    if(a.directAnswer && typeof a.directAnswer === 'object' && typeof a.directAnswer.prose === 'string') a.directAnswer.prose = sub(a.directAnswer.prose);
+    if(a.cta && typeof a.cta === 'object'){ if(typeof a.cta.hookProse === 'string') a.cta.hookProse = sub(a.cta.hookProse); if(typeof a.cta.url === 'string') a.cta.url = sub(a.cta.url); }
+    if(a.checklist && typeof a.checklist === 'object'){ ['fullUrl','permalink'].forEach(k => { if(typeof a.checklist[k] === 'string') a.checklist[k] = sub(a.checklist[k]); }); }
+    _secs(a).forEach(sec => {
+      if(!sec || typeof sec !== 'object') return;
+      toArray(sec.paragraphs).forEach(p => { if(p && typeof p === 'object'){ if(typeof p.prose === 'string') p.prose = sub(p.prose); if(Array.isArray(p.listItems)) p.listItems = p.listItems.map(x => sub(x)); } });
+      toArray(sec.h3sections).forEach(h3 => { if(h3 && typeof h3 === 'object') toArray(h3.paragraphs).forEach(p => { if(p && typeof p === 'object'){ if(typeof p.prose === 'string') p.prose = sub(p.prose); if(Array.isArray(p.listItems)) p.listItems = p.listItems.map(x => sub(x)); } }); });
+      toArray(sec.tables).forEach(tb => { if(tb && typeof tb === 'object'){ if(Array.isArray(tb.headers)) tb.headers = tb.headers.map(x => sub(x)); toArray(tb.rows).forEach(r => { const cells = Array.isArray(r && r.cells) ? r.cells : (Array.isArray(r) ? r : null); if(cells) for(let i=0;i<cells.length;i++) cells[i] = sub(cells[i]); }); } });
+      toArray(sec.links).forEach(lk => { if(lk && typeof lk === 'object' && typeof lk.url === 'string') lk.url = sub(lk.url); });
+    });
+    toArray(a.faq).forEach(f => { if(f && f.answer && typeof f.answer === 'object' && typeof f.answer.prose === 'string') f.answer.prose = sub(f.answer.prose); });
+    Object.keys(S.imageUrls || {}).forEach(k => { const nv = sub(S.imageUrls[k]); if(nv !== S.imageUrls[k]){ S.imageUrls[k] = nv; const inp = document.getElementById('iurl'+k); if(inp) inp.value = nv; } });
+    if(typeof updateArtifactImageUrls === 'function') updateArtifactImageUrls();
+    renderPhase7Preview();
+    log(`Phase 7 — Global Link Manager: "${find}" → "${repl}" (${count} occurrence(s) rewritten).`, count ? 'ok' : 'info');
+    p7MarkStaleIfFinalized();
+  }
+  function p7SetAuthorByline(){
+    S.p7AuthorByline = String(document.getElementById('p7AuthorByline')?.value || '');
+    renderPhase7Preview();
+    p7MarkStaleIfFinalized();
+  }
+  function p7SetPubDate(){
+    const v = String(document.getElementById('p7PubDate')?.value || '');
+    const main = document.getElementById('publishDate'); if(main) main.value = v;
+    if(typeof checkUrls === 'function') checkUrls();   // keep the Image-panel state + the Phase 7 gate consistent
+    renderPhase7Preview();
+  }
+  function p7ReSyncToc(){
+    const a = currentArticle(); if(!a){ alert('No article yet.'); return; }
+    const seen = {};
+    const uniq = base => { base = base || 'section'; if(seen[base] == null){ seen[base] = 0; return base; } seen[base]++; return base + '-' + (seen[base]+1); };
+    _secs(a).forEach((sec, si) => {
+      if(sec && typeof sec === 'object'){
+        sec._slug = uniq(slugifyHeading(String(sec.h2 || ('Section ' + (si+1)))));
+        toArray(sec.h3sections).forEach(h3 => { if(h3 && typeof h3 === 'object' && String(h3.h3||'').trim()) h3._slug = uniq(slugifyHeading(String(h3.h3))); });
+      }
+    });
+    if(Array.isArray(a.faq) && a.faq.length){
+      a._faqSlug = uniq('faq');
+      toArray(a.faq).forEach(f => { if(f && typeof f === 'object' && String(f.question||'').trim()) f._slug = uniq(slugifyHeading(String(f.question))); });
+    }
+    renderPhase7Preview();
+    log('Phase 7 — ToC anchors re-synced (every H2/H3 got a slugified, de-duplicated id; ToC links rebuilt).', 'ok');
+    p7MarkStaleIfFinalized();
+  }
+
+  // ── Contextual modal — opens when a block in the preview is clicked. JS-only formatting options per block type. ──
+  function openP7Ctx(nodeId, domText){
+    const a = currentArticle(); if(!a) return;
+    _p7CtxNodeId = nodeId;
+    const modal = document.getElementById('p7CtxModal'); if(!modal) return;
+    const titleEl = document.getElementById('p7CtxTitle'), bodyEl = document.getElementById('p7CtxBody');
+    let title = 'Block', html = '';
+    if(/^img_/.test(nodeId)){
+      const idx = (S.imagePrompts||[]).findIndex(p => p && p.id === nodeId);
+      if(idx < 0){ title = 'Image'; html = `<div class="pcx-note">This image slot isn't in the generation queue (it may have been de-duplicated — a duplicate alt within the same section). Manage images in the Image panel (left column).</div>`; }
+      else {
+        const cur = (S.imageUrls && S.imageUrls[idx]) ? String(S.imageUrls[idx]) : '';
+        const alt = (S.imagePrompts[idx] && S.imagePrompts[idx].alt) || '';
+        title = `Image ${idx+1}`;
+        html = `<div>WordPress media URL:</div>
+        <input class="pcx-input" id="p7CtxImgUrl" placeholder="https://…/wp-content/uploads/…" value="${escapeHtml(cur)}" />
+        <button class="btn-p7" style="width:100%;" onclick="p7SetImageUrl(${idx})">Set URL & re-render →</button>
+        ${alt?`<div class="pcx-note">alt: ${escapeHtml(alt)}</div>`:''}
+        <div class="pcx-note">JS updates S.imageUrls[${idx}] (and the matching field in the Image panel) then re-renders the article. No upload happens here — paste the URL after uploading the image to WordPress.</div>`;
+      }
+    } else if(/^table_/.test(nodeId)){
+      const tb = p7TableNodeById(nodeId);
+      title = 'Table';
+      if(!tb){ html = `<div class="pcx-note">Couldn't find that table in the article JSON.</div>`; }
+      else {
+        const rowsTxt = toArray(tb.rows).map((r,i)=>{ const cells = Array.isArray(r&&r.cells)?r.cells:(Array.isArray(r)?r:[]); return `[${i+1}] ${cells.map(c=>String(c==null?'':c)).join('  |  ')}`; }).join('\n') || '(no rows)';
+        const hdrTxt = (Array.isArray(tb.headers)?tb.headers:[]).map(c=>String(c||'')).join('  |  ') || '(none)';
+        html = `<div>Headers: ${escapeHtml(hdrTxt)}</div>
+        <div class="pcx-raw">${escapeHtml(rowsTxt)}</div>
+        <button class="btn-p7" style="width:100%;" onclick="p7ReparseTable()">Re-parse Table & re-render →</button>
+        <div class="pcx-note">JS re-evaluates the rows array: splits any cell that still contains a "|" into separate cells, drops markdown separator rows (e.g. <code>--- | ---</code>), trims whitespace — then re-renders the table.</div>`;
+      }
+    } else if(/^(__|section_|h3_|faq_)/.test(nodeId)){
+      title = 'Heading / metadata';
+      html = `<div class="pcx-raw">${escapeHtml(domText || '(no text)')}</div>
+        <div class="pcx-note">No JS formatting options for this element. Headings auto-slugify — use <strong>Re-Sync ToC Anchors</strong> in the sidebar to force unique anchor ids and rebuild the ToC links. The byline and the publish date are in the sidebar's <strong>Metadata</strong> panel.</div>`;
+    } else {
+      const rec = p7NodeById(nodeId);
+      if(!rec){ title = 'Block'; html = `<div class="pcx-raw">${escapeHtml(domText || '(no text)')}</div><div class="pcx-note">Couldn't locate this block in the article JSON.</div>`; }
+      else if(rec.kind === 'da'){
+        title = 'Direct Answer';
+        html = `<div>Raw prose:</div><div class="pcx-raw">${escapeHtml(p7NodeCurrentText(rec) || '(empty)')}</div>
+        <button class="btn-p7" style="width:100%;" onclick="p7ForceParaBreaks()">Force Paragraph Breaks & re-render →</button>
+        <div class="pcx-note">JS normalizes the Direct Answer prose so every line break becomes a paragraph break (splits on newlines, re-joins with blank lines) — then re-renders. Use this when the DA came back as one undivided block.</div>`;
+      } else {
+        title = rec.label ? (rec.label.charAt(0).toUpperCase() + rec.label.slice(1)) : 'Paragraph';
+        html = `<div>Raw prose (reference only — no edit, no Claude call):</div><div class="pcx-raw">${escapeHtml(p7NodeCurrentText(rec) || '(empty)')}</div>
+        <div class="pcx-note">Content is final. Fix links via the sidebar's <strong>Global Link Manager</strong>. (Paragraph re-splitting is available on the Direct Answer block.)</div>`;
+      }
+    }
+    if(titleEl) titleEl.textContent = title;
+    if(bodyEl) bodyEl.innerHTML = html;
+    modal.classList.add('open');
+    setTimeout(()=>{ const i = document.getElementById('p7CtxImgUrl'); if(i){ try{ i.focus(); i.select(); }catch(_){} } }, 30);
+  }
+  function closeP7Ctx(){ const m = document.getElementById('p7CtxModal'); if(m) m.classList.remove('open'); _p7CtxNodeId = null; }
+  function p7ForceParaBreaks(){
+    const rec = p7NodeById(_p7CtxNodeId); if(!rec){ closeP7Ctx(); return; }
+    const norm = s => String(s||'').replace(/\r/g,'').split(/\n+/).map(x=>x.trim()).filter(Boolean).join('\n\n');
+    if(rec.kind === 'cta') rec.node.hookProse = norm(rec.node.hookProse);
+    else rec.node.prose = norm(rec.node.prose);
+    renderPhase7Preview();
+    log('Phase 7 — paragraph breaks forced on the Direct Answer.', 'ok');
+    closeP7Ctx();
+    p7MarkStaleIfFinalized();
+  }
+  function p7SetImageUrl(idx){
+    const inp = document.getElementById('p7CtxImgUrl'); if(!inp) return;
+    const v = String(inp.value || '').trim();
+    const panelInp = document.getElementById('iurl'+idx);
+    if(panelInp){ panelInp.value = v; if(v) panelInp.classList.add('filled'); else panelInp.classList.remove('filled'); }
+    if(typeof checkUrls === 'function') checkUrls();    // rebuilds S.imageUrls from the panel fields + updates the artifact
+    else { if(v) S.imageUrls[idx] = v; else delete S.imageUrls[idx]; if(typeof updateArtifactImageUrls === 'function') updateArtifactImageUrls(); }
+    renderPhase7Preview();
+    log(`Phase 7 — image ${idx+1} URL ${v?'set':'cleared'} via the preview.`, 'ok');
+    closeP7Ctx();
+    p7MarkStaleIfFinalized();
+  }
+  function p7ReparseTable(){
+    const tb = p7TableNodeById(_p7CtxNodeId); if(!tb){ closeP7Ctx(); return; }
+    // a markdown separator row = every cell is only dashes / colons / pipes / whitespace AND at least one dash is present
+    const isSeparatorRow = cells => cells.length > 0 && cells.every(c => { const s = String(c == null ? '' : c); return /^[\s\-:|]+$/.test(s) && s.indexOf('-') >= 0; });
+    const newRows = [];
+    toArray(tb.rows).forEach(r => {
+      const src = Array.isArray(r && r.cells) ? r.cells : (Array.isArray(r) ? r : []);
+      const out = [];
+      src.forEach(c => {
+        const s = String(c == null ? '' : c);
+        if(s.indexOf('|') >= 0) s.split('|').forEach(part => out.push(part.replace(/^\s+|\s+$/g,'')));
+        else out.push(s.replace(/^\s+|\s+$/g,''));
+      });
+      if(!out.length || isSeparatorRow(out) || out.every(c => c === '')) return;   // drop empty / markdown-separator rows
+      const rowObj = (r && typeof r === 'object' && !Array.isArray(r)) ? Object.assign({}, r, { cells: out }) : { cells: out };
+      newRows.push(rowObj);
+    });
+    tb.rows = newRows;
+    renderPhase7Preview();
+    log(`Phase 7 — table re-parsed (${newRows.length} row(s) after splitting pipes + dropping separator rows).`, 'ok');
+    closeP7Ctx();
+    p7MarkStaleIfFinalized();
   }
 
   // ── 7C — Finalize: build the clean final .txt, the schema, and the checklist .html; unlock the downloads; release the 7B park ──
@@ -5008,17 +5210,17 @@ ${schemaRow}
     const article = currentArticle();
     if(!article){ alert('No article to finalize — run the pipeline first.'); return; }
     const pdRaw = (document.getElementById('publishDate')?.value || '').trim();
-    if(!pdRaw){ alert('Set the Publish Date in the Image panel first — Phase 7 needs it for the Last Updated line and the schema dates.'); return; }
-    let built; try { built = assemblePhase7HTML(article, { editMode:false }); } catch(e){ alert(`Assembly failed: ${e.message||e}`); return; }
+    if(!pdRaw){ alert('Set the Publish Date (in the Image panel, or in the sidebar\'s Metadata panel) first — Phase 7 needs it for the Last Updated line and the schema dates.'); return; }
+    let built; try { built = assemblePhase7HTML(article); } catch(e){ alert(`Assembly failed: ${e.message||e}`); return; }
     S.finalTXT = built.finalTxt;
     const featUrl = (S.expectedImageCount > 0) ? (S.imageUrls[getFeatured()] || '') : '';
     S.finalSchema = buildSchemaJSONLD(article, S.docs.doc43B, pdRaw, featUrl);
     S.checklistHTML = buildChecklistHTML(article);
-    if(_phase7EditMode){ togglePhase7EditMode(); } else { renderPhase7Preview(); }   // re-render clean
+    renderPhase7Preview();   // re-render (clean) from the finalized JSON
     const sc = document.getElementById('schemaPre'); if(sc) sc.textContent = S.finalSchema;
     const dlc = document.getElementById('btnDlChecklist'), dlf = document.getElementById('btnDlFinal');
     if(dlc) dlc.disabled = false; if(dlf) dlf.disabled = false;
-    const st = document.getElementById('p7Status'); if(st) st.textContent = `✓ Finalized — ${(S.finalTXT.length).toLocaleString()} chars. Downloads ready below. (Editing a block again will require re-finalizing.)`;
+    const st = document.getElementById('p7Status'); if(st) st.textContent = `✓ Finalized — ${(S.finalTXT.length).toLocaleString()} chars. Downloads ready below. (Any further formatting change will require re-finalizing.)`;
     if(typeof updateArtifactImageUrls === 'function') updateArtifactImageUrls();
     log(`Phase 7C — article FINALIZED (${S.finalTXT.length} chars; schema: BlogPosting + FAQPage + BreadcrumbList). Checklist .html + final .txt ready.`, 'ok');
     setG('✓ Phase 7 complete — article finalized. Download the checklist .html and the final .txt in the Final HTML tab.');
@@ -5037,22 +5239,24 @@ ${schemaRow}
     const blob = new Blob([S.finalTXT], { type:'text/plain' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
   }
-  // Reset the Phase 7 UI (Final HTML tab) — called at the start of every run and on client change.
+  // Reset the Phase 7 UI (Final HTML tab) — called at the start of every run, on client change, and at init.
   function resetPhase7UI(){
-    _phase7EditMode = false; _phase7FinalizeResolve = null; _p7EditNodeId = null;
-    S.finalTXT = ''; S.finalSchema = ''; S.checklistHTML = '';
-    const fr = document.getElementById('p7Frame'); if(fr) fr.srcdoc = '<!DOCTYPE html><body style="font-family:sans-serif;color:#aaa;padding:24px;font-size:13px;">Phase 7 (Final Assembly) renders the article here once Phases 1–6 finish and the image URLs + Publish Date are in.</body>';
+    _phase7FinalizeResolve = null; _p7CtxNodeId = null;
+    S.finalTXT = ''; S.finalSchema = ''; S.checklistHTML = ''; S.p7AuthorByline = '';
+    const fr = document.getElementById('p7Frame'); if(fr) fr.srcdoc = '<!DOCTYPE html><body style="font-family:sans-serif;color:#aaa;padding:24px;font-size:13px;">Phase 7 (Final Assembly) renders the article here once Phases 1–6 finish and the image URLs + Publish Date are in. The preview is read-only — fix formatting with the sidebar or by clicking a block.</body>';
     const pre = document.getElementById('htmlPre'); if(pre) pre.textContent = 'The clean article HTML (style block + article-wrap) appears here after Phase 7 assembly.';
-    const b = document.getElementById('btnEditMode'); if(b){ b.textContent = '✏ Edit Mode: OFF'; b.classList.remove('on'); b.disabled = true; }
     ['btnViewSource','btnFinalize','btnDlChecklist','btnDlFinal'].forEach(id => { const el = document.getElementById(id); if(el) el.disabled = true; });
     const src = document.getElementById('p7Src'); if(src) src.classList.remove('open');
     const vs = document.getElementById('btnViewSource'); if(vs) vs.textContent = '⌄ View HTML source';
-    const st = document.getElementById('p7Status'); if(st) st.textContent = 'Phase 7 (Final Assembly) renders here once Phases 1–6 finish and the image URLs + Publish Date are in.';
-    closePhase7EditPanel();
+    ['p7LinkFind','p7LinkReplace','p7AuthorByline','p7PubDate','p7Notes'].forEach(id => { const el = document.getElementById(id); if(el){ el.value = ''; } });
+    const ab = document.getElementById('p7AuthorByline'); if(ab) ab.placeholder = 'Name, Title';
+    const dl = document.getElementById('p7DomainList'); if(dl) dl.innerHTML = '';
+    const st = document.getElementById('p7Status'); if(st) st.textContent = 'Phase 7 (Final Assembly) renders here once Phases 1–6 finish and the image URLs + Publish Date are in. The preview is read-only — fix formatting with the sidebar or by clicking a block.';
+    closeP7Ctx();
   }
-  // The iframe (Edit Mode) posts a message when the operator clicks a prose block — open the edit panel.
+  // The read-only preview iframe posts a message when the operator clicks a block — open the contextual modal.
   window.addEventListener('message', function(e){
-    try { if(e && e.data && e.data.__p7edit && _phase7EditMode){ openPhase7EditPanel(String(e.data.nodeId||''), String(e.data.text||'')); } } catch(_){}
+    try { if(e && e.data && e.data.__p7ctx){ openP7Ctx(String(e.data.nodeId||''), String(e.data.text||'')); } } catch(_){}
   });
 
 </script>
