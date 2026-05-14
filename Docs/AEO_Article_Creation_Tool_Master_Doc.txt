@@ -3726,6 +3726,97 @@ the initial wave; five aeo_v4.html commits + this Master Doc commit):
             before the closing backtick in both, exactly 2 occurrences
             of "PARAGRAPH STRUCTURE (NON-NEGOTIABLE)" in the file. 7
             insertions, 3 deletions.]
+  b3b83cf  fix: unified link architecture — prose-level validation +
+           normalization + Phase 2B link discipline + CTA ghost fix
+           [Four paired changes attacking the same root cause: the
+            prior link pipeline only ever inspected the structured
+            section.links[] / cta.url JSON, but Claude routinely emits
+            inline [text](url) markdown inside paragraph prose that
+            never round-trips through those arrays. Result: duplicate
+            internal URLs and Primary-CTA-as-body-link cases sailed
+            past Phase 3A undetected, and Phase 7A's data-layer URL
+            canonicalization left prose URLs (relative paths /
+            itechvalet.github.io previews) untouched. Plus an
+            observed "ghost CTA" duplication risk in assemblePhase7
+            HTML that needed a structural fence. (1) NEW HELPER
+            extractMarkdownLinksFromProse(v1) — the single source of
+            truth for body-link discovery. Iterates every prose-
+            carrying node (directAnswer, content_sections[].paragraphs
+            + h3sections[].paragraphs, conclusion paragraphs, FAQ
+            intro paragraphs, FAQ answers, cta.hookProse) and pulls
+            every inline [anchor](url) pair via
+            /\[([^\]]*)\]\(([^)]+)\)/g, tagging each with a human-
+            readable location string. Defined just above
+            validateV1Structure so the hoisted dependencies
+            (_secs/_concl/_faqIntro/_qaPairs/toArray) are available.
+            (2) PHASE 3A VALIDATION REWIRED — the existing DUPLICATE
+            INTERNAL URL CHECK + cta_url_in_body block (which had
+            scanned secLinks(sec) across content_sections + the
+            defensive conclusion/faq link arrays) was replaced with
+            a prose-driven version gated on !frameOnly. New flow:
+            extractMarkdownLinksFromProse → filter out location ===
+            'cta' → keep only internal links (path starts with /, OR
+            URL includes clientDomain, OR URL includes itechvalet.
+            com) → seenPaths map flags duplicates (fail id null
+            since prose-link cases have no JSON node id), then
+            normLinkUrl(extract43BCtaUrl(doc43B)) flags any
+            internal body prose link whose normalized path equals
+            the CTA URL. Fail messages updated to surface "at
+            <location>" instead of "in section X" to match the new
+            prose-anchored data shape. (3) PHASE 7A
+            normalizeArticleUrls EXTENDED — kept the existing link-
+            array + cta.url passes; appended a prose-level
+            normalization pass reusing the outer-scope fixUrl()
+            helper. PROSE_LINK_RE = /\[([^\]]*)\]\(([^)]+)\)/g;
+            fixProseLinks(text) runs replace() over every match,
+            calling fixUrl(url) so relative paths become
+            https://<client-domain>/path and itechvalet.github.io
+            previews become the production domain — only the URL
+            half of the markdown is touched, anchor text is
+            preserved verbatim. walkProse(sec) hits paragraphs +
+            h3sections[].paragraphs; then conclusion, FAQ container,
+            FAQ intro paragraphs, every FAQ answer, directAnswer
+            prose, and cta.hookProse get the same treatment. This
+            closes the regression-risk-watch item documented in
+            92f281e — the data-layer pass is now genuinely the
+            single source of truth for URL canonicalization. (4)
+            PHASE 2B + PHASE 2A PROMPT ADDITIONS. Phase 2B (uncached
+            buildHydrateInstrBlock, AFTER the PARAGRAPH STRUCTURE
+            rule added in 77458f5): two new NON-NEGOTIABLE clauses
+            — LINK DISCIPLINE (anchorTextTargets are single-use
+            tokens, Primary CTA URL is RESERVED for the CTA block
+            only, omit rather than repeat) and CONCLUSION DISCIPLINE
+            (zero CTA buttons / promotional links / "contact us"
+            language in conclusion prose — the system appends the
+            CTA block automatically). Phase 2A (frame prompt,
+            immediately after the conclusion_section description
+            on its own indented bullet): CONCLUSION CTA PROHIBITION
+            (the conclusion is a narrative wrap-up only, zero CTAs,
+            zero Primary-CTA links, zero promo). Both layers
+            reinforce the same architectural rule at the planning
+            stage and the writing stage. (5) PHASE 7A CTA GUARD —
+            assemblePhase7HTML now declares let _ctaRendered = false
+            right before the parts array, and the CTA block (which
+            already lives outside all section loops between FAQ and
+            the closing </div>) is gated on !_ctaRendered with
+            _ctaRendered = true set inside the block. Makes a second
+            emit mathematically impossible even if a future refactor
+            accidentally hits the block twice — fences the observed
+            "ghost CTA" duplication mode. Verified: single inline
+            <script> parses clean via new Function (1/1 PASS); grep
+            audit confirms each named anchor lands at the spec'd
+            location — extractMarkdownLinksFromProse defined once
+            before validateV1Structure; PROSE LINK VALIDATION block
+            lives inside the !frameOnly scope and references
+            extractMarkdownLinksFromProse; PROSE LINK NORMALIZATION
+            block lives at the tail of normalizeArticleUrls reusing
+            fixUrl; LINK DISCIPLINE + CONCLUSION DISCIPLINE appear
+            once each at the bottom of buildHydrateInstrBlock's
+            template literal; CONCLUSION CTA PROHIBITION lives in
+            the Phase 2A frame instructions immediately after the
+            conclusion_section description bullet; _ctaRendered is
+            declared once and consumed exactly once in the CTA emit
+            block. 95 insertions, 31 deletions.]
 
 ═══════════════════════════════════════════════════════════════
 END OF MASTER DOC
