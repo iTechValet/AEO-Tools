@@ -3851,7 +3851,13 @@ MARKDOWN IN PROSE (Phase 7's assembler parses your prose with a Markdown parser 
 
 For each block: call revoice_content_block with a "nodes" array — one object per requested targetId — using pacing_directive ∈ {short punch, standard expansion, list extraction}; "short punch"/"standard expansion" → put the rewrite in newProse, "list extraction" → put 3-7 items in newListItems (each item plain text + Markdown links/bold as above; no list markup). Always include data_anchors_to_preserve and transition_logic per node. Always invoke the tool; never respond in plain text; never include fields not in the schema; never fabricate data.
 
-PARAGRAPH STRUCTURE (NON-NEGOTIABLE): Maximum 3 sentences per paragraph. Target 1–2. Single-sentence paragraphs are strongly preferred for impact and readability. If you write 4 or more sentences in a single paragraph, split it. Use white space as a design element — it signals premium writing.`;
+PARAGRAPH STRUCTURE (NON-NEGOTIABLE): Maximum 3 sentences per paragraph. Target 1–2. Single-sentence paragraphs are strongly preferred for impact and readability. If you write 4 or more sentences in a single paragraph, split it. Use white space as a design element — it signals premium writing.
+
+CRITICAL LINK PRESERVATION RULES:
+1. DO NOT add, change, or hallucinate new markdown links into the text.
+2. If the paragraph you are rewriting contains a markdown link, you must preserve it exactly as written.
+3. DO NOT inject the primary CTA URL into any body paragraphs or FAQ answers.
+4. DO NOT repeat internal URLs. If you are rewriting a paragraph, you are strictly forbidden from adding an internal link that was not explicitly approved in the text provided to you.`;
     return { type:'text', text: txt };
   }
 
@@ -4260,7 +4266,13 @@ MARKDOWN IN PROSE (Phase 7's assembler parses your prose with a Markdown parser 
 
 AI-TELL KILL LIST — any of these in a paragraph means it MUST be rewritten to remove them:
 ${aiTellListText()}
-Also: never use any term the 4.3B Terminology Lock bans; always use the client's canonical terms from 4.3B.` };
+Also: never use any term the 4.3B Terminology Lock bans; always use the client's canonical terms from 4.3B.
+
+CRITICAL LINK PRESERVATION RULES:
+1. DO NOT add, change, or hallucinate new markdown links into the text.
+2. If the paragraph you are rewriting contains a markdown link, you must preserve it exactly as written.
+3. DO NOT inject the primary CTA URL into any body paragraphs or FAQ answers.
+4. DO NOT repeat internal URLs. If you are rewriting a paragraph, you are strictly forbidden from adding an internal link that was not explicitly approved in the text provided to you.` };
   }
 
   // Build the Phase 6 relay queue from V3 + the registry. Order: one job per content H2 section (article
@@ -5300,6 +5312,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
         </div>
         <div class="img-edit-area" id="iea${i}">
           <textarea id="iet${i}"></textarea>
+          <div style="margin-top:8px; font-size:0.85em; color:var(--faint);"><strong>Alt Text / Filename:</strong> <span style="color:var(--blue);">${escapeHtml(String(p.alt || ''))}</span></div>
           <div class="edit-actions">
             <button class="btn-save-edit" onclick="saveImgEdit(${i})">Save &amp; Regenerate</button>
             <button class="btn-cancel-edit" onclick="cancelImgEdit(${i})">Cancel</button>
@@ -5356,18 +5369,18 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
         if(err && err.requeue){
           requeue.push(i);
           const b = document.getElementById(`ib${i}`); if(b){ b.className = 'sbadge b-running'; b.textContent = 'Queued for retry…'; }
-          log(`M3.5 — image ${i+1} hit ${err.message || 'a transient failure'} on attempts 1–2 — pushed to the back of the queue for a final retry after the others finish.`, 'info');
+          log(`M3.5 — image ${i+1} hit ${err.message || 'a transient failure'} on attempts 1–2 — pushed to the back of the queue for a 40s final retry after the others finish.`, 'info');
         } else { showImgErr(i, err.message || String(err)); failed++; }
       }
     }
-    // —— back-of-queue final pass (attempt 3): one 90s shot each, no further requeue ——
+    // —— back-of-queue final pass (attempt 3): one 40s shot each, no further requeue ——
     if(requeue.length) log(`M3.5 — running the final retry pass for ${requeue.length} requeued image(s).`, 'info');
     for(const i of requeue){
       if(attemptId !== S.imageAttemptId) return;
       const hint = document.getElementById('imgHint'); if(hint) hint.textContent = `Final retry for image ${i+1} (it was queued earlier)…`;
       await imageJitterWait();
       if(attemptId !== S.imageAttemptId) return;
-      try { await genOneImage(prompts[i].prompt, prompts[i].alt, i, gkey, attemptId, true); } // finalPass = true → single 90s attempt, no requeue
+      try { await genOneImage(prompts[i].prompt, prompts[i].alt, i, gkey, attemptId, true); } // finalPass = true → single 40s attempt, no requeue
       catch(err){ if(attemptId !== S.imageAttemptId) return; showImgErr(i, err.message || String(err)); failed++; }
     }
     if(attemptId !== S.imageAttemptId) return;
@@ -5381,15 +5394,17 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
   }
 
   // Generate one image. When !finalPass: up to 2 in-line attempts — attempt 1 with a 35s timeout, then
-  // (if it fails) attempt 2 IMMEDIATELY with a 45s timeout. If both fail with a transient error
+  // (if it fails) attempt 2 IMMEDIATELY with a 40s timeout. If both fail with a transient error
   // (capacity 503 / rate-limit 429 / timeout / network), throws Error with .requeue = true so the caller
   // pushes this index to the back of the queue for a final attempt. A non-transient failure (bad key,
-  // "no image returned", etc.) throws with .requeue = false. When finalPass: ONE 90s attempt, no requeue.
+  // "no image returned", etc.) throws with .requeue = false. When finalPass: ONE 40s attempt, no requeue.
+  // (40s ceiling: a dead-server-node hang used to burn 90s before the operator could hit Regenerate;
+  // the fast-fail keeps manual-retry UX snappy.)
   async function genOneImage(prompt, alt, idx, gkey, attemptId, finalPass){
     const badge = document.getElementById(`ib${idx}`);
-    const ATTEMPT_TIMEOUTS = finalPass ? [90000] : [35000, 45000]; // attempt 1 → 35s · attempt 2 → 45s (immediate) · final back-of-queue retry → 90s
+    const ATTEMPT_TIMEOUTS = finalPass ? [40000] : [35000, 40000]; // attempt 1 → 35s · attempt 2 → 40s (immediate) · final back-of-queue retry / manual regen → 40s (fail-fast for dead nodes)
     const N = ATTEMPT_TIMEOUTS.length;
-    const setBadge = a => { if(badge){ badge.className = 'sbadge b-running'; badge.textContent = finalPass ? 'Final retry (90s)…' : (a === 0 ? 'Generating…' : 'Retry 2/2 (45s)…'); } };
+    const setBadge = a => { if(badge){ badge.className = 'sbadge b-running'; badge.textContent = finalPass ? 'Final retry (40s)…' : (a === 0 ? 'Generating…' : 'Retry 2/2 (40s)…'); } };
     const terminal = (msg, requeue) => Object.assign(new Error(msg), { requeue: requeue });
     let lastReason = 'generation failed';
     for(let a = 0; a < N; a++){
@@ -5495,7 +5510,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     if(!gkey || !S.imagePrompts[idx]){ alert('Gemini API key required to regenerate.'); return; }
     const rb = document.getElementById(`ir${idx}`); if(rb) rb.disabled = true;
     try {
-      await genOneImage(S.imagePrompts[idx].prompt, S.imagePrompts[idx].alt, idx, gkey, S.imageAttemptId, true); // manual regen → single 90s attempt, no requeue
+      await genOneImage(S.imagePrompts[idx].prompt, S.imagePrompts[idx].alt, idx, gkey, S.imageAttemptId, true); // manual regen → single 40s attempt, no requeue (fail-fast for snappy retry UX)
       updateImageUIState();
       const total = document.querySelectorAll('.img-card').length || S.imagePrompts.length;
       const ok = Object.keys(S.imageData).length;
@@ -6080,7 +6095,12 @@ table td { background: #ffffff; }
 
     const cleanWrap = articleWrap.replace(/\s+data-node-id="[^"]*"/g, '');  // the version that goes into WordPress — no instrumentation
     const finalTxt = `${styleBlock}\n${cleanWrap}`;
-    const hoverStyle = `<style>[data-node-id]{cursor:pointer;}[data-node-id]:hover{outline:2px dashed #2494e0;outline-offset:3px;background:rgba(36,148,224,.08);}.direct-answer[data-node-id]:hover,.direct-answer [data-node-id]:hover{background:rgba(255,255,255,.08);}</style>`;
+    // DA HOVER FIX — the previous override applied a white tint on hover. Since daText is light
+    // (default #ffffff on #063a6c), a white-tint background washed the text out. Per the
+    // "remove background: white if the text is light" rule, the DA's hover overlay is removed
+    // entirely; the click affordance is the inherited dashed outline only. The DA's original
+    // background + text colors stay 100% intact, so contrast is preserved.
+    const hoverStyle = `<style>[data-node-id]{cursor:pointer;}[data-node-id]:hover{outline:2px dashed #2494e0;outline-offset:3px;background:rgba(36,148,224,.08);}.direct-answer[data-node-id]:hover,.direct-answer [data-node-id]:hover{background:transparent;}</style>`;
     const clickScript = `<scr`+`ipt>document.addEventListener("click",function(e){var el=e.target&&e.target.closest&&e.target.closest("[data-node-id]");if(el){e.preventDefault();e.stopPropagation();try{window.parent.postMessage({__p7ctx:true,nodeId:el.getAttribute("data-node-id"),text:(el.textContent||"")},"*");}catch(_){}}},true);<\/scr`+`ipt>`;
     const fullDoc = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">${styleBlock}${hoverStyle}</head><body>${articleWrap}${clickScript}</body></html>`;
     return { styleBlock, articleWrap: cleanWrap, finalTxt, fullDoc };
