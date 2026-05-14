@@ -43,24 +43,37 @@
  *   - prompts/prompt-templates.js   (getPrompt(runId, clientConfig))
  *   - parser.js                     (parseResponse — Haiku + heuristic)
  *   - score-engine.js               (composite AI Visibility Score)
- *   - sheet-reader.js               (prior AI_Visibility_Summary history)
+ *   - sheet-reader.js               (Summary history + AEO inventory + citations)
  *   - sheet-writer.js               (Raw + Summary writes)
  *   - github-archiver.js            (raw JSON archive per run)
- *   - narrative-engine.js           (Claude Sonnet narrative call)
+ *   - analysis-engine.js            (Claude Sonnet Strategic Brief, temp 0.3)
+ *   - narrative-engine.js           (Claude Sonnet narrative, temp 0.7)
  *   - pdf-builder.js                (Puppeteer HTML → PDF)
  *   - drive-writer.js               (PDF upload to client Drive folder)
  *   - OpenAI, Gemini, Perplexity (sonar), xAI Grok APIs — direct calls
  *     here, serially, with the 5-attempt exponential-backoff retry loop.
  *
- * STATUS: Updated in Session 4. Pipeline now runs end-to-end from
- *   --client argument to PDF on disk. Only drive-writer.js remains a
- *   scaffold (step 8). Session 4 added: AEO_Inventory read via
- *   sheet-reader.readAEOInventory; 4.3A + 4.3B Drive doc fetch (inline
- *   helper using googleapis); progression flags (progressionPhase,
- *   isFirstMonth, isQuarterlyMonth); reportPeriodLabel ("May 2026")
- *   alongside the internal "2026-05"; full context object assembled and
- *   passed to narrative-engine.generateNarrative(context), then result +
- *   context passed to pdf-builder.buildPDF(narrative, context).
+ * STATUS: Updated in Session 5. Pipeline is now feature-complete end-to-end
+ *   from --client argument to PDF on Google Drive. Re-numbered to the
+ *   13-step architecture:
+ *     Step  1  Load client config
+ *     Step  2  Fetch 4.3A + 4.3B from Google Drive
+ *     Step  3  readSheetHistory + readAEOInventory + readCitationHistory
+ *     Step  4  Fire 13 platform runs (serial, exponential-backoff retry)
+ *     Step  5  Parse each response (fused per-run with Step 4)
+ *     Step  6  calculateScore
+ *     Step  7  writeToSheet  (Raw + Summary)
+ *     Step  8  archiveRun    (archive/[YYYY-MM]/[client_id]_raw.json)
+ *     Step  9  generateAnalysis  → Strategic Brief (Sonnet @ temp 0.3)
+ *     Step 10  generateNarrative → 8-section prose (Sonnet @ temp 0.7,
+ *              Run 6 stripped from the writer's view)
+ *     Step 11  buildPDF      → outputs/<client_id>_AI_Visibility_<YYYY-MM>.pdf
+ *     Step 12  uploadPDF     → client Drive "Monthly Reports" folder
+ *     Step 13  Completion log line (client, period, score, PDF, link, elapsed)
+ *   Two-call architecture for Claude: analysis runs FIRST and produces a
+ *   structured Strategic Brief; narrative reads the brief and writes the
+ *   client-facing prose. Analysis sees ALL 13 runs (including Run 6);
+ *   narrative only sees the 12 client-eligible runs.
  */
 
 'use strict';
@@ -75,6 +88,7 @@ const scoreEngine = require('./score-engine.js');
 const sheetReader = require('./sheet-reader.js');
 const sheetWriter = require('./sheet-writer.js');
 const archiver = require('./github-archiver.js');
+const analysisEngine = require('./analysis-engine.js');
 const narrativeEngine = require('./narrative-engine.js');
 const pdfBuilder = require('./pdf-builder.js');
 const driveWriter = require('./drive-writer.js');
@@ -426,9 +440,30 @@ async function main() {
   const ctx = { clientConfig, runDate, reportPeriod: period, clientMonth };
 
   const availablePlatforms = preflightKeys();
+  const t0 = Date.now();
 
-  // Step 1: read prior Sheet history + AEO inventory + 4.3A / 4.3B docs
-  log('Step 1/8: Reading prior AI_Visibility_Summary history + AEO_Inventory + 4.3A/4.3B docs');
+  // Step 1: client config loaded (above). Just announce.
+  log('Step 1/13: Client config loaded');
+
+  // Step 2: fetch 4.3A + 4.3B from Google Drive
+  log('Step 2/13: Fetching 4.3A + 4.3B from Google Drive');
+  let doc43A = '';
+  let doc43B = '';
+  try {
+    doc43A = await fetchDriveDocText(clientConfig.doc_43A_id);
+    log(`  4.3A: ${doc43A.length} chars${doc43A.length === 0 ? ' (missing or placeholder)' : ''}`);
+  } catch (err) {
+    logErr('fetchDriveDocText(4.3A)', err);
+  }
+  try {
+    doc43B = await fetchDriveDocText(clientConfig.doc_43B_id);
+    log(`  4.3B: ${doc43B.length} chars${doc43B.length === 0 ? ' (missing or placeholder)' : ''}`);
+  } catch (err) {
+    logErr('fetchDriveDocText(4.3B)', err);
+  }
+
+  // Step 3: read prior Summary history + AEO inventory + citation history
+  log('Step 3/13: Reading Sheet history + AEO inventory + citation history');
   let priorScore = null;
   let summaryHistory = [];
   try {
@@ -452,23 +487,16 @@ async function main() {
     logErr('sheet-reader.readAEOInventory', err);
   }
 
-  let doc43A = '';
-  let doc43B = '';
+  let repeatedCitations = [];
   try {
-    doc43A = await fetchDriveDocText(clientConfig.doc_43A_id);
-    log(`  4.3A: ${doc43A.length} chars${doc43A.length === 0 ? ' (missing or placeholder)' : ''}`);
+    repeatedCitations = (await sheetReader.readCitationHistory(clientConfig)) || [];
+    log(`  citation history: ${repeatedCitations.length} URL${repeatedCitations.length === 1 ? '' : 's'} cited in 2+ months`);
   } catch (err) {
-    logErr('fetchDriveDocText(4.3A)', err);
-  }
-  try {
-    doc43B = await fetchDriveDocText(clientConfig.doc_43B_id);
-    log(`  4.3B: ${doc43B.length} chars${doc43B.length === 0 ? ' (missing or placeholder)' : ''}`);
-  } catch (err) {
-    logErr('fetchDriveDocText(4.3B)', err);
+    logErr('sheet-reader.readCitationHistory', err);
   }
 
-  // Step 2: 13 platform runs, serial
-  log(`Step 2/8: Executing ${RUN_IDS.length} platform runs serially`);
+  // Step 4 + Step 5: 13 platform runs (serial) + per-run parse
+  log(`Step 4/13: Executing ${RUN_IDS.length} platform runs serially (Step 5 parses each response inline)`);
   const rows = [];
   for (const runId of RUN_IDS) {
     const platform = RUN_TO_PLATFORM[runId];
@@ -525,8 +553,8 @@ async function main() {
   const heuristicWarning = heuristicCount >= 4;
   log(`Parser heuristic count: ${heuristicCount}/${rows.length}${heuristicWarning ? ' ⚠ THRESHOLD EXCEEDED' : ''}`);
 
-  // Step 3: score (pure JS — score-engine.js owns the formula)
-  log('Step 3/8: Calculating AI Visibility Score');
+  // Step 6: score (pure JS — score-engine.js owns the formula)
+  log('Step 6/13: Calculating AI Visibility Score');
   let scoreResult;
   try {
     scoreResult = scoreEngine.calculateScore(rows, priorScore);
@@ -545,8 +573,8 @@ async function main() {
   }
   log(`  score=${scoreResult.ai_visibility_score} trend=${scoreResult.trend_direction} delta=${scoreResult.score_delta} platforms_available=${scoreResult.platforms_available} heuristic=${scoreResult.heuristic_fallback_count}`);
 
-  // Step 4: sheet write (Raw + Summary, by tab name, duplicate-month protected)
-  log('Step 4/8: Writing Sheet rows (AI_Visibility_Raw + AI_Visibility_Summary)');
+  // Step 7: sheet write (Raw + Summary, by tab name, duplicate-month protected)
+  log('Step 7/13: Writing Sheet rows (AI_Visibility_Raw + AI_Visibility_Summary)');
   try {
     const result = await sheetWriter.writeToSheet(
       clientConfig, rows, scoreResult, period, runDate, clientMonth
@@ -560,8 +588,8 @@ async function main() {
     logErr('sheet-writer.writeToSheet', err);
   }
 
-  // Step 5: archive raw JSON to /archive/[YYYY-MM]/[client_id]_raw.json
-  log('Step 5/8: Archiving raw JSON');
+  // Step 8: archive raw JSON to /archive/[YYYY-MM]/[client_id]_raw.json
+  log('Step 8/13: Archiving raw JSON');
   try {
     const archiveResult = await archiver.archiveRun(
       clientConfig.client_id, period, rows, scoreResult
@@ -575,22 +603,24 @@ async function main() {
     logErr('github-archiver.archiveRun', err);
   }
 
-  // --- Assemble the full narrative + PDF context ---
-  // Run 6 is INTERNAL ONLY — strip it here so neither Claude nor the PDF
-  // ever sees it. Run 6 still landed in the Sheet (sheet-writer.js writes
-  // it to AI_Visibility_Raw) — the strip is purely a narrative boundary.
+  // --- Assemble the analysis + narrative + PDF context ---
+  // Run 6 is INTERNAL ONLY — strip it before the narrative call so the
+  // client-facing prose never references it. The analysis engine still
+  // sees Run 6 (the strategic-brief author needs every data point) but
+  // narrative-engine.js receives the stripped list via narrativeContext.
   const narrativeRuns = rows.filter(r => r.run_id !== '6');
-  const narrativeContext = {
+  const analysisContext = {
     clientConfig,
     doc43A,
     doc43B,
     runDate,
-    period,                      // internal "YYYY-MM" (used by pdf-builder for the filename)
-    reportPeriod: periodLabel,   // human-readable "May 2026" used in narrative prose
+    period,                      // internal "YYYY-MM"
+    reportPeriod: periodLabel,   // human-readable "May 2026"
     clientMonth,
     scoreResult,
     summaryHistory,
-    runs: narrativeRuns,
+    repeatedCitations,
+    runs: rows,                  // analysis sees ALL 13 runs incl. Run 6
     aeoData,
     napCleanupComplete,
     progressionPhase,
@@ -598,8 +628,28 @@ async function main() {
     isQuarterlyMonth
   };
 
-  // Step 6: narrative — Claude Sonnet, direct call to api.anthropic.com.
-  log('Step 6/8: Generating Claude Sonnet narrative (Run 6 excluded)');
+  // Step 9: analysis — Strategic Brief from Claude Sonnet @ temp 0.3.
+  log('Step 9/13: Generating Strategic Brief (analysis engine)');
+  let analysisResult = null;
+  try {
+    analysisResult = await analysisEngine.generateAnalysis(analysisContext);
+    if (analysisResult) {
+      log(`  analysis OK — wins=${(analysisResult.wins || []).length} concerns=${(analysisResult.concerns || []).length} tone=${analysisResult.narrative_directives && analysisResult.narrative_directives.recommended_tone}`);
+    } else {
+      log('  analysis-engine returned null — narrative will be written from raw data');
+    }
+  } catch (err) {
+    logErr('analysis-engine.generateAnalysis', err);
+  }
+
+  const narrativeContext = {
+    ...analysisContext,
+    runs: narrativeRuns,         // Run 6 stripped from the writer's view
+    analysisResult
+  };
+
+  // Step 10: narrative — Claude Sonnet @ temp 0.7, direct to api.anthropic.com.
+  log('Step 10/13: Generating Claude Sonnet narrative (Run 6 excluded)');
   let narrative = null;
   try {
     narrative = await narrativeEngine.generateNarrative(narrativeContext);
@@ -612,9 +662,9 @@ async function main() {
     logErr('narrative-engine.generateNarrative', err);
   }
 
-  // Step 7: PDF — Puppeteer renders templates/report.html populated with
+  // Step 11: PDF — Puppeteer renders templates/report.html populated with
   // narrative sections + cover metadata.
-  log('Step 7/8: Building PDF');
+  log('Step 11/13: Building PDF');
   let pdfResult = null;
   try {
     pdfResult = await pdfBuilder.buildPDF(narrative, narrativeContext);
@@ -627,20 +677,34 @@ async function main() {
     logErr('pdf-builder.buildPDF', err);
   }
 
-  // Step 8: drive upload — drive-writer.js is still a scaffold.
-  log('Step 8/8: Uploading PDF to client Drive folder');
-  let driveLink = null;
+  // Step 12: Drive upload — drive-writer.uploadPDF(pdfPath, clientConfig).
+  log('Step 12/13: Uploading PDF to client Drive folder');
+  let driveResult = null;
   try {
-    if (typeof driveWriter.uploadPdf === 'function') {
-      driveLink = await driveWriter.uploadPdf(clientConfig, pdfResult);
+    if (pdfResult && pdfResult.path) {
+      driveResult = await driveWriter.uploadPDF(pdfResult.path, clientConfig);
+      if (driveResult) {
+        log(`  Drive ${driveResult.updated ? 'replaced existing file' : 'created new file'}: id=${driveResult.fileId} link=${driveResult.webViewLink || 'N/A'}`);
+      } else {
+        log('  drive-writer returned null — see prior log lines for the reason');
+      }
     } else {
-      log('  drive-writer.uploadPdf not implemented yet — skipping');
+      log('  No PDF on disk — skipping Drive upload');
     }
   } catch (err) {
-    logErr('drive-writer.uploadPdf', err);
+    logErr('drive-writer.uploadPDF', err);
   }
 
-  log(`COMPLETE | client=${clientConfig.client_id} period=${period} client_month=${clientMonth} pdf=${(pdfResult && pdfResult.path) || 'N/A'} drive=${driveLink || 'N/A'}`);
+  // Step 13: completion log — single line with all the things the operator
+  // wants to see at a glance.
+  const elapsedMs = Date.now() - t0;
+  const driveLink = driveResult && driveResult.webViewLink ? driveResult.webViewLink : 'N/A';
+  log(
+    `Step 13/13: COMPLETE | client=${clientConfig.client_id} ` +
+    `period=${periodLabel} score=${scoreResult.ai_visibility_score} ` +
+    `pdf=${(pdfResult && pdfResult.path) || 'N/A'} drive=${driveLink} ` +
+    `elapsed=${Math.round(elapsedMs / 1000)}s`
+  );
 }
 
 if (require.main === module) {

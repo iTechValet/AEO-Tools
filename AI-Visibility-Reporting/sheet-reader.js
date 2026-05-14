@@ -2,7 +2,7 @@
  * sheet-reader.js — AI Visibility Reporting Tool
  *
  * WHAT THIS FILE DOES:
- *   Reads the client's Google Sheet BEFORE the run starts. Two exported
+ *   Reads the client's Google Sheet BEFORE the run starts. Three exported
  *   functions:
  *
  *   1. readSheetHistory(clientConfig)
@@ -29,6 +29,20 @@
  *      OBJECTIVE is optional — older sheets may not have the column, in
  *      which case the field reads null.
  *
+ *   3. readCitationHistory(clientConfig)  (added Session 5)
+ *      Reads the AI_Visibility_Raw tab in full and returns URLs that have
+ *      been cited in TWO OR MORE distinct months. Used by the analysis
+ *      engine to detect citation echoes (a URL AI cites once is noise; a
+ *      URL AI cites repeatedly across months is a locked-in citation).
+ *      Resolves columns BY NAME via RAW_COLUMN_ALIASES (cited_urls,
+ *      report_period, platform). Returns:
+ *        [
+ *          { url, months_cited: ["May 2026", "June 2026", ...],
+ *            times_cited: integer, platforms: ["gemini", "perplexity"] }
+ *        ]
+ *      Filters out empty strings + dedupes per-row. months_cited is
+ *      human-readable ("May 2026") via the same labelizer the runner uses.
+ *
  *   Auth: Google service account JSON parsed at runtime from
  *   process.env.GOOGLE_SERVICE_ACCOUNT_JSON. Never hardcoded, never read
  *   from the client config.
@@ -54,7 +68,8 @@
  * WHAT THIS FILE CALLS:
  *   - googleapis  (Sheets v4, service-account auth).
  *
- * STATUS: Implemented in Session 3 (readSheetHistory) + Session 4 (readAEOInventory).
+ * STATUS: Implemented in Session 3 (readSheetHistory) + Session 4
+ *   (readAEOInventory) + Session 5 (readCitationHistory).
  */
 
 'use strict';
@@ -63,6 +78,8 @@ const { google } = require('googleapis');
 
 const SUMMARY_TAB = 'AI_Visibility_Summary';
 const SUMMARY_RANGE = `${SUMMARY_TAB}!A:Q`;       // 17 columns
+const RAW_TAB = 'AI_Visibility_Raw';
+const RAW_RANGE = `${RAW_TAB}!A:S`;               // 19 columns
 const AEO_INVENTORY_TAB = 'AEO_Inventory';
 const AEO_INVENTORY_RANGE = `${AEO_INVENTORY_TAB}!A:ZZ`; // read everything; column count varies per client
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
@@ -73,6 +90,26 @@ const AEO_COLUMN_ALIASES = {
   cluster_name: ['CLUSTER_NAME', 'Cluster_Name', 'Cluster Name', 'cluster_name', 'CLUSTER', 'Cluster'],
   strategic_objective: ['STRATEGIC_OBJECTIVE', 'Strategic_Objective', 'Strategic Objective', 'strategic_objective']
 };
+
+const RAW_COLUMN_ALIASES = {
+  cited_urls: ['cited_urls', 'CITED_URLS', 'Cited Urls', 'Cited URLs'],
+  report_period: ['report_period', 'REPORT_PERIOD', 'Report Period'],
+  platform: ['platform', 'PLATFORM', 'Platform']
+};
+
+const MONTH_NAMES = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December'
+];
+function periodToLabel(period) {
+  // "YYYY-MM" → "Month YYYY". Falls through to the raw string if anything is off.
+  if (typeof period !== 'string') return String(period || '');
+  const m = period.match(/^(\d{4})-(\d{2})/);
+  if (!m) return period;
+  const idx = parseInt(m[2], 10) - 1;
+  if (idx < 0 || idx > 11) return period;
+  return `${MONTH_NAMES[idx]} ${m[1]}`;
+}
 
 const HEADER_KEYS = [
   'report_period', 'client_id', 'client_month', 'run_date',
@@ -344,11 +381,132 @@ async function readAEOInventory(clientConfig) {
   return { totalLiveNodes, currentCluster, nextCluster };
 }
 
+// --- Citation history reader (Session 5) ----------------------------------
+
+function buildRawColumnIndex(headerRow) {
+  const idx = {};
+  for (const [logicalKey, aliases] of Object.entries(RAW_COLUMN_ALIASES)) {
+    for (let i = 0; i < headerRow.length; i++) {
+      const h = normalizeHeader(headerRow[i]);
+      if (aliases.indexOf(h) !== -1) {
+        idx[logicalKey] = i;
+        break;
+      }
+    }
+  }
+  return idx;
+}
+
+function splitCitedUrls(raw) {
+  if (raw === undefined || raw === null) return [];
+  // sheet-writer.js writes cited_urls as ", "-joined. Be forgiving on
+  // whitespace and accept either commas or semicolons.
+  return String(raw)
+    .split(/[,;]/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0 && /^https?:\/\//i.test(s));
+}
+
+async function readCitationHistory(clientConfig) {
+  if (!clientConfig || !clientConfig.sheet_id) {
+    console.error('[sheet-reader] Missing clientConfig.sheet_id for citation history — returning [].');
+    return [];
+  }
+  const sheetId = clientConfig.sheet_id;
+
+  let sheets;
+  try {
+    sheets = await getSheetsClient();
+  } catch (err) {
+    console.error(`[sheet-reader] Citation history auth failed: ${err.message} — returning [].`);
+    return [];
+  }
+
+  try {
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId: sheetId,
+      fields: 'sheets(properties(title))'
+    });
+    const titles = (meta.data.sheets || []).map(s => s.properties && s.properties.title);
+    if (!titles.includes(RAW_TAB)) {
+      console.error(`[sheet-reader] Tab "${RAW_TAB}" not found in sheet ${sheetId} — returning [].`);
+      return [];
+    }
+  } catch (err) {
+    console.error(`[sheet-reader] Citation history spreadsheets.get failed: ${err.message} — returning [].`);
+    return [];
+  }
+
+  let values;
+  try {
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: RAW_RANGE
+    });
+    values = res.data.values || [];
+  } catch (err) {
+    console.error(`[sheet-reader] Citation history values.get failed: ${err.message} — returning [].`);
+    return [];
+  }
+
+  if (values.length <= 1) return [];
+
+  const header = values[0] || [];
+  const col = buildRawColumnIndex(header);
+  if (col.cited_urls === undefined || col.report_period === undefined) {
+    console.error(
+      `[sheet-reader] AI_Visibility_Raw missing required columns ` +
+      `(cited_urls=${col.cited_urls}, report_period=${col.report_period}) — returning [].`
+    );
+    return [];
+  }
+
+  const map = new Map(); // url → { months: Set<period>, platforms: Set<platform>, total: int }
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i] || [];
+    const period = String(row[col.report_period] || '').trim();
+    const platform = col.platform !== undefined ? String(row[col.platform] || '').trim() : '';
+    const urls = splitCitedUrls(row[col.cited_urls]);
+    const uniqueUrls = Array.from(new Set(urls));
+    for (const url of uniqueUrls) {
+      let bucket = map.get(url);
+      if (!bucket) {
+        bucket = { months: new Set(), platforms: new Set(), total: 0 };
+        map.set(url, bucket);
+      }
+      if (period) bucket.months.add(period);
+      if (platform) bucket.platforms.add(platform);
+      bucket.total += 1;
+    }
+  }
+
+  const result = [];
+  for (const [url, b] of map.entries()) {
+    if (b.months.size < 2) continue;
+    const months = Array.from(b.months).sort();
+    result.push({
+      url,
+      months_cited: months.map(periodToLabel),
+      times_cited: b.total,
+      platforms: Array.from(b.platforms).sort()
+    });
+  }
+  // Sort by times_cited desc then url asc for stable ordering.
+  result.sort((a, b) => (b.times_cited - a.times_cited) || a.url.localeCompare(b.url));
+  return result;
+}
+
 module.exports = {
   readSheetHistory,
   readAEOInventory,
+  readCitationHistory,
   SUMMARY_TAB,
   AEO_INVENTORY_TAB,
+  RAW_TAB,
   HEADER_KEYS,
-  AEO_COLUMN_ALIASES
+  AEO_COLUMN_ALIASES,
+  RAW_COLUMN_ALIASES,
+  // exported for unit testing
+  periodToLabel,
+  splitCitedUrls
 };

@@ -1,39 +1,261 @@
+<!DOCTYPE html>
 <!--
-  index.html — AI Visibility Reporting Tool
+  index.html — AI Visibility Reporting Tool — VA-facing trigger UI
 
-  WHAT THIS FILE DOES:
-    VA-facing single-page UI. Hosted on GitHub Pages at
-    itechvalet.github.io/iTV-Tools/AI-Visibility-Reporting/.
-    Pattern inherited from the AEO Article Creation Tool — single HTML file,
-    embedded CSS, embedded JS, no exposed API keys, no terminal, no code.
+  SETUP REQUIRED:
+    1. Replace INTERNAL_ACCESS_KEY below with your actual key from the
+       Cloudflare Worker environment (paired with the Worker's
+       INTERNAL_ACCESS_KEY env var).
+    2. Add new clients to the CLIENT_LIST array when onboarding (label +
+       client_id; the client_id must match the filename in clients/*.json).
+    3. The Cloudflare Worker /trigger-report endpoint must be configured
+       separately — see Master Doc → "Manual Setup — Cloudflare Worker
+       /trigger-report endpoint".
 
-    VA flow:
-      1. Open the page.
-      2. Select client from a dropdown populated by /clients/*.json files.
-      3. Hit "Run Report".
-      4. Browser POSTs to the Cloudflare Worker `/trigger-report` endpoint
-         with { client_id, internal_access_key }.
-      5. Worker validates the access key + fires `repository_dispatch` to
-         GitHub with client_id as payload.
-      6. Browser shows "Run triggered — check back in ~10 minutes."
-      7. VA can close the tab immediately — execution runs in GitHub Actions,
-         not the browser.
-      8. On completion, the PDF lands in the client's Google Drive
-         Monthly Reports folder.
+  Hosting:  itechvalet.github.io/iTV-Tools/AI-Visibility-Reporting/
+  Pattern:  same VA-facing pattern as the AEO tool — single HTML file,
+            embedded CSS + JS, NO API keys anywhere. The only secret on
+            this page is the internal access key shared with the Worker,
+            which the VA enters by editing INTERNAL_ACCESS_KEY at deploy
+            time (the file is hosted on GitHub Pages — anyone with the
+            URL can read it; the Worker also enforces an allowlist /
+            rate-limit before firing the GitHub repository_dispatch).
 
-    UI rules inherited from the AEO tool:
-      - Green = good/expected. Red = real problem only. Never red for normal states.
-      - Step-by-step progress display.
-      - VA never enters API keys. Ever.
-
-  WHAT CALLS THIS FILE:
-    - The VA's browser (GitHub Pages serves this file directly).
-
-  WHAT THIS FILE CALLS:
-    - Cloudflare Worker `/trigger-report` endpoint at
-      anthropic-proxy.gerek.workers.dev (Worker fires the GitHub
-      repository_dispatch event that boots runner.js).
-    - /clients/*.json (fetched at page load to populate the dropdown).
-
-  STATUS: Scaffold only — no markup yet. Implementation in Phase 1 build session.
+  Flow:
+    1. VA picks a client from the dropdown.
+    2. VA clicks "Run Report".
+    3. Browser POSTs { client_id, internal_key } to the Worker's
+       /trigger-report endpoint, also sending x-internal-key in the
+       header so the Worker can read either form.
+    4. Worker validates the key, fires GitHub repository_dispatch.
+    5. The actual run happens server-side in GitHub Actions — the VA
+       can close the tab immediately. PDF lands in the client's Drive
+       Monthly Reports folder ~10 minutes later.
 -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iTech Valet — AI Visibility Reporting Tool</title>
+<style>
+  :root {
+    --ink:        #1a1a1a;
+    --soft-ink:   #555555;
+    --muted:      #888888;
+    --border:     #c8c8c8;
+    --hover-bg:   #f5f5f5;
+    --accent:     #2c2c2c;
+    --good:       #1e7a3a;
+    --bad:        #b3261e;
+    --bg:         #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 20px 80px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .wrap {
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 18px;
+    margin-bottom: 30px;
+  }
+  header .brand {
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--soft-ink);
+    margin: 0 0 6px;
+  }
+  header h1 {
+    font-size: 22px;
+    margin: 0;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  header .sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 6px 0 0;
+  }
+  label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--soft-ink);
+    margin: 0 0 6px;
+  }
+  select {
+    width: 100%;
+    background: #fff;
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 14px;
+    margin-bottom: 22px;
+    outline: none;
+  }
+  select:focus { border-color: var(--accent); }
+  button {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: 0;
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  button:hover:not(:disabled) { opacity: 0.85; }
+  button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  #status {
+    margin-top: 22px;
+    min-height: 22px;
+    font-size: 13px;
+    color: var(--soft-ink);
+  }
+  #status.ok { color: var(--good); }
+  #status.err { color: var(--bad); }
+  .hint {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 20px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="brand">iTech Valet</p>
+    <h1>AI Visibility Reporting</h1>
+    <p class="sub">Internal tool — VA trigger for the monthly client run.</p>
+  </header>
+
+  <label for="client">Select client</label>
+  <select id="client">
+    <!-- Options populated from CLIENT_LIST at load time. -->
+  </select>
+
+  <button id="run">Run Report</button>
+
+  <p id="status" role="status" aria-live="polite"></p>
+
+  <p class="hint">
+    The run takes about 10 minutes. Execution happens server-side in
+    GitHub Actions — you can close this tab once the run is triggered.
+    The PDF will appear in the client's "Monthly Reports" Drive folder.
+  </p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ====================================================================
+  // OPERATOR CONFIG — replace these two values during deploy.
+  // ====================================================================
+  const INTERNAL_ACCESS_KEY = 'REPLACE_WITH_YOUR_KEY';
+  const CLIENT_LIST = [
+    { label: 'iTech Valet (itechvalet)', client_id: 'itechvalet' }
+  ];
+  // ====================================================================
+
+  const WORKER_TRIGGER_URL = 'https://anthropic-proxy.gerek.workers.dev/trigger-report';
+
+  const $client = document.getElementById('client');
+  const $run = document.getElementById('run');
+  const $status = document.getElementById('status');
+
+  function setStatus(msg, kind) {
+    $status.textContent = msg || '';
+    $status.classList.remove('ok', 'err');
+    if (kind === 'ok') $status.classList.add('ok');
+    else if (kind === 'err') $status.classList.add('err');
+  }
+
+  function populateClients() {
+    $client.innerHTML = '';
+    CLIENT_LIST.forEach(function (c) {
+      const opt = document.createElement('option');
+      opt.value = c.client_id;
+      opt.textContent = c.label;
+      $client.appendChild(opt);
+    });
+  }
+
+  async function triggerRun() {
+    const clientId = $client.value;
+    if (!clientId) {
+      setStatus('Pick a client first.', 'err');
+      return;
+    }
+    if (INTERNAL_ACCESS_KEY === 'REPLACE_WITH_YOUR_KEY') {
+      setStatus(
+        'Setup not complete: edit index.html and replace INTERNAL_ACCESS_KEY ' +
+        'with the value paired to the Cloudflare Worker.',
+        'err'
+      );
+      return;
+    }
+    $run.disabled = true;
+    setStatus('Triggering run…');
+
+    try {
+      const res = await fetch(WORKER_TRIGGER_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-internal-key': INTERNAL_ACCESS_KEY
+        },
+        body: JSON.stringify({
+          client_id: clientId,
+          internal_key: INTERNAL_ACCESS_KEY
+        })
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(function () { return ''; });
+        setStatus(
+          'Trigger failed: HTTP ' + res.status +
+          (body ? ' — ' + body.slice(0, 140) : ''),
+          'err'
+        );
+        $run.disabled = false;
+        return;
+      }
+      setStatus(
+        'Report triggered — running on server. This takes approximately ' +
+        '10 minutes. You can close this tab.',
+        'ok'
+      );
+      // Leave the button disabled so the VA doesn't fire multiple runs back-to-back.
+    } catch (err) {
+      setStatus('Trigger failed: ' + (err && err.message ? err.message : String(err)), 'err');
+      $run.disabled = false;
+    }
+  }
+
+  populateClients();
+  $run.addEventListener('click', triggerRun);
+})();
+</script>
+</body>
+</html>

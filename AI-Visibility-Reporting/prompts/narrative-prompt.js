@@ -10,9 +10,13 @@
  *   the Anthropic Messages API. The system prompt locks voice and data
  *   rules; the user prompt is a single message that:
  *     - states the run's pre-calculated facts (Claude never recomputes them)
+ *     - INCLUDES THE STRATEGIC BRIEF from analysis-engine.js when present
+ *       (Session 5 — two-call architecture; the brief is the writer's
+ *       primary guide for wins, tone, opening thread, and concerns)
  *     - dumps the 12 narrative-eligible runs (Run 6 already stripped by
  *       the runner)
  *     - dumps the prior AI_Visibility_Summary history
+ *     - dumps repeatedCitations across all prior months
  *     - dumps the current AEO content inventory
  *     - dumps 4.3A (voice) and 4.3B (locked client identity)
  *     - issues section-by-section instructions for the 8 locked sections
@@ -30,7 +34,8 @@
  * WHAT THIS FILE CALLS:
  *   - Nothing. Pure data module.
  *
- * STATUS: Implemented in Session 4.
+ * STATUS: Implemented in Session 4. Extended in Session 5 to consume the
+ *   analysisResult (Strategic Brief) and repeatedCitations context fields.
  */
 
 'use strict';
@@ -211,7 +216,11 @@ function buildSectionInstructions(context) {
     '- Never say "not mentioned" flatly. Frame absence as a starting line, not a failure.',
     '',
     '--- A WIN WORTH NOTING (callout block, kept short — 2 to 4 sentences max) ---',
-    'Select the win using this priority order:',
+    'Primary source: the Strategic Brief\'s recommended_wow_moment.',
+    '- If the brief is present and recommended_wow_moment.callout_text is non-null: rewrite that draft in Gerek\'s voice — casual, direct, specific. Keep every data point. Drop any jargon.',
+    '- If the brief is present but the wins[] array is empty (or recommended_wow_moment.win_index is null): do NOT manufacture a win. Write exactly: "This month\'s numbers are building the foundation. Next month we\'ll have more to show." Then move on.',
+    '- If the brief is null (analysis engine unavailable this run): apply the priority order below.',
+    'Fallback priority order (when no Strategic Brief is available):',
     isMonth1
       ? (napCleanupComplete
           ? '  1. NAP cleanup IS complete. The win is exactly this: "Your business identity is now consistent across the internet. AI reads consistency as trust. We fixed the foundation." Adapt the phrasing but keep the meaning.'
@@ -263,13 +272,59 @@ function buildSectionInstructions(context) {
   ].join('\n');
 }
 
+function formatStrategicBrief(analysisResult) {
+  if (!analysisResult) {
+    return [
+      '==================== STRATEGIC BRIEF FROM ANALYSIS ENGINE ====================',
+      'Note: Analysis engine unavailable this run. Write from raw data directly.',
+      'Apply the win priority order from the original A WIN WORTH NOTING instructions ' +
+        'below: NAP cleanup (Month 1) > citation echo > identity resolution > ' +
+        'competitive proximity > alignment signal > score movement > sentiment shift > ' +
+        'response length growth. If nothing qualifies, do NOT manufacture a win.'
+    ].join('\n');
+  }
+  let json;
+  try {
+    json = JSON.stringify(analysisResult, null, 2);
+  } catch (_) {
+    json = '(analysisResult could not be serialized)';
+  }
+  return [
+    '==================== STRATEGIC BRIEF FROM ANALYSIS ENGINE ====================',
+    json,
+    '',
+    'How to use this brief:',
+    '- primary_insight tells you what the most important finding is and why it matters — open the report around it.',
+    '- recommended_wow_moment.win_index points at the win in wins[] you should feature in A WIN WORTH NOTING. recommended_wow_moment.callout_text is a DRAFT — rewrite it in Gerek\'s voice. Keep the specific data.',
+    '- concerns[] tells you what to acknowledge and how to reframe each one. Do not skip concerns — reframe them honestly.',
+    '- narrative_directives.recommended_tone sets the overall posture (Aggressive Proof | Patient Foundation | Competitive Friction | Victory Lap | Honest Reset).',
+    '- narrative_directives.opening_thread is the specific thread connecting last month to this month. Use it in OPENING.',
+    '- narrative_directives.valley_of_death_active + valley_reframe: if true, the score is flat or down in Months 2-5 — frame honestly per the reframe instruction. Never use "just wait" framing.',
+    '- forward_bridge.watch_signal is the one specific thing to monitor next month — use it in ON OUR RADAR.',
+    '- pattern_analysis.alignment_signal.detected: if true, feature the description in WHAT THE AI PLATFORMS SAID.',
+    'Do not repeat the brief back. Use it to write better. The client never sees this document.'
+  ].join('\n');
+}
+
+function formatRepeatedCitations(repeatedCitations) {
+  if (!Array.isArray(repeatedCitations) || repeatedCitations.length === 0) {
+    return '(no repeated citations yet — this is the first appearance, or no URL has yet appeared in 2+ distinct months)';
+  }
+  return repeatedCitations.map(c => {
+    const months = Array.isArray(c.months_cited) ? c.months_cited.join(', ') : '';
+    const plats = Array.isArray(c.platforms) ? c.platforms.join(', ') : '';
+    return `- ${c.url}  (cited ${c.times_cited}x across [${months}] by [${plats}])`;
+  }).join('\n');
+}
+
 function buildUserPrompt(context) {
   const {
     clientConfig, doc43A, doc43B,
     runDate, reportPeriod, clientMonth,
     scoreResult, summaryHistory, runs,
     aeoData, napCleanupComplete,
-    progressionPhase, isFirstMonth, isQuarterlyMonth
+    progressionPhase, isFirstMonth, isQuarterlyMonth,
+    analysisResult, repeatedCitations
   } = context;
 
   const histLines = (summaryHistory || []).length === 0
@@ -305,6 +360,9 @@ function buildUserPrompt(context) {
     '---- AI_VISIBILITY_SUMMARY HISTORY (oldest first) ----',
     histLines,
     '',
+    '---- REPEATED CITATIONS (URLs cited in 2+ distinct months across full history) ----',
+    formatRepeatedCitations(repeatedCitations),
+    '',
     '---- AEO CONTENT INVENTORY (this is what was published / is going live / is next) ----',
     formatAEOData(aeoData),
     '',
@@ -314,7 +372,9 @@ function buildUserPrompt(context) {
       : '(4.3B not provided — skip the formal ALIGNMENT SIGNAL detection but still scan responses for any organic match to ' + clientConfig.business_name + '\'s service description.)',
     '',
     '---- THIS MONTH\'S 12 NARRATIVE-ELIGIBLE RUNS (Run 6 already stripped — internal only) ----',
-    runsText
+    runsText,
+    '',
+    formatStrategicBrief(analysisResult)
   ].join('\n');
 
   const sectionInstructions = buildSectionInstructions(context);
@@ -343,5 +403,7 @@ module.exports = {
   FORBIDDEN_WORDS,
   // exported for unit testing
   buildSystemPrompt,
-  buildUserPrompt
+  buildUserPrompt,
+  formatStrategicBrief,
+  formatRepeatedCitations
 };
