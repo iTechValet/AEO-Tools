@@ -1,0 +1,31 @@
+<!--
+  templates/report.html — AI Visibility Reporting Tool
+
+  WHAT THIS FILE DOES:
+    HTML template that pdf-builder.js populates and Puppeteer renders to a
+    4-page PDF (design reference: Brighton Gold April 2026 Report).
+
+    Layout owns the structure; Claude only fills the prose slots. Slots:
+      - Executive Summary (2–3 sentences)
+      - What We Did This Month
+      - What the AI Platforms Said (paragraph per platform)
+      - Where We Stand (score + trend arrow + benchmark range)
+      - What's Coming Next
+      - On Our Radar
+      - Closing — Gerek Allen, Founder — iTech Valet signature
+
+    Pre-calculated facts also injected into the template (never computed
+    inline by Claude): ai_visibility_score, prior_score, score_delta,
+    trend_direction, benchmark_range, run_date, report_period, client_month.
+
+    Output filename when rendered: [client_id]_AI_Visibility_[YYYY-MM].pdf.
+
+  WHAT CALLS THIS FILE:
+    - pdf-builder.js  (loads + populates this template, then renders via
+                       Puppeteer to a PDF buffer/file).
+
+  WHAT THIS FILE CALLS:
+    - Nothing. Inert template — fonts loaded inline at render time.
+
+  STATUS: Scaffold only — no markup yet. Implementation in Phase 1 build session.
+-->

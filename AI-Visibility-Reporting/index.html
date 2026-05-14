@@ -1,0 +1,39 @@
+<!--
+  index.html — AI Visibility Reporting Tool
+
+  WHAT THIS FILE DOES:
+    VA-facing single-page UI. Hosted on GitHub Pages at
+    itechvalet.github.io/iTV-Tools/AI-Visibility-Reporting/.
+    Pattern inherited from the AEO Article Creation Tool — single HTML file,
+    embedded CSS, embedded JS, no exposed API keys, no terminal, no code.
+
+    VA flow:
+      1. Open the page.
+      2. Select client from a dropdown populated by /clients/*.json files.
+      3. Hit "Run Report".
+      4. Browser POSTs to the Cloudflare Worker `/trigger-report` endpoint
+         with { client_id, internal_access_key }.
+      5. Worker validates the access key + fires `repository_dispatch` to
+         GitHub with client_id as payload.
+      6. Browser shows "Run triggered — check back in ~10 minutes."
+      7. VA can close the tab immediately — execution runs in GitHub Actions,
+         not the browser.
+      8. On completion, the PDF lands in the client's Google Drive
+         Monthly Reports folder.
+
+    UI rules inherited from the AEO tool:
+      - Green = good/expected. Red = real problem only. Never red for normal states.
+      - Step-by-step progress display.
+      - VA never enters API keys. Ever.
+
+  WHAT CALLS THIS FILE:
+    - The VA's browser (GitHub Pages serves this file directly).
+
+  WHAT THIS FILE CALLS:
+    - Cloudflare Worker `/trigger-report` endpoint at
+      anthropic-proxy.gerek.workers.dev (Worker fires the GitHub
+      repository_dispatch event that boots runner.js).
+    - /clients/*.json (fetched at page load to populate the dropdown).
+
+  STATUS: Scaffold only — no markup yet. Implementation in Phase 1 build session.
+-->
