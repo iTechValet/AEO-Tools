@@ -1,15 +1,15 @@
 AI VISIBILITY REPORTING TOOL — MASTER REFERENCE DOC
-Version: V1.1 (working copy)
+Version: V1.2 (working copy)
 Last Updated: 2026-05-14
 Governing Spec: AI_Visibility_Reporting_Tool_Master_Spec_V1.0.txt
 Build Plan: Docs/AI_Visibility_Tool_Master_Build_Plan_V1_1.txt
 Architectural Model: AEO Article Creation Tool (proven pattern — extend, don't reinvent)
 ================================================
 
-CURRENT STATUS — PHASE 1 / SESSION 3 COMPLETE
+CURRENT STATUS — PHASE 1 / SESSION 4 COMPLETE
 ---------------------------------------------
 Phase 1 (MVP — VA-triggered, single client per run) is in active build via
-Claude Code. Three sessions have shipped:
+Claude Code. Four sessions have shipped:
 
   Session 1 — repo scaffolding + iTech Valet client config + 13 prompt
               templates with runtime variable injection.  COMPLETE.
@@ -42,11 +42,49 @@ Claude Code. Three sessions have shipped:
               PDF, Drive upload) remain typeof-guarded scaffold calls.
               package.json added declaring googleapis ^144.0.0.  COMPLETE.
 
-Sessions 4+ will fill in the remaining scaffolded modules
-(narrative-engine.js + prompts/narrative-prompt.js, pdf-builder.js +
-templates/report.html, drive-writer.js), the VA-facing index.html, and
-the Cloudflare Worker /trigger-report dispatch endpoint + the GitHub
-Actions workflow file.
+  Session 4 — Cloudflare Worker 400 fix applied (parser.js now sends
+              x-api-key from process.env.ANTHROPIC_API_KEY — the Worker
+              is a pass-through, not an injecting proxy). Built: the
+              full prompts/narrative-prompt.js (8 locked sections,
+              voice + data rules from 4.3A, 19-word forbidden list,
+              ALIGNMENT SIGNAL detection, Month 1 NAP-clean win priority,
+              section-by-section instructions adapted to clientMonth /
+              progressionPhase / isFirstMonth / isQuarterlyMonth / score
+              null state), narrative-engine.js (direct call to
+              api.anthropic.com/v1/messages with model claude-sonnet-
+              4-20250514, max_tokens 4000, temperature 0.7, 90s timeout,
+              returns null on any failure), pdf-builder.js (Puppeteer
+              headless Chromium → Letter PDF; splits Claude's narrative
+              on the 8 literal section headers; escapes + paragraph-
+              wraps each block; populates templates/report.html;
+              outputs to outputs/<client_id>_AI_Visibility_<YYYY-MM>.pdf;
+              fails to null on any error), templates/report.html
+              (Brighton Gold aesthetic — Helvetica display, Georgia
+              body, 1in margins, page-break-before on every section
+              except OPENING, WIN callout as a grey-block aside with
+              border-left, page numbers via Puppeteer footerTemplate,
+              zero external resources). sheet-reader.js extended with
+              readAEOInventory (resolves columns by NAME — STATUS,
+              CLUSTER_NUMBER, CLUSTER_NAME, STRATEGIC_OBJECTIVE — and
+              returns { totalLiveNodes, currentCluster, nextCluster };
+              STRATEGIC_OBJECTIVE is optional, nulls handled). runner.js
+              now reads AEO_Inventory, fetches 4.3A + 4.3B from Google
+              Drive (Docs export to text/plain, plain files via
+              files.get?alt=media; placeholder/empty IDs short-circuit
+              to ""), computes progressionPhase / isFirstMonth /
+              isQuarterlyMonth, assembles the full narrative context,
+              and wires steps 6 (generateNarrative) + 7 (buildPDF) to
+              real calls. package.json bumped — puppeteer ^23.0.0 added.
+              Only drive-writer.js, index.html, and the GitHub Actions
+              workflow remain.  COMPLETE.
+
+Sessions 5+ will: implement drive-writer.js (PDF upload to client
+"Monthly Reports" folder via the same service account); build the
+VA-facing index.html (client dropdown, "Run Report" button); extend
+the Cloudflare Worker with /trigger-report (validates an access key,
+fires GitHub repository_dispatch); write the .github/workflows/<name>.yml
+file (workflow_dispatch + repository_dispatch entry points, npm ci, env
+secrets injection).
 
 ================================================
 
@@ -120,36 +158,41 @@ Cloudflare proxy (reused from AEO):
                Phase 1 session (Worker fires repository_dispatch to
                GitHub Actions; the browser never sees an API key)
 
-Subfolder layout (as of Session 3):
+Subfolder layout (as of Session 4):
 
   AI-Visibility-Reporting/
-    package.json               # Declares googleapis ^144 (BUILT — Session 3)
+    package.json               # Declares googleapis ^144 + puppeteer ^23
+                               #   (Sessions 3 + 4)
     index.html                 # VA-facing UI (HTML comment shell)
-    runner.js                  # Orchestrator (Sessions 2 + 3 — steps 1–5
-                               #   wired to real modules; steps 6–8 still
-                               #   typeof-guarded scaffold calls)
+    runner.js                  # Orchestrator end-to-end through step 7
+                               #   (Sessions 2 + 3 + 4) — only step 8
+                               #   (drive-writer) remains a typeof-guarded
+                               #   scaffold call
     runner.config.js           # Platform configs (BUILT — Session 2)
     parser.js                  # Haiku + heuristic + citations override
-                               #   (Sessions 2 + 3)
+                               #   + x-api-key Worker fix (Sessions 2-4)
     score-engine.js            # Score math (BUILT — Session 3)
-    sheet-reader.js            # Summary history reader (BUILT — Session 3)
+    sheet-reader.js            # Summary history reader + AEO inventory
+                               #   reader (Sessions 3 + 4)
     sheet-writer.js            # Raw + Summary writer (BUILT — Session 3)
     github-archiver.js         # Raw JSON archive (BUILT — Session 3)
-    narrative-engine.js        # Claude Sonnet call (scaffold)
-    pdf-builder.js             # Puppeteer renderer (scaffold)
+    narrative-engine.js        # Claude Sonnet direct call (BUILT — Session 4)
+    pdf-builder.js             # Puppeteer renderer (BUILT — Session 4)
     drive-writer.js            # PDF upload (scaffold)
     prompts/
-      prompt-templates.js      # 13 run-prompt templates (Sessions 1 + 3 —
-                               #   Run 3 now names authority_figure +
-                               #   authority_title)
+      prompt-templates.js      # 13 run-prompt templates (Sessions 1 + 3)
       parser-prompt.js         # Haiku system + few-shot (BUILT — Session 2)
-      narrative-prompt.js      # Sonnet prompt (scaffold)
+      narrative-prompt.js      # Sonnet system + section instructions
+                               #   (BUILT — Session 4)
     templates/
-      report.html              # PDF template (HTML comment shell)
+      report.html              # PDF template — Brighton Gold design
+                               #   (BUILT — Session 4)
     clients/
       itechvalet.json          # Test client config (BUILT — Session 1)
     archive/
       .gitkeep                 # Placeholder until first run writes archive
+    outputs/                   # Created by pdf-builder on first run;
+                               # holds <client_id>_AI_Visibility_<YYYY-MM>.pdf
 
 Every JS/HTML shell carries a top header block stating what the file does,
 what calls it, and what it calls.
@@ -412,30 +455,144 @@ WHAT HAS BEEN BUILT — DETAIL
     call but now passes scoreResult and summaryHistory (instead of the
     Session 2 partial summary object). Steps 7–8 unchanged.
 
+[ Session 4 — May 2026 ]
+
+  Fix — parser.js Cloudflare Worker 400 error
+    Session 3 smoke testing surfaced HTTP 400 "Missing x-api-key header"
+    from the existing anthropic-proxy worker. The Worker is a
+    pass-through, NOT an injecting proxy. parser.js now reads
+    process.env.ANTHROPIC_API_KEY at call time and sends it as the
+    x-api-key header. Missing-key path throws and the heuristic fallback
+    fires. Verified by mock: with the key set, parser stays on the LLM
+    path; with no key, it falls back to heuristic and the pipeline
+    still runs.
+
+  prompts/narrative-prompt.js — buildNarrativePrompt(context)
+    Returns { system, messages } shaped for the Anthropic Messages API.
+    System prompt: voice/identity rules pulled from 4.3A (with a sane
+    fallback when 4.3A is empty), 19-word forbidden list (deployed,
+    clusters, intent layers, pillars, semantic, entity, trunk, branch,
+    schema, backlink, keyword, SEO, Tier 1/2/3, synergy, leverage,
+    optimize, utilize), competitor name suppressed ("the top name in
+    your market"), data rules ("never compute scores", "every number
+    framed with context", score-with-benchmark shape), forbidden-phrase
+    list ("just wait", "as expected" without explanation, Drift
+    Detection), and structural rules locking the 8 section names as
+    literal ALL-CAPS headers with no markdown.
+    User prompt: pre-calculated facts (run_date, reportPeriod label,
+    clientMonth, progressionPhase, flags, full scoreResult, full
+    summaryHistory, AEO inventory, 4.3B identity, 12 narrative-eligible
+    runs each with raw_response truncated to 2000 chars and full parsed
+    fields) followed by section-by-section instructions that adapt to:
+      - Month 1 vs Month 2-5 vs Month 6+ in OPENING
+      - isQuarterlyMonth (adds the AI Authority Quarterly Report note)
+      - napCleanupComplete + Month 1 (NAP win priority)
+      - score === null (insufficient-data branch in WHERE WE STAND)
+      - trend UP / DOWN / FLAT / baseline (different framings)
+      - Months 1-3 vs 4-6 vs 7+ in WHERE WE STAND
+      - Closing line that signs off in the authority_figure's name.
+    Exports SECTION_NAMES + FORBIDDEN_WORDS so pdf-builder.js can split
+    on the same canonical set of headers.
+
+  narrative-engine.js — async generateNarrative(context)
+    Direct call to https://api.anthropic.com/v1/messages (NOT through
+    the Cloudflare Worker — the runner runs server-side in GitHub
+    Actions, no browser to protect). Headers: x-api-key from
+    process.env.ANTHROPIC_API_KEY, anthropic-version 2023-06-01.
+    Body: model claude-sonnet-4-20250514, max_tokens 4000,
+    temperature 0.7, plus the system + messages from
+    buildNarrativePrompt. AbortController-driven 90s timeout. Reads
+    response.content[*].text and concatenates the text blocks. Every
+    failure path returns null + logs.
+
+  pdf-builder.js — async buildPDF(narrative, context)
+    1. splitSections() splits Claude's narrative on the 8 LITERAL
+       section headers using a multi-line regex (each header anchored
+       to its own line, case-sensitive).
+    2. paragraphize() escapes HTML, splits on blank lines into <p>
+       blocks, converts single newlines inside a block to <br>; falls
+       back to "(Section not produced this month.)" when a slot is empty.
+    3. populateTemplate() does naive {{TOKEN}} replacement on the
+       templates/report.html string for BUSINESS_NAME, REPORT_PERIOD,
+       AUTHOR_LINE, FOOTER_LINE, and the 8 SECTION_* tokens.
+    4. Puppeteer (headless, --no-sandbox) renders to
+       outputs/<client_id>_AI_Visibility_<YYYY-MM>.pdf with Letter
+       size, 1" margins, printBackground:true (so the WIN callout's
+       grey block renders), and a header/footer template that shows
+       "<pageNumber> / <totalPages>" right-aligned.
+    5. Returns { path, bytes, filename } on success; null on any
+       failure. Helpers (splitSections, paragraphize, reportPeriodLabel,
+       outputFilename, populateTemplate, SECTION_NAMES, TEMPLATE_PATH,
+       OUTPUT_DIR) are exported for unit testing.
+
+  templates/report.html
+    Self-contained HTML/CSS — no CDNs, no external images. Cover at
+    the top (24pt Helvetica title in dark charcoal, business name in
+    Georgia, report period, "Prepared by <authority>, Founder — iTech
+    Valet" italic, horizontal rule). OPENING flows from the cover
+    without a header. Every other body section gets a 14pt ALL-CAPS
+    Helvetica header, a thin grey rule, a Georgia body at 11pt /
+    1.6 line height. WIN callout is an <aside> with #F5F5F5 background
+    and a 3pt dark left border; body inside it is italic. CLOSING
+    ends with a centered footer line above a top border. Page-break-
+    before set on every body section except OPENING and the WIN
+    callout (the WIN deliberately shares a page with WHAT THE AI
+    PLATFORMS SAID when space allows). Page numbers come from
+    Puppeteer's footerTemplate (right-aligned, 9pt Helvetica grey).
+
+  sheet-reader.js — readAEOInventory(clientConfig) added
+    Resolves columns BY NAME via the AEO_COLUMN_ALIASES map (accepts
+    STATUS / Status / status, CLUSTER_NUMBER / Cluster_Number / Cluster
+    Number, CLUSTER_NAME / Cluster_Name / Cluster Name / CLUSTER /
+    Cluster, STRATEGIC_OBJECTIVE / Strategic_Objective / Strategic
+    Objective). Groups data rows by parsed CLUSTER_NUMBER (rows with
+    blank cluster numbers are dropped). Tracks per-cluster hasLive,
+    name, and strategicObjective. Returns:
+      - totalLiveNodes: count of rows where status === "live" (case-insensitive)
+      - currentCluster: { name, number, articleCount, strategicObjective }
+        where currentCluster = the highest-numbered cluster with at least
+        one Live row; articleCount = ALL rows in that cluster regardless
+        of status
+      - nextCluster: { name, number, strategicObjective } where
+        nextCluster = the lowest-numbered cluster with no Live rows
+    Every failure path returns the empty inventory + logs.
+
+  runner.js (fully end-to-end)
+    - Computes reportPeriodLabel ("May 2026") alongside the internal
+      "2026-05" form; progressionPhase ("Foundation" / "Building" /
+      "Authority") based on clientMonth; isFirstMonth (clientMonth ===
+      1); isQuarterlyMonth (clientMonth % 3 === 0); napCleanupComplete
+      from clientConfig (default false if absent).
+    - Step 1 now also calls sheet-reader.readAEOInventory and inlines a
+      fetchDriveDocText helper (googleapis Drive v3) to read 4.3A +
+      4.3B. PLACEHOLDER ids and missing env vars short-circuit to "".
+      Google Docs export to text/plain via files.export; plain files
+      use files.get?alt=media.
+    - Step 6 assembles the full narrative context object (clientConfig,
+      doc43A, doc43B, runDate, reportPeriod label, clientMonth,
+      scoreResult, summaryHistory, narrativeRuns with Run 6 stripped,
+      aeoData, napCleanupComplete, progressionPhase, isFirstMonth,
+      isQuarterlyMonth) and calls narrative-engine.generateNarrative
+      with that single argument.
+    - Step 7 calls pdf-builder.buildPDF(narrative, context) and logs
+      the resulting path + byte count.
+    - Step 8 still typeof-guards drive-writer (last remaining scaffold).
+    - Header documentation updated to reflect that ANTHROPIC_API_KEY
+      is now consumed by both parser.js and narrative-engine.js.
+
+  package.json — version 0.4.0; puppeteer ^23.0.0 added.
+
 ================================================
 
-WHAT IS PENDING — SESSIONS 4+
+WHAT IS PENDING — SESSIONS 5+
 -----------------------------
 
-Sessions 4+ will, in some order:
-
-  narrative-engine.js + prompts/narrative-prompt.js
-    Single Claude Sonnet call via the Cloudflare proxy. Inputs are
-    pre-calculated facts (score, prior score, trend, benchmark, dates)
-    plus the 12 narrative-eligible runs (Run 6 already stripped by the
-    runner) plus the prior AI_Visibility_Summary history plus 4.3A and
-    4.3B fetched from Drive. Output is the 7-section narrative in
-    Gerek's voice (5th-grade reading level, forbidden-terms list,
-    drift detection, no competitor names).
-
-  pdf-builder.js + templates/report.html
-    Puppeteer renders the populated template to a 4-page PDF named
-    <client_id>_AI_Visibility_<YYYY-MM>.pdf. Design reference: Brighton
-    Gold April 2026 Report.
+Sessions 5+ will, in some order:
 
   drive-writer.js
-    Service-account upload of the PDF to the client's "Monthly Reports"
-    folder (drive_reports_folder_id from the client config).
+    Service-account upload of the PDF produced by pdf-builder.js to the
+    client's "Monthly Reports" folder (drive_reports_folder_id from the
+    client config). Returns a sharable Drive link the VA can copy.
 
   index.html
     VA-facing single-page UI: client dropdown populated from
@@ -444,27 +601,16 @@ Sessions 4+ will, in some order:
     access key. No API keys ever live in the browser.
 
   Cloudflare Worker — /trigger-report dispatch endpoint
-    Validates the access key, fires GitHub repository_dispatch with
-    the client_id as payload, returns confirmation to the browser.
-    Extends the existing Worker rather than replacing it.
-
-  Cloudflare Worker — Anthropic key injection (urgent)
-    Live smoke testing in Session 3 surfaced that the existing
-    anthropic-proxy worker currently returns HTTP 400 "Missing
-    x-api-key header" — i.e., the Worker is NOT injecting the
-    Anthropic key as parser.js assumes. Until this is fixed the parser
-    will always fall back to heuristic, which still works (and is
-    counted against the 4+ heuristic-runs threshold). Either fix the
-    Worker to inject the key, or wire parser.js to send the key from
-    a GitHub Secret. Decision pending.
+    Validates the access key, fires GitHub repository_dispatch with the
+    client_id as payload, returns confirmation to the browser.
 
   .github/workflows/<name>.yml
     Defines workflow_dispatch (manual) and repository_dispatch
     (Cloudflare-triggered) entry points. Runs npm ci then node
-    runner.js --client=<client_id>. Secrets injected as env vars
-    (OPENAI_API_KEY, GEMINI_API_KEY, PERPLEXITY_API_KEY, GROK_API_KEY,
-    GOOGLE_SERVICE_ACCOUNT_JSON, and any Anthropic key required by
-    the Worker fix above).
+    runner.js --client=<client_id>. Secrets injected as env vars:
+    OPENAI_API_KEY, GEMINI_API_KEY, PERPLEXITY_API_KEY, GROK_API_KEY,
+    ANTHROPIC_API_KEY (now consumed by both parser.js and
+    narrative-engine.js), GOOGLE_SERVICE_ACCOUNT_JSON.
 
 ================================================
 
@@ -666,17 +812,6 @@ LOCKED DECISIONS (all 16 — from the build plan)
 KNOWN LIMITATIONS — DEFERRED TO LATER PHASE 1 SESSIONS
 ------------------------------------------------------
 
-  - Anthropic key on the existing Worker: Session 3 smoke-testing
-    showed the anthropic-proxy.gerek.workers.dev/v1/messages endpoint
-    currently returns HTTP 400 "Missing x-api-key header" — i.e. the
-    Worker is NOT injecting the Anthropic key for this tool. parser.js
-    assumes injection, so its primary path always fails and the
-    heuristic fallback fires. The pipeline still runs; cited_urls
-    and the more nuanced fields just degrade until the Worker is
-    fixed (or parser.js is rewired to send a header from a GitHub
-    Secret). Same constraint will apply to the future Sonnet narrative
-    call. Decision pending — see WHAT IS PENDING.
-
   - parser_status for unavailable runs uses the value "n/a" so the
     threshold rule (4+ heuristic) doesn't accidentally count empty
     rows. The schema in the build plan lists only "llm" | "heuristic" —
@@ -692,15 +827,27 @@ KNOWN LIMITATIONS — DEFERRED TO LATER PHASE 1 SESSIONS
     the field should now read true on Run 3 most of the time even
     without the parser knowing the exact string.
 
-  - Downstream modules narrative-engine.js, pdf-builder.js, and
-    drive-writer.js remain scaffolds. The runner's typeof guards keep
-    the pipeline running end-to-end (logs "<module> not implemented
-    yet — skipping" and continues). These get built in Sessions 4+.
+  - drive-writer.js is still a scaffold — the PDF is written locally
+    to outputs/ but not yet pushed to the client's Drive folder. The
+    runner's typeof guard keeps the pipeline running through step 8
+    without crashing. Session 5+.
+
+  - index.html is still a comment-only shell. The VA cannot trigger a
+    run from a browser yet. The Cloudflare Worker /trigger-report
+    endpoint also doesn't exist yet. Manual runs are still possible
+    via `node runner.js --client=<client_id>` from a local shell with
+    all GitHub Secret env vars set. Session 5+.
 
   - GitHub Actions workflow file (.github/workflows/) is still
-    unwritten. End-to-end execution against real client sheets isn't
-    possible until Session 4+ builds that file + provisions the
-    GitHub Secrets it consumes.
+    unwritten. End-to-end execution against real client sheets in CI
+    requires that workflow file + the GitHub Secrets it consumes.
+    Session 5+.
+
+  - Puppeteer + Chromium need to be installable in the GitHub Actions
+    runner. The recommended approach is `npm ci` + the puppeteer
+    install hook that downloads its bundled Chromium; the workflow
+    file built in Session 5+ will need to allow that download (the
+    runner has internet access by default).
 
 ================================================
 
@@ -710,6 +857,7 @@ CHANGE LOG
 Session 1 | May 2026 | Scaffold: full repo structure, iTech Valet client config, 13 prompt templates. 17 files, 525 lines.
 Session 2 | May 2026 | Built: runner.config.js, runner.js (full pipeline orchestrator), parser.js (Haiku + heuristic fallback). Build plan corrected from 12 to 13 runs.
 Session 3 | May 2026 | Fixed: authority_figure injected for Run 3, Perplexity citations array captured. Built: score-engine.js, sheet-reader.js, sheet-writer.js, github-archiver.js. runner.js wired through step 8.
+Session 4 | May 2026 | Fixed: Cloudflare Worker 400 error in parser.js. Built: narrative-prompt.js (full 8-section report spec with emotional arc, alignment signal detection, Month 1 NAP flag, wow moment priority logic), narrative-engine.js (Claude Sonnet direct call), pdf-builder.js (Puppeteer), templates/report.html (Brighton Gold design reference). runner.js fully wired Sessions 1–4. AEO_Inventory reader added to runner. Pipeline complete from trigger to PDF generation.
 
 ================================================
 END OF DOCUMENT
