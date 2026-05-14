@@ -998,7 +998,7 @@
     const sel = document.getElementById('clientSelect');
     const clients = JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');
     S.client = sel.value !== '' ? clients[parseInt(sel.value)] : null;
-    S.research=null; S.frame=null; S.v1=null; S.v1Frozen=false; S.validation=null; S.intentLayer=''; S.voiceExemplars=''; S.v2=null; S.v3=null; S.htmlStub=''; S.docs={doc43A:'',doc43B:'',doc44:''};
+    S.research=null; S.frame=null; S.v1=null; S.v1Frozen=false; S.validation=null; S.intentLayer=''; S.voiceExemplars=''; S.v2=null; S.v3=null; S.htmlStub=''; S.docs={doc43A:'',doc43B:'',doc44:''}; S.focusTrunkPath='';
     S.sheetRow=''; S.sheetRowCols={}; S.cta43BWarned=false; S._extraLinksWarned=false; S.tokens={gi:0,go:0,ci:0,co:0,cacheRead:0,cacheCreate:0}; S.cacheLog=[];
     if(_activeImgAbort){ try { _activeImgAbort.abort(new Error('Client changed.')); } catch(_){} _activeImgAbort=null; }
     S.imagePrompts=[]; S.imageData={}; S.imageUrls={}; S.imageAttemptId=''; S.imageArtifactKey=''; S.expectedImageCount=0; imagesValidated=false; _phase6Resolve=null;
@@ -1625,7 +1625,14 @@ PROJECT CONTEXT — PROMPT REFERENCE (4.4):
 ${S.docs.doc44}
 
 PHASE 1 RESEARCH BRIEF (sources, anchorTextTargets, faqSeeds, factClaims [each carries an id like factClaim_03 — cite these in table rows], semanticAnchor, clientSpecificThesis):
-${JSON.stringify(S.research, null, 2)}
+${JSON.stringify(
+  (S.focusTrunkPath
+    ? filterTrunksFromAnchorTargets(S.research, S.focusTrunkPath, (typeof getClientDomainV4 === 'function') ? getClientDomainV4() : '')
+    : S.research),
+  null, 2
+)}${S.focusTrunkPath ? `
+
+NLM FOCUS-TRUNK LOCK: This article is locked to the focus trunk "${S.focusTrunkPath}". The anchorTextTargets list above has been FILTERED — only the focus trunk, the homepage, branches/blog posts, and external citations are visible. Every OTHER internal service trunk has been intentionally omitted. Do NOT invent links to client URLs that are not in this list. If a service-page URL surfaces in your prose that isn't the focus trunk, Phase 7A will strip the markdown deterministically.` : ''}
 
 CLIENT-SPECIFIC THESIS (the article's spine — anchor everything around this):
 ${S.research?.clientSpecificThesis?.thesisStatement || '(missing — escalate F1)'}
@@ -2006,7 +2013,7 @@ UNIQUE LINK MANDATE: Internal URLs from anchorTextTargets are single-use. Once a
 
 CTA RESERVATION: If you are writing a Content Section or FAQ, DO NOT under any circumstances write a link to the CTA URL in your prose. If you are writing the Conclusion, you must include EXACTLY ONE link to the CTA URL.
 
-CRITICAL: You are writing the persuasive hook ONLY. DO NOT write a markdown link or button (e.g., [Click Here](url)). The system will automatically generate the actual CTA button directly below your text. End your prose without a link.` };
+CRITICAL: Write the persuasive hook prose ONLY. DO NOT write a markdown link or button. End your text with a period. The system will handle the button.` };
   }
 
   // The relay loop: clone the locked frame, build the section-level queue, walk it sequentially,
@@ -2997,6 +3004,86 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
     });
   }
 
+  // ── 4.2 NLM "TRUNK PROTECTOR" — hard governance over which service URLs the AI may use. ──
+  // The 4.2 NLM (next-link-mapping) sheet defines a focus trunk per article so the article
+  // doesn't "trunk-hop" and dilute its cluster authority. Implementation here treats a TRUNK as
+  // an internal URL with exactly ONE non-empty path segment (e.g., "/seo/" is a trunk; "/" is
+  // the homepage and NOT a trunk; "/blog/article/" is a branch and NOT a trunk). The FOCUS
+  // trunk is the FIRST trunk found in research.anchorTextTargets — the 4.2 list is authored in
+  // priority order, so position 0 wins. If the 4.2 list ever changes shape (e.g., a "trunk"
+  // flag column), upgrade these helpers to read that column instead of inferring from path shape.
+  function isServiceTrunkPath(path){
+    if(!path || path === '/') return false;
+    const segments = path.replace(/^\/|\/$/g, '').split('/').filter(Boolean);
+    return segments.length === 1;
+  }
+  function computeFocusTrunkPath(research, clientDomain){
+    const targets = (research && Array.isArray(research.anchorTextTargets)) ? research.anchorTextTargets : [];
+    for(const t of targets){
+      if(!t || !t.url) continue;
+      if(t.type === 'external') continue;
+      if(!isInternalLinkUrlP2(t.url, clientDomain)) continue;
+      const path = normLinkUrlForCompare(t.url);
+      if(isServiceTrunkPath(path)) return path;
+    }
+    return '';
+  }
+  // Filter anchorTextTargets so downstream prompts only see the Focus Trunk + Homepage +
+  // branch/blog URLs. Every OTHER internal trunk is dropped entirely — the AI's "Blinder"
+  // discipline. Externals are preserved (cite-worthy sources aren't trunk-restricted).
+  function filterTrunksFromAnchorTargets(research, focusTrunkPath, clientDomain){
+    if(!research || !Array.isArray(research.anchorTextTargets)) return research;
+    if(!focusTrunkPath) return research; // no focus → no filter (defensive)
+    const filtered = research.anchorTextTargets.filter(t => {
+      if(!t || !t.url) return true;
+      if(t.type === 'external') return true;
+      if(!isInternalLinkUrlP2(t.url, clientDomain)) return true;
+      const path = normLinkUrlForCompare(t.url);
+      if(!path || path === '/') return true;       // homepage — keep
+      if(!isServiceTrunkPath(path)) return true;   // branch / blog post — keep
+      return path === focusTrunkPath;              // same trunk → keep; other trunks → drop
+    });
+    return Object.assign({}, research, { anchorTextTargets: filtered });
+  }
+  // Phase 7A final regex sweep: any inline markdown link whose URL is an internal SERVICE TRUNK
+  // that is NOT the focus trunk gets stripped to plain anchor text. The deterministic backstop
+  // for the Blinder discipline — if Phase 5/6 hallucinated a non-focus trunk past the filter,
+  // this strips it before HTML assembly. (sanitizeInternalLinkDupesInArticle covers DUPLICATES;
+  // this function covers OFF-TRUNK service URLs — same regex, different filter logic.)
+  function stripNonFocusTrunkLinks(article, focusTrunkPath, clientDomain){
+    if(!article || typeof article !== 'object' || !focusTrunkPath) return;
+    const RE = /\[([^\]]*)\]\(([^)]+)\)/g;
+    let stripCount = 0;
+    const sanitize = (text) => {
+      if(!text || typeof text !== 'string') return text;
+      return text.replace(RE, (m, anchor, url) => {
+        if(!isInternalLinkUrlP2(url, clientDomain)) return m;        // external — leave
+        const path = normLinkUrlForCompare(url);
+        if(!path || path === '/') return m;                          // homepage — leave
+        if(!isServiceTrunkPath(path)) return m;                      // branch — leave
+        if(path === focusTrunkPath) return m;                        // focus trunk — leave
+        stripCount++;
+        return anchor;                                                // off-trunk service URL — strip
+      });
+    };
+    const walkSection = (sec) => {
+      if(!sec || typeof sec !== 'object') return;
+      toArray(sec.paragraphs).forEach(p => { if(p && p.prose) p.prose = sanitize(p.prose); });
+      toArray(sec.h3sections).forEach(h3 => {
+        toArray(h3.paragraphs).forEach(p => { if(p && p.prose) p.prose = sanitize(p.prose); });
+      });
+    };
+    if(article.directAnswer && article.directAnswer.prose) article.directAnswer.prose = sanitize(article.directAnswer.prose);
+    (_secs(article)||[]).forEach(walkSection);
+    _faqIntro(article).forEach(p => { if(p && p.prose) p.prose = sanitize(p.prose); });
+    _qaPairs(article).forEach(qp => { if(qp && qp.answer && qp.answer.prose) qp.answer.prose = sanitize(qp.answer.prose); });
+    walkSection(_concl(article));
+    if(article.cta && article.cta.hookProse) article.cta.hookProse = sanitize(article.cta.hookProse);
+    if(stripCount > 0 && typeof log === 'function'){
+      log(`Phase 7A — NLM trunk firewall stripped ${stripCount} off-trunk service link(s) to plain text (focus trunk: ${focusTrunkPath}).`, 'warn');
+    }
+  }
+
   // PROSE LINK EXTRACTOR — single source of truth for body-link validation.
   // Iterates every prose-containing node in V1 and pulls every inline [anchor](url)
   // pair out via regex. Phase 3A uses this instead of scanning section.links[] so
@@ -3828,7 +3915,7 @@ Output the JSON now.`;
   // ─── PHASE 5 SYSTEM BLOCK #2 (uncached): voice rules + AI-tell list + intent + exemplars +
   //     Option-E framing + the verbatim tone-anchor rule. (Block #1 is buildPhase2ContextBlock().) ───
   function buildPhase5InstrBlock(intentLayer, exemplarText){
-    const txt = `CRITICAL RHYTHM MANDATE (from 4.3A): You must shatter dense academic text blocks. Do not write paragraphs longer than 3 sentences. You must frequently use 3-5 word, single-sentence paragraphs for emphasis and pacing. Use periods instead of conjunctions to link claims. One core idea per sentence. Prioritize punchy, authoritative brevity.
+    const txt = `CRITICAL RHYTHM MANDATE (from 4.3A): You must shatter dense academic text blocks. Do not write paragraphs longer than 3 sentences. If a paragraph exceeds 3 sentences, it is a structural failure. Shatter the blocks. You must frequently use 3-5 word, single-sentence paragraphs for emphasis and pacing. Use periods instead of conjunctions to link claims. One core idea per sentence. Prioritize punchy, authoritative brevity.
 
 PHASE 5 — VOICE DRAFT (Option E — Unified Chain-of-Thought, run as a SECTION-LEVEL RELAY). You re-voice the article's PROSE nodes one content block at a time, in article order — the Direct Answer, then one block per content H2 section (ALL of its + its H3s' paragraphs together), then ONE block for the conclusion section (all its paragraphs), then ONE block for the FAQ section (its intro paragraph(s) + every Q&A answer), then the CTA hook. JS owns structure; you own prose. The structure is FROZEN — headings (h2/h3), table headers, table ROWS, FAQ questions, links/anchors/URLs, images, the checklist, and the thesis statement are immutable; you cannot touch them. You address each prose node by its JS-assigned id.
 
@@ -3863,7 +3950,7 @@ CRITICAL LINK PRESERVATION RULES:
 3. DO NOT inject the primary CTA URL into any body paragraphs or FAQ answers.
 4. DO NOT repeat internal URLs. If you are rewriting a paragraph, you are strictly forbidden from adding an internal link that was not explicitly approved in the text provided to you.
 
-CRITICAL: You are writing the persuasive hook ONLY. DO NOT write a markdown link or button (e.g., [Click Here](url)). The system will automatically generate the actual CTA button directly below your text. End your prose without a link.`;
+CRITICAL: Write the persuasive hook prose ONLY. DO NOT write a markdown link or button. End your text with a period. The system will handle the button.`;
     return { type:'text', text: txt };
   }
 
@@ -4560,7 +4647,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     S.topic = topic;
     S.tokens = { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 };
     S.cacheLog = [];
-    S.research = null; S.frame = null; S.v1 = null; S.v1Frozen = false; S.validation = null; S.intentLayer = ''; S.voiceExemplars = ''; S.v2 = null; S.v3 = null; S.htmlStub = ''; S.cta43BWarned = false; S._extraLinksWarned = false;
+    S.research = null; S.frame = null; S.v1 = null; S.v1Frozen = false; S.validation = null; S.intentLayer = ''; S.voiceExemplars = ''; S.v2 = null; S.v3 = null; S.htmlStub = ''; S.cta43BWarned = false; S._extraLinksWarned = false; S.focusTrunkPath = '';
     // M3.5 — image queue: hard-reset and clear the panel for the new run
     if(_activeImgAbort){ try { _activeImgAbort.abort(new Error('New run started.')); } catch(_){} _activeImgAbort = null; }
     S.imagePrompts = []; S.imageData = {}; S.imageUrls = {}; S.imageAttemptId = ''; S.imageArtifactKey = ''; S.expectedImageCount = 0;
@@ -4646,6 +4733,19 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       }
       S.research = phase1Json;
       assignFactClaimIds(S.research); // JS stamps factClaim_01… so the Phase 2 hydration relay's table rows can cite them
+      // 4.2 NLM Trunk Protector — compute the article's Focus Trunk URL from anchorTextTargets.
+      // First internal trunk URL in the list wins (4.2 sheet is authored in priority order).
+      // Stored on S so buildPhase2ContextBlock can filter every downstream Claude call, and
+      // Phase 7A's stripNonFocusTrunkLinks sweep can strip any off-trunk links that slipped past.
+      {
+        const _cd = (typeof getClientDomainV4 === 'function') ? getClientDomainV4() : '';
+        S.focusTrunkPath = computeFocusTrunkPath(S.research, _cd);
+        if(S.focusTrunkPath){
+          log(`Phase 1 — NLM Focus Trunk detected: "${S.focusTrunkPath}". All OTHER internal service trunks will be filtered out of every downstream prompt; Phase 7A strips any off-trunk service link that slips through.`, 'warn');
+        } else {
+          log(`Phase 1 — no Focus Trunk detected in research.anchorTextTargets (no single-segment internal URLs found). NLM firewall is OFF for this run.`, 'warn');
+        }
+      }
       const elapsed1 = ((Date.now()-t1)/1000).toFixed(1);
       pOut(1, JSON.stringify(phase1Json, null, 2), { append: true, heading: 'Phase 1 — final research brief (factClaim ids stamped)' });
       document.getElementById('m1').textContent = `Done in ${elapsed1}s — ${phase1Json.sources.length} sources, ${phase1Json.faqSeeds?.length||0} faqSeeds, ${phase1Json.factClaims.length} factClaims (ids: ${phase1Json.factClaims.map(fc=>fc.id).filter(Boolean).slice(0,3).join(', ')}${phase1Json.factClaims.length>3?'…':''}). Thesis: "${phase1Json.clientSpecificThesis.thesisStatement.slice(0,120)}…"`;
@@ -5809,6 +5909,17 @@ a:hover { text-decoration: underline; }
 .article-wrap img { width: 100%; height: auto; border-radius: 15px; box-shadow: 3px 2px 5px #3d3d3d; margin-bottom: 20px; }
 .direct-answer { background: ${daBackground}; color: ${daText}; padding: ${daPadDesk}; border-radius: ${daRadius}; margin-bottom: 24px; line-height: 1.5; }
 .direct-answer p, .direct-answer li, .direct-answer a { color: ${daText}; }
+/* NUCLEAR DA HOVER FIX — hardcoded iTech Valet brand colors + !important so no global
+   :hover rule (in this stylesheet OR an injected iframe hoverStyle) can change the DA
+   contrast. White text stays visible on the dark blue background regardless of mouse
+   position. Per spec: "ensure the white text remains visible on the dark blue background
+   regardless of mouse position." */
+.direct-answer:hover { background-color: #063a6c !important; color: #ffffff !important; }
+.direct-answer:hover p, .direct-answer:hover li, .direct-answer:hover a { color: #ffffff !important; }
+/* DETERMINISTIC CTA BUTTON — the Phase 7A template emits <a class="cta-button"> as a sibling
+   of the hook <p>. This style turns it into an actual button regardless of branding. */
+.cta-button { display: inline-block; padding: 14px 28px; background: ${linkColor}; color: #ffffff; border-radius: 6px; text-decoration: none; font-weight: 600; margin-top: 16px; transition: opacity 0.2s; }
+.cta-button:hover { opacity: 0.85; text-decoration: none; color: #ffffff; }
 .last-updated { color: ${luColor}; font-style: italic; text-align: center; margin-bottom: 100px !important; }
 .last-updated + .author-byline { margin-top: 8px; }
 .last-updated:has(+ .author-byline) { margin-bottom: 0 !important; }
@@ -6012,6 +6123,9 @@ table td { background: #ffffff; }
     if(!article || typeof article !== 'object') throw new Error('no article object');
     normalizeArticleUrls(article);                  // silent URL canonicalization — runs BEFORE any HTML is generated
     sanitizeInternalLinkDupesInArticle(article);    // deterministic dup-strip — first occurrence wins, later duplicates collapse to plain text
+    if(S.focusTrunkPath){                            // 4.2 NLM trunk firewall — strip every off-trunk service link to plain text
+      stripNonFocusTrunkLinks(article, S.focusTrunkPath, (typeof getClientDomainV4 === 'function') ? getClientDomainV4() : '');
+    }
     const styleBlock = buildStylesheetFrom43B(S.docs.doc43B);
     const branding = extractBrandingFrom43B(S.docs.doc43B);
     const pubFormatted = formatPublishDateP7((document.getElementById('publishDate')?.value || '').trim());
@@ -6134,13 +6248,23 @@ table td { background: #ffffff; }
     }
     // CTA renders exactly once — outside all loops, after conclusion + FAQ. The _ctaRendered
     // guard makes a second emit mathematically impossible even if a future refactor inadvertently
-    // hits this block twice (the source of the "ghost CTA" duplication bug we just fixed).
+    // hits this block twice. The template is HARD-CODED per spec:
+    //   <div class="article-cta">
+    //     <p>${ctaHookText}</p>
+    //     <a href="${ctaUrl}" class="cta-button">${ctaButtonText}</a>
+    //   </div>
+    // The hook prose lands in a single <p> (mdInline preserves any inline **bold**); the button
+    // is a deterministic .cta-button anchor — styled separately in the canonical stylesheet so
+    // Claude can never collide with it by writing a markdown link in the hook (the prompt lock
+    // forbids it; Phase 7A's sanitizer + trunk firewall strip any leakage before this point).
     if(article.cta && typeof article.cta === 'object' && !_ctaRendered){
       _ctaRendered = true;
-      const hook = String(article.cta.hookProse || ''), anchor = String(article.cta.anchorText || ''), url = String(article.cta.url || '');
+      const ctaHookText = String(article.cta.hookProse || '').trim();
+      const ctaUrl = String(article.cta.url || '').trim();
+      const ctaButtonText = String(article.cta.anchorText || '').trim() || 'Learn more';
       parts.push(`  <div class="article-cta"${ea(article.cta.id || '__cta')}>`);
-      if(hook.trim()) parts.push(ind(proseToParagraphs(hook, '', ''), 4));
-      if(anchor || url) parts.push(`    <p><a href="${escapeHtml(url)}">${escapeHtml(anchor || url || 'Learn more')}</a></p>`);
+      if(ctaHookText) parts.push(`    <p>${mdInline(ctaHookText)}</p>`);
+      if(ctaUrl) parts.push(`    <a href="${escapeHtml(ctaUrl)}" class="cta-button">${escapeHtml(ctaButtonText)}</a>`);
       parts.push(`  </div>`);
     }
     parts.push(`</div>`);
