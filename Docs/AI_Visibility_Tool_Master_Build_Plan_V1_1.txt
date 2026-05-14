@@ -45,7 +45,7 @@ This tool is built on the same proven patterns as the AEO Article Creation Tool.
 - VA-facing UI — no exposed keys, no terminal, no code
 
 **What is new (the actual build work):**
-- 12 API calls to 4 external platforms (ChatGPT, Gemini, Perplexity, Grok)
+- 13 API calls to 4 external platforms (ChatGPT, Gemini, Perplexity, Grok)
 - Claude Haiku parser with heuristic fallback
 - Google Sheets writer via service account
 - AI Visibility Score engine (JS only)
@@ -68,7 +68,7 @@ GOOGLE DRIVE FETCH (4.3A + 4.3B — same pattern as AEO tool)
         ↓
 SHEET READER (reads full AI_Visibility_Raw history for trend calculation)
         ↓
-12 API CALLS — serial, one at a time (ChatGPT, Gemini, Perplexity/sonar, Grok)
+13 API CALLS — serial, one at a time (ChatGPT, Gemini, Perplexity/sonar, Grok)
         ↓
 CLAUDE HAIKU PARSER per run (strict JSON schema + heuristic fallback)
         ↓
@@ -176,7 +176,7 @@ Every client sheet is created from the master template. Tab names are identical 
 |---|---|---|
 | `AEO_Inventory` | AEO Tool | Article production tracker (renamed from Sheet1) |
 | `AEO_Run_Data` | AEO Tool (future upgrade) | Cost, time, performance per article run |
-| `AI_Visibility_Raw` | This tool | One row per run per month (12 rows/month) |
+| `AI_Visibility_Raw` | This tool | One row per run per month (13 rows/month) |
 | `AI_Visibility_Summary` | This tool | One row per month — calculated scores and trends |
 
 **Master Template:** One Google Sheet template with all 4 tabs pre-named. New client onboarding = duplicate the template. Never create a blank sheet.
@@ -204,7 +204,7 @@ platforms_available | heuristic_fallback_count
 
 ## THE 12 RUNS — PROMPT ARCHITECTURE
 
-Three signals. Twelve runs. All variables injected from client config at runtime.
+Three signals. Thirteen runs. All variables injected from client config at runtime.
 
 ### Signal 1 — Are They Being Recommended? (The money signal)
 
@@ -312,7 +312,7 @@ Final Score = (mention_rate × 0.40) + (recommendation_rate × 0.35) + (sentimen
 Claude receives exactly this context. Nothing more, nothing less.
 
 **Inputs passed to Claude:**
-1. All raw responses from current month's 12 runs (raw_response fields — labeled by run_id)
+1. All raw responses from current month's 13 runs (raw_response fields — labeled by run_id)
 2. Full AI_Visibility_Summary history — all prior months (no arbitrary cutoff)
 3. AI Visibility Score for this month (pre-calculated by JS)
 4. Score last month (read from Sheet by sheet-reader.js)
@@ -415,12 +415,12 @@ Target: Working end-to-end on Brighton Gold config.
 2. Cloudflare Worker update — add `/trigger-report` dispatch endpoint
 3. GitHub Actions workflow file — `workflow_dispatch` + `repository_dispatch` triggers
 4. Brighton Gold client config JSON
-5. Prompt templates (12 runs, variables injected from config)
+5. Prompt templates (13 runs, variables injected from config)
 6. Platform runners — serial loop, exponential backoff retry logic
 7. Claude Haiku parser — strict JSON schema prompt + heuristic fallback
 8. Sheet reader — reads AI_Visibility_Summary history before run
 9. Score engine — composite score, trend, benchmark
-10. Sheet writer — AI_Visibility_Raw (12 rows) + AI_Visibility_Summary (1 row)
+10. Sheet writer — AI_Visibility_Raw (13 rows) + AI_Visibility_Summary (1 row)
 11. GitHub archiver — raw JSON per run
 12. Claude Sonnet narrative engine — report generation
 13. Puppeteer PDF builder + HTML report template
@@ -458,7 +458,7 @@ These are final. Do not re-litigate in build sessions.
 
 1. **One tool, all clients.** Config file is the only thing that changes per client.
 2. **JS calculates the score. Claude writes the story.** Never cross this line.
-3. **12 runs, 4 platforms. Serial execution.** Never parallel. Perplexity uses sonar model specifically.
+3. **13 runs, 4 platforms. Serial execution.** Never parallel. Perplexity uses sonar model specifically.
 4. **Exponential backoff. 5 retries. Never crash.** Unavailable = log and continue.
 5. **Four tabs per client sheet. All tool-written. Zero manual input.** Tab names identical across all clients. Both tools target by name, never by position.
 6. **GitHub is the backup.** Raw JSON every run. PDFs go to Google Drive.
@@ -519,7 +519,7 @@ The 5.1 Master Prompt is the current manual workflow. This tool automates it.
 
 | 5.1 Manual Step | Tool Automation |
 |----------------|-----------------|
-| VA opens incognito windows, pastes 6 prompts manually | 12 platform runners fire via API automatically |
+| VA opens incognito windows, pastes 6 prompts manually | 13 platform runners fire via API automatically |
 | VA pastes responses into working doc | Parser extracts all fields per run automatically |
 | Claude analyzes + asks 4–5 interview questions | Score engine + structured Sheet history replaces the interview |
 | VA answers Claude's questions | All context pre-assembled from config + Sheet |
@@ -537,6 +537,7 @@ The 5.1 Master Prompt is the current manual workflow. This tool automates it.
 | V1.0 | May 2026 | Initial master build plan. Full architecture, phase plan, Gemini review questions. |
 | V1.1 | May 2026 | Major update after two rounds of Gemini architectural review. Changes: AEO tool as architectural model locked; GitHub Actions as execution environment (browser is trigger only); Cloudflare Worker repurposed as dispatch proxy; serial execution + exponential backoff locked; Claude Haiku parser + heuristic fallback locked; PDFs to Google Drive (not GitHub); 4-tab Sheet structure finalized (AEO_Inventory, AEO_Run_Data, AI_Visibility_Raw, AI_Visibility_Summary); master Sheet template requirement added; Cowork removed from Phase 3; pre-build AEO tab fix added as dependency; Looker Studio confirmed as manual post-Phase-1 setup; full repo structure updated; locked decisions expanded to 16. |
 | V1.2 | 2026-05-14 | Session 1 build log. Scaffolded the full AI-Visibility-Reporting/ folder per the REPO STRUCTURE section: 10 root-level JS files (runner, runner.config, parser, score-engine, sheet-reader, sheet-writer, github-archiver, narrative-engine, pdf-builder, drive-writer), 3 prompt files (prompts/prompt-templates.js, prompts/parser-prompt.js, prompts/narrative-prompt.js), templates/report.html, index.html, archive/.gitkeep. Every JS and HTML shell carries a top comment block stating what it does, what calls it, and what it calls. Built clients/itechvalet.json as the first test-client config (iTech Valet itself) — all live API/Sheet/Drive IDs left as PLACEHOLDER_* per the locked-decisions rule. Implemented prompts/prompt-templates.js with all 13 run-ID templates (1A, 1B, 1C, 1D, 2, 3, 4A, 4B, 5A, 5B, 6, 7A, 7B); single exported function getPrompt(runId, clientConfig); zero hardcoded client data; Run 6 flagged INTERNAL ONLY in code comments. All 13 JS files pass `node --check`; itechvalet.json validates; getPrompt smoke-tested against all 13 run IDs with iTech Valet config (no leftover tokens) plus unknown-runId and missing-variable guards. |
+| V1.3 | 2026-05-14 | Session 2 build log. Run-count correction: every "12 runs" / "Twelve runs" / "12 API calls" / "12 rows" / "12 platform runners" reference in this doc is now "13" — the build plan table lists 13 explicit run IDs and Run 6 is intentional (INTERNAL ONLY, never client-facing). Built: runner.config.js (4 platforms: openai gpt-4o, gemini gemini-1.5-pro, perplexity sonar [non-negotiable], grok grok-3; retry maxAttempts=5 with backoff [30s,60s,120s,240s,480s]; timeoutMs=30s; secretKey is env-var NAME, never the value). runner.js (entry point for GitHub Actions, --client flag parse; per-step ISO-timestamped logging; pre-flight env-key check that marks platforms unavailable without crashing; 13-run SERIAL loop with full 5-attempt exponential-backoff retry per run; on full failure → placeholder row with platform_available:false, parser_status:"n/a"; AbortController timeout; Gemini and OpenAI-compatible code paths; threshold check sets heuristic_warning when 4+ rows go heuristic; Run 6 stripped before narrative call; every downstream call wrapped in try/catch so scaffolded modules don't crash the pipeline). parser.js (async parseResponse(rawResponse, clientConfig): Haiku via Cloudflare Worker proxy at anthropic-proxy.gerek.workers.dev/v1/messages with model claude-haiku-4-5-20251001; output recovery strips code fences and last-resort slices first '{' to last '}'; normalizeFields enforces strict booleans, enum lists, and string[] for cited_urls; heuristic fallback covers the 3 score-critical fields per spec with everything else defaulted; parser_status set to "llm" or "heuristic"). prompts/parser-prompt.js (SYSTEM_PROMPT with schema + enum enforcement + no-preamble rule; buildMessages returns { system, messages } where messages contains 3 few-shot user/assistant pairs — positive / negative / mixed — followed by the live user prompt in the exact structure from the Session 2 spec). All touched JS files pass `node --check`; smoke tests confirm: 4 platforms wired with perplexity model "sonar", retry/timeout values match spec; parser-prompt buildMessages returns 7 messages with alternating roles; heuristicParse correctly tags positive/negative/absent cases; normalizeFields coerces invalid types to safe defaults; runner --client parsing handles both `=` and space forms; calcClientMonth returns 5 for iTech Valet contract start (2026-01-01) vs today; all 13 RUN_IDS map to a platform and a signal. New Master Doc created at Docs/AI_Visibility_Reporting_Tool_Master_Doc_V1_0.txt mirroring the AEO Master Doc structure. |
 
 ---
 
