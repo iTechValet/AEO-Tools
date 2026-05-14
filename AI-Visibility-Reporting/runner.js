@@ -19,8 +19,9 @@
  *   Hard rules enforced here:
  *     - Serial execution only. No Promise.all. No parallelism.
  *     - API keys come from process.env only — never from config files,
- *       never hardcoded. (The Anthropic key for the parser lives behind
- *       the Cloudflare Worker proxy and is never seen by this runner.)
+ *       never hardcoded. ANTHROPIC_API_KEY is now used by parser.js
+ *       (sent as x-api-key to the Cloudflare Worker proxy — Session 4
+ *       fix) and by narrative-engine.js (sent direct to api.anthropic.com).
  *     - Per-step failures are caught + logged + the pipeline continues.
  *     - 5-attempt retry with exponential backoff per platform call;
  *       on full failure the run is recorded with platform_available:false
@@ -51,14 +52,15 @@
  *   - OpenAI, Gemini, Perplexity (sonar), xAI Grok APIs — direct calls
  *     here, serially, with the 5-attempt exponential-backoff retry loop.
  *
- * STATUS: Updated in Session 3. score-engine, sheet-reader, sheet-writer,
- *   and github-archiver are now wired through with real signatures. The
- *   remaining downstream calls (narrative-engine, pdf-builder, drive-writer)
- *   are still scaffolds and stay wrapped in try/catch so the pipeline keeps
- *   running while those modules are built in later Phase 1 sessions.
- *   Session 3 also: Perplexity's `citations` array is now captured by the
- *   platform call and forwarded to parser.parseResponse(...), where it
- *   overrides cited_urls when present.
+ * STATUS: Updated in Session 4. Pipeline now runs end-to-end from
+ *   --client argument to PDF on disk. Only drive-writer.js remains a
+ *   scaffold (step 8). Session 4 added: AEO_Inventory read via
+ *   sheet-reader.readAEOInventory; 4.3A + 4.3B Drive doc fetch (inline
+ *   helper using googleapis); progression flags (progressionPhase,
+ *   isFirstMonth, isQuarterlyMonth); reportPeriodLabel ("May 2026")
+ *   alongside the internal "2026-05"; full context object assembled and
+ *   passed to narrative-engine.generateNarrative(context), then result +
+ *   context passed to pdf-builder.buildPDF(narrative, context).
  */
 
 'use strict';
@@ -127,16 +129,98 @@ function loadClientConfig(clientId) {
 
 // --- Date helpers (Claude never calculates dates — JS owns this) ---------
 
+const MONTH_NAMES = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December'
+];
+
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 function reportPeriod(runDate) {
   return runDate.slice(0, 7);
 }
+function reportPeriodLabel(runDate) {
+  // Human-readable form for the narrative + PDF cover (e.g. "May 2026").
+  // The sheet write / archive path still use the YYYY-MM internal form.
+  const yyyy = runDate.slice(0, 4);
+  const mm = parseInt(runDate.slice(5, 7), 10);
+  if (!Number.isFinite(mm) || mm < 1 || mm > 12) return runDate;
+  return `${MONTH_NAMES[mm - 1]} ${yyyy}`;
+}
 function calcClientMonth(contractStart, runDate) {
   const a = new Date(`${contractStart}T00:00:00Z`);
   const b = new Date(`${runDate}T00:00:00Z`);
   return (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + (b.getUTCMonth() - a.getUTCMonth()) + 1;
+}
+function progressionPhaseFor(clientMonth) {
+  if (clientMonth <= 3) return 'Foundation';
+  if (clientMonth <= 6) return 'Building';
+  return 'Authority';
+}
+
+// --- Drive doc fetch (4.3A + 4.3B) ---------------------------------------
+// Lightweight inline helper. Uses the same GOOGLE_SERVICE_ACCOUNT_JSON
+// service account as sheet-reader/sheet-writer. Google Docs export to
+// text/plain; binary text files use files.get?alt=media. Returns the
+// document body as a single string. Empty string on any failure or when
+// the docId is missing/PLACEHOLDER — the narrative prompt has a graceful
+// fallback for either case.
+async function fetchDriveDocText(docId) {
+  if (!docId || typeof docId !== 'string' || docId.startsWith('PLACEHOLDER')) {
+    return '';
+  }
+  let google;
+  try {
+    google = require('googleapis').google;
+  } catch (err) {
+    console.error(`[runner] googleapis unavailable for Drive doc fetch: ${err.message}`);
+    return '';
+  }
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!raw) {
+    console.error('[runner] GOOGLE_SERVICE_ACCOUNT_JSON not set — skipping Drive doc fetch.');
+    return '';
+  }
+  let creds;
+  try { creds = JSON.parse(raw); }
+  catch (err) {
+    console.error(`[runner] GOOGLE_SERVICE_ACCOUNT_JSON parse error: ${err.message}`);
+    return '';
+  }
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: creds,
+      scopes: ['https://www.googleapis.com/auth/drive.readonly']
+    });
+    const client = await auth.getClient();
+    const drive = google.drive({ version: 'v3', auth: client });
+
+    // First check the mimeType so we know whether to export or read media.
+    const meta = await drive.files.get({
+      fileId: docId,
+      fields: 'id, name, mimeType',
+      supportsAllDrives: true
+    });
+    const mimeType = meta.data && meta.data.mimeType;
+
+    if (mimeType === 'application/vnd.google-apps.document') {
+      const res = await drive.files.export(
+        { fileId: docId, mimeType: 'text/plain' },
+        { responseType: 'text' }
+      );
+      return typeof res.data === 'string' ? res.data : String(res.data || '');
+    }
+    // Plain text / markdown / etc.
+    const res = await drive.files.get(
+      { fileId: docId, alt: 'media', supportsAllDrives: true },
+      { responseType: 'text' }
+    );
+    return typeof res.data === 'string' ? res.data : String(res.data || '');
+  } catch (err) {
+    console.error(`[runner] Drive doc fetch failed for ${docId}: ${err.message}`);
+    return '';
+  }
 }
 
 // --- API key preflight ----------------------------------------------------
@@ -329,24 +413,58 @@ async function main() {
   }
 
   const runDate = todayISO();
-  const period = reportPeriod(runDate);
+  const period = reportPeriod(runDate);                  // internal "YYYY-MM"
+  const periodLabel = reportPeriodLabel(runDate);        // human-readable "May 2026"
   const clientMonth = calcClientMonth(clientConfig.contract_start, runDate);
-  log(`run_date=${runDate} report_period=${period} client_month=${clientMonth}`);
+  const progressionPhase = progressionPhaseFor(clientMonth);
+  const isFirstMonth = clientMonth === 1;
+  const isQuarterlyMonth = clientMonth % 3 === 0;
+  const napCleanupComplete = clientConfig.napCleanupComplete === true;
+  log(`run_date=${runDate} report_period=${period} (${periodLabel}) client_month=${clientMonth} phase=${progressionPhase} quarterly=${isQuarterlyMonth} nap_clean=${napCleanupComplete}`);
+  // ctx is the local row-builder context (compact). The full narrative
+  // context is assembled later (step 6) and includes everything below.
   const ctx = { clientConfig, runDate, reportPeriod: period, clientMonth };
 
   const availablePlatforms = preflightKeys();
 
-  // Step 1: read prior Sheet history
-  log('Step 1/8: Reading prior AI_Visibility_Summary history');
+  // Step 1: read prior Sheet history + AEO inventory + 4.3A / 4.3B docs
+  log('Step 1/8: Reading prior AI_Visibility_Summary history + AEO_Inventory + 4.3A/4.3B docs');
   let priorScore = null;
   let summaryHistory = [];
   try {
     const history = (await sheetReader.readSheetHistory(clientConfig)) || {};
     priorScore = history.priorScore == null ? null : history.priorScore;
     summaryHistory = Array.isArray(history.summaryHistory) ? history.summaryHistory : [];
-    log(`  history: ${summaryHistory.length} prior monthly rows; priorScore=${priorScore === null ? 'null' : priorScore}`);
+    log(`  summary history: ${summaryHistory.length} prior monthly rows; priorScore=${priorScore === null ? 'null' : priorScore}`);
   } catch (err) {
     logErr('sheet-reader.readSheetHistory', err);
+  }
+
+  let aeoData = {
+    totalLiveNodes: 0,
+    currentCluster: { name: null, number: null, articleCount: 0, strategicObjective: null },
+    nextCluster: { name: null, number: null, strategicObjective: null }
+  };
+  try {
+    aeoData = (await sheetReader.readAEOInventory(clientConfig)) || aeoData;
+    log(`  AEO inventory: total_live=${aeoData.totalLiveNodes} current=${aeoData.currentCluster.name || '(none)'} next=${aeoData.nextCluster.name || '(none)'}`);
+  } catch (err) {
+    logErr('sheet-reader.readAEOInventory', err);
+  }
+
+  let doc43A = '';
+  let doc43B = '';
+  try {
+    doc43A = await fetchDriveDocText(clientConfig.doc_43A_id);
+    log(`  4.3A: ${doc43A.length} chars${doc43A.length === 0 ? ' (missing or placeholder)' : ''}`);
+  } catch (err) {
+    logErr('fetchDriveDocText(4.3A)', err);
+  }
+  try {
+    doc43B = await fetchDriveDocText(clientConfig.doc_43B_id);
+    log(`  4.3B: ${doc43B.length} chars${doc43B.length === 0 ? ' (missing or placeholder)' : ''}`);
+  } catch (err) {
+    logErr('fetchDriveDocText(4.3B)', err);
   }
 
   // Step 2: 13 platform runs, serial
@@ -457,35 +575,56 @@ async function main() {
     logErr('github-archiver.archiveRun', err);
   }
 
-  // Step 6: narrative — Run 6 stripped (INTERNAL ONLY, never to Claude).
-  // narrative-engine.js is still a scaffold; this call is wrapped in a
-  // typeof check so it no-ops gracefully until that module is built.
+  // --- Assemble the full narrative + PDF context ---
+  // Run 6 is INTERNAL ONLY — strip it here so neither Claude nor the PDF
+  // ever sees it. Run 6 still landed in the Sheet (sheet-writer.js writes
+  // it to AI_Visibility_Raw) — the strip is purely a narrative boundary.
+  const narrativeRuns = rows.filter(r => r.run_id !== '6');
+  const narrativeContext = {
+    clientConfig,
+    doc43A,
+    doc43B,
+    runDate,
+    period,                      // internal "YYYY-MM" (used by pdf-builder for the filename)
+    reportPeriod: periodLabel,   // human-readable "May 2026" used in narrative prose
+    clientMonth,
+    scoreResult,
+    summaryHistory,
+    runs: narrativeRuns,
+    aeoData,
+    napCleanupComplete,
+    progressionPhase,
+    isFirstMonth,
+    isQuarterlyMonth
+  };
+
+  // Step 6: narrative — Claude Sonnet, direct call to api.anthropic.com.
   log('Step 6/8: Generating Claude Sonnet narrative (Run 6 excluded)');
-  const narrativeRows = rows.filter(r => r.run_id !== '6');
   let narrative = null;
   try {
-    if (typeof narrativeEngine.generateNarrative === 'function') {
-      narrative = await narrativeEngine.generateNarrative(
-        clientConfig, narrativeRows, scoreResult, summaryHistory
-      );
+    narrative = await narrativeEngine.generateNarrative(narrativeContext);
+    if (narrative) {
+      log(`  narrative generated: ${narrative.length} chars`);
     } else {
-      log('  narrative-engine.generateNarrative not implemented yet — skipping');
+      log('  narrative-engine returned null — PDF will use empty section bodies');
     }
   } catch (err) {
     logErr('narrative-engine.generateNarrative', err);
   }
 
-  // Step 7: PDF — pdf-builder.js is still a scaffold.
+  // Step 7: PDF — Puppeteer renders templates/report.html populated with
+  // narrative sections + cover metadata.
   log('Step 7/8: Building PDF');
-  let pdf = null;
+  let pdfResult = null;
   try {
-    if (typeof pdfBuilder.buildPdf === 'function') {
-      pdf = await pdfBuilder.buildPdf(clientConfig, narrative, narrativeRows, scoreResult);
+    pdfResult = await pdfBuilder.buildPDF(narrative, narrativeContext);
+    if (pdfResult) {
+      log(`  PDF written: ${pdfResult.path} (${pdfResult.bytes != null ? pdfResult.bytes + ' bytes' : 'size unknown'})`);
     } else {
-      log('  pdf-builder.buildPdf not implemented yet — skipping');
+      log('  pdf-builder returned null — no PDF produced this run');
     }
   } catch (err) {
-    logErr('pdf-builder.buildPdf', err);
+    logErr('pdf-builder.buildPDF', err);
   }
 
   // Step 8: drive upload — drive-writer.js is still a scaffold.
@@ -493,7 +632,7 @@ async function main() {
   let driveLink = null;
   try {
     if (typeof driveWriter.uploadPdf === 'function') {
-      driveLink = await driveWriter.uploadPdf(clientConfig, pdf);
+      driveLink = await driveWriter.uploadPdf(clientConfig, pdfResult);
     } else {
       log('  drive-writer.uploadPdf not implemented yet — skipping');
     }
@@ -501,7 +640,7 @@ async function main() {
     logErr('drive-writer.uploadPdf', err);
   }
 
-  log(`COMPLETE | client=${clientConfig.client_id} period=${period} client_month=${clientMonth} pdf=${driveLink || 'N/A'}`);
+  log(`COMPLETE | client=${clientConfig.client_id} period=${period} client_month=${clientMonth} pdf=${(pdfResult && pdfResult.path) || 'N/A'} drive=${driveLink || 'N/A'}`);
 }
 
 if (require.main === module) {
@@ -520,5 +659,8 @@ module.exports = {
   parseArgs,
   calcClientMonth,
   reportPeriod,
-  todayISO
+  reportPeriodLabel,
+  progressionPhaseFor,
+  todayISO,
+  fetchDriveDocText
 };

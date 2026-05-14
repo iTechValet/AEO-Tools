@@ -5,13 +5,16 @@
  *   Two-tier parser for a single raw platform response.
  *
  *   Primary path — Claude Haiku (claude-haiku-4-5-20251001) via the
- *   existing Cloudflare Worker proxy at anthropic-proxy.gerek.workers.dev
- *   (same proxy used by the AEO tool — no key in the runner; the Worker
- *   injects the Anthropic key). System prompt + 3 few-shot examples
- *   (positive / negative / mixed) come from prompts/parser-prompt.js.
- *   Strict JSON output is enforced by prompt; the parser also strips
- *   stray markdown fences and extracts the largest {...} block as a
- *   last-resort recovery before declaring the LLM output malformed.
+ *   existing Cloudflare Worker proxy at anthropic-proxy.gerek.workers.dev.
+ *   The Worker is a pass-through proxy — it does NOT inject the Anthropic
+ *   key. The runner must send `x-api-key: <ANTHROPIC_API_KEY>` from
+ *   GitHub Secrets (Session 4 fix — Session 3 smoke testing surfaced HTTP
+ *   400 "Missing x-api-key header" because parser.js was assuming
+ *   injection). System prompt + 3 few-shot examples (positive / negative
+ *   / mixed) come from prompts/parser-prompt.js. Strict JSON output is
+ *   enforced by prompt; the parser also strips stray markdown fences and
+ *   extracts the largest {...} block as a last-resort recovery before
+ *   declaring the LLM output malformed.
  *
  *   Fallback path — heuristic regex over the three score-critical fields
  *   only (per build plan): brand_mentioned, brand_recommended,
@@ -129,13 +132,18 @@ async function withTimeout(fn, ms) {
 }
 
 async function callHaiku(rawResponse, clientConfig) {
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) {
+    throw new Error('ANTHROPIC_API_KEY env var is not set');
+  }
   const { system, messages } = parserPrompt.buildMessages(rawResponse, clientConfig);
   return withTimeout(async (signal) => {
     const res = await fetch(PROXY_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01'
+        'anthropic-version': '2023-06-01',
+        'x-api-key': anthropicKey
       },
       body: JSON.stringify({
         model: HAIKU_MODEL,

@@ -3,29 +3,220 @@
 
   WHAT THIS FILE DOES:
     HTML template that pdf-builder.js populates and Puppeteer renders to a
-    4-page PDF (design reference: Brighton Gold April 2026 Report).
+    multi-page PDF (design reference: Brighton Gold April / May 2026
+    reports). Layout owns the structure; Claude only fills the prose slots.
 
-    Layout owns the structure; Claude only fills the prose slots. Slots:
-      - Executive Summary (2–3 sentences)
-      - What We Did This Month
-      - What the AI Platforms Said (paragraph per platform)
-      - Where We Stand (score + trend arrow + benchmark range)
-      - What's Coming Next
-      - On Our Radar
-      - Closing — Gerek Allen, Founder — iTech Valet signature
+    Replacement tokens (pdf-builder.js performs simple string replacement):
+      {{BUSINESS_NAME}}        — clientConfig.business_name
+      {{REPORT_PERIOD}}        — e.g. "May 2026"
+      {{AUTHOR_LINE}}          — "Prepared by Gerek Allen, Founder — iTech Valet"
+      {{FOOTER_LINE}}          — "May 2026 | Prepared exclusively for X | Confidential"
+      {{SECTION_OPENING}}      — body HTML for the OPENING section
+      {{SECTION_PUBLISHED}}    — body HTML for WHAT WE PUBLISHED THIS MONTH
+      {{SECTION_PLATFORMS}}    — body HTML for WHAT THE AI PLATFORMS SAID
+      {{SECTION_WIN}}          — body HTML for A WIN WORTH NOTING (callout)
+      {{SECTION_WHERE_STAND}}  — body HTML for WHERE WE STAND
+      {{SECTION_RADAR}}        — body HTML for ON OUR RADAR
+      {{SECTION_BIGGER}}       — body HTML for THE BIGGER PICTURE
+      {{SECTION_CLOSING}}      — body HTML for CLOSING (signature + footer included)
 
-    Pre-calculated facts also injected into the template (never computed
-    inline by Claude): ai_visibility_score, prior_score, score_delta,
-    trend_direction, benchmark_range, run_date, report_period, client_month.
+    All section bodies are pre-escaped + paragraph-wrapped by
+    pdf-builder.js. The template never receives raw Claude text directly.
 
-    Output filename when rendered: [client_id]_AI_Visibility_[YYYY-MM].pdf.
+    No external resources (no CDN, no Google Fonts loaded over the network,
+    no images) — Puppeteer runs offline-friendly inside GitHub Actions.
 
   WHAT CALLS THIS FILE:
-    - pdf-builder.js  (loads + populates this template, then renders via
-                       Puppeteer to a PDF buffer/file).
+    - pdf-builder.js  (reads + populates + hands to Puppeteer).
 
   WHAT THIS FILE CALLS:
-    - Nothing. Inert template — fonts loaded inline at render time.
+    - Nothing. Pure template.
 
-  STATUS: Scaffold only — no markup yet. Implementation in Phase 1 build session.
+  STATUS: Implemented in Session 4.
 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{BUSINESS_NAME}} — AI Visibility Report — {{REPORT_PERIOD}}</title>
+<style>
+  @page {
+    size: Letter;
+    margin: 1in;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+    color: #1a1a1a;
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    font-size: 11pt;
+    line-height: 1.6;
+  }
+  .cover {
+    text-align: center;
+    margin-bottom: 28pt;
+  }
+  .cover .title {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 24pt;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #2C2C2C;
+    margin: 0 0 22pt;
+  }
+  .cover .business {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 22pt;
+    font-weight: 400;
+    color: #1a1a1a;
+    margin: 0 0 8pt;
+  }
+  .cover .period {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 13pt;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #555555;
+    margin: 0 0 18pt;
+  }
+  .cover .author {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    color: #555555;
+    margin: 0 0 22pt;
+    font-style: italic;
+  }
+  .cover hr {
+    border: 0;
+    border-top: 1px solid #c8c8c8;
+    width: 100%;
+    margin: 0;
+  }
+  section {
+    margin-top: 22pt;
+  }
+  /* New page before every body section EXCEPT the opening, which flows from
+     the cover. The win callout shares the page with WHAT THE AI PLATFORMS
+     SAID when possible; the page break before it is a soft preference. */
+  section.page-break {
+    page-break-before: always;
+  }
+  h2 {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 14pt;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #2C2C2C;
+    margin: 0 0 6pt;
+    padding: 0;
+  }
+  h2 + hr {
+    border: 0;
+    border-top: 1px solid #c8c8c8;
+    margin: 0 0 14pt;
+  }
+  .body p {
+    margin: 0 0 12pt;
+  }
+  /* WIN callout: light background, indented from both sides, clearly visual */
+  .win-callout {
+    background: #F5F5F5;
+    border-left: 3pt solid #2C2C2C;
+    padding: 16pt 20pt;
+    margin: 0 0 18pt 0;
+    page-break-inside: avoid;
+  }
+  .win-callout h2 {
+    margin-bottom: 8pt;
+  }
+  .win-callout hr {
+    display: none;
+  }
+  .win-callout .body p {
+    margin: 0 0 8pt;
+    font-style: italic;
+  }
+  .win-callout .body p:last-child {
+    margin-bottom: 0;
+  }
+  .closing-block {
+    margin-top: 18pt;
+  }
+  .closing-block .signature {
+    margin-top: 18pt;
+    font-style: italic;
+    color: #2C2C2C;
+  }
+  .closing-block .footer-line {
+    margin-top: 22pt;
+    padding-top: 10pt;
+    border-top: 1px solid #c8c8c8;
+    text-align: center;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 9pt;
+    color: #777777;
+    letter-spacing: 0.03em;
+  }
+</style>
+</head>
+<body>
+  <header class="cover">
+    <p class="title">Monthly AI Visibility Report</p>
+    <p class="business">{{BUSINESS_NAME}}</p>
+    <p class="period">{{REPORT_PERIOD}}</p>
+    <p class="author">{{AUTHOR_LINE}}</p>
+    <hr>
+  </header>
+
+  <!-- OPENING flows directly from the cover — no page break, no visible
+       section header. Claude's prose lands here. -->
+  <section class="opening">
+    <div class="body">{{SECTION_OPENING}}</div>
+  </section>
+
+  <section class="page-break published">
+    <h2>What We Published This Month</h2>
+    <hr>
+    <div class="body">{{SECTION_PUBLISHED}}</div>
+  </section>
+
+  <section class="page-break platforms">
+    <h2>What the AI Platforms Said</h2>
+    <hr>
+    <div class="body">{{SECTION_PLATFORMS}}</div>
+  </section>
+
+  <aside class="win-callout">
+    <h2>A Win Worth Noting</h2>
+    <div class="body">{{SECTION_WIN}}</div>
+  </aside>
+
+  <section class="page-break where-stand">
+    <h2>Where We Stand</h2>
+    <hr>
+    <div class="body">{{SECTION_WHERE_STAND}}</div>
+  </section>
+
+  <section class="radar">
+    <h2>On Our Radar</h2>
+    <hr>
+    <div class="body">{{SECTION_RADAR}}</div>
+  </section>
+
+  <section class="page-break bigger">
+    <h2>The Bigger Picture</h2>
+    <hr>
+    <div class="body">{{SECTION_BIGGER}}</div>
+  </section>
+
+  <section class="closing closing-block">
+    <h2>Closing</h2>
+    <hr>
+    <div class="body">{{SECTION_CLOSING}}</div>
+    <div class="footer-line">{{FOOTER_LINE}}</div>
+  </section>
+</body>
+</html>
