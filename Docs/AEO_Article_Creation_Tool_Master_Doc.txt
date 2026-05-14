@@ -2647,6 +2647,78 @@ Confirmed costs: ~$1.33-1.58 per article + ~$0.05-0.10 VCI.
 
 CHANGE LOG
 ----------
+May 13, 2026 (Claude Code build session — operator polish pass): FOUR TARGETED FIXES — Phase 5/6 link preservation, image-gen fail-fast timeout, alt-text on image cards, DA hover contrast. Commit b2be0c1 — 31 insertions, 11 deletions.
+
+  (1) PHASE 5/6 LINK PRESERVATION GAP CLOSED. Phase 2 Inline Validation
+  (commit 6c271c7) strips duplicate + CTA-in-body markdown links, but
+  Phase 5 (Voice) and Phase 6 (Forensic Critique) were re-introducing
+  them on revoice/correction passes because neither uncached prompt
+  carried the explicit Unique-Link / CTA-Reservation constraints. The
+  spec-worded CRITICAL LINK PRESERVATION RULES (four numbered points)
+  were injected at the bottom of buildPhase5InstrBlock (Phase 5's
+  Option-E uncached system block — after the new PARAGRAPH STRUCTURE
+  rule) and at the bottom of buildPhase6InstrBlock (Phase 6's ruthless-
+  editor uncached block — after the AI-Tell kill list). Both prompts
+  now tell Claude: (1) do not add / change / hallucinate new markdown
+  links, (2) preserve any existing markdown link in the paragraph
+  exactly as written, (3) do not inject the Primary CTA URL into any
+  body paragraph or FAQ answer, (4) do not repeat internal URLs. Phase
+  2's existing "preserve markdown link form" sub-rule under MARKDOWN IN
+  PROSE stays in place; the new four-point block is the unambiguous
+  reinforcement Claude was missing.
+
+  (2) IMAGE GENERATION FAIL-FAST CEILING (90s → 40s). Live-run pain:
+  a dead Gemini server node could hang an image attempt for the full
+  90s manual-regen window before the operator could click Regenerate
+  again. ATTEMPT_TIMEOUTS in genOneImage() was reshaped:
+    • finalPass    [90000]            → [40000]
+    • background   [35000, 45000]     → [35000, 40000]
+  The first background attempt's 35s timeout was already under the new
+  ceiling, so it stayed. Every individual image-gen attempt now caps at
+  40s — including the back-of-queue final retry AND the operator-
+  triggered manual regen (regenImg → genOneImage(..., true)). Badge
+  labels updated in lockstep: "Final retry (90s)…" → "Final retry
+  (40s)…", "Retry 2/2 (45s)…" → "Retry 2/2 (40s)…". Function-header
+  docstring + four downstream call-site comments updated from 90s to
+  40s. Net effect: an operator clicking Regenerate now learns the
+  outcome in 40s tops; previously they waited 90s on dead nodes.
+
+  (3) ALT-TEXT ON IMAGE CARDS (manual-generation filename support).
+  When image generation fails and the operator falls back to an
+  external image tool (Midjourney / Imagen / etc.), they need the
+  alt-text visible to use as the output filename. Added a new styled
+  block inside buildImgGrid's card template, positioned directly below
+  the image-prompt <textarea> in the .img-edit-area (visible whenever
+  Edit is clicked on a card):
+    <div style="margin-top:8px; font-size:0.85em; color:var(--faint);">
+      <strong>Alt Text / Filename:</strong>
+      <span style="color:var(--blue);">${escapeHtml(String(p.alt||''))}</span>
+    </div>
+  Note: the actual field on S.imagePrompts is `p.alt`, not the spec's
+  `imageNode.alt_text` (V4 schema names it `alt`); the rendered output
+  reads from `p.alt` with HTML escaping for safety. The faint label +
+  blue value follows the existing image-panel design vocabulary.
+
+  (4) DIRECT ANSWER HOVER WHITE-OUT (fix that the 77458f5 attempt
+  missed). The Phase 7B preview iframe's hoverStyle had a DA-specific
+  override `.direct-answer[data-node-id]:hover { background:
+  rgba(255,255,255,.08); }` — added in commit 77458f5 to fix a
+  different problem (the general blue-tint hover washing out a dark-
+  background DA). With default branding (daBackground #063a6c, daText
+  #ffffff), that fix applied a white tint on top of white text, which
+  visually washed the text out on hover. Per the user's instruction
+  ("remove background: white if the text is light"), the override is
+  now `background:transparent;` — the click affordance becomes the
+  inherited dashed outline (`outline:2px dashed #2494e0; outline-
+  offset:3px`) ONLY, and the DA's original background + text colors
+  pass through 100% on hover. Contrast is preserved regardless of
+  whether the operator's 4.3B specifies a light-on-dark or dark-on-
+  light DA palette.
+
+  VERIFICATION. Inline <script> parses clean via Node Function (1/1
+  PASS). Grep audit confirms each landing at the expected location.
+
+
 May 13, 2026 (Claude Code build session — late): V4.0 AUTONOMOUS SELF-HEALING LINK ARCHITECTURE.
 
   Resolved Split-Brain link validation by scanning markdown prose. Shifted
