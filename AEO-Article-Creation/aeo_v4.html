@@ -2004,7 +2004,9 @@ PARAGRAPH STRUCTURE (NON-NEGOTIABLE): Maximum 3 sentences per paragraph. Target 
 
 UNIQUE LINK MANDATE: Internal URLs from anchorTextTargets are single-use. Once an internal URL is assigned to a section, it is EXHAUSTED. Do not repeat internal URLs across different sections.
 
-CTA RESERVATION: If you are writing a Content Section or FAQ, DO NOT under any circumstances write a link to the CTA URL in your prose. If you are writing the Conclusion, you must include EXACTLY ONE link to the CTA URL.` };
+CTA RESERVATION: If you are writing a Content Section or FAQ, DO NOT under any circumstances write a link to the CTA URL in your prose. If you are writing the Conclusion, you must include EXACTLY ONE link to the CTA URL.
+
+CRITICAL: You are writing the persuasive hook ONLY. DO NOT write a markdown link or button (e.g., [Click Here](url)). The system will automatically generate the actual CTA button directly below your text. End your prose without a link.` };
   }
 
   // The relay loop: clone the locked frame, build the section-level queue, walk it sequentially,
@@ -3859,7 +3861,9 @@ CRITICAL LINK PRESERVATION RULES:
 1. DO NOT add, change, or hallucinate new markdown links into the text.
 2. If the paragraph you are rewriting contains a markdown link, you must preserve it exactly as written.
 3. DO NOT inject the primary CTA URL into any body paragraphs or FAQ answers.
-4. DO NOT repeat internal URLs. If you are rewriting a paragraph, you are strictly forbidden from adding an internal link that was not explicitly approved in the text provided to you.`;
+4. DO NOT repeat internal URLs. If you are rewriting a paragraph, you are strictly forbidden from adding an internal link that was not explicitly approved in the text provided to you.
+
+CRITICAL: You are writing the persuasive hook ONLY. DO NOT write a markdown link or button (e.g., [Click Here](url)). The system will automatically generate the actual CTA button directly below your text. End your prose without a link.`;
     return { type:'text', text: txt };
   }
 
@@ -5948,6 +5952,57 @@ table td { background: #ffffff; }
     if(article.cta && article.cta.hookProse) article.cta.hookProse = fixProseLinks(article.cta.hookProse);
   }
 
+  // ── 7A FINAL LINK SANITIZER (deterministic duplicate strip) ──
+  // Runs AFTER normalizeArticleUrls (so it sees canonical URLs), BEFORE HTML assembly.
+  // Walks every prose container in article RENDER order; for each inline [anchor](url)
+  // markdown link whose URL is INTERNAL and already seen earlier in the walk, regex-
+  // strips the markdown to plain anchor text. First occurrence of each internal URL
+  // wins; every subsequent occurrence collapses.
+  //
+  // This is the deterministic backstop for the Phase 2 Inline Validation's rolling-
+  // state Rule B (commit 6c271c7) — Phase 5/6 revoice passes can re-introduce a
+  // previously-stripped URL because they only see the prose being rewritten, not
+  // the full article. The sweep here guarantees the FINAL HTML cannot contain the
+  // same internal URL twice no matter what any upstream phase did. External URLs
+  // are intentionally left untouched (extra citations are fine).
+  function sanitizeInternalLinkDupesInArticle(article){
+    if(!article || typeof article !== 'object') return;
+    const finalGlobalSeenUrls = new Set();
+    const clientDomain = (typeof getClientDomainV4 === 'function') ? getClientDomainV4() : '';
+    const PROSE_LINK_RE = /\[([^\]]*)\]\(([^)]+)\)/g;
+    let stripCount = 0;
+    const sanitize = (text) => {
+      if(!text || typeof text !== 'string') return text;
+      return text.replace(PROSE_LINK_RE, (match, anchor, url) => {
+        if(!isInternalLinkUrlP2(url, clientDomain)) return match;  // external — leave intact
+        const normalizedUrl = normLinkUrlForCompare(url);
+        if(!normalizedUrl) return match;
+        if(finalGlobalSeenUrls.has(normalizedUrl)){ stripCount++; return anchor; }  // duplicate — strip to plain text
+        finalGlobalSeenUrls.add(normalizedUrl);
+        return match;
+      });
+    };
+    const walkSection = (sec) => {
+      if(!sec || typeof sec !== 'object') return;
+      toArray(sec.paragraphs).forEach(p => { if(p && p.prose) p.prose = sanitize(p.prose); });
+      toArray(sec.h3sections).forEach(h3 => {
+        toArray(h3.paragraphs).forEach(p => { if(p && p.prose) p.prose = sanitize(p.prose); });
+      });
+    };
+    // Article RENDER order per assemblePhase7HTML: DA → content_sections → faq_section
+    // (intro then qa_pair answers) → conclusion_section → cta.hookProse. The walk MUST
+    // match render order so "first occurrence wins" matches what the operator sees.
+    if(article.directAnswer && article.directAnswer.prose) article.directAnswer.prose = sanitize(article.directAnswer.prose);
+    (_secs(article)||[]).forEach(walkSection);
+    _faqIntro(article).forEach(p => { if(p && p.prose) p.prose = sanitize(p.prose); });
+    _qaPairs(article).forEach(qp => { if(qp && qp.answer && qp.answer.prose) qp.answer.prose = sanitize(qp.answer.prose); });
+    walkSection(_concl(article));
+    if(article.cta && article.cta.hookProse) article.cta.hookProse = sanitize(article.cta.hookProse);
+    if(stripCount > 0 && typeof log === 'function'){
+      log(`Phase 7A — final link sanitizer stripped ${stripCount} duplicate internal link(s) to plain text (first occurrence kept; later duplicates collapsed).`, 'warn');
+    }
+  }
+
   // ── 7A — assemble the complete article HTML from the article JSON ──
   // Returns { styleBlock, articleWrap, finalTxt, fullDoc }.
   //  - articleWrap: the <div class="article-wrap"> markup WITH data-node-id attrs on every rendered block (used in the preview iframe).
@@ -5955,7 +6010,8 @@ table td { background: #ffffff; }
   //  - fullDoc: a complete doc for the read-only preview iframe — styleBlock + a hover <style> + articleWrap + a click→postMessage <script> (so a clicked block opens the contextual modal in the parent).
   function assemblePhase7HTML(article){
     if(!article || typeof article !== 'object') throw new Error('no article object');
-    normalizeArticleUrls(article);   // silent URL canonicalization — runs BEFORE any HTML is generated
+    normalizeArticleUrls(article);                  // silent URL canonicalization — runs BEFORE any HTML is generated
+    sanitizeInternalLinkDupesInArticle(article);    // deterministic dup-strip — first occurrence wins, later duplicates collapse to plain text
     const styleBlock = buildStylesheetFrom43B(S.docs.doc43B);
     const branding = extractBrandingFrom43B(S.docs.doc43B);
     const pubFormatted = formatPublishDateP7((document.getElementById('publishDate')?.value || '').trim());
@@ -6097,12 +6153,21 @@ table td { background: #ffffff; }
 
     const cleanWrap = articleWrap.replace(/\s+data-node-id="[^"]*"/g, '');  // the version that goes into WordPress — no instrumentation
     const finalTxt = `${styleBlock}\n${cleanWrap}`;
-    // DA HOVER FIX — the previous override applied a white tint on hover. Since daText is light
-    // (default #ffffff on #063a6c), a white-tint background washed the text out. Per the
-    // "remove background: white if the text is light" rule, the DA's hover overlay is removed
-    // entirely; the click affordance is the inherited dashed outline only. The DA's original
-    // background + text colors stay 100% intact, so contrast is preserved.
-    const hoverStyle = `<style>[data-node-id]{cursor:pointer;}[data-node-id]:hover{outline:2px dashed #2494e0;outline-offset:3px;background:rgba(36,148,224,.08);}.direct-answer[data-node-id]:hover,.direct-answer [data-node-id]:hover{background:transparent;}</style>`;
+    // DA HOVER FIX (round 3 — final). Round 1 (77458f5): general blue-tint hover washed out
+    // the dark-background DA → switched DA to a white tint. Round 2: white tint on white text
+    // made the DA text whiteout → switched to background:transparent. Round 3 (this round):
+    // transparent EXPOSED the page body (white) through the DA → white-on-white again.
+    // Final answer: pin the DA hover background to the SAME daBackground value as the base,
+    // so hovering produces NO background change at all. The outline + outline-offset from
+    // the general rule still fire (the click affordance), but the DA's dark background +
+    // white text stay 100% intact on hover. No further contrast variability is possible.
+    // Re-derive daBackground here from S.docs.doc43B with the same regex + default
+    // buildStylesheetFrom43B uses (daBackground itself is scoped private to that function).
+    const _daBgForHover = (() => {
+      const m = String(S.docs.doc43B || '').match(/Direct Answer box background:\s*(#[0-9a-fA-F]{3,6})/i);
+      return (m && m[1].trim()) || '#063a6c';
+    })();
+    const hoverStyle = `<style>[data-node-id]{cursor:pointer;}[data-node-id]:hover{outline:2px dashed #2494e0;outline-offset:3px;background:rgba(36,148,224,.08);}.direct-answer[data-node-id]:hover,.direct-answer [data-node-id]:hover{background:${_daBgForHover};}</style>`;
     const clickScript = `<scr`+`ipt>document.addEventListener("click",function(e){var el=e.target&&e.target.closest&&e.target.closest("[data-node-id]");if(el){e.preventDefault();e.stopPropagation();try{window.parent.postMessage({__p7ctx:true,nodeId:el.getAttribute("data-node-id"),text:(el.textContent||"")},"*");}catch(_){}}},true);<\/scr`+`ipt>`;
     const fullDoc = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">${styleBlock}${hoverStyle}</head><body>${articleWrap}${clickScript}</body></html>`;
     return { styleBlock, articleWrap: cleanWrap, finalTxt, fullDoc };
