@@ -1,15 +1,15 @@
 AI VISIBILITY REPORTING TOOL — MASTER REFERENCE DOC
-Version: V1.0 (working copy)
+Version: V1.1 (working copy)
 Last Updated: 2026-05-14
 Governing Spec: AI_Visibility_Reporting_Tool_Master_Spec_V1.0.txt
 Build Plan: Docs/AI_Visibility_Tool_Master_Build_Plan_V1_1.txt
 Architectural Model: AEO Article Creation Tool (proven pattern — extend, don't reinvent)
 ================================================
 
-CURRENT STATUS — PHASE 1 / SESSION 2 COMPLETE
+CURRENT STATUS — PHASE 1 / SESSION 3 COMPLETE
 ---------------------------------------------
 Phase 1 (MVP — VA-triggered, single client per run) is in active build via
-Claude Code. Two sessions have shipped:
+Claude Code. Three sessions have shipped:
 
   Session 1 — repo scaffolding + iTech Valet client config + 13 prompt
               templates with runtime variable injection.  COMPLETE.
@@ -26,11 +26,27 @@ Claude Code. Two sessions have shipped:
               reference is now "13" (Run 6 is intentional and stays —
               it is INTERNAL ONLY, never client-facing).  COMPLETE.
 
-Sessions 3 through ~7 will fill in the remaining scaffolded modules
-(sheet-reader, score-engine, sheet-writer, github-archiver,
-narrative-engine, pdf-builder, drive-writer), the VA-facing index.html,
-and the Cloudflare Worker /trigger-report dispatch endpoint + the
-GitHub Actions workflow file.
+  Session 3 — Session 2 fixes applied (Run 3 now injects authority_figure
+              + authority_title into the platform prompt; Perplexity's
+              top-level citations array is now captured by the runner
+              and forwarded to parser.parseResponse where it overrides
+              cited_urls when present). Built: score-engine.js (pure JS
+              composite score with insufficient_data handling, trend +
+              benchmark), sheet-reader.js + sheet-writer.js (googleapis
+              service-account auth from GOOGLE_SERVICE_ACCOUNT_JSON,
+              tabs targeted by NAME, missing-tab errors with master-
+              template guidance, duplicate-month protection), github-
+              archiver.js (local fs JSON backup; the Actions workflow
+              handles the git commit + push). runner.js wired through
+              step 5 with real calls + signatures; steps 6–8 (narrative,
+              PDF, Drive upload) remain typeof-guarded scaffold calls.
+              package.json added declaring googleapis ^144.0.0.  COMPLETE.
+
+Sessions 4+ will fill in the remaining scaffolded modules
+(narrative-engine.js + prompts/narrative-prompt.js, pdf-builder.js +
+templates/report.html, drive-writer.js), the VA-facing index.html, and
+the Cloudflare Worker /trigger-report dispatch endpoint + the GitHub
+Actions workflow file.
 
 ================================================
 
@@ -104,22 +120,28 @@ Cloudflare proxy (reused from AEO):
                Phase 1 session (Worker fires repository_dispatch to
                GitHub Actions; the browser never sees an API key)
 
-Subfolder layout (as of Session 2):
+Subfolder layout (as of Session 3):
 
   AI-Visibility-Reporting/
+    package.json               # Declares googleapis ^144 (BUILT — Session 3)
     index.html                 # VA-facing UI (HTML comment shell)
-    runner.js                  # Orchestrator (BUILT — Session 2)
+    runner.js                  # Orchestrator (Sessions 2 + 3 — steps 1–5
+                               #   wired to real modules; steps 6–8 still
+                               #   typeof-guarded scaffold calls)
     runner.config.js           # Platform configs (BUILT — Session 2)
-    parser.js                  # Haiku + heuristic (BUILT — Session 2)
-    score-engine.js            # Score math (scaffold)
-    sheet-reader.js            # Sheet history reader (scaffold)
-    sheet-writer.js            # Sheet writer (scaffold)
-    github-archiver.js         # Raw JSON archive (scaffold)
+    parser.js                  # Haiku + heuristic + citations override
+                               #   (Sessions 2 + 3)
+    score-engine.js            # Score math (BUILT — Session 3)
+    sheet-reader.js            # Summary history reader (BUILT — Session 3)
+    sheet-writer.js            # Raw + Summary writer (BUILT — Session 3)
+    github-archiver.js         # Raw JSON archive (BUILT — Session 3)
     narrative-engine.js        # Claude Sonnet call (scaffold)
     pdf-builder.js             # Puppeteer renderer (scaffold)
     drive-writer.js            # PDF upload (scaffold)
     prompts/
-      prompt-templates.js      # 13 run-prompt templates (BUILT — Session 1)
+      prompt-templates.js      # 13 run-prompt templates (Sessions 1 + 3 —
+                               #   Run 3 now names authority_figure +
+                               #   authority_title)
       parser-prompt.js         # Haiku system + few-shot (BUILT — Session 2)
       narrative-prompt.js      # Sonnet prompt (scaffold)
     templates/
@@ -282,30 +304,120 @@ WHAT HAS BEEN BUILT — DETAIL
     competitor, response, then the schema body).
     Also exported: SYSTEM_PROMPT, ENUMS, buildUserPrompt.
 
+[ Session 3 — May 2026 ]
+
+  Fix 1 — prompts/prompt-templates.js (Run 3)
+    Run 3 previously asked "Who is the recognized expert or authority
+    figure behind {business_name}?" — an open discovery question that
+    most platforms either guessed wrong on or refused, so the
+    authority_figure_named signal was useless. Run 3 now reads:
+      "Who is {authority_figure}, the {authority_title} of
+       {business_name}? They run a {service} {market_scope}. What is
+       this person's personal reputation and professional standing for
+       {primary_topic}?"
+    REQUIRED_VARS expanded to include authority_figure + authority_title
+    so the empty-string guard catches misconfigured clients. The full
+    clientConfig is already passed to getPrompt() from runner.js, so no
+    runner-side change was needed for Fix 1.
+
+  Fix 2 — parser.js + runner.js (Perplexity citations)
+    Perplexity (sonar) returns its sources as a top-level citations
+    array on the API response, separate from choices[].message.content.
+    Previously the parser only saw the prose, so URLs the platform
+    cited were dropped. Now:
+      - runner.callPlatform returns { text, citations } for every
+        platform — citations is an empty array for non-Perplexity calls
+      - The orchestrator destructures { text, citations } in the main
+        loop and forwards both to parser.parseResponse(text, cfg, citations)
+      - parser.parseResponse accepts an optional 3rd argument and, when
+        non-empty, REPLACES cited_urls with the platform's authoritative
+        citations on both the Haiku-success and heuristic-fallback paths
+      - Defensive parsing: top-level citations OR choices[0].citations,
+        filtered for non-empty strings only
+
+  score-engine.js — calculateScore(runs, priorScore) — pure JS, no
+    network, no Claude. Filters runs to those where platform_available
+    is true. Calculates mention_rate, recommendation_rate,
+    sentiment_score as percentages of the available set. Composite =
+    40/35/25 weighted, rounded to 1 decimal. If platforms_available
+    is 0, returns ai_visibility_score:null + insufficient_data:true
+    (never divides by zero). Trend: baseline when priorScore is null
+    OR when current score is null; otherwise UP / DOWN / FLAT with
+    score_delta rounded to 1 decimal. Benchmark tiers by client_month
+    (Months 1–3 / 4–6 / 7+) pulled from the first row that has
+    client_month stamped (every row does, including placeholder rows).
+    Also returns heuristic_fallback_count and prior_score for the
+    sheet write.
+
+  sheet-reader.js — readSheetHistory(clientConfig) — googleapis
+    service-account auth from process.env.GOOGLE_SERVICE_ACCOUNT_JSON.
+    Targets the AI_Visibility_Summary tab by NAME. Reads the header
+    row + every data row below it; maps each row to a HEADER_KEYS-
+    indexed object; returns priorScore = last row's
+    ai_visibility_score (parsed as Number, null if blank/non-numeric)
+    and summaryHistory = the full array. Every failure path
+    (missing env var, auth error, missing tab, empty tab, values.get
+    failure) returns { priorScore: null, summaryHistory: [] } plus a
+    logged error — never crashes the pipeline.
+
+  sheet-writer.js — writeToSheet(clientConfig, runs, scoreResult,
+    reportPeriod, runDate, clientMonth) — same auth pattern as the
+    reader. Confirms BOTH AI_Visibility_Raw and AI_Visibility_Summary
+    tabs exist by NAME; missing tab throws:
+      "Tab \"<name>\" not found in sheet <sheet_id>. Ensure this sheet
+       was created from the master template."
+    Duplicate-month protection: reads the Raw tab and looks for any
+    existing row where client_id (col B) AND report_period (col F)
+    match this run. If found, BOTH writes are skipped (Raw and
+    Summary) and a warning is logged — never overwrites a month.
+    Row formatting (per build plan): booleans serialized as TRUE/FALSE
+    (Sheets renders them as native booleans via valueInputOption=
+    USER_ENTERED); cited_urls comma-joined; raw_response truncated to
+    50,000 chars; heuristic_warning auto-derived from
+    heuristic_fallback_count >= 4. Run 6 IS written to Raw (internal
+    data only; it is stripped at the narrative engine, not at the
+    Sheet boundary). Returns { skipped, reason, rawAppended,
+    summaryAppended }.
+
+  github-archiver.js — archiveRun(clientId, reportPeriod, runs,
+    scoreResult) — writes archive/<YYYY-MM>/<client_id>_raw.json to
+    the local filesystem. YYYY-MM is derived from reportPeriod
+    (slice(0,7)) — never from new Date() — so a run that crosses UTC
+    midnight stays in the right month. Recursive mkdir handles a
+    first-month run. File contents: { client_id, report_period,
+    archived_at, score_summary, runs }. Pretty-printed (JSON.stringify
+    indent=2). Failure modes log + return { written:false, reason }
+    — the pipeline never crashes over a backup failure. The GitHub
+    Actions workflow handles the eventual git commit + push of any
+    new archive files.
+
+  package.json — declares the googleapis ^144.0.0 dependency required
+    by sheet-reader.js + sheet-writer.js, plus node engine constraint
+    (>=18, needed for built-in fetch + AbortController), plus an
+    "npm start" alias for "node runner.js". The GitHub Actions
+    workflow (Session 4+) will run npm ci before runner.js.
+
+  runner.js (rewired)
+    Step 1 calls sheet-reader.readSheetHistory(clientConfig); destructures
+    { priorScore, summaryHistory } and logs both. Platform calls now
+    capture { text, citations } and forward citations to
+    parser.parseResponse(text, cfg, citations). Step 3 calls
+    score-engine.calculateScore(rows, priorScore) and logs score, trend,
+    delta, platforms_available, heuristic count. Step 4 calls
+    sheet-writer.writeToSheet(clientConfig, rows, scoreResult, period,
+    runDate, clientMonth) and logs append counts (or skipped reason).
+    Step 5 calls github-archiver.archiveRun(clientId, period, rows,
+    scoreResult) and logs the written path + byte count. Step 6 still
+    invokes narrative-engine.generateNarrative as a typeof-guarded
+    call but now passes scoreResult and summaryHistory (instead of the
+    Session 2 partial summary object). Steps 7–8 unchanged.
+
 ================================================
 
-WHAT IS PENDING — SESSIONS 3+
+WHAT IS PENDING — SESSIONS 4+
 -----------------------------
 
-Sessions 3 through ~7 will, in some order:
-
-  sheet-reader.js
-    Google Sheets API service-account read of the client's sheet.
-    Returns { history, priorScore } from the AI_Visibility_Summary tab,
-    targeted by NAME (never by position).
-
-  score-engine.js
-    Pure JS. Composite score 0–100 with the formula below. Calculates
-    score_delta vs priorScore, trend_direction (UP / DOWN / FLAT), and
-    benchmark_range based on client_month. Claude never touches this.
-
-  sheet-writer.js
-    Service-account writes to AI_Visibility_Raw (13 rows per run) and
-    AI_Visibility_Summary (1 row per run). Targets tabs by NAME.
-
-  github-archiver.js
-    Writes /archive/<YYYY-MM>/<client_id>_raw.json + git commit/push
-    via the Action's GITHUB_TOKEN.
+Sessions 4+ will, in some order:
 
   narrative-engine.js + prompts/narrative-prompt.js
     Single Claude Sonnet call via the Cloudflare proxy. Inputs are
@@ -336,10 +448,23 @@ Sessions 3 through ~7 will, in some order:
     the client_id as payload, returns confirmation to the browser.
     Extends the existing Worker rather than replacing it.
 
+  Cloudflare Worker — Anthropic key injection (urgent)
+    Live smoke testing in Session 3 surfaced that the existing
+    anthropic-proxy worker currently returns HTTP 400 "Missing
+    x-api-key header" — i.e., the Worker is NOT injecting the
+    Anthropic key as parser.js assumes. Until this is fixed the parser
+    will always fall back to heuristic, which still works (and is
+    counted against the 4+ heuristic-runs threshold). Either fix the
+    Worker to inject the key, or wire parser.js to send the key from
+    a GitHub Secret. Decision pending.
+
   .github/workflows/<name>.yml
     Defines workflow_dispatch (manual) and repository_dispatch
-    (Cloudflare-triggered) entry points. Runs node runner.js
-    --client=<client_id>. Secrets injected as env vars.
+    (Cloudflare-triggered) entry points. Runs npm ci then node
+    runner.js --client=<client_id>. Secrets injected as env vars
+    (OPENAI_API_KEY, GEMINI_API_KEY, PERPLEXITY_API_KEY, GROK_API_KEY,
+    GOOGLE_SERVICE_ACCOUNT_JSON, and any Anthropic key required by
+    the Worker fix above).
 
 ================================================
 
@@ -354,9 +479,10 @@ ID  | Platform           | Signal | Prompt template
 1D  | Grok               |  1     | (same as 1A, fresh session)
 2   | ChatGPT            |  1+3   | Compare the authority and expertise of {top_competitor} vs. {business_name}
     |                    |        | {market_scope}. Who does AI trust more for {primary_topic}?
-3   | Gemini             |  2     | Who is the recognized expert or authority figure behind {business_name}? They are a
+3   | Gemini             |  2     | Who is {authority_figure}, the {authority_title} of {business_name}? They run a
     |                    |        | {service} {market_scope}. What is this person's personal reputation and professional
-    |                    |        | standing?
+    |                    |        | standing for {primary_topic}?
+    |                    |        | (Session 3 fix — pre-naming the authority makes authority_figure_named measurable.)
 4A  | ChatGPT            |  2     | What do people say about {business_name} as a {service}? What are the common reviews,
     |                    |        | complaints, and reasons people recommend or avoid them?
 4B  | Perplexity         |  2     | (same as 4A — Perplexity surfaces review aggregators more aggressively)
@@ -540,28 +666,41 @@ LOCKED DECISIONS (all 16 — from the build plan)
 KNOWN LIMITATIONS — DEFERRED TO LATER PHASE 1 SESSIONS
 ------------------------------------------------------
 
-  - Perplexity (sonar) citations: the platform returns citations in a
-    separate `citations` array on the API response. The current
-    runner.callPlatform reads only choices[0].message.content. For
-    Phase 1 the parser still extracts URLs embedded in the prose; the
-    `citations` array hook is a follow-up.
+  - Anthropic key on the existing Worker: Session 3 smoke-testing
+    showed the anthropic-proxy.gerek.workers.dev/v1/messages endpoint
+    currently returns HTTP 400 "Missing x-api-key header" — i.e. the
+    Worker is NOT injecting the Anthropic key for this tool. parser.js
+    assumes injection, so its primary path always fails and the
+    heuristic fallback fires. The pipeline still runs; cited_urls
+    and the more nuanced fields just degrade until the Worker is
+    fixed (or parser.js is rewired to send a header from a GitHub
+    Secret). Same constraint will apply to the future Sonnet narrative
+    call. Decision pending — see WHAT IS PENDING.
 
   - parser_status for unavailable runs uses the value "n/a" so the
     threshold rule (4+ heuristic) doesn't accidentally count empty
     rows. The schema in the build plan lists only "llm" | "heuristic" —
     "n/a" is an orchestrator-side extension limited to placeholder rows.
 
-  - The Haiku parser user prompt does NOT pass authority_figure to the
-    model (per the Session 2 spec). As a result, authority_figure_named
-    will read false for almost every run. This is acceptable for
-    Phase 1 — the field is only meaningful for Run 3 and is monitored,
-    not scored. Future enhancement: pass authority_figure when runId === '3'.
+  - The Haiku parser user prompt still does NOT receive the authority
+    figure's name — only business_name and top_competitor are passed
+    into the parser system + user prompts. authority_figure_named is
+    therefore parsed from whether the response itself names a specific
+    human associated with the business. With the Session 3 Run 3 fix
+    (which now puts {authority_figure} into the platform prompt), the
+    platform's response is far more likely to echo the name back, so
+    the field should now read true on Run 3 most of the time even
+    without the parser knowing the exact string.
 
-  - All downstream modules (sheet-reader, score-engine, sheet-writer,
-    github-archiver, narrative-engine, pdf-builder, drive-writer) are
-    scaffolds. The runner detects this via typeof check and logs
-    "<module> not implemented yet — skipping" — the pipeline runs end
-    to end without crashing while these are built out.
+  - Downstream modules narrative-engine.js, pdf-builder.js, and
+    drive-writer.js remain scaffolds. The runner's typeof guards keep
+    the pipeline running end-to-end (logs "<module> not implemented
+    yet — skipping" and continues). These get built in Sessions 4+.
+
+  - GitHub Actions workflow file (.github/workflows/) is still
+    unwritten. End-to-end execution against real client sheets isn't
+    possible until Session 4+ builds that file + provisions the
+    GitHub Secrets it consumes.
 
 ================================================
 
@@ -570,6 +709,7 @@ CHANGE LOG
 
 Session 1 | May 2026 | Scaffold: full repo structure, iTech Valet client config, 13 prompt templates. 17 files, 525 lines.
 Session 2 | May 2026 | Built: runner.config.js, runner.js (full pipeline orchestrator), parser.js (Haiku + heuristic fallback). Build plan corrected from 12 to 13 runs.
+Session 3 | May 2026 | Fixed: authority_figure injected for Run 3, Perplexity citations array captured. Built: score-engine.js, sheet-reader.js, sheet-writer.js, github-archiver.js. runner.js wired through step 8.
 
 ================================================
 END OF DOCUMENT
