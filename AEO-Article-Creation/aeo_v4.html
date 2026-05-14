@@ -1287,10 +1287,45 @@
     if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(`Drive error (${r.status}): ${e?.error?.message||'check file ID'}`); }
     return r.text();
   }
+  // 4.2 NLM sheet fetch — switched from the Drive CSV-export endpoint (which exports the FIRST
+  // tab only) to the Sheets API values.get endpoint so we can target a specific tab by name.
+  // The 4.2 sheet now contains multiple tabs; the tool MUST read from the explicit AEO_Inventory
+  // tab so the inventory rows stay separate from working/admin tabs in the same file.
+  //
+  // The endpoint accepts an A1-notation range with a tab prefix: `AEO_Inventory!A:Z`. It returns
+  // JSON `{ range, values: [[row1cells], [row2cells], ...] }`; we convert that array back into
+  // CSV text so the existing findRow + parseCSV downstream path is completely unchanged.
+  //
+  // Signature kept (id, key) for call-site compatibility; tabName hardcoded inside.
   async function fetchSheet(id, key){
-    const r = await fetchWithRetry(`https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=text%2Fcsv`, { headers: {'x-goog-api-key': key} }, 'Drive (sheet)');
-    if(!r.ok) throw new Error(`Sheet fetch failed: ${r.status}`);
-    return r.text();
+    const tabName = 'AEO_Inventory';
+    const range = `${tabName}!A:Z`;
+    log(`Phase 1 — Accessing 4.2 NLM tab: [${tabName}] (range ${range})…`, 'info');
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(id)}/values/${encodeURIComponent(range)}`;
+    const r = await fetchWithRetry(url, { headers: { 'x-goog-api-key': key } }, `Sheets (4.2 NLM, tab: ${tabName})`);
+    if(!r.ok){
+      const e = await r.json().catch(() => ({}));
+      const msg = (e && e.error && e.error.message) || '(unknown)';
+      // The Sheets API returns 400 with "Unable to parse range" when the tab name doesn't exist.
+      // Surface an actionable error instead of a generic HTTP failure so the operator knows the
+      // fix is to add (or rename) the tab in their 4.2 sheet — not to retry the run.
+      if(r.status === 400 && /Unable to parse range|Unable to find range/i.test(msg)){
+        throw new Error(`4.2 sheet "${id}" has no "${tabName}" tab — add a tab named exactly "${tabName}" (case-sensitive) containing the AEO inventory rows. Sheets API error: ${msg}`);
+      }
+      throw new Error(`4.2 sheet fetch failed (${r.status}): ${msg}`);
+    }
+    const data = await r.json().catch(() => null);
+    if(!data || !Array.isArray(data.values)){
+      throw new Error(`4.2 sheet "${tabName}" tab returned no values (empty tab or unexpected response shape).`);
+    }
+    // Sheets API → CSV conversion. Quote any cell containing a comma, quote, or newline; double
+    // any embedded quotes per RFC 4180 — same shape parseCSV() expects.
+    const csv = data.values.map(row => (row || []).map(cell => {
+      const s = String(cell == null ? '' : cell);
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    }).join(',')).join('\n');
+    log(`Phase 1 — 4.2 NLM tab [${tabName}] loaded: ${data.values.length} row(s), ${(data.values[0]||[]).length} column(s).`, 'ok');
+    return csv;
   }
   function normalizeQuotes(str){
     return str.replace(/[‘’‚‛′‵]/g,"'")
@@ -4743,7 +4778,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       if(!row) throw new Error(`Topic not found in sheet — check exact match. Topic: "${S.topic}"`);
       S.sheetRow = row.row;
       S.sheetRowCols = row.cells;
-      log(`Docs loaded — 4.3A:${doc43A.length}b, 4.3B:${doc43B.length}b, 4.4:${doc44.length}b, sheet row matched.`, 'ok');
+      log(`Docs loaded — 4.3A:${doc43A.length}b, 4.3B:${doc43B.length}b, 4.4:${doc44.length}b, 4.2 NLM row matched in [AEO_Inventory] tab.`, 'ok');
 
       // ── PHASE 1: Gemini research + thesis — F1 retry loop (each attempt appended to the panel, never overwritten) ─
       setG('Phase 1 — Gemini research + clientSpecificThesis...', true);
