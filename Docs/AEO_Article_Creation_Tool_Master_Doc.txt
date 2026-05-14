@@ -2647,6 +2647,186 @@ Confirmed costs: ~$1.33-1.58 per article + ~$0.05-0.10 VCI.
 
 CHANGE LOG
 ----------
+May 13, 2026 (Claude Code build session — hard governance pass): 4.2 NLM TRUNK FIREWALL + NUCLEAR DA HOVER + DETERMINISTIC CTA TEMPLATE. Commit 5de0415 — 134 insertions, 10 deletions.
+
+  Shift in posture: from prompt-based suggestions ("don't repeat this
+  URL, please") to code-level enforcement ("the URL is mathematically
+  absent from the final HTML"). Every link rule now has a deterministic
+  backstop in JS so prompt-only governance can't silently regress.
+
+  (1) 4.2 NLM TRUNK PROTECTOR ("THE BLINDER"). The pipeline was
+  trunk-hopping — Phase 5/6 sometimes re-introduced internal service
+  links to other-trunk URLs (e.g., the article is about /seo/ but the
+  voice draft linked /web-design/) because the AI saw the full
+  research.anchorTextTargets list and treated every internal URL as
+  fair game. Live runs showed cluster authority diluted across
+  multiple trunks per article. The fix is a three-layer firewall:
+
+    (a) PHASE 1 — Focus Trunk identification. After S.research is
+        populated from the Phase 1 Gemini call, JS computes
+        S.focusTrunkPath via computeFocusTrunkPath(research, clientDomain):
+        scan anchorTextTargets in order, return the first internal URL
+        whose path is a SERVICE TRUNK shape. A trunk is heuristically
+        defined as an internal URL with EXACTLY 1 non-empty path segment
+        (so "/seo/" is a trunk; "/" is the homepage, not a trunk;
+        "/blog/post-name/" is a branch, not a trunk). The first trunk
+        in the 4.2 list wins — the sheet is authored in priority
+        order. Result logged YELLOW on every Phase 1 completion so the
+        operator can verify the firewall is targeting the right URL.
+
+    (b) PHASE 2/2B/5/6 — anchorTextTargets filtered at the cache
+        chokepoint. buildPhase2ContextBlock — the single cached master
+        block read by Phase 2A, Phase 2B, Phase 5, AND Phase 6 — now
+        JSON-serializes filterTrunksFromAnchorTargets(S.research, ...)
+        instead of S.research directly. The filter drops every internal
+        URL that IS a service trunk and IS NOT the focus trunk. The
+        homepage, every branch/blog URL, and every external citation
+        stay in the list. A new NLM FOCUS-TRUNK LOCK paragraph is
+        appended to the same block telling Claude "the list above has
+        been FILTERED — only focus + homepage + branches + externals
+        visible; don't invent off-trunk links; Phase 7A will strip
+        them anyway." Because the cache chokepoint is one function,
+        every downstream phase inherits the Blinder discipline for
+        free; no per-phase prompt rewrites needed.
+
+    (c) PHASE 7A — final regex sweep. New helper
+        stripNonFocusTrunkLinks(article, focusTrunkPath, clientDomain)
+        walks every prose container in the article and, for each
+        inline [anchor](url) markdown link whose URL is an internal
+        SERVICE TRUNK that is NOT the focus trunk, regex-strips the
+        markdown to plain anchor text. External URLs, homepage URLs,
+        branch URLs, and focus-trunk URLs all pass through untouched.
+        Hooked into assemblePhase7HTML immediately after the existing
+        sanitizeInternalLinkDupesInArticle (commit 0f728e6). Strip
+        count logged YELLOW when > 0. By construction, the FINAL HTML
+        cannot contain a markdown link to any non-focus service trunk
+        no matter what Phase 2/3/5/6 produced. Off-trunk anchor text
+        still appears as plain prose so the rhythm/voice isn't broken
+        by the strip — just the hyperlink disappears.
+
+    Three new helpers near the existing link helpers:
+      • isServiceTrunkPath(path)  — single-segment internal path
+      • computeFocusTrunkPath(research, clientDomain) — first trunk
+      • filterTrunksFromAnchorTargets(research, focusTrunkPath, clientDomain)
+      • stripNonFocusTrunkLinks(article, focusTrunkPath, clientDomain)
+    Both filterTrunksFromAnchorTargets and stripNonFocusTrunkLinks
+    no-op when S.focusTrunkPath is empty (defensive — no firewall
+    when no trunk was identified). Reuses isInternalLinkUrlP2 +
+    normLinkUrlForCompare from prior commits.
+
+    HEURISTIC NOTE. The "single non-empty path segment" definition of
+    a trunk is the simplest defensible rule given that the 4.2 sheet
+    schema doesn't expose a trunk-vs-branch column to research
+    .anchorTextTargets. If a future 4.2 NLM revision adds an explicit
+    trunk field, swap isServiceTrunkPath for a direct lookup. Sites
+    that use deeper service URLs like "/services/foo/" would be
+    classified as branches today — that's a calibration item.
+
+  (2) 4.3A RHYTHM MANDATE — additional sentence. Per spec, the
+  existing CRITICAL RHYTHM MANDATE at the top of buildPhase5InstrBlock
+  (commit bba51f8) had "Do not write paragraphs longer than 3
+  sentences." inflated with "If a paragraph exceeds 3 sentences, it
+  is a structural failure. Shatter the blocks." The new sentence
+  lands immediately after the 3-sentence rule. The duplicate of the
+  existing "One core idea per sentence" piece in the user's quoted
+  text was de-duplicated; only the genuinely new sentence is added.
+  Final wording (top of buildPhase5InstrBlock):
+    "CRITICAL RHYTHM MANDATE (from 4.3A): You must shatter dense
+     academic text blocks. Do not write paragraphs longer than 3
+     sentences. If a paragraph exceeds 3 sentences, it is a structural
+     failure. Shatter the blocks. You must frequently use 3-5 word,
+     single-sentence paragraphs for emphasis and pacing. Use periods
+     instead of conjunctions to link claims. One core idea per sentence.
+     Prioritize punchy, authoritative brevity."
+
+  (3) GHOST CTA — PROMPT TEXT + TEMPLATE LOCK. Two paired changes:
+
+    (a) Prompt fix. The CTA hook prompt lock in BOTH buildHydrate
+        InstrBlock (Phase 2) and buildPhase5InstrBlock (Phase 5) was
+        replaced with the new spec wording. Old (from commit 0f728e6):
+          "CRITICAL: You are writing the persuasive hook ONLY. DO NOT
+           write a markdown link or button (e.g., [Click Here](url)).
+           The system will automatically generate the actual CTA
+           button directly below your text. End your prose without a
+           link."
+        New (this commit):
+          "CRITICAL: Write the persuasive hook prose ONLY. DO NOT
+           write a markdown link or button. End your text with a
+           period. The system will handle the button."
+        Tighter wording, "end with a period" is explicit, no
+        parenthetical example that could be misread as a permitted
+        format.
+
+    (b) Template fix. The Phase 7A CTA rendering in assemblePhase7HTML
+        was simplified to the spec template:
+          <div class="article-cta">
+            <p>${ctaHookText}</p>
+            <a href="${ctaUrl}" class="cta-button">${ctaButtonText}</a>
+          </div>
+        Differences from prior: single <p> wrapper (was: per-paragraph
+        split via proseToParagraphs — split rendering removed since
+        the new prompt forces a single sentence ending in a period);
+        the link is now a bare <a class="cta-button"> SIBLING of the
+        hook (was: wrapped in its own <p>); the class="cta-button"
+        attaches deterministic styling regardless of branding. data-
+        node-id="__cta" on the wrapper div preserved for Phase 7B's
+        click-modal. mdInline() on the hook prose retains any inline
+        **bold** markdown.
+
+    (c) CTA button stylesheet. New rules added to buildStylesheetFrom43B:
+          .cta-button { display:inline-block; padding:14px 28px;
+                        background:${linkColor}; color:#ffffff;
+                        border-radius:6px; text-decoration:none;
+                        font-weight:600; margin-top:16px;
+                        transition:opacity 0.2s; }
+          .cta-button:hover { opacity:0.85; text-decoration:none;
+                              color:#ffffff; }
+        Uses the existing linkColor brand variable for the background
+        so the button picks up the client's accent color automatically.
+        White text + 14×28 padding + rounded corners are the
+        deterministic part.
+
+  (4) NUCLEAR DA HOVER FIX (round 4 — really the last one). The
+  round-3 fix (commit 0f728e6) tried to pin the iframe-specific
+  hoverStyle's background to the same daBackground as the base, on
+  the theory that visually-zero-change hover would eliminate the
+  contrast bug. But the global stylesheet itself had no hover guard,
+  so any future regression (or an external stylesheet inheritance
+  quirk) could re-introduce a hover background change. The user's
+  decisive answer: add a HARDCODED, !important hover rule to the
+  canonical stylesheet itself, so nothing — not the iframe overlay,
+  not a global :hover from elsewhere, not a CSS reset — can change
+  the DA contrast. New rules in buildStylesheetFrom43B:
+    .direct-answer:hover { background-color:#063a6c !important;
+                            color:#ffffff !important; }
+    .direct-answer:hover p, .direct-answer:hover li,
+    .direct-answer:hover a { color:#ffffff !important; }
+  Hardcoded iTech Valet brand colors (per spec). The descendant
+  selectors ensure paragraphs / list items / links inside the DA
+  also stay white on hover regardless of inheritance quirks. The
+  previous iframe-specific .direct-answer[data-node-id]:hover
+  override from round 3 still exists but is now redundant — the
+  !important rule wins over everything. (Round-3 override left in
+  place as belt-and-suspenders; harmless given !important wins.)
+
+  (5) IMAGE UI/UX. Confirmed in place (no code change this commit):
+    • Image-gen attempt timeouts at 40s ceiling (commit b2be0c1):
+      ATTEMPT_TIMEOUTS = finalPass ? [40000] : [35000, 40000].
+    • Alt-text shown below the image-prompt textarea on every
+      image card (commit b2be0c1): <strong>Alt Text / Filename:</strong>
+      block at line 5421.
+
+  VERIFICATION. Inline <script> parses clean via Node Function (1/1
+  PASS). 22-case trunk-firewall smoke test passes — covers
+  isServiceTrunkPath (5 cases), computeFocusTrunkPath (1), filter
+  TrunksFromAnchorTargets (7 cases — externals, homepage, focus
+  trunk, dropped trunks both relative and absolute, branches, output
+  length), and stripNonFocusTrunkLinks (9 cases — strip count, DA /
+  content sections / FAQ answer / conclusion / CTA hook all
+  validated; externals, homepage, branches all preserved untouched).
+  Grep audit confirms each anchor at the expected location.
+
+
 May 13, 2026 (Claude Code build session — Phase 7A sanitizer + ghost CTA + DA hover round 3): THREE ARCHITECTURAL FIXES. Commit 0f728e6 — 74 insertions, 9 deletions.
 
   (1) PHASE 7A FINAL LINK SANITIZER (deterministic backstop). The
