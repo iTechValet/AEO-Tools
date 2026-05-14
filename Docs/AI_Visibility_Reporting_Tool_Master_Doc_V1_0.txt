@@ -1,0 +1,575 @@
+AI VISIBILITY REPORTING TOOL — MASTER REFERENCE DOC
+Version: V1.0 (working copy)
+Last Updated: 2026-05-14
+Governing Spec: AI_Visibility_Reporting_Tool_Master_Spec_V1.0.txt
+Build Plan: Docs/AI_Visibility_Tool_Master_Build_Plan_V1_1.txt
+Architectural Model: AEO Article Creation Tool (proven pattern — extend, don't reinvent)
+================================================
+
+CURRENT STATUS — PHASE 1 / SESSION 2 COMPLETE
+---------------------------------------------
+Phase 1 (MVP — VA-triggered, single client per run) is in active build via
+Claude Code. Two sessions have shipped:
+
+  Session 1 — repo scaffolding + iTech Valet client config + 13 prompt
+              templates with runtime variable injection.  COMPLETE.
+
+  Session 2 — runner.config.js (platform endpoints, sonar model locked,
+              30s→60s→120s→240s→480s backoff schedule), runner.js
+              (full pipeline orchestrator, serial 13-run loop, env-only
+              API keys, graceful retry, never-crash policy), parser.js
+              (Claude Haiku via the existing Cloudflare Worker proxy +
+              heuristic regex fallback), prompts/parser-prompt.js
+              (strict-JSON system prompt + 3 few-shot examples).
+              Build plan corrected: every "12 runs" / "Twelve runs" /
+              "12 API calls" / "12 rows" / "12 platform runners"
+              reference is now "13" (Run 6 is intentional and stays —
+              it is INTERNAL ONLY, never client-facing).  COMPLETE.
+
+Sessions 3 through ~7 will fill in the remaining scaffolded modules
+(sheet-reader, score-engine, sheet-writer, github-archiver,
+narrative-engine, pdf-builder, drive-writer), the VA-facing index.html,
+and the Cloudflare Worker /trigger-report dispatch endpoint + the
+GitHub Actions workflow file.
+
+================================================
+
+THE ONE THING THAT MATTERS
+--------------------------
+This tool is a client retention system disguised as reporting. It proves
+the program is working — especially in months 1–6 when churn risk is
+highest. Every architectural decision serves that goal.
+
+Architectural law (inherited from the AEO tool):
+  Code executes on fixed specs; Claude writes narrative only.
+  Every generative responsibility moved from interpretation to
+  execution improves reliability.
+
+================================================
+
+ARCHITECTURE — PIPELINE FLOW
+----------------------------
+
+CLIENT CONFIG (JSON, one per client)
+        ↓
+VA TRIGGERS RUN (index.html → Cloudflare Worker dispatch → GitHub Action)
+        ↓
+RUNNER (Node.js in GitHub Actions — orchestrates everything)
+        ↓
+GOOGLE DRIVE FETCH (4.3A + 4.3B — same pattern as AEO tool)
+        ↓
+SHEET READER (reads full AI_Visibility_Raw + Summary history)
+        ↓
+13 API CALLS — serial, one at a time (ChatGPT, Gemini, Perplexity/sonar, Grok)
+        ↓
+CLAUDE HAIKU PARSER per run (strict JSON schema + heuristic fallback)
+        ↓
+SCORE ENGINE (JS calculates AI Visibility Score — never Claude)
+        ↓
+GOOGLE SHEET WRITER (AI_Visibility_Raw + AI_Visibility_Summary tabs)
+        ↓
+GITHUB ARCHIVER (raw JSON backup — [YYYY-MM]/[client_id]_raw.json)
+        ↓
+CLAUDE SONNET NARRATIVE ENGINE (report written in Gerek's voice)
+        ↓
+PUPPETEER PDF BUILDER (named [client_id]_AI_Visibility_[YYYY-MM].pdf)
+        ↓
+GOOGLE DRIVE WRITER (PDF → client's "Monthly Reports" folder)
+        ↓
+[PHASE 3] EMAIL DELIVERY (PDF link, simple template)
+        ↓
+LOOKER STUDIO DASHBOARD (manual setup — reads Sheet automatically)
+
+Key laws:
+  - AI Visibility Score is calculated by JS. Claude NEVER calculates or
+    interprets the score.
+  - Claude receives the score, trend, and benchmark as pre-calculated facts.
+  - Dates are never calculated by Claude. run_date, report_period, and
+    client_month are passed as facts.
+  - API calls are SERIAL. Never parallel. Clean error isolation per run.
+  - Run 6 is INTERNAL ONLY. Never reaches the narrative engine. Sheet-only.
+
+================================================
+
+REPO & HOSTING
+--------------
+Repo:      github.com/iTechValet/iTV-Tools
+Subfolder: AI-Visibility-Reporting/
+Hosting:   itechvalet.github.io/iTV-Tools/AI-Visibility-Reporting/   (Phase 1)
+Cloudflare proxy (reused from AEO):
+           anthropic-proxy.gerek.workers.dev
+             - Used by parser.js for Claude Haiku
+             - Will be used by narrative-engine.js for Claude Sonnet
+             - Will gain a /trigger-report dispatch endpoint in a later
+               Phase 1 session (Worker fires repository_dispatch to
+               GitHub Actions; the browser never sees an API key)
+
+Subfolder layout (as of Session 2):
+
+  AI-Visibility-Reporting/
+    index.html                 # VA-facing UI (HTML comment shell)
+    runner.js                  # Orchestrator (BUILT — Session 2)
+    runner.config.js           # Platform configs (BUILT — Session 2)
+    parser.js                  # Haiku + heuristic (BUILT — Session 2)
+    score-engine.js            # Score math (scaffold)
+    sheet-reader.js            # Sheet history reader (scaffold)
+    sheet-writer.js            # Sheet writer (scaffold)
+    github-archiver.js         # Raw JSON archive (scaffold)
+    narrative-engine.js        # Claude Sonnet call (scaffold)
+    pdf-builder.js             # Puppeteer renderer (scaffold)
+    drive-writer.js            # PDF upload (scaffold)
+    prompts/
+      prompt-templates.js      # 13 run-prompt templates (BUILT — Session 1)
+      parser-prompt.js         # Haiku system + few-shot (BUILT — Session 2)
+      narrative-prompt.js      # Sonnet prompt (scaffold)
+    templates/
+      report.html              # PDF template (HTML comment shell)
+    clients/
+      itechvalet.json          # Test client config (BUILT — Session 1)
+    archive/
+      .gitkeep                 # Placeholder until first run writes archive
+
+Every JS/HTML shell carries a top header block stating what the file does,
+what calls it, and what it calls.
+
+================================================
+
+WHAT HAS BEEN BUILT — DETAIL
+----------------------------
+
+[ Session 1 — May 2026 ]
+
+  clients/itechvalet.json
+    First test-client config. iTech Valet itself. Every live ID
+    (sheet_id, drive_reports_folder_id, looker_dashboard_id,
+    client_email, doc_43A_id, doc_43B_id) is PLACEHOLDER_* per the
+    locked-decisions rule against inventing values. business_name,
+    service, primary_topic, market_scope, top_competitor,
+    authority_figure (Gerek Allen / Founder), customer_term, and
+    contract_start (2026-01-01) are filled in for real test use.
+
+  prompts/prompt-templates.js
+    All 13 run-ID templates (1A, 1B, 1C, 1D, 2, 3, 4A, 4B, 5A, 5B,
+    6, 7A, 7B). Single exported function getPrompt(runId, clientConfig).
+    Zero hardcoded client data — every value comes from clientConfig at
+    runtime. Required-vars guard rejects empty/missing config keys.
+    Unknown-runId throws explicitly. Run 6 flagged INTERNAL ONLY in
+    a code comment so the orchestrator can strip it before passing
+    runs to Claude Sonnet for the narrative.
+
+  Scaffolds (header comment + STATUS:Scaffold only):
+    runner.js, runner.config.js, parser.js, score-engine.js,
+    sheet-reader.js, sheet-writer.js, github-archiver.js,
+    narrative-engine.js, pdf-builder.js, drive-writer.js,
+    prompts/parser-prompt.js, prompts/narrative-prompt.js,
+    templates/report.html, index.html.
+
+[ Session 2 — May 2026 ]
+
+  runner.config.js
+    Platform endpoint + retry config exported as a plain CommonJS
+    module. Four platforms keyed by id:
+      openai     → gpt-4o
+      gemini     → gemini-1.5-pro
+      perplexity → sonar      (sonar specifically — non-negotiable)
+      grok       → grok-3
+    Each platform entry holds { model, endpoint, secretKey }. The
+    secretKey field is the NAME of the env var holding the actual
+    key. Keys are NEVER stored in this file (and never in the client
+    JSON). retry.maxAttempts = 5; retry.backoff = [30000, 60000,
+    120000, 240000, 480000] (ms). timeoutMs = 30000 (per request).
+
+  runner.js
+    Pipeline orchestrator. Entry point for GitHub Actions.
+
+    Args:  --client=<client_id>   (also accepts --client <client_id>)
+
+    Startup:
+      - Loads clients/<client_id>.json.
+      - Computes run_date (today, ISO), report_period (YYYY-MM), and
+        client_month (months since contract_start, inclusive).
+      - Runs an API-key preflight against process.env and builds a Set
+        of available platforms. Missing keys log a clear message and
+        the affected runs are recorded with platform_available:false
+        and parser_status:"n/a" — the orchestrator never crashes on
+        missing keys.
+
+    Pipeline (every step is logged with an ISO timestamp; every step's
+    failure is caught + logged + the pipeline continues):
+      Step 1: Sheet reader  → prior AI_Visibility_Summary history
+                              + prior month score.
+      Step 2: 13 platform runs, SERIAL. For each run:
+                - getPrompt(runId, clientConfig)
+                - callWithRetry(platform, prompt) — 5 attempts with
+                  exponential backoff (30s → 60s → 120s → 240s → 480s)
+                - On full failure: placeholder row, platform_available
+                  set to false, parser_status "n/a", continue.
+                - On success: parser.parseResponse(rawResponse, cfg)
+                  → row pushed onto results.
+              After the loop: count heuristic runs; flip
+              heuristic_warning when count >= 4.
+      Step 3: score-engine.calculateScore  → composite + trend.
+              Summary fields (heuristic_fallback_count,
+              heuristic_warning, run_date, report_period,
+              client_month) are stamped on by the orchestrator before
+              the sheet write — they don't depend on the score engine.
+      Step 4: sheet-writer.writeResults  → AI_Visibility_Raw (13 rows)
+                                           + AI_Visibility_Summary (1 row).
+      Step 5: github-archiver.archive    → /archive/<YYYY-MM>/
+                                            <client_id>_raw.json.
+      Step 6: narrative-engine.generateNarrative — Run 6 stripped from
+              the dataset here (filter r => r.run_id !== '6'), so it
+              never reaches Claude.
+      Step 7: pdf-builder.buildPdf       → Puppeteer renders
+                                            templates/report.html.
+      Step 8: drive-writer.uploadPdf     → PDF to client Drive folder.
+
+    Platform call shape:
+      - Gemini:    POST endpoint + ?key=<API_KEY>;
+                   body { contents:[{ parts:[{ text:prompt }] }] };
+                   reads candidates[0].content.parts[0].text.
+      - OpenAI / Perplexity (sonar) / Grok (OpenAI-compatible):
+                   POST with Bearer auth;
+                   body { model, messages:[{ role:'user', content:prompt }] };
+                   reads choices[0].message.content.
+
+    Timeout: AbortController-driven, set per request from
+             runner.config.timeoutMs (30s).
+
+    Exports (in addition to main): RUN_IDS, RUN_TO_PLATFORM,
+            RUN_TO_SIGNAL, parseArgs, calcClientMonth, reportPeriod,
+            todayISO — for unit testing.
+
+  parser.js
+    Two-tier parser. Single public function:
+      async function parseResponse(rawResponse, clientConfig)
+        → { brand_mentioned, brand_recommended, brand_position,
+            competitor_mentioned, competitor_recommended,
+            sentiment_signal, cited_urls, authority_figure_named,
+            parser_status }
+        where parser_status is "llm" | "heuristic".
+
+    Primary path:
+      - POST to https://anthropic-proxy.gerek.workers.dev/v1/messages
+        with model "claude-haiku-4-5-20251001", max_tokens 1024,
+        anthropic-version: 2023-06-01, body assembled by
+        prompts/parser-prompt.js.buildMessages.
+      - AbortController timeout (30s).
+      - Output recovery: strip stray ```json fences; if direct parse
+        fails, slice from first '{' to last '}' and retry.
+      - normalizeFields enforces the schema: strict booleans
+        (=== true), enum lists for brand_position and sentiment_signal,
+        cited_urls coerced to string[].
+
+    Fallback path (heuristicParse):
+      - brand_mentioned: case-insensitive substring of business_name.
+      - brand_recommended: any of [recommend, call, contact, choose,
+        trust, best] within ±80 chars of a brand mention.
+      - sentiment_signal: positive vs negative keyword counts →
+        positive / negative / mixed / neutral.
+      - Every other field defaults to false / "not_mentioned" / [].
+      - parser_status set to "heuristic".
+    Fires on any error in the primary path — network, timeout,
+    non-2xx, empty content, malformed JSON, or invalid schema.
+
+  prompts/parser-prompt.js
+    Owns the Haiku payload. SYSTEM_PROMPT enforces strict-JSON output,
+    schema shape, and enum lists. buildMessages(rawResponse, cfg)
+    returns { system, messages } where messages contains three
+    few-shot user/assistant pairs (positive / negative / mixed)
+    followed by the live user prompt. The live user prompt matches the
+    exact structure in the Session 2 build prompt (business name,
+    competitor, response, then the schema body).
+    Also exported: SYSTEM_PROMPT, ENUMS, buildUserPrompt.
+
+================================================
+
+WHAT IS PENDING — SESSIONS 3+
+-----------------------------
+
+Sessions 3 through ~7 will, in some order:
+
+  sheet-reader.js
+    Google Sheets API service-account read of the client's sheet.
+    Returns { history, priorScore } from the AI_Visibility_Summary tab,
+    targeted by NAME (never by position).
+
+  score-engine.js
+    Pure JS. Composite score 0–100 with the formula below. Calculates
+    score_delta vs priorScore, trend_direction (UP / DOWN / FLAT), and
+    benchmark_range based on client_month. Claude never touches this.
+
+  sheet-writer.js
+    Service-account writes to AI_Visibility_Raw (13 rows per run) and
+    AI_Visibility_Summary (1 row per run). Targets tabs by NAME.
+
+  github-archiver.js
+    Writes /archive/<YYYY-MM>/<client_id>_raw.json + git commit/push
+    via the Action's GITHUB_TOKEN.
+
+  narrative-engine.js + prompts/narrative-prompt.js
+    Single Claude Sonnet call via the Cloudflare proxy. Inputs are
+    pre-calculated facts (score, prior score, trend, benchmark, dates)
+    plus the 12 narrative-eligible runs (Run 6 already stripped by the
+    runner) plus the prior AI_Visibility_Summary history plus 4.3A and
+    4.3B fetched from Drive. Output is the 7-section narrative in
+    Gerek's voice (5th-grade reading level, forbidden-terms list,
+    drift detection, no competitor names).
+
+  pdf-builder.js + templates/report.html
+    Puppeteer renders the populated template to a 4-page PDF named
+    <client_id>_AI_Visibility_<YYYY-MM>.pdf. Design reference: Brighton
+    Gold April 2026 Report.
+
+  drive-writer.js
+    Service-account upload of the PDF to the client's "Monthly Reports"
+    folder (drive_reports_folder_id from the client config).
+
+  index.html
+    VA-facing single-page UI: client dropdown populated from
+    clients/*.json, "Run Report" button, confirmation panel. POSTs to
+    the Cloudflare Worker /trigger-report endpoint with an internal
+    access key. No API keys ever live in the browser.
+
+  Cloudflare Worker — /trigger-report dispatch endpoint
+    Validates the access key, fires GitHub repository_dispatch with
+    the client_id as payload, returns confirmation to the browser.
+    Extends the existing Worker rather than replacing it.
+
+  .github/workflows/<name>.yml
+    Defines workflow_dispatch (manual) and repository_dispatch
+    (Cloudflare-triggered) entry points. Runs node runner.js
+    --client=<client_id>. Secrets injected as env vars.
+
+================================================
+
+THE 13 RUNS
+-----------
+
+ID  | Platform           | Signal | Prompt template
+----|--------------------|--------|----------------------------------------------------------------------------------------
+1A  | ChatGPT (gpt-4o)   |  1     | Who is the most trusted {service} {market_scope} for {primary_topic}?
+1B  | Gemini             |  1     | (same as 1A, fresh session)
+1C  | Perplexity (sonar) |  1     | (same as 1A, fresh session)
+1D  | Grok               |  1     | (same as 1A, fresh session)
+2   | ChatGPT            |  1+3   | Compare the authority and expertise of {top_competitor} vs. {business_name}
+    |                    |        | {market_scope}. Who does AI trust more for {primary_topic}?
+3   | Gemini             |  2     | Who is the recognized expert or authority figure behind {business_name}? They are a
+    |                    |        | {service} {market_scope}. What is this person's personal reputation and professional
+    |                    |        | standing?
+4A  | ChatGPT            |  2     | What do people say about {business_name} as a {service}? What are the common reviews,
+    |                    |        | complaints, and reasons people recommend or avoid them?
+4B  | Perplexity         |  2     | (same as 4A — Perplexity surfaces review aggregators more aggressively)
+5A  | ChatGPT            |  1     | I'm ready to open a {service} account. Who should I call first?
+5B  | Grok               |  1     | (same as 5A)
+6   | ChatGPT            |  3     | ⚠️ INTERNAL ONLY — NEVER in client deliverables, NEVER passed to Claude Sonnet.
+    |                    |        | What are the main reasons people choose {top_competitor} for {primary_topic}? What do
+    |                    |        | reviewers and {customer_term} say about them?
+7A  | ChatGPT            |  3     | What sources or websites does AI commonly cite when answering questions about
+    |                    |        | {primary_topic}? List the most frequently referenced sources.
+7B  | Perplexity         |  3     | (same as 7A — Perplexity is citation-native)
+
+Signal legend:
+  1   "Are they being recommended?"  (the money signal)
+  1+3 Head-to-head
+  2   "How are they being described?"
+  3   "What is blocking the recommendation?"
+
+================================================
+
+PARSER SPEC
+-----------
+
+Primary — Claude Haiku (model: claude-haiku-4-5-20251001) routed through
+the Cloudflare Worker proxy at anthropic-proxy.gerek.workers.dev.
+
+  System prompt:
+    - Strict JSON only. No preamble. No markdown fences.
+    - Schema is fixed. All fields required. Enums restricted.
+    - Booleans must be true/false (not strings).
+    - cited_urls is an array of explicit URLs (no reconstruction).
+
+  Few-shot examples in the messages array (Anthropic convention):
+    1. POSITIVE — brand recommended, ranked first, authority named.
+    2. NEGATIVE — brand named but disrecommended, competitor preferred.
+    3. MIXED   — brand mentioned with conflicting reviews + 2 URLs.
+
+  User prompt body:
+    Extract the following fields from this AI platform response.
+    Business name being tracked: {business_name}
+    Competitor being tracked: {top_competitor}
+
+    Response to analyze:
+    {raw_response}
+
+    Return ONLY this JSON object with no other text: { ...schema... }
+
+  Schema:
+    brand_mentioned          boolean
+    brand_recommended        boolean
+    brand_position           "first" | "second" | "third" | "other" | "not_mentioned"
+    competitor_mentioned     boolean
+    competitor_recommended   boolean
+    sentiment_signal         "positive" | "neutral" | "negative" | "mixed"
+    cited_urls               string[]
+    authority_figure_named   boolean
+
+Fallback — heuristic regex (runs when Haiku errors, times out, returns
+empty content, or returns malformed JSON):
+  - brand_mentioned     case-insensitive substring of business_name.
+  - brand_recommended   any of [recommend, call, contact, choose, trust,
+                        best] within ±80 chars of a brand mention.
+  - sentiment_signal    positive vs negative keyword counts →
+                          both    → "mixed"
+                          pos>0   → "positive"
+                          neg>0   → "negative"
+                          else    → "neutral"
+  - Every other field defaults: false / "not_mentioned" / [].
+  - parser_status set to "heuristic".
+
+Threshold rule (enforced by runner.js after the 13-run loop, NOT by
+parser.js):
+  - Count rows with parser_status === "heuristic".
+  - If >= 4: set heuristic_warning = true on the summary row.
+  - The run STILL COMPLETES. Never stop the pipeline.
+
+================================================
+
+AI VISIBILITY SCORE — FORMULA (JS ONLY, NEVER CLAUDE)
+-----------------------------------------------------
+
+Composite 0–100, calculated by score-engine.js. The score engine is
+pending build — this is the spec it will implement.
+
+  Mention Rate     (40%) = brand_mentioned runs / brand-trackable runs × 100
+  Recommendation   (35%) = brand_recommended runs / all runs × 100
+  Sentiment Score  (25%) = positive-sentiment runs / all runs × 100
+
+  Final Score = (mention_rate × 0.40)
+              + (recommendation_rate × 0.35)
+              + (sentiment_score × 0.25)
+
+Trend arrow:
+  current_score - prior_score from AI_Visibility_Summary (read by
+  sheet-reader.js before the run starts).
+    > 0   → UP
+    < 0   → DOWN
+    == 0  → FLAT
+
+Benchmark ranges by client_month (displayed alongside the score):
+  Months 1–3   Expected 10–25.   "Foundation building phase."
+  Months 4–6   Target   20–40.   "Content compounding."
+  Months 7–12  Goal     35–60+.  "Recommendation territory."
+
+The score engine receives parsed rows and prior_score; it returns the
+final score, trend, benchmark, and the three subscores. Claude never
+calculates or interprets any of this.
+
+================================================
+
+GOOGLE SHEET STRUCTURE
+----------------------
+
+One sheet per client. Four tabs. All tool-written. Zero manual input.
+Both tools target tabs by NAME — never by position. New client = duplicate
+the master template (master template is a manual one-time setup).
+
+  Tab                    | Written By               | Purpose
+  -----------------------|--------------------------|--------------------------------------------------
+  AEO_Inventory          | AEO Tool                 | Article production tracker
+  AEO_Run_Data           | AEO Tool (future)        | Cost / time / performance per article run
+  AI_Visibility_Raw      | THIS TOOL                | One row per platform run per month (13 rows/month)
+  AI_Visibility_Summary  | THIS TOOL                | One row per month — composite score + trends
+
+AI_Visibility_Raw row (13 per monthly run):
+  run_id | client_id | platform | signal | run_date | report_period |
+  client_month | brand_mentioned | brand_recommended | brand_position |
+  competitor_mentioned | competitor_recommended | sentiment_signal |
+  cited_urls | authority_figure_named | raw_response | response_length |
+  platform_available | parser_status
+
+AI_Visibility_Summary row (1 per monthly run):
+  report_period | client_month | run_date | ai_visibility_score |
+  prior_score | score_delta | trend_direction | benchmark_range |
+  mention_rate | recommendation_rate | sentiment_score |
+  platforms_available | heuristic_fallback_count
+
+(The runner additionally stamps run_date, report_period, client_month,
+heuristic_fallback_count, and heuristic_warning on the summary object
+before the write — so even a partial score-engine output gets surfaced
+to the Sheet.)
+
+================================================
+
+LOCKED DECISIONS (all 16 — from the build plan)
+-----------------------------------------------
+
+ 1. One tool, all clients. Config file is the only thing that changes
+    per client.
+ 2. JS calculates the score. Claude writes the story. Never cross this
+    line.
+ 3. 13 runs, 4 platforms. Serial execution. Never parallel. Perplexity
+    uses sonar model specifically.
+ 4. Exponential backoff. 5 retries. Never crash. Unavailable = log and
+    continue.
+ 5. Four tabs per client sheet. All tool-written. Zero manual input.
+    Tab names identical across all clients. Both tools target by name,
+    never by position.
+ 6. GitHub is the backup. Raw JSON every run. PDFs go to Google Drive.
+ 7. Run 6 is internal only. Never in client deliverables. Never passed
+    to Claude narrative.
+ 8. Claude receives full Sheet history every month. No arbitrary cutoff.
+ 9. Looker Studio is desktop only. Note in delivery email. Not built —
+    manual setup after Phase 1.
+10. Dashboard shows data. Report tells the story. Two jobs. Never overlap.
+11. Dates are never calculated by Claude. Pass run_date, report_period,
+    client_month as facts.
+12. Execution runs in GitHub Actions — not the browser. Browser is
+    trigger only. VA can close tab immediately.
+13. Claude Haiku for parsing. Claude Sonnet for narrative. Two separate
+    calls. Two separate jobs.
+14. Parser fallback threshold: 4+ heuristic runs = ⚠️ flag + continue.
+    Never stop the run.
+15. Master Sheet template governs onboarding. New client = duplicate
+    template. Never blank sheet.
+16. Cowork is not part of this build. Phase 3 trigger is GitHub Actions
+    cron. Cowork may be evaluated after 20+ successful runs.
+
+================================================
+
+KNOWN LIMITATIONS — DEFERRED TO LATER PHASE 1 SESSIONS
+------------------------------------------------------
+
+  - Perplexity (sonar) citations: the platform returns citations in a
+    separate `citations` array on the API response. The current
+    runner.callPlatform reads only choices[0].message.content. For
+    Phase 1 the parser still extracts URLs embedded in the prose; the
+    `citations` array hook is a follow-up.
+
+  - parser_status for unavailable runs uses the value "n/a" so the
+    threshold rule (4+ heuristic) doesn't accidentally count empty
+    rows. The schema in the build plan lists only "llm" | "heuristic" —
+    "n/a" is an orchestrator-side extension limited to placeholder rows.
+
+  - The Haiku parser user prompt does NOT pass authority_figure to the
+    model (per the Session 2 spec). As a result, authority_figure_named
+    will read false for almost every run. This is acceptable for
+    Phase 1 — the field is only meaningful for Run 3 and is monitored,
+    not scored. Future enhancement: pass authority_figure when runId === '3'.
+
+  - All downstream modules (sheet-reader, score-engine, sheet-writer,
+    github-archiver, narrative-engine, pdf-builder, drive-writer) are
+    scaffolds. The runner detects this via typeof check and logs
+    "<module> not implemented yet — skipping" — the pipeline runs end
+    to end without crashing while these are built out.
+
+================================================
+
+CHANGE LOG
+----------
+
+Session 1 | May 2026 | Scaffold: full repo structure, iTech Valet client config, 13 prompt templates. 17 files, 525 lines.
+Session 2 | May 2026 | Built: runner.config.js, runner.js (full pipeline orchestrator), parser.js (Haiku + heuristic fallback). Build plan corrected from 12 to 13 runs.
+
+================================================
+END OF DOCUMENT
