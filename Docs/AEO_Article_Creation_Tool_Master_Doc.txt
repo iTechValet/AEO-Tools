@@ -2647,6 +2647,191 @@ Confirmed costs: ~$1.33-1.58 per article + ~$0.05-0.10 VCI.
 
 CHANGE LOG
 ----------
+May 13, 2026 (Claude Code build session — late): V4.0 AUTONOMOUS SELF-HEALING LINK ARCHITECTURE.
+
+  Resolved Split-Brain link validation by scanning markdown prose. Shifted
+  duplicate link and CTA placement errors from Phase 3A RED global failures
+  to Phase 2 Inline Validation YELLOW Save State micro-retries. Implemented
+  sequential `window.p2SeenInternalUrls` rolling state for First-Instance-
+  Wins duplicate prevention. Added Deterministic Regex Fallback to auto-
+  strip spammy links to plain text (with a special Keep-First exception
+  for conclusion CTAs) if AI fails retries, ensuring zero-human-intervention
+  pipeline continuity. Commit 6c271c7 — 182 insertions, 61 deletions.
+
+  WHY (root cause). Two earlier commits (8a54b42 + b3b83cf) had layered
+  duplicate-internal-URL + cta_url_in_body checks into Phase 3A's global
+  validator, with my latest commit walking inline [text](url) prose links
+  to catch what section.links[] missed. But Phase 3A is a GLOBAL halt-
+  the-run gate: a Claude link mistake in section 3 of 8 would burn the
+  full article generation, then hand the operator a RED that required a
+  manual rerun. The autonomy goal demands the pipeline self-corrects
+  inside the section's own Save State retry budget BEFORE the section
+  commits to the rolling draft — and if even that fails, force compliance
+  via deterministic text mutation rather than block the run.
+
+  WHAT (5 paired changes inside aeo_v4.html).
+
+  (1) PROMPT INJECTION (THE FIRST LINE OF DEFENSE). Replaced the prior
+  LINK DISCIPLINE + CONCLUSION DISCIPLINE clauses in buildHydrateInstr
+  Block (Phase 2B's uncached instruction block) with two spec-worded
+  NON-NEGOTIABLE rules:
+    • UNIQUE LINK MANDATE — "Internal URLs from anchorTextTargets are
+      single-use. Once an internal URL is assigned to a section, it is
+      EXHAUSTED. Do not repeat internal URLs across different sections."
+    • CTA RESERVATION — "If you are writing a Content Section or FAQ,
+      DO NOT under any circumstances write a link to the CTA URL in
+      your prose. If you are writing the Conclusion, you must include
+      EXACTLY ONE link to the CTA URL."
+  This flips the prior architecture's "no CTA URL anywhere in body
+  prose" stance — the Conclusion is now the ONLY allowed location for
+  an inline CTA URL link, and exactly once. Phase 2A's frame prompt
+  was updated in parallel: the CONCLUSION CTA PROHIBITION sub-bullet
+  (added in commit b3b83cf) was renamed to CONCLUSION CTA RESERVATION
+  and rewritten to declare the conclusion as the CTA URL's one
+  reserved body home, with the new Phase 2 Inline Validation /
+  deterministic strip-to-plain-text fallback called out as the
+  enforcement mechanism. The conclusion_section description itself
+  was tweaked: it still has no `links` array, but the prose call-out
+  now says "Phase 2B writes that inline link" instead of "NO links
+  here."
+
+  (2) THE MARKDOWN REGEX SCANNER + ROLLING STATE. Four new global-
+  scope helper functions (defined before validateV1Structure so they
+  hoist into reach of every phase):
+    • extractMarkdownLinks(text) — per-string flavor; returns the
+      URL halves of every inline [anchor](url) match. The earlier
+      extractMarkdownLinksFromProse(v1) JSON-walking flavor is left
+      in place (no other consumer to deprecate, callable from future
+      diagnostic tools).
+    • normLinkUrlForCompare(u) — strips protocol + (www.)? + host,
+      ensures leading + trailing slash; mirrors the comparator used
+      inside validateV1Structure so the "is this the CTA?" / "is
+      this a duplicate?" decisions match across phases.
+    • isInternalLinkUrlP2(u, clientDomain) — root-relative OR client-
+      host OR itechvalet.com (the legacy default).
+    • stripMarkdownLinkForUrl(text, targetUrl, opts) — the surgical
+      strip. With `keepFirst:true`, leaves the FIRST matching link
+      intact and strips only the 2nd+ (Rule C: Conclusion >1 CTAs
+      collapse to exactly 1). Without it, strips every match.
+  Rolling state: `window.p2SeenInternalUrls = new Set()` declared at
+  the very top of executePhase2B (right after the cached/uncached
+  prompt blocks build) and committed PER COMMITTED SECTION — never
+  per attempt — so a section's URLs land in the seen-set only AFTER
+  it successfully stitches into hydratedFrame.
+
+  (3) PHASE 2 INLINE LINK VALIDATION INSIDE THE SECTION-RETRY LOOP.
+  After inlineValidateHydration(job, nodes, hydratedFrame) clears
+  (factClaim + coverage), and BEFORE the provisional stitch, the
+  new block walks every returned node's prose + table-cell text:
+    • Rule A (Body/FAQ/DA CTAs) — if !isConclusion and the node
+      contains a markdown link whose normalized URL equals the
+      CTA's, flag with {rule:'A', dupUrl: hit, reason: "body section
+      contains restricted CTA URL ..."}.
+    • Rule B (Duplicates) — for every internal URL in the node,
+      skip if it's the CTA path (owned by A/C), else check the
+      committed window.p2SeenInternalUrls; first match flags with
+      {rule:'B', dupUrl: u, reason: "URL '...' was already used
+      earlier in the article."}.
+    • Rule C (Conclusion >1 CTAs) — if isConclusion and the CTA
+      path appears more than once, flag with {rule:'C', reason:
+      "Conclusion contains N CTA URL link(s); exactly 1 required."}.
+    • CTA hook job (job.type === 'cta_hook') is exempt from all
+      three — that's the dedicated CTA block's lead-in prose, and
+      its hook prose is itself the CTA payload.
+  Save State retries get a LINK-SPECIFIC retry prompt (not the
+  default factClaim one). New `lastSectionFailKind` flag plus
+  `lastSectionLinkRetryPrompt` channel let the next iteration's
+  retryNote branch on rule:
+    • Rule A retry: "ERROR: You injected the restricted CTA URL into
+      this section. Rewrite this section, and DO NOT use the CTA URL."
+    • Rule B retry: "ERROR: You used the URL [URL], but it was
+      already used earlier in the article. Rewrite this section and
+      use a different internal URL."
+    • Rule C retry: "ERROR: You used the CTA link multiple times.
+      You must use the CTA link EXACTLY ONCE. Rewrite the conclusion
+      and remove the duplicate links."
+  Each fail logs YELLOW (warnYellow F14) with the rule letter; the
+  outer retry counter (sectionRetry ∈ {0,1,2}) is shared with the
+  existing factClaim-failure path so a section budget is one across
+  all rejection modes.
+
+  (4) THE DETERMINISTIC REGEX FALLBACK ("THE MUTE BUTTON"). On
+  sectionRetry === 2 (after 2 Save State retries failed to fix the
+  link mistake), the block does NOT push the fail into the validation
+  result. Instead it surgically strips:
+    • Rule A → stripMarkdownLinkForUrl(node.prose, ctaUrl) — every
+      CTA URL link becomes anchor-only plain text.
+    • Rule B → stripMarkdownLinkForUrl(node.prose, dupUrl) — the
+      specific duplicate URL is converted to plain text.
+    • Rule C → stripMarkdownLinkForUrl(node.prose, ctaUrl, {keepFirst
+      :true}) — first CTA link kept verbatim, every subsequent CTA
+      link stripped to plain text. (Per spec: "KEEP the first match
+      intact. Regex-strip the markdown from the 2nd, 3rd, etc.
+      instances, converting them to plain text.")
+  After stripping, logs YELLOW ("Link automatically stripped via
+  Deterministic Fallback") with the rule letter + original reason,
+  sets hadWarn = true so the section's relay chip lands amber (not
+  green), and falls through to the existing stitch. The newUrls-
+  This-Section accumulator is recomputed from the HEALED prose for
+  Rule B so the now-stripped URL is NOT added to the seen-set (the
+  section no longer contains it), while any other genuine internal
+  URLs in the node still commit. Per spec: "Because you have
+  violently forced the text into compliance by stripping the
+  markdown, the rule is now technically satisfied" — no fail string
+  is pushed into the validation output, the pipeline continues
+  without triggering another retry loop.
+
+  (5) PHASE 7A DATA-LEVEL NORMALIZATION (verified, no code change).
+  normalizeArticleUrls(article) — already created in commit b3b83cf
+  — runs as the first executable line inside assemblePhase7HTML
+  AFTER the type guard, BEFORE any HTML string assembly begins. It
+  mutates the article JSON in-place: every link.url + cta.url is
+  fixUrl()-ed (relative → absolute https://<client-domain>/path,
+  itechvalet.github.io → client domain), and the prose pass walks
+  every prose container (DA, content sections, conclusion, FAQ
+  container, FAQ intro paragraphs, every FAQ answer, CTA hook
+  prose) running the same fixUrl over inline [anchor](url) markdown
+  URLs. The legacy post-assembly itechvalet.github.io → client
+  string-replace sweep was removed in commit 92f281e and is gone;
+  this commit only updated the in-code comment to reflect that
+  normalizeArticleUrls now covers both link arrays AND inline prose
+  URLs, so by the time we get past line 1 of assemblePhase7HTML,
+  every URL is canonical.
+
+  (6) REMOVED THE OLD GLOBAL CHECKS. The two Phase 3A scope-blocks
+  added in commits 8a54b42 (cta_url_in_body) and b3b83cf
+  (duplicate_internal_url via prose walk) were deleted from
+  validateV1Structure. In their place: a single comment-only marker
+  stating the rules now live in Phase 2 Inline Validation with
+  Save State retries + deterministic strip fallback. By the time
+  V1 reaches Phase 3A, every link rule is either compliant or has
+  been forced compliant by the fallback — there's nothing left for
+  a global checker to RED on.
+
+  VERIFICATION. The single inline <script> parses clean via Node
+  Function (1/1 PASS). 16-case smoke test on the four helpers
+  passed: extractMarkdownLinks (basic / empty / no-markdown);
+  normLinkUrlForCompare (absolute / www / relative / trailing
+  variant / protocol-less); isInternalLinkUrlP2 (root-relative /
+  client host / github default / external); stripMarkdownLinkForUrl
+  (strip-all / keepFirst / leaves other URLs intact / no-match
+  no-op). Grep audit confirms each named anchor lands at the
+  spec'd location.
+
+  ARCHITECTURAL TRADE-OFF (logged for future eyes). The dedicated
+  Phase 7A <div class="article-cta"> block (rendered by the
+  cta_hook queue job + JS) was NOT removed by this change. With
+  the new architecture, the conclusion now embeds exactly one
+  inline CTA link AND the dedicated CTA block still renders at
+  article end — two visible CTAs in the rendered output. Phase
+  7B's Link Audit drawer will see the conclusion's inline CTA
+  link as a normal body link and will NOT flag it as cta-in-body
+  anymore (that rule moved to Phase 2). Whether to remove the
+  dedicated CTA block / collapse to embed-only is a separate
+  operator decision; this commit chose the literal spec
+  interpretation per user direction.
+
+
 May 13, 2026 (Claude Code build session): V4.0 — SCHEMA REFACTOR + DATA-INTEGRITY RECALIBRATION + DELIVERY POLISH. Six commits, all live on main.
 
   ARCHITECTURAL CHANGE — V4.0 FRAME SCHEMA REWRITE (04e8c55).
