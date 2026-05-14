@@ -2647,6 +2647,118 @@ Confirmed costs: ~$1.33-1.58 per article + ~$0.05-0.10 VCI.
 
 CHANGE LOG
 ----------
+May 14, 2026 (Claude Code build session — professional ops refactor): NUCLEAR STOP ABORT + PROFESSIONAL LOG PALETTE. Commit 45b5bce — 94 insertions, 9 deletions.
+
+  (1) NUCLEAR STOP — hard abort. The prior stopPipeline only
+  aborted the in-flight Claude call via the legacy
+  _activeClaudeAbort hook. Any GAPI fetch, image-gen attempt,
+  or queued-but-not-yet-started phase work continued executing
+  past the stop. Refactor makes STOP a hard, immediate, system-
+  wide terminate.
+
+    Global controller. New module-level
+      let currentAbortController = new AbortController();
+    Reset to a fresh controller on every run start (alongside
+    pipelineHalted = false) so a prior abort can't poison the
+    next run.
+
+    Signal composition. New helper combineAbortSignals(...sigs)
+    returns a single AbortSignal that aborts when ANY input
+    signal aborts. Uses native AbortSignal.any when available
+    (modern browsers); polyfills via an internal AbortController
+    + one-shot 'abort' listeners otherwise. Smoke-tested with 9
+    cases — empty/single passthrough, two-source either-aborts,
+    pre-aborted short-circuit, three-source any-aborts.
+
+    fetchWithRetry composes signals. Every Drive / Sheets /
+    Gemini-via-fetchWithRetry / Claude-via-fetchWithRetry call
+    now composes the caller's per-call signal (if any) with
+    currentAbortController.signal. The fetch dies the instant
+    either source aborts. fetchWithRetry also checks
+    currentAbortController.signal.aborted at the top of every
+    backoff attempt and throws AbortError immediately — so a
+    STOP during a backoff sleep doesn't waste 45s waiting for
+    the next attempt that will never fire.
+
+    genOneImage direct fetch. The Gemini image-gen endpoint
+    is called via a direct fetch (not through fetchWithRetry),
+    so its signal composition lives inline:
+      signal: combineAbortSignals(controller.signal, currentAbortController.signal)
+    The per-attempt timeout (40s) still works alongside.
+
+    stopPipeline refactor. Six steps:
+      1. currentAbortController.abort('OPERATOR ABORT — Stop
+         button pressed.') — fires the global signal woven
+         into every in-flight fetch.
+      2. Legacy _activeClaudeAbort + _activeImgAbort .abort()
+         calls retained for belt-and-suspenders coverage of
+         the watchdog/timeout paths.
+      3. flushQueue(S.imageAttemptId) — stops the background
+         image-gen loop, wipes pasted URLs, resets the panel.
+      4. pipelineHalted = true; running = false (consistent
+         state for every orchestrator guard).
+      5. Resolve any parked _phase6Resolve / _phase7FinalizeResolve
+         Promises so the awaited orchestrator unwinds cleanly
+         rather than leaking a never-resolved Promise.
+      6. Force RED log line:
+         "🛑 OPERATOR ABORT: Execution terminated. System reset."
+      Status-line text also updated to "🛑 OPERATOR ABORT —
+      execution terminated."
+
+    Section-loop guards. Phase 2 (executePhase2B's section
+    queue) and Phase 5 (the voice relay's section queue) both
+    check currentAbortController.signal.aborted at the top of
+    every iteration BEFORE starting any new section. The check
+    logs a RED line ("Phase X — voice/hydration relay aborted
+    by operator at block N/T") and exits the loop. Combined
+    with the fetchWithRetry composition, this means: an
+    in-flight fetch is killed, AND no further section will
+    start. Phase 6 not explicitly guarded this commit
+    (relies on fetchWithRetry signal composition for its
+    Claude calls); can be added if needed in a follow-up.
+
+  (2) PROFESSIONAL RUN LOG PALETTE. The prior palette had
+  orange that read too close to red and a yellow that was
+  hard to scan against a white background. New semantic
+  palette per the "Indigo/Amber/Emerald" professional
+  standard:
+      --blue   = #2c3e50  (Deep Navy — primary operator-UI
+                            text, was iTV blue #063a6c)
+      --indigo = #667eea  (Purple/Indigo — infrastructure
+                            / Phase milestones in run log)
+      --amber  = #d48806  (High-contrast Gold — warnings +
+                            QC notes; replaces the prior
+                            orange in the .warn level)
+      --green  = #27ae60  (Emerald — success; was #4caf50)
+      --red    = #c0392b  (Crimson — errors + aborts only;
+                            unchanged value)
+  Two new CSS vars added (--indigo, --amber). The existing
+  --orange and --accent vars are retained for legacy UI
+  elements (the version badge, brand chrome) that aren't part
+  of the log palette.
+
+  Log-level → color repointed:
+    .runlog .line.info → var(--indigo) (was var(--blue))
+    .runlog .line.ok   → var(--green)   (unchanged class;
+                                          new emerald value)
+    .runlog .line.warn → var(--amber)  (was var(--orange))
+    .runlog .line.err  → var(--red)    (unchanged)
+  No per-call-site change to log() — every existing
+  log('msg', 'info') / log('msg', 'warn') etc. picks up the
+  new color automatically. warnYellow continues to use the
+  'warn' level, which now renders as amber. setG status line
+  + escalation panel inherit from --red / --amber semantics.
+
+  VERIFICATION. Inline <script> parses clean via Node Function
+  (1/1 PASS). 9-case smoke test on combineAbortSignals all
+  pass — empty/single-signal passthrough, two-source either-
+  aborts, three-source any-aborts, pre-aborted short-circuit.
+  Grep audit confirms each anchor at expected location
+  (currentAbortController, combineAbortSignals, OPERATOR
+  ABORT log strings, --indigo/--amber CSS vars, .line.*
+  color rules).
+
+
 May 14, 2026 (Claude Code build session — 4.2 NLM tab targeting): PHASE 1 FETCHES AEO_INVENTORY TAB EXPLICITLY. Commit 134ae72 — 39 insertions, 4 deletions.
 
   The 4.2 NLM spreadsheet now contains multiple tabs per client
