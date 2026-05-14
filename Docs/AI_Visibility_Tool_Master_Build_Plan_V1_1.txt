@@ -1,0 +1,543 @@
+# AI Visibility Reporting Tool — Master Build Plan V1.1
+**iTech Valet Internal Document**
+Version: 1.1 | Updated: May 2026 | Status: Claude Code Ready
+Governing Spec: AI_Visibility_Reporting_Tool_Master_Spec_V1.0.txt
+Prompt File: 5.1_Monthly_AI_Visibility_Report_Master_Prompt_V1.8.txt
+Architectural Model: AEO Article Creation Tool (proven pattern — extend, don't reinvent)
+
+---
+
+## HOW TO USE THIS DOCUMENT
+
+This is the single source of truth for building the AI Visibility Reporting Tool with Claude Code.
+
+**Start of every Claude Code session:**
+> "Read the AI Visibility Tool Master Build Plan V1.1 before doing anything. Do not make assumptions — everything you need is in that document."
+
+**Claude Code session rules (non-negotiable):**
+Every session ends with:
+1. Syntax check the file
+2. Commit with a descriptive message
+3. Push to GitHub
+4. Update this Master Build Plan to log changes
+5. Commit and push the Master Build Plan
+
+---
+
+## THE ONE THING THAT MATTERS
+
+This tool is a client retention system disguised as reporting. It proves the program is working — especially in months 1–6 when churn risk is highest. Every architectural decision serves that goal.
+
+**Architectural law inherited from AEO tool:** Code executes on fixed specs; Claude writes narrative only. Every generative responsibility moved from interpretation to execution improves reliability.
+
+---
+
+## ARCHITECTURAL MODEL — AEO TOOL
+
+This tool is built on the same proven patterns as the AEO Article Creation Tool. Do not reinvent what already works.
+
+**What carries over directly from the AEO tool:**
+- Single HTML file hosted on GitHub Pages
+- Cloudflare Worker proxy (`anthropic-proxy.gerek.workers.dev`) for Claude API calls — reuse as-is
+- Google Drive fetch pattern for 4.3A and 4.3B by file ID — same key, same pattern
+- Step-by-step progress display (green = done, spinner = running, red = real error only)
+- JS owns all calculations — Claude writes prose only
+- VA-facing UI — no exposed keys, no terminal, no code
+
+**What is new (the actual build work):**
+- 12 API calls to 4 external platforms (ChatGPT, Gemini, Perplexity, Grok)
+- Claude Haiku parser with heuristic fallback
+- Google Sheets writer via service account
+- AI Visibility Score engine (JS only)
+- Puppeteer PDF builder
+- Google Drive write for PDF delivery
+- GitHub Actions trigger mechanism (Phase 1: manual via Cloudflare dispatch proxy; Phase 3: cron)
+
+---
+
+## ARCHITECTURE OVERVIEW
+
+```
+CLIENT CONFIG (JSON, one per client)
+        ↓
+VA TRIGGERS RUN (index.html → Cloudflare Worker dispatch → GitHub Action)
+        ↓
+RUNNER (Node.js in GitHub Actions — orchestrates everything)
+        ↓
+GOOGLE DRIVE FETCH (4.3A + 4.3B — same pattern as AEO tool)
+        ↓
+SHEET READER (reads full AI_Visibility_Raw history for trend calculation)
+        ↓
+12 API CALLS — serial, one at a time (ChatGPT, Gemini, Perplexity/sonar, Grok)
+        ↓
+CLAUDE HAIKU PARSER per run (strict JSON schema + heuristic fallback)
+        ↓
+SCORE ENGINE (JS calculates AI Visibility Score — never Claude)
+        ↓
+GOOGLE SHEET WRITER (AI_Visibility_Raw + AI_Visibility_Summary tabs)
+        ↓
+GITHUB ARCHIVER (raw JSON backup — [YYYY-MM]/[client_id]_raw.json)
+        ↓
+CLAUDE SONNET NARRATIVE ENGINE (report written in Gerek's voice)
+        ↓
+PUPPETEER PDF BUILDER (named [client_id]_AI_Visibility_[YYYY-MM].pdf)
+        ↓
+GOOGLE DRIVE WRITER (PDF → client's "Monthly Reports" folder)
+        ↓
+[PHASE 3] EMAIL DELIVERY (PDF link, simple template)
+        ↓
+LOOKER STUDIO DASHBOARD (manual setup — reads Sheet automatically)
+```
+
+**Key architectural laws:**
+- The AI Visibility Score is calculated by JS. Claude NEVER calculates or interprets the score.
+- Claude receives the score, trend, and benchmark as pre-calculated facts and writes narrative around them.
+- Dates are never calculated by Claude. Pass `run_date`, `report_period`, and `client_month` as facts.
+- API calls are serial. Never parallel. Clean error isolation per run.
+
+---
+
+## REPO STRUCTURE
+
+```
+github.com/iTechValet/iTV-Tools
+└── AI-Visibility-Reporting/
+    ├── index.html                 # VA-facing UI — select client, trigger run, view progress
+    ├── runner.js                  # Main Node.js orchestrator (runs in GitHub Actions)
+    ├── runner.config.js           # Platform API configs, retry settings, timeouts
+    ├── parser.js                  # Claude Haiku parser + heuristic fallback
+    ├── score-engine.js            # AI Visibility Score calculator (JS only — never Claude)
+    ├── sheet-reader.js            # Reads Sheet history before run starts
+    ├── sheet-writer.js            # Writes to AI_Visibility_Raw + AI_Visibility_Summary
+    ├── github-archiver.js         # Saves raw JSON to archive folder
+    ├── narrative-engine.js        # Claude Sonnet API call — report generation only
+    ├── pdf-builder.js             # Puppeteer — HTML template → PDF
+    ├── drive-writer.js            # Uploads PDF to client Google Drive folder
+    ├── prompts/
+    │   ├── prompt-templates.js    # 12 run prompt templates — variables injected at runtime
+    │   ├── parser-prompt.js       # Claude Haiku parser prompt — strict JSON schema
+    │   └── narrative-prompt.js    # Claude Sonnet report generation prompt
+    ├── templates/
+    │   └── report.html            # PDF HTML template — Puppeteer renders this
+    ├── clients/
+    │   ├── brighton_gold.json     # Brighton Gold — first test client
+    │   └── [client_id].json       # One file per client — swap config = swap client
+    └── archive/
+        └── [YYYY-MM]/
+            └── [client_id]_raw.json   # Monthly raw JSON backup per client
+```
+
+**Hosting:** `itechvalet.github.io/iTV-Tools/AI-Visibility-Reporting/`
+**Cloudflare proxy:** `anthropic-proxy.gerek.workers.dev` — reused from AEO tool for Claude calls + GitHub Action dispatch trigger
+
+---
+
+## CLIENT CONFIG STRUCTURE
+
+One JSON file per client. Swap the config = swap the client. Codebase never changes.
+
+```json
+{
+  "client_id": "brighton_gold",
+  "business_name": "Brighton Gold",
+  "service": "Gold IRA dealer",
+  "primary_topic": "Gold IRA rollovers for retirement",
+  "market_scope": "for Americans planning retirement",
+  "top_competitor": "Augusta Precious Metals",
+  "authority_figure": "Nathaniel Cross",
+  "authority_title": "Director of Research",
+  "customer_term": "customers",
+  "contract_start": "2026-01-01",
+  "sheet_id": "[Google Sheet ID]",
+  "drive_reports_folder_id": "[Google Drive folder ID — Monthly Reports]",
+  "looker_dashboard_id": "[Looker Studio ID]",
+  "client_email": "[client email]",
+  "doc_43A_id": "[Google Drive file ID — universal 4.3A]",
+  "doc_43B_id": "[Google Drive file ID — client 4.3B]",
+  "run_cadence": "monthly"
+}
+```
+
+**Notes:**
+- `client_month` calculated at runtime from `contract_start` vs current date — never hardcoded
+- `report_month` set dynamically at runtime — never hardcoded
+- New client = new JSON file. Zero codebase changes required.
+- `looker_dashboard_id` populated after Phase 2 Looker setup — leave blank in Phase 1
+
+---
+
+## GOOGLE SHEET STRUCTURE
+
+**One sheet per client. Four tabs. All tool-written. Zero manual input.**
+
+Every client sheet is created from the master template. Tab names are identical across all clients. Both tools target tabs by name — never by position.
+
+| Tab Name | Written By | Purpose |
+|---|---|---|
+| `AEO_Inventory` | AEO Tool | Article production tracker (renamed from Sheet1) |
+| `AEO_Run_Data` | AEO Tool (future upgrade) | Cost, time, performance per article run |
+| `AI_Visibility_Raw` | This tool | One row per run per month (12 rows/month) |
+| `AI_Visibility_Summary` | This tool | One row per month — calculated scores and trends |
+
+**Master Template:** One Google Sheet template with all 4 tabs pre-named. New client onboarding = duplicate the template. Never create a blank sheet.
+
+**Pre-build dependency:** The AEO tool must be updated to target `AEO_Inventory` by tab name before this tool ships. See AEO Tool Update section below.
+
+### AI_Visibility_Raw — Row Structure (one row per run):
+```
+run_id | client_id | platform | signal | run_date | report_period |
+client_month | brand_mentioned | brand_recommended | brand_position |
+competitor_mentioned | competitor_recommended | sentiment_signal |
+cited_urls | authority_figure_named | raw_response | response_length |
+platform_available | parser_status
+```
+
+### AI_Visibility_Summary — Row Structure (one row per month):
+```
+report_period | client_month | run_date | ai_visibility_score |
+prior_score | score_delta | trend_direction | benchmark_range |
+mention_rate | recommendation_rate | sentiment_score |
+platforms_available | heuristic_fallback_count
+```
+
+---
+
+## THE 12 RUNS — PROMPT ARCHITECTURE
+
+Three signals. Twelve runs. All variables injected from client config at runtime.
+
+### Signal 1 — Are They Being Recommended? (The money signal)
+
+| Run | Platform | Prompt Template |
+|-----|----------|----------------|
+| 1A | ChatGPT | "Who is the most trusted {service} {market_scope} for {primary_topic}?" |
+| 1B | Gemini | Same prompt. Fresh session. |
+| 1C | Perplexity (sonar) | Same prompt. Fresh session. |
+| 1D | Grok | Same prompt. Fresh session. |
+| 5A | ChatGPT | "I'm ready to open a {service} account. Who should I call first?" |
+| 5B | Grok | Same prompt. |
+
+### Signal 1 + 3 — Head-to-Head
+
+| Run | Platform | Prompt Template |
+|-----|----------|----------------|
+| 2 | ChatGPT | "Compare the authority and expertise of {top_competitor} vs. {business_name} {market_scope}. Who does AI trust more for {primary_topic}?" |
+
+### Signal 2 — How Are They Being Described?
+
+| Run | Platform | Prompt Template |
+|-----|----------|----------------|
+| 3 | Gemini | "Who is the recognized expert or authority figure behind {business_name}? They are a {service} {market_scope}. What is this person's personal reputation and professional standing?" |
+| 4A | ChatGPT | "What do people say about {business_name} as a {service}? What are the common reviews, complaints, and reasons people recommend or avoid them?" |
+| 4B | Perplexity | Same prompt. Perplexity surfaces review aggregators more aggressively — different signal. |
+
+### Signal 3 — What Is Blocking the Recommendation? (INTERNAL ONLY — never in client deliverables)
+
+| Run | Platform | Prompt Template |
+|-----|----------|----------------|
+| 6 | ChatGPT | "What are the main reasons people choose {top_competitor} for {primary_topic}? What do reviewers and {customer_term} say about them?" |
+| 7A | ChatGPT | "What sources or websites does AI commonly cite when answering questions about {primary_topic}? List the most frequently referenced sources." |
+| 7B | Perplexity | Same prompt. Citation-native — strongest signal for this run. |
+
+---
+
+## RESPONSE PARSER — CLAUDE HAIKU + HEURISTIC FALLBACK
+
+**Primary:** Claude Haiku (`claude-haiku-4-5-20251001`) extracts structured fields from each raw response.
+
+**Parser prompt architecture (strict JSON enforcement):**
+- System prompt specifies rigid JSON schema
+- Three few-shot examples: one clear positive, one clear negative, one ambiguous/mixed
+- Explicit enum lists for every enum field (e.g., `sentiment_signal: ["positive", "neutral", "negative", "mixed"]`)
+- Zero conversational filler permitted in output
+- JSON mode enforced
+
+**Fields extracted per run:**
+```js
+{
+  brand_mentioned: boolean,
+  brand_recommended: boolean,
+  brand_position: "first" | "second" | "third" | "other" | "not_mentioned",
+  competitor_mentioned: boolean,
+  competitor_recommended: boolean,
+  sentiment_signal: "positive" | "neutral" | "negative" | "mixed",
+  cited_urls: string[],
+  authority_figure_named: boolean,   // Run 3 only
+  parser_status: "llm" | "heuristic"
+}
+```
+
+**Fallback:** If Haiku call fails or returns malformed JSON, heuristic regex attempts the 3 score-critical fields only:
+- `brand_mentioned` — business name present in response text
+- `brand_recommended` — recommendation language present near business name
+- `sentiment_signal` — positive/negative keyword matching
+
+**Threshold rule:** If 4 or more runs in a single month log `parser_status: "heuristic"`, the tool completes the run but adds a ⚠️ flag to the PDF and Sheet row. VA delivers the report and alerts Gerek that parser maintenance is needed. Run does not stop.
+
+---
+
+## AI VISIBILITY SCORE ENGINE (JS ONLY — NEVER CLAUDE)
+
+Composite score 0–100. Calculated entirely in `score-engine.js`. Claude never touches this math.
+
+```
+Mention Rate     (40%) = brand_mentioned runs / brand-trackable runs × 100
+Recommendation   (35%) = brand_recommended runs / all runs × 100
+Sentiment Score  (25%) = positive sentiment runs / all runs × 100
+
+Final Score = (mention_rate × 0.40) + (recommendation_rate × 0.35) + (sentiment_score × 0.25)
+```
+
+**Trend arrow:** Current month score minus prior month score. Pulled from `AI_Visibility_Summary` tab by `sheet-reader.js` before the run starts. JS calculates — no human involvement.
+
+**Benchmark ranges by client_month (displayed alongside score):**
+- Months 1–3: Expected 10–25. "Foundation building phase."
+- Months 4–6: Target 20–40. "Content compounding."
+- Months 7–12: Goal 35–60+. "Recommendation territory."
+
+---
+
+## RETRY LOGIC (ALL PLATFORMS)
+
+- 5 attempts per run with exponential backoff (not fixed 30-second intervals)
+- Backoff schedule: 30s → 60s → 120s → 240s → 480s
+- On failure after 5 attempts: log `platform_available: false`, write "data unavailable" to Sheet, continue
+- Never crash. Never require human intervention. Never a single point of failure.
+- Grok is the most likely to be unavailable — graceful fallback is mandatory for Runs 1D and 5B
+
+---
+
+## CLAUDE NARRATIVE ENGINE (CLAUDE SONNET — PROSE ONLY)
+
+Claude receives exactly this context. Nothing more, nothing less.
+
+**Inputs passed to Claude:**
+1. All raw responses from current month's 12 runs (raw_response fields — labeled by run_id)
+2. Full AI_Visibility_Summary history — all prior months (no arbitrary cutoff)
+3. AI Visibility Score for this month (pre-calculated by JS)
+4. Score last month (read from Sheet by sheet-reader.js)
+5. Trend direction — UP / DOWN / FLAT (pre-calculated by JS)
+6. Benchmark range for this client_month (pre-calculated by JS)
+7. client_month integer
+8. run_date and report_period (never let Claude calculate dates)
+9. 4.3A content (fetched from Google Drive at runtime)
+10. 4.3B content (fetched from Google Drive at runtime)
+
+**Claude's only job:** Write the narrative. All numbers, scores, dates, trends, and benchmarks arrive as pre-calculated facts.
+
+**Report sections (in order):**
+1. Executive Summary — 2–3 sentences. The verdict.
+2. What We Did This Month — content, milestones, actions. Concrete. Numbers.
+3. What the AI Platforms Said — one paragraph per platform. Framed against last month.
+4. Where We Stand — score, trend, benchmark context.
+5. What's Coming Next — one specific next action. Justifies the retainer.
+6. On Our Radar — one forward signal to watch.
+7. Closing — Gerek Allen, Founder — iTech Valet signature block.
+
+**Run 6 (competitor intelligence) is NEVER passed to Claude's narrative prompt. Sheet only.**
+
+**Voice rules (from 4.3A and 5.1 Master Prompt — non-negotiable):**
+- 5th grade reading level. Casual, direct, warm. Never corporate.
+- Short paragraphs. One idea per paragraph. No sentence over 20 words.
+- Active voice only.
+- Forbidden terms: deployed, clusters, intent layers, pillars, semantic, entity, trunk, branch, schema, backlink, keyword, SEO, Tier 1/2/3.
+- No competitor names by name — "the top name in your market" only.
+- Drift Detection: Replace {business_name} with a competitor. If it still reads accurate, rewrite.
+
+---
+
+## PDF BUILDER
+
+- Library: Puppeteer (Node.js)
+- Design reference: Brighton Gold April 2026 Report (4-page format)
+- HTML template populated by JS from Claude's narrative output — Claude outputs text only, HTML structure is owned by the template
+- Output filename: `[client_id]_AI_Visibility_[YYYY-MM].pdf`
+- Uploaded to client's Google Drive "Monthly Reports" folder via service account
+- No manual steps. No Word doc intermediate. PDF is the final output.
+
+---
+
+## VA-FACING UI (index.html)
+
+Single HTML file. Hosted on GitHub Pages. Same pattern as AEO tool.
+
+**UI flow:**
+1. VA opens `index.html`
+2. Selects client from dropdown (populated from `/clients/*.json` files)
+3. Hits "Run Report"
+4. UI sends POST to Cloudflare Worker `/trigger-report` endpoint with `client_id` + internal access key
+5. Worker validates access key, fires `repository_dispatch` to GitHub with `client_id` as payload
+6. GitHub Action picks up the event and runs `runner.js --client=[client_id]`
+7. VA's browser shows "Run triggered — check back in ~10 minutes" confirmation
+8. VA can close the tab immediately — execution is on GitHub's servers, not the browser
+9. On completion, PDF is in Google Drive. VA downloads and sends to client.
+
+**UI/UX rules (inherited from AEO tool):**
+- Green = good/expected
+- Red = real problem only — never use red for expected or normal states
+- Progress display shows each step as it completes
+
+**VA never enters API keys. Ever.**
+
+---
+
+## API KEY MANAGEMENT
+
+| Key | Storage | Access Pattern |
+|-----|---------|---------------|
+| OpenAI (GPT-4o) | GitHub Secrets | runner.js calls directly from GitHub Actions |
+| Google Gemini | GitHub Secrets | runner.js calls directly |
+| Perplexity (sonar) | GitHub Secrets | runner.js calls directly |
+| xAI (Grok) | GitHub Secrets | runner.js calls directly — graceful fallback if unavailable |
+| Google Service Account JSON | GitHub Secrets | sheet-writer.js + drive-writer.js |
+| Google Drive API key | Existing — restricted to itechvalet.github.io | Reuse from AEO tool for 4.3A/4.3B fetch |
+| Claude API | GitHub Secret (Anthropic key) | narrative-engine.js calls directly from Actions |
+| GitHub PAT (repo scope) | Cloudflare Worker environment variable | Worker fires repository_dispatch — never in browser |
+| Internal Access Key | Cloudflare Worker environment variable | Validates VA trigger requests — never in browser |
+
+**The Cloudflare Worker's new role:** Dispatch proxy only. VA browser POSTs to Worker → Worker validates access key → Worker fires GitHub `repository_dispatch` → Worker returns confirmation to browser. All heavy execution happens in GitHub Actions.
+
+---
+
+## PHASE BUILD ORDER
+
+### PRE-BUILD — AEO Tool Update (must complete first)
+- Update AEO tool to target `AEO_Inventory` tab by name instead of position
+- Verify AEO tool writes correctly when additional tabs exist in the same sheet
+- Create the master Google Sheet template with all 4 tabs pre-named
+- Test with Brighton Gold sheet
+
+### PHASE 1 — MVP (VA-Triggered)
+Target: Working end-to-end on Brighton Gold config.
+
+**Build order:**
+1. Repo structure and file scaffolding
+2. Cloudflare Worker update — add `/trigger-report` dispatch endpoint
+3. GitHub Actions workflow file — `workflow_dispatch` + `repository_dispatch` triggers
+4. Brighton Gold client config JSON
+5. Prompt templates (12 runs, variables injected from config)
+6. Platform runners — serial loop, exponential backoff retry logic
+7. Claude Haiku parser — strict JSON schema prompt + heuristic fallback
+8. Sheet reader — reads AI_Visibility_Summary history before run
+9. Score engine — composite score, trend, benchmark
+10. Sheet writer — AI_Visibility_Raw (12 rows) + AI_Visibility_Summary (1 row)
+11. GitHub archiver — raw JSON per run
+12. Claude Sonnet narrative engine — report generation
+13. Puppeteer PDF builder + HTML report template
+14. Google Drive writer — PDF upload to client folder
+15. VA-facing index.html — client select, trigger, confirmation display
+16. End-to-end test run on Brighton Gold
+
+**Phase 1 does NOT include:**
+- Email delivery (VA manually sends PDF — downloads from Google Drive)
+- Looker Studio setup (manual — done after first successful run)
+- Multi-client loop (single client per trigger in Phase 1)
+- Cron automation (VA triggers manually in Phase 1)
+
+### PHASE 2 — DASHBOARD (Manual Setup — Not Coded)
+1. Looker Studio template connected to Brighton Gold AI_Visibility_Summary tab
+2. All dashboard panels confirmed rendering correctly
+3. Score benchmark ranges displaying correctly
+4. Template duplicated for second client — confirm it works
+5. Looker dashboard ID added to client JSON config
+
+### PHASE 3 — FULL AUTOMATION
+1. GitHub Actions cron job (1st of each month, 9 AM PT)
+2. Multi-client loop — runner iterates through all active client JSON files
+3. Atomic client execution — each client commits its own data before moving to the next
+4. 60-second delay between clients to avoid rate limit clashes at scale
+5. Gmail API email delivery — PDF Drive link attached, simple template
+6. Run summary emailed to Gerek after each batch
+7. Zapier webhook alert if any client fails all retries (fires POST → Zapier → email/SMS)
+
+---
+
+## LOCKED DECISIONS
+
+These are final. Do not re-litigate in build sessions.
+
+1. **One tool, all clients.** Config file is the only thing that changes per client.
+2. **JS calculates the score. Claude writes the story.** Never cross this line.
+3. **12 runs, 4 platforms. Serial execution.** Never parallel. Perplexity uses sonar model specifically.
+4. **Exponential backoff. 5 retries. Never crash.** Unavailable = log and continue.
+5. **Four tabs per client sheet. All tool-written. Zero manual input.** Tab names identical across all clients. Both tools target by name, never by position.
+6. **GitHub is the backup.** Raw JSON every run. PDFs go to Google Drive.
+7. **Run 6 is internal only.** Never in client deliverables. Never passed to Claude narrative.
+8. **Claude receives full Sheet history every month.** No arbitrary cutoff.
+9. **Looker Studio is desktop only.** Note in delivery email. Not built — manual setup after Phase 1.
+10. **Dashboard shows data. Report tells the story.** Two jobs. Never overlap.
+11. **Dates are never calculated by Claude.** Pass run_date, report_period, client_month as facts.
+12. **Execution runs in GitHub Actions — not the browser.** Browser is trigger only. VA can close tab immediately.
+13. **Claude Haiku for parsing. Claude Sonnet for narrative.** Two separate calls. Two separate jobs.
+14. **Parser fallback threshold: 4+ heuristic runs = ⚠️ flag + continue.** Never stop the run.
+15. **Master Sheet template governs onboarding.** New client = duplicate template. Never blank sheet.
+16. **Cowork is not part of this build.** Phase 3 trigger is GitHub Actions cron. Cowork may be evaluated after 20+ successful runs.
+
+---
+
+## LOOKER STUDIO DASHBOARD (POST-PHASE-1 — MANUAL SETUP)
+
+Not a build task. Manual setup after first successful run populates the Sheet.
+
+**Setup:** Connect Looker Studio to `AI_Visibility_Summary` tab. ~3 clicks. One template per client via unique shared link. No client login required.
+
+**Dashboard panels (built manually in Looker):**
+1. AI Visibility Score — hero number with trend arrow and benchmark range
+2. Mention Rate Trend — line chart, full history
+3. Recommendation Rate Trend — line chart, full history
+4. Platform Coverage — covered / not covered / unavailable per platform
+5. Sentiment Signal — % positive / neutral / negative
+6. Brand Position — first / second / third / other when mentioned
+
+**Design principles:**
+- One hero number. Big. Bold. Front and center.
+- 5th grade English on every label. No jargon.
+- Every panel has one sentence of context copy explaining why it matters.
+- Benchmark range displayed next to score always.
+- Desktop only. Mobile not supported.
+
+---
+
+## PRE-BUILD DEPENDENCY — AEO TOOL TAB UPDATE
+
+**This must be completed before the AI Visibility tool build begins.**
+
+The AEO tool currently writes to `Sheet1` (default tab, targeted by position). When a second tab is added to the client sheet, this will break.
+
+**Required fix:**
+- AEO tool targets `AEO_Inventory` tab by name
+- AEO tool continues to function correctly when additional tabs exist
+- Fix is surgical — does not affect any other AEO tool functionality
+
+See separate Claude Code prompt below.
+
+---
+
+## RELATIONSHIP TO 5.1 MASTER PROMPT (V1.8)
+
+The 5.1 Master Prompt is the current manual workflow. This tool automates it.
+
+| 5.1 Manual Step | Tool Automation |
+|----------------|-----------------|
+| VA opens incognito windows, pastes 6 prompts manually | 12 platform runners fire via API automatically |
+| VA pastes responses into working doc | Parser extracts all fields per run automatically |
+| Claude analyzes + asks 4–5 interview questions | Score engine + structured Sheet history replaces the interview |
+| VA answers Claude's questions | All context pre-assembled from config + Sheet |
+| Claude writes Phase 1 report content | Claude Sonnet narrative engine — single structured call |
+| Claude builds .docx + .txt files | Puppeteer generates PDF directly — uploaded to Drive |
+
+**The 5.1 prompt is NOT replaced.** It remains for manual use. This tool is the automated version of the same workflow.
+
+---
+
+## CHANGE LOG
+
+| Version | Date | Changes |
+|---------|------|---------|
+| V1.0 | May 2026 | Initial master build plan. Full architecture, phase plan, Gemini review questions. |
+| V1.1 | May 2026 | Major update after two rounds of Gemini architectural review. Changes: AEO tool as architectural model locked; GitHub Actions as execution environment (browser is trigger only); Cloudflare Worker repurposed as dispatch proxy; serial execution + exponential backoff locked; Claude Haiku parser + heuristic fallback locked; PDFs to Google Drive (not GitHub); 4-tab Sheet structure finalized (AEO_Inventory, AEO_Run_Data, AI_Visibility_Raw, AI_Visibility_Summary); master Sheet template requirement added; Cowork removed from Phase 3; pre-build AEO tab fix added as dependency; Looker Studio confirmed as manual post-Phase-1 setup; full repo structure updated; locked decisions expanded to 16. |
+| V1.2 | 2026-05-14 | Session 1 build log. Scaffolded the full AI-Visibility-Reporting/ folder per the REPO STRUCTURE section: 10 root-level JS files (runner, runner.config, parser, score-engine, sheet-reader, sheet-writer, github-archiver, narrative-engine, pdf-builder, drive-writer), 3 prompt files (prompts/prompt-templates.js, prompts/parser-prompt.js, prompts/narrative-prompt.js), templates/report.html, index.html, archive/.gitkeep. Every JS and HTML shell carries a top comment block stating what it does, what calls it, and what it calls. Built clients/itechvalet.json as the first test-client config (iTech Valet itself) — all live API/Sheet/Drive IDs left as PLACEHOLDER_* per the locked-decisions rule. Implemented prompts/prompt-templates.js with all 13 run-ID templates (1A, 1B, 1C, 1D, 2, 3, 4A, 4B, 5A, 5B, 6, 7A, 7B); single exported function getPrompt(runId, clientConfig); zero hardcoded client data; Run 6 flagged INTERNAL ONLY in code comments. All 13 JS files pass `node --check`; itechvalet.json validates; getPrompt smoke-tested against all 13 run IDs with iTech Valet config (no leftover tokens) plus unknown-runId and missing-variable guards. |
+
+---
+
+## END OF DOCUMENT
