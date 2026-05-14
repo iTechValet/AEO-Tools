@@ -2647,6 +2647,137 @@ Confirmed costs: ~$1.33-1.58 per article + ~$0.05-0.10 VCI.
 
 CHANGE LOG
 ----------
+May 14, 2026 (Claude Code build session — cluster-aware multi-client refactor): EXPLICIT CLUSTER FIREWALL + UNIVERSAL DEDUP + DYNAMIC BRANDING + TEXT-LINK CTA. Commit 2676d1d — 126 insertions, 166 deletions (NET −40; old trunk-firewall + dup-sanitizer helpers removed in favor of one unified enforceLinkGovernance function).
+
+  This commit SUPERSEDES the URL-path-shape "trunk firewall" from
+  commit 5de0415. Three reasons the heuristic was wrong:
+    (1) Real client sites don't always use single-segment service
+        URLs; depth varies (/services/seo/ vs /seo/) so the path-
+        segment count was unreliable as a "service trunk" signal.
+    (2) The heuristic let the AI see EVERY in-cluster service trunk
+        and only blocked OTHER trunks — but the cluster is defined
+        by the 4.2 NLM ROW, not by URL shape.
+    (3) Two separate Phase 7A sweeps (dedup + trunk-strip) was a
+        code-smell — one unified governance pass is cleaner.
+  New posture: the cluster is whatever the matched 4.2 row says it
+  is. Every URL in research.anchorTextTargets (whatever its shape)
+  is in the cluster. The homepage is always in the cluster too.
+  Everything outside that list is off-cluster. Universal dedup
+  applies to BOTH internal and external URLs.
+
+  (1) EXPLICIT CLUSTER FIREWALL — Phase 1 captures the cluster.
+  After S.research is set in Phase 1, JS calls
+  computeValidClusterUrls(S.research) to build S.validClusterUrls
+  — a Set of normalized URL paths containing every URL from
+  research.anchorTextTargets PLUS "/" (homepage always valid).
+  Logged YELLOW with size + first 6 entries so operators can
+  verify per run. (Previous S.focusTrunkPath removed; state-reset
+  code in both reset locations updated to clear S.validClusterUrls
+  to a fresh empty Set on every run.)
+
+  (2) THE BLINDER (Phases 2/2B/5/6) — buildPhase2ContextBlock no
+  longer FILTERS the anchorTextTargets list before serializing it
+  (the prior trunk-filter was dropping legitimate in-cluster URLs).
+  The full research JSON ships as-is — but the appended EXPLICIT
+  CLUSTER LOCK paragraph tells Claude: "the list above is the
+  ARTICLE'S COMPLETE LINK INVENTORY for this cluster. Every internal
+  link you write MUST point to a URL in that list (or the
+  homepage). Every URL is single-use across the entire body. Phase
+  7A enforces this deterministically." The "trust but verify"
+  story stays prompt-first + JS-backstop.
+
+  (3) PHASE 7A enforceLinkGovernance — the single sweep that
+  replaces TWO prior helpers (sanitizeInternalLinkDupesInArticle +
+  stripNonFocusTrunkLinks). Logic per inline [anchor](url) match,
+  walked in article RENDER order:
+    • cta.hookProse FIRST (before the main walk): ALL markdown
+      links unconditionally stripped to plain anchor text. The
+      CTA hook is prose-only by deterministic template; any link
+      in the hook is collateral the JS template ignores.
+    • Body prose:
+      - URL is internal:
+          · In validClusterUrls AND not yet seen → keep + seen.add
+          · In validClusterUrls AND already seen → strip (dup)
+          · NOT in validClusterUrls → strip (off-cluster)
+      - URL is external (no client-domain match, no leading /):
+          · Not yet seen → keep + seen.add
+          · Already seen → strip (universal dedup)
+    Three counters separately logged: dup, off-cluster, cta-hook —
+    each shows the operator exactly what kind of violation
+    happened. Strip outputs anchor text only (markdown brackets
+    + URL discarded) so prose flow is preserved.
+
+  Dead code removed: isServiceTrunkPath, computeFocusTrunkPath,
+  filterTrunksFromAnchorTargets, stripNonFocusTrunkLinks,
+  sanitizeInternalLinkDupesInArticle, and every call-site that
+  referenced them or S.focusTrunkPath. Net −40 lines despite the
+  new helper + new prompt block.
+
+  (4) DYNAMIC BRANDING (ToC + DA + everything else). The 4.3B
+  color-extraction regex pattern was widened to accept either hex
+  values OR single-word CSS color names. Constructed via a shared
+  literal: `(#[0-9a-fA-F]{3,6}|[A-Za-z]+)`. So 4.3B can now say:
+    Direct Answer box background: Black
+    ToC header background: Navy
+    All links: tomato
+  and the stylesheet emits those literal strings; browsers resolve
+  the named-color values. Defaults unchanged (still #063a6c, #2494e0,
+  etc.) so existing iTV clients are unaffected.
+
+  THE NUCLEAR DA HOVER RULE updated to use the dynamic variables
+  instead of hardcoded #063a6c. Was (commit 5de0415):
+    .direct-answer:hover { background-color: #063a6c !important;
+                           color: #ffffff !important; }
+  Now (this commit):
+    .direct-answer:hover { background-color: ${daBackground} !important;
+                           color: ${daText} !important; }
+  Same !important escape hatch (still wins over any global hover
+  rule or iframe overlay), now respecting client branding. A 4.3B
+  that says "Direct Answer box background: Black" gets a black DA
+  on hover with white text — matching the base. A 4.3B that says
+  white-on-black is inverted from iTV's blue-on-white, the rule
+  still works without code changes.
+
+  Note: .toc-header background was ALREADY dynamic via ${tocBg};
+  no change needed there. The spec explicitly called this out as
+  "must support 'Black' → renders black" — the color-name regex
+  widening makes that work today (before this commit, "Black"
+  would have failed the hex regex and fallen back to the default).
+
+  (5) CTA — TEMPLATE LOCK (text link, not button). Two paired:
+    (a) .cta-button CSS rule deleted from buildStylesheetFrom43B.
+    (b) The Phase 7A CTA template rewrote to the spec form:
+          <div class="article-cta">
+            <p>${cleanCtaHook}</p>
+            <p><a href="${ctaUrl}"
+                  style="text-decoration:underline; font-weight:700; font-size:1.2em;">
+                ${ctaButtonText}
+              </a></p>
+          </div>
+        The link is now a high-visibility STANDARD TEXT LINK with
+        inline styling (no CSS class), wrapped in its own <p> for
+        block-level spacing. The hook prose lives in a separate <p>
+        (mdInline preserves any inline **bold**). data-node-id on
+        the wrapper preserved for Phase 7B's click-modal.
+    The CTA-hook FULL-strip in enforceLinkGovernance pairs with
+    this: by the time the template runs, the hook prose is
+    guaranteed link-free. The deterministic <a> the template adds
+    cannot collide with any hallucinated [anchor](url) in the hook.
+
+  (6) API STABILITY VERIFIED. Image-gen ATTEMPT_TIMEOUTS:
+    finalPass [40000] : [35000, 40000]
+    — unchanged since commit b2be0c1. Every individual attempt
+    caps at 40s (manual regen, background attempts both).
+
+  VERIFICATION. Inline <script> parses clean via Node Function
+  (1/1 PASS). 20-case smoke test on enforceLinkGovernance +
+  computeValidClusterUrls all pass — covers cluster construction
+  (6 cases), and live sweep behavior across DA / content sections
+  / FAQ answer / conclusion / CTA hook for in-cluster firsts,
+  in-cluster dups, off-cluster internals, external firsts, external
+  dups, and homepage dups (14 cases). Strip count tallies verified.
+
+
 May 13, 2026 (Claude Code build session — hard governance pass): 4.2 NLM TRUNK FIREWALL + NUCLEAR DA HOVER + DETERMINISTIC CTA TEMPLATE. Commit 5de0415 — 134 insertions, 10 deletions.
 
   Shift in posture: from prompt-based suggestions ("don't repeat this
