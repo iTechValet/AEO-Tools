@@ -2647,6 +2647,129 @@ Confirmed costs: ~$1.33-1.58 per article + ~$0.05-0.10 VCI.
 
 CHANGE LOG
 ----------
+May 13, 2026 (Claude Code build session — Phase 7A sanitizer + ghost CTA + DA hover round 3): THREE ARCHITECTURAL FIXES. Commit 0f728e6 — 74 insertions, 9 deletions.
+
+  (1) PHASE 7A FINAL LINK SANITIZER (deterministic backstop). The
+  Phase 2 Inline Validation rolling state (commit 6c271c7) strips
+  duplicate internal URLs DURING hydration — but Phase 5 (voice draft)
+  and Phase 6 (forensic critique) only see the prose being rewritten,
+  not the full article. Live runs showed Phase 5/6 re-introducing
+  internal URLs that Phase 2 had already stripped, because Claude saw
+  the URL in the rolling V2 draft of an earlier section and assumed
+  it was free to reuse. The four-point CRITICAL LINK PRESERVATION
+  RULES (commit b2be0c1) softened this but didn't eliminate it —
+  prompt-only constraints have a non-zero hallucination rate.
+
+  Added a deterministic Phase 7A sanitizer that fires AFTER
+  normalizeArticleUrls (so it sees canonical URLs) and BEFORE any
+  HTML assembly:
+    function sanitizeInternalLinkDupesInArticle(article)
+  Maintains a local `finalGlobalSeenUrls = new Set()` and walks every
+  prose container in ARTICLE RENDER order:
+    directAnswer.prose → content_sections (paragraphs + h3sections.
+    paragraphs) → faq_section.intro_paragraphs → faq_section.qa_pairs
+    [].answer.prose → conclusion_section.paragraphs → cta.hookProse
+  For each inline [anchor](url) markdown link in each prose string:
+    • External URLs (no client-domain match, no leading /) → left
+      intact (extra citations are fine — only internal URLs are
+      single-use tokens).
+    • Internal URL not yet in the seen-set → added, markdown kept.
+    • Internal URL already in the seen-set → regex-stripped to plain
+      anchor text via the replace() callback returning just `anchor`.
+  First occurrence wins; every subsequent occurrence collapses. The
+  pass is mathematically guaranteed — by the time assembly runs, the
+  same internal URL CANNOT appear twice in the final HTML, no matter
+  what any upstream phase produced. The strip count is logged YELLOW
+  if > 0 (operator-visible signal).
+
+  Hooked in at the top of assemblePhase7HTML:
+    normalizeArticleUrls(article);              // line 1: canonicalize
+    sanitizeInternalLinkDupesInArticle(article); // line 2: dup-strip
+  Phase 7B's Replace flow re-canonicalizes via normalizeArticleUrls
+  and then re-renders via assemblePhase7HTML, so the sanitizer fires
+  again on every operator edit too — guaranteeing the invariant holds
+  through manual rewrites.
+
+  Behavioral verification: 11-case smoke test on a fixture article
+  with duplicates planted across DA / content sections / h3 / FAQ
+  intro / FAQ answer / conclusion / CTA hook (and externals as a
+  control) — all 11 cases pass. Strip count matches expected (6
+  duplicates collapsed; 4 first-occurrences preserved; 2 externals
+  untouched).
+
+  REUSES the helpers from commit 6c271c7: extractMarkdownLinks(text),
+  normLinkUrlForCompare(u), isInternalLinkUrlP2(u, clientDomain).
+  The regex is the same /\[([^\]]*)\]\(([^)]+)\)/g used everywhere
+  else in the file for inline-link parsing.
+
+  (2) GHOST CTA PROMPT LOCK. The cta_hook queue job's contextHints
+  has always said "The link itself is added by JS — write only the
+  lead-in prose", but contextHints is in the uncached user-message
+  body, easy for Claude to misread or skim past. Live runs showed
+  the AI sometimes writing "[Click Here](cta-url)" or similar in the
+  hook prose, colliding with the JS-rendered CTA button below.
+  Spec-worded CRITICAL constraint added to BOTH uncached system
+  blocks (the ones Claude reads on every job, where attention is
+  highest):
+    • buildHydrateInstrBlock (Phase 2) — appended directly after
+      the existing CTA RESERVATION clause.
+    • buildPhase5InstrBlock (Phase 5) — appended directly after
+      the existing CRITICAL LINK PRESERVATION RULES clause.
+  Identical wording in both:
+    "CRITICAL: You are writing the persuasive hook ONLY. DO NOT
+     write a markdown link or button (e.g., [Click Here](url)).
+     The system will automatically generate the actual CTA button
+     directly below your text. End your prose without a link."
+  The constraint is conditional ("You are writing the persuasive
+  hook ONLY") so Claude only applies it when actually writing the
+  CTA hook job; on every other job type the clause is a no-op
+  Claude ignores. And even if Claude writes the link anyway, the
+  Phase 7A sanitizer (Change 1 above) collapses it deterministically
+  because the CTA URL has by then appeared in the conclusion (per
+  the Phase 2A CONCLUSION CTA RESERVATION rule — first occurrence
+  in conclusion, every later occurrence including the cta_hook
+  stripped). Prompt + sanitizer in defense-in-depth.
+
+  (3) DIRECT ANSWER HOVER (round 3 — final fix). The bug history:
+    • Round 1 (77458f5): general blue-tint hover at 8% opacity was
+      washing out the dark-background DA → switched the DA-specific
+      override to a WHITE tint at 8% opacity.
+    • Round 2 (b2be0c1): white tint on white text made the DA's text
+      visually whiteout → switched the override to background:
+      transparent so the original dark background would show through.
+    • Round 3 (THIS commit — 0f728e6): `background:transparent`
+      DIDN'T show the original dark background. It exposed the page
+      body's WHITE background (the article-wrap has no opaque BG of
+      its own), creating a white-on-white invisibility bug.
+  Final answer that closes the loop: pin the DA hover background to
+  the SAME value as the base. The base CSS is
+    .direct-answer { background: ${daBackground}; ... }
+  with daBackground derived from 4.3B (default #063a6c). On hover,
+  setting `background: ${daBackground}` produces ZERO visual change
+  in the background. The outline + outline-offset from the general
+  [data-node-id]:hover rule still fire (the dashed-blue click
+  affordance), preserving the affordance the operator needs to know
+  the DA is clickable. Text contrast stays 100% intact.
+
+  Implementation note: daBackground is a local const inside
+  buildStylesheetFrom43B, so it's NOT in scope where the hoverStyle
+  template literal is assembled (assemblePhase7HTML body). Re-derived
+  it inline via the same regex + default literal:
+    const _daBgForHover = (() => {
+      const m = String(S.docs.doc43B || '').match(
+        /Direct Answer box background:\s*(#[0-9a-fA-F]{3,6})/i);
+      return (m && m[1].trim()) || '#063a6c';
+    })();
+  Self-contained, no API change to extractBrandingFrom43B (which
+  doesn't expose DA colors), no API change to buildStylesheetFrom43B
+  (which still owns the canonical daBackground value for the
+  stylesheet body).
+
+  VERIFICATION. Inline <script> parses clean via Node Function (1/1
+  PASS). 11-case sanitizer smoke test passes. Grep audit confirms
+  each anchor at the expected location.
+
+
 May 13, 2026 (Claude Code build session — Phase 5 rhythm fix): PHASE 5 RHYTHM MANDATE. Commit bba51f8 — 3 insertions, 1 deletion.
 
   Live runs were producing dense, 4-6 sentence academic paragraph slabs
