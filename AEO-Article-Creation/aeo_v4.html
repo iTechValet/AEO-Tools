@@ -1663,8 +1663,8 @@ Produce:
    • CTA URL RESERVATION (NON-NEGOTIABLE): The Primary CTA URL (from the client's 4.3B identity card) is RESERVED. It must NEVER be used as a body link in any content_section, conclusion_section, or faq_section. It belongs exclusively to the CTA block. Do not assign it to any section's links array under any circumstances.
    • assigned_facts: REQUIRED. An array of 1-4 factClaim IDs from the Phase 1 research brief (e.g. ["factClaim_02","factClaim_05"]) that are most relevant to this section's topic. Phase 2B will see ONLY these factClaims when hydrating this section. A factClaim MAY be assigned to multiple sections. Every content_section MUST have at least 1.
    • FINAL CONTENT SECTION CONSTRAINT (NON-NEGOTIABLE): The content_sections array must end ABRUPTLY on a specific, granular sub-topic — for example: a specific implementation step, a technical component, a named process, a pricing detail, or a tactical how-to. You are strictly forbidden from writing a "narrative climax," "cost of inaction," "widening gap," "stakes summary," or ANY synthesizing/urgency section as the final content_section entry. All stakes, urgency, synthesis, and narrative payoff belong EXCLUSIVELY in conclusion_section. The final content_section must contain H3 sub-sections OR a table (or both) — if it cannot support that granular depth, replace it with a section that can.
-- conclusion_section: REQUIRED. { h2: the conclusion heading text (e.g. "The Bottom Line", "Where This Leaves You" — your call, in voice), paragraphs:[{},{},…], assigned_facts:["factClaim_NN",…] } — one {} per closing paragraph (2-4 typical). NO image, NO table, NO links here. JS assigns ids; Phase 2B writes the prose. assigned_facts: OPTIONAL — 0-4 factClaim IDs. If the conclusion synthesizes existing arguments with no new data, pass an empty array []. If it will repeat any specific figure already cited earlier in the article, list the supporting factClaim ids here so Phase 2B can re-emit the [factClaim_NN] tokens.
-   • CONCLUSION CTA PROHIBITION: The conclusion_section prose must contain ZERO calls-to-action, ZERO links to the Primary CTA URL, and ZERO promotional language. The conclusion is a narrative wrap-up only. A dedicated CTA block is rendered by the system after the conclusion automatically.
+- conclusion_section: REQUIRED. { h2: the conclusion heading text (e.g. "The Bottom Line", "Where This Leaves You" — your call, in voice), paragraphs:[{},{},…], assigned_facts:["factClaim_NN",…] } — one {} per closing paragraph (2-4 typical). NO image, NO table, NO link arrays here. JS assigns ids; Phase 2B writes the prose AND embeds the Primary CTA URL inline as an inline-markdown link in the conclusion prose — exactly once. assigned_facts: OPTIONAL — 0-4 factClaim IDs. If the conclusion synthesizes existing arguments with no new data, pass an empty array []. If it will repeat any specific figure already cited earlier in the article, list the supporting factClaim ids here so Phase 2B can re-emit the [factClaim_NN] tokens.
+   • CONCLUSION CTA RESERVATION: The conclusion_section is the ONLY place the Primary CTA URL is allowed inside body prose, and it must appear EXACTLY ONCE there. Phase 2B writes that inline link; Phase 2A does not need to add the CTA URL to any links array (none exists on conclusion_section). Every other section (content_sections, faq_section) is strictly forbidden from linking to the Primary CTA URL — that's enforced in Phase 2 Inline Validation with a deterministic strip-to-plain-text fallback.
 - faq_section: REQUIRED. { h2: the FAQ heading text (e.g. "Frequently Asked Questions"), intro_paragraphs:[{},…] (one or two {} slots — the framing prose BEFORE the questions), qa_pairs:[{ question: the question text, answer: {} }, …] — at least 4 Q&A pairs (questions only; leave each answer as {}), assigned_facts:["factClaim_NN",…] } — same assigned_facts rule (1-4 factClaim IDs, at least 1; the whole FAQ section shares one allocation since the intro + every answer pulls from the same allowed set). NO image, NO table here.
 - cta: { anchorText, url, placementHint }. The url MUST match the 4.3B Primary CTA destination (the "Destination:" line under the "Primary CTA" section, or a "Conversion Primary CTA URL" / "Primary CTA URL" field). placementHint = where in the article the CTA sits.
 
@@ -2002,9 +2002,9 @@ PHASE 2B — SEQUENTIAL HYDRATION (the "Relay Race", section-level). You will be
 
 PARAGRAPH STRUCTURE (NON-NEGOTIABLE): Maximum 3 sentences per paragraph. Target 1–2. Single-sentence paragraphs are strongly preferred for impact and readability. If you write 4 or more sentences in a single paragraph, split it. Use white space as a design element — it signals premium writing.
 
-LINK DISCIPLINE (NON-NEGOTIABLE): Internal URLs from the anchorTextTargets array are single-use tokens — once used in any section's prose, that URL is exhausted and cannot appear again anywhere in the article. The Primary CTA URL is RESERVED — never write it as an inline link in any paragraph, conclusion, or FAQ answer. It belongs exclusively to the CTA block which the system appends automatically. If you have no unused internal URLs left, omit the link entirely rather than repeating one.
+UNIQUE LINK MANDATE: Internal URLs from anchorTextTargets are single-use. Once an internal URL is assigned to a section, it is EXHAUSTED. Do not repeat internal URLs across different sections.
 
-CONCLUSION DISCIPLINE: Do NOT write Call-to-Action buttons, promotional links, or "contact us" language in the conclusion prose. Do NOT write any link to the Primary CTA URL in the conclusion. The system appends a dedicated CTA block automatically after the conclusion. End the conclusion strictly on the narrative wrap-up.` };
+CTA RESERVATION: If you are writing a Content Section or FAQ, DO NOT under any circumstances write a link to the CTA URL in your prose. If you are writing the Conclusion, you must include EXACTLY ONE link to the CTA URL.` };
   }
 
   // The relay loop: clone the locked frame, build the section-level queue, walk it sequentially,
@@ -2086,6 +2086,16 @@ CONCLUSION DISCIPLINE: Do NOT write Call-to-Action buttons, promotional links, o
     initRelayStrip('relayStrip2', queue);             // per-block status chips (Item 4: green = done OK)
     const masterCtx = buildPhase2ContextBlock();      // cached master context (same content as every Phase 2 call)
     const instrBlock = buildHydrateInstrBlock();      // small uncached "one block at a time" framing
+    // ── AUTONOMOUS LINK SELF-HEALING — rolling state for Phase 2 Inline Validation ──
+    // window.p2SeenInternalUrls is the article-wide "URLs already committed by an earlier
+    // section" Set. Reset PER RUN at the top of the relay so the first job starts clean;
+    // URLs land here only AFTER a section successfully stitches (Save State commit), so
+    // a retry of a still-in-flight section doesn't see its own un-committed URLs as dups.
+    window.p2SeenInternalUrls = new Set();
+    const ctaUrlForP2 = String((typeof extract43BCtaUrl === 'function' && extract43BCtaUrl(S.docs && S.docs.doc43B)) || '').trim();
+    const ctaUrlNormForP2 = normLinkUrlForCompare(ctaUrlForP2);
+    const clientDomainForP2 = (typeof getClientDomainV4 === 'function') ? getClientDomainV4() : '';
+    if(ctaUrlForP2) log(`Phase 2 — link self-healing armed: CTA URL "${ctaUrlForP2}" reserved for the conclusion (exactly 1), forbidden elsewhere.`, 'info');
     let rollingDraft = '', failedIds = 0, guillotinedRows = 0;
     // Save State: last-good snapshot the article rolls back to on a section failure. Keyed in memory
     // by the most recently completed job's sectionId; we keep a single rolling "last good" pair.
@@ -2101,7 +2111,7 @@ CONCLUSION DISCIPLINE: Do NOT write Call-to-Action buttons, promotional links, o
       setPhase(2, 'active', `Hydrate ${i+1}/${total}`);
       setG(`Phase 2 — hydration relay: block ${i+1}/${total} (${job.label || job.type})…`, true);
       log(`Phase 2 — hydrating block ${i+1} of ${total} (${job.label || job.type}; ${reqIds.length} id${reqIds.length===1?'':'s'}; allowed factClaims: ${(job.allowedFactIds||[]).join(', ') || '(none)'})…`, 'info');
-      let sectionOK = false, lastSectionFailReason = '';
+      let sectionOK = false, lastSectionFailReason = '', lastSectionFailKind = '', lastSectionLinkRetryPrompt = '';
       // ── SECTION-RETRY LOOP (Save State) — 1 first try + up to 2 retries with rollback in between ──
       for(let sectionRetry = 0; sectionRetry <= 2; sectionRetry++){
         if(sectionRetry > 0){
@@ -2111,9 +2121,18 @@ CONCLUSION DISCIPLINE: Do NOT write Call-to-Action buttons, promotional links, o
           log(`Phase 2 — Save State rollback #${sectionRetry}/2 for section "${job.label}": ${lastSectionFailReason}`, 'warn');
         }
         setRelayChip('relayStrip2', i, 'active');
-        const inlineRetryWarning = sectionRetry > 0
-          ? `Your previous attempt was rejected. A specific number or claim you used was not supported by your assigned factClaims (or you cited a factClaim that wasn't assigned to this section). Retry this section strictly following the citation token rule. If no factClaim supports a specific figure, write it qualitatively. Reason from the previous attempt: ${lastSectionFailReason}`
-          : '';
+        // The retry warning is BRANCHED by failure kind. A link-rule rejection (CTA in body /
+        // duplicate URL / >1 conclusion CTAs) gets the spec'd link-specific prompt so Claude
+        // doesn't get factClaim guidance for a link mistake. factClaim/coverage failures
+        // keep the original wording.
+        let inlineRetryWarning = '';
+        if(sectionRetry > 0){
+          if(lastSectionFailKind === 'link' && lastSectionLinkRetryPrompt){
+            inlineRetryWarning = lastSectionLinkRetryPrompt;
+          } else {
+            inlineRetryWarning = `Your previous attempt was rejected. A specific number or claim you used was not supported by your assigned factClaims (or you cited a factClaim that wasn't assigned to this section). Retry this section strictly following the citation token rule. If no factClaim supports a specific figure, write it qualitatively. Reason from the previous attempt: ${lastSectionFailReason}`;
+          }
+        }
         let nodes = null, f6f = '', missingIds = [], hadWarn = false;
         // ── TOOL-CALL ATTEMPT LOOP — 2 attempts on parse / refusal / missing-id failures ──
         for(let attempt = 0; attempt < 2; attempt++){
@@ -2165,9 +2184,99 @@ CONCLUSION DISCIPLINE: Do NOT write Call-to-Action buttons, promotional links, o
         const iv = inlineValidateHydration(job, nodes, hydratedFrame);
         if(!iv.ok){
           lastSectionFailReason = iv.reason;
+          lastSectionFailKind = 'factClaim';
           warnYellow('F14', `Phase 2 inline validation rejected block ${i+1}/${total} (${job.label||job.type}): ${iv.reason}. Save State retry ${sectionRetry+1}/2.`);
           if(sectionRetry < 2) continue; // roll back and retry
           break;
+        }
+        // ── PHASE 2 INLINE LINK VALIDATION (autonomous self-healing) ──
+        // Rule A: body / FAQ / DA must not link to the CTA URL
+        // Rule B: internal URL already used by an earlier committed section is a duplicate
+        // Rule C: the conclusion must link to the CTA URL EXACTLY ONCE (no more, no less yet
+        //         — "less" is not enforced here; "more" is the spammy-case we strip).
+        // Save State retries get a link-specific retry prompt. After 2 retries, deterministic
+        // regex stripping mutates the offending markdown to plain text, logs YELLOW, and the
+        // section is treated as having passed link validation (per spec: "violently forced
+        // into compliance by stripping the markdown, the rule is now technically satisfied").
+        const isConclusionJob = job.type === 'conclusion';
+        const isCtaHookJob    = job.type === 'cta_hook';
+        let linkFail = null;          // { rule:'A'|'B'|'C', dupUrl?, reason }
+        const newUrlsThisSection = []; // committed to window.p2SeenInternalUrls only after stitch
+        if(!isCtaHookJob){
+          for(const node of nodes){
+            const proseStr = typeof node.prose === 'string' ? node.prose : '';
+            const cellStr = Array.isArray(node.rows)
+              ? node.rows.map(r => Array.isArray(r && r.cells) ? r.cells.join(' ') : '').join(' ')
+              : '';
+            const urls = extractMarkdownLinks(proseStr + ' ' + cellStr);
+            // Rule A vs C — the CTA URL placement check splits on whether this is the conclusion.
+            if(ctaUrlNormForP2){
+              const ctaCount = urls.filter(u => normLinkUrlForCompare(u) === ctaUrlNormForP2).length;
+              if(isConclusionJob){
+                if(ctaCount > 1){ linkFail = { rule:'C', reason:`Conclusion contains ${ctaCount} CTA URL link(s); exactly 1 required.` }; break; }
+              } else {
+                if(ctaCount > 0){
+                  const ctaHit = urls.find(u => normLinkUrlForCompare(u) === ctaUrlNormForP2);
+                  linkFail = { rule:'A', dupUrl: ctaHit, reason:`body section contains restricted CTA URL "${ctaHit}"` };
+                  break;
+                }
+              }
+            }
+            // Rule B — duplicate internal URL across committed sections. CTA URL paths are
+            // excluded here (they're owned by Rules A/C above so we don't double-count).
+            for(const u of urls){
+              if(!isInternalLinkUrlP2(u, clientDomainForP2)) continue;
+              const n = normLinkUrlForCompare(u);
+              if(ctaUrlNormForP2 && n === ctaUrlNormForP2) continue;
+              if(window.p2SeenInternalUrls.has(n)){
+                linkFail = { rule:'B', dupUrl: u, reason:`URL "${u}" was already used earlier in the article.` };
+                break;
+              }
+              if(!newUrlsThisSection.includes(n)) newUrlsThisSection.push(n);
+            }
+            if(linkFail) break;
+          }
+        }
+        if(linkFail){
+          let linkRetryPrompt = '';
+          if(linkFail.rule === 'A')      linkRetryPrompt = `ERROR: You injected the restricted CTA URL into this section. Rewrite this section, and DO NOT use the CTA URL.`;
+          else if(linkFail.rule === 'B') linkRetryPrompt = `ERROR: You used the URL ${linkFail.dupUrl}, but it was already used earlier in the article. Rewrite this section and use a different internal URL.`;
+          else if(linkFail.rule === 'C') linkRetryPrompt = `ERROR: You used the CTA link multiple times. You must use the CTA link EXACTLY ONCE. Rewrite the conclusion and remove the duplicate links.`;
+          if(sectionRetry < 2){
+            lastSectionFailReason = linkFail.reason;
+            lastSectionFailKind = 'link';
+            lastSectionLinkRetryPrompt = linkRetryPrompt;
+            warnYellow('F14', `Phase 2 inline link validation — block ${i+1}/${total} (${job.label||job.type}): ${linkFail.reason} (Rule ${linkFail.rule}). Save State retry ${sectionRetry+1}/2.`);
+            continue;
+          }
+          // ── DETERMINISTIC REGEX FALLBACK — retries exhausted, force compliance ──
+          // Mutate the returned nodes' prose in-place; the stitched output will then be
+          // clean text without the offending markdown link. No fail is pushed into the
+          // validation result — by definition, the rule is now satisfied.
+          for(const node of nodes){
+            if(typeof node.prose !== 'string') continue;
+            if(linkFail.rule === 'A')      node.prose = stripMarkdownLinkForUrl(node.prose, ctaUrlForP2);
+            else if(linkFail.rule === 'B') node.prose = stripMarkdownLinkForUrl(node.prose, linkFail.dupUrl);
+            else if(linkFail.rule === 'C') node.prose = stripMarkdownLinkForUrl(node.prose, ctaUrlForP2, { keepFirst:true });
+          }
+          warnYellow('F14', `Phase 2 inline link validation — block ${i+1}/${total} (${job.label||job.type}): Link automatically stripped via Deterministic Fallback after Save State retries (Rule ${linkFail.rule}). ${linkFail.reason}`);
+          hadWarn = true;
+          // Recompute newUrlsThisSection from the HEALED prose — Rule B's now-stripped URL
+          // must NOT be added to the seen set (the section no longer contains it), and any
+          // OTHER internal URLs in the same node should still commit. Cheap to redo.
+          newUrlsThisSection.length = 0;
+          if(linkFail.rule === 'B'){
+            for(const node of nodes){
+              const proseStr = typeof node.prose === 'string' ? node.prose : '';
+              for(const u of extractMarkdownLinks(proseStr)){
+                if(!isInternalLinkUrlP2(u, clientDomainForP2)) continue;
+                const n = normLinkUrlForCompare(u);
+                if(ctaUrlNormForP2 && n === ctaUrlNormForP2) continue;
+                if(!newUrlsThisSection.includes(n)) newUrlsThisSection.push(n);
+              }
+            }
+          }
+          // Fall through to stitch with the healed nodes.
         }
         // —— PROVISIONALLY STITCH + ROLL THE DRAFT ——
         let covered = 0;
@@ -2184,9 +2293,13 @@ CONCLUSION DISCIPLINE: Do NOT write Call-to-Action buttons, promotional links, o
         if(uncovered > 0){
           // Should be caught by inlineValidation, but defensive
           lastSectionFailReason = `${uncovered} of ${reqIds.length} required node(s) not stitched`;
+          lastSectionFailKind = 'factClaim';
           if(sectionRetry < 2){ warnYellow('F14', `Phase 2 hydration block ${i+1}/${total} (${job.label||job.type}): ${uncovered} of ${reqIds.length} required node(s) not stitched — Save State retry ${sectionRetry+1}/2.`); continue; }
           break;
         }
+        // Section committed — its URLs are now "seen" by every downstream section. (If a
+        // future section uses one of these, Rule B will fire on that section's first try.)
+        newUrlsThisSection.forEach(n => window.p2SeenInternalUrls.add(n));
         setRelayChip('relayStrip2', i, hadWarn ? 'warn' : 'done');
         sectionOK = true;
         break;
@@ -2831,6 +2944,57 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
   // rows yet): run only the checks that apply to the skeleton (counts, headings, link
   // discipline, checklist fields, CTA url, thesis present, conclusion_section present,
   // faq_section present with qa_pairs). Used between 2A and 2B.
+  // PER-STRING MARKDOWN LINK EXTRACTOR. Used by Phase 2 Inline Validation to scan one
+  // returned hydrate-node's prose at a time, and by the Phase 7A prose normalization
+  // pass for inline-link rewriting. Returns the URLs only (anchor text isn't needed
+  // by either caller). extractMarkdownLinksFromProse() below is the JSON-walking flavor.
+  function extractMarkdownLinks(text){
+    if(!text || typeof text !== 'string') return [];
+    const out = [];
+    const re = /\[([^\]]*)\]\(([^)]+)\)/g;
+    let m;
+    while((m = re.exec(text)) !== null) out.push(m[2]);
+    return out;
+  }
+
+  // Path-only URL normalizer — strips protocol + (www.)? + host, ensures leading slash,
+  // ensures trailing slash. Mirrors the local helper in validateV1Structure so the
+  // "is this the CTA URL?" / "is this a duplicate?" comparisons match across phases.
+  function normLinkUrlForCompare(u){
+    if(!u) return '';
+    let s = String(u).trim().toLowerCase();
+    s = s.replace(/^https?:\/\/(www\.)?[^/]+/, '');
+    if(s && !s.startsWith('/')) s = '/' + s;
+    if(s && !s.endsWith('/')) s = s + '/';
+    return s;
+  }
+
+  // "Is this URL internal to the client domain?" — root-relative, or same host as the
+  // configured client domain, or any itechvalet.com URL (legacy default).
+  function isInternalLinkUrlP2(u, clientDomain){
+    if(!u) return false;
+    const s = String(u).trim().toLowerCase();
+    if(s.startsWith('/')) return true;
+    if(clientDomain && s.includes(String(clientDomain).toLowerCase())) return true;
+    if(s.includes('itechvalet.com')) return true;
+    return false;
+  }
+
+  // Strip the inline [anchor](url) markdown wrapping a specific URL — keep just the
+  // anchor text. `keepFirst:true` leaves the FIRST matching link intact and strips
+  // only the 2nd, 3rd, … (Rule C — Conclusion CTAs > 1 collapse to exactly 1).
+  function stripMarkdownLinkForUrl(text, targetUrl, opts){
+    if(!text || typeof text !== 'string' || !targetUrl) return text;
+    const keepFirst = !!(opts && opts.keepFirst);
+    const targetNorm = normLinkUrlForCompare(targetUrl);
+    let kept = false;
+    return text.replace(/\[([^\]]*)\]\(([^)]+)\)/g, (m, anchor, url) => {
+      if(normLinkUrlForCompare(url) !== targetNorm) return m;
+      if(keepFirst && !kept){ kept = true; return m; }
+      return anchor;
+    });
+  }
+
   // PROSE LINK EXTRACTOR — single source of truth for body-link validation.
   // Iterates every prose-containing node in V1 and pulls every inline [anchor](url)
   // pair out via regex. Phase 3A uses this instead of scanning section.links[] so
@@ -3050,55 +3214,12 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
       warnYellow('P3A', `V1 has ${extraExternal.length} external link(s) not in the research brief's anchorTextTargets (allowed — extra citations, not blocking): ${extraExternal.slice(0,8).join('; ')}${extraExternal.length>8?' …':''}`);
     }
 
-    // PROSE LINK VALIDATION — reads actual inline [text](url) links in the body prose
-    // via extractMarkdownLinksFromProse(), not just section.links[] arrays. This catches
-    // links Claude wrote in prose that never round-tripped into the JSON link arrays —
-    // the original duplicate / cta-in-body checks missed those entirely.
-    if(!frameOnly){
-      const proseLinks = extractMarkdownLinksFromProse(v1);
-      const normLinkUrl = u => {
-        if(!u) return '';
-        let s = String(u).trim().toLowerCase();
-        s = s.replace(/^https?:\/\/(www\.)?[^/]+/, '');     // strip protocol + (www.)? + domain
-        if(s && !s.startsWith('/')) s = '/' + s;             // ensure leading slash
-        if(s && !s.endsWith('/')) s = s + '/';               // ensure trailing slash (normalize variants)
-        return s;
-      };
-      const isInternalLinkUrl = u => {
-        if(!u) return false;
-        const s = String(u).trim().toLowerCase();
-        return s.startsWith('/') || s.includes(clientDomain) || s.includes('itechvalet.com');
-      };
-      // Exclude CTA node from body link checks — that block legitimately carries the Primary CTA URL.
-      const bodyProseLinks = proseLinks.filter(l => l.location !== 'cta');
-      const internalBodyLinks = bodyProseLinks.filter(l => isInternalLinkUrl(l.url));
-      // Check 1: no duplicate internal URLs in body prose
-      const seenPaths = new Map();
-      internalBodyLinks.forEach(l => {
-        const path = normLinkUrl(l.url);
-        if(!path) return;
-        if(seenPaths.has(path)){
-          F('duplicate_internal_url',
-            'each internal URL may appear at most once in the article body prose — replace duplicates with unused anchorTextTargets URLs or omit',
-            `"${l.url}" already used in ${seenPaths.get(path)} — duplicated in ${l.location}`,
-            null);
-        } else {
-          seenPaths.set(path, l.location);
-        }
-      });
-      // Check 2: CTA URL must not appear in any body prose
-      const ctaUrlNorm = normLinkUrl(extract43BCtaUrl(doc43B));
-      if(ctaUrlNorm){
-        internalBodyLinks.forEach(l => {
-          if(normLinkUrl(l.url) === ctaUrlNorm){
-            F('cta_url_in_body',
-              'the Primary CTA URL is reserved — it must not appear as a body link in any prose section',
-              `CTA URL "${l.url}" found in prose at ${l.location}`,
-              null);
-          }
-        });
-      }
-    }
+    // (PROSE LINK VALIDATION — duplicate_internal_url + cta_url_in_body — moved out of Phase 3A
+    //  into Phase 2 Inline Validation. Phase 2 now performs Rule A / B / C checks per-section
+    //  during the relay (window.p2SeenInternalUrls as rolling state), with Save State retries
+    //  and a deterministic regex strip-to-plain-text fallback on retry exhaustion. By the time
+    //  V1 reaches Phase 3A, every link rule is either compliant or has been forced compliant
+    //  by the fallback — there's nothing left for a global checker to RED on.)
 
     // CTA url matches the 4.3B Primary CTA destination (if extractable). The tool adapts to
     // however the client's 4.3B labels it — see extract43BCtaUrl(); we never make a client
@@ -5952,10 +6073,10 @@ table td { background: #ffffff; }
     parts.push(`</div>`);
     const articleWrap = parts.join('\n');
     // (Old post-assembly itechvalet.github.io → itechvalet.com regex sweep removed —
-    //  normalizeArticleUrls() at the top of this function now fixes link.url + cta.url at the
-    //  data layer before assembly. URLs embedded in prose markdown [text](url) are NOT
-    //  rewritten by this helper; if a future iTV run surfaces a github.io URL in body prose,
-    //  expand normalizeArticleUrls to walk prose strings too.)
+    //  normalizeArticleUrls() at the top of this function is the single source of truth.
+    //  It now walks BOTH the structured link.url + cta.url fields AND inline [text](url)
+    //  markdown in every prose container (DA, content sections, conclusion, FAQ intro,
+    //  FAQ answers, CTA hook), so by the time we get here, every URL is canonical.)
 
     const cleanWrap = articleWrap.replace(/\s+data-node-id="[^"]*"/g, '');  // the version that goes into WordPress — no instrumentation
     const finalTxt = `${styleBlock}\n${cleanWrap}`;
