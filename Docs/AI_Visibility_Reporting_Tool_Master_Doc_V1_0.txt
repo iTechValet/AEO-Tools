@@ -1,15 +1,23 @@
 AI VISIBILITY REPORTING TOOL — MASTER REFERENCE DOC
-Version: V1.2 (working copy)
+Version: V1.3 (working copy)
 Last Updated: 2026-05-14
 Governing Spec: AI_Visibility_Reporting_Tool_Master_Spec_V1.0.txt
 Build Plan: Docs/AI_Visibility_Tool_Master_Build_Plan_V1_1.txt
 Architectural Model: AEO Article Creation Tool (proven pattern — extend, don't reinvent)
 ================================================
 
-CURRENT STATUS — PHASE 1 / SESSION 4 COMPLETE
----------------------------------------------
-Phase 1 (MVP — VA-triggered, single client per run) is in active build via
-Claude Code. Four sessions have shipped:
+CURRENT STATUS — PHASE 1 / SESSION 5 COMPLETE — FEATURE-COMPLETE
+---------------------------------------------------------------
+Phase 1 (MVP — VA-triggered, single client per run) is now FEATURE-COMPLETE
+in code. The pipeline runs end-to-end from --client argument to a PDF
+uploaded to the client's Drive "Monthly Reports" folder. Remaining work is
+operational, not coded:
+  - Cloudflare Worker /trigger-report endpoint (manual route addition;
+    see "MANUAL SETUP" section below).
+  - GitHub Secrets provisioning (6 secrets).
+  - First end-to-end test run against the iTech Valet sheet.
+
+Five sessions have shipped:
 
   Session 1 — repo scaffolding + iTech Valet client config + 13 prompt
               templates with runtime variable injection.  COMPLETE.
@@ -78,13 +86,45 @@ Claude Code. Four sessions have shipped:
               Only drive-writer.js, index.html, and the GitHub Actions
               workflow remain.  COMPLETE.
 
-Sessions 5+ will: implement drive-writer.js (PDF upload to client
-"Monthly Reports" folder via the same service account); build the
-VA-facing index.html (client dropdown, "Run Report" button); extend
-the Cloudflare Worker with /trigger-report (validates an access key,
-fires GitHub repository_dispatch); write the .github/workflows/<name>.yml
-file (workflow_dispatch + repository_dispatch entry points, npm ci, env
-secrets injection).
+  Session 5 — Built the two-call architecture: analysis-engine.js
+              runs FIRST (Claude Sonnet @ temp 0.3) and produces a
+              structured Strategic Brief; narrative-engine.js then
+              reads that brief and writes the client-facing prose
+              (Sonnet @ temp 0.7). Analysis sees ALL 13 runs (including
+              Run 6); narrative only sees the 12 client-eligible runs.
+              Built citation-history tracking in sheet-reader.js
+              (readCitationHistory groups cited_urls across all prior
+              months and returns URLs that appear in 2+ distinct
+              months — a "citation echo" is the strongest leading
+              indicator of AI authority). Built drive-writer.js
+              (Drive v3 upload with update-if-exists, placeholder-id
+              skip, no crash on any failure). Built the VA-facing
+              index.html (client dropdown, single Run Report button,
+              POSTs to the Cloudflare Worker /trigger-report endpoint).
+              Built .github/workflows/run-report.yml (workflow_dispatch
+              + repository_dispatch entry points, Puppeteer apt deps,
+              archive auto-commit). Updated narrative-prompt.js to
+              consume the Strategic Brief + repeatedCitations.
+              Rewired runner.js to the 13-step architecture (config →
+              Drive docs → sheet reads → 13 runs → score → sheet write
+              → archive → analysis → narrative → PDF → Drive upload →
+              completion log). package.json bumped to 0.5.0 with
+              @anthropic-ai/sdk added per spec. The Cloudflare Worker
+              /trigger-report endpoint is documented as a manual setup
+              step — not auto-built.   COMPLETE.
+
+Sessions 6+ are operational:
+  - Add the /trigger-report route to the existing Cloudflare Worker
+    (validates x-internal-key, fires GitHub repository_dispatch).
+    See "MANUAL SETUP" below.
+  - Provision the 6 GitHub Secrets (ANTHROPIC_API_KEY, OPENAI_API_KEY,
+    GEMINI_API_KEY, PERPLEXITY_API_KEY, GROK_API_KEY,
+    GOOGLE_SERVICE_ACCOUNT_JSON).
+  - Replace INTERNAL_ACCESS_KEY in index.html with the real value
+    paired to the Worker.
+  - First test run against the iTech Valet sheet (set its
+    sheet_id + drive_reports_folder_id + doc_43A_id + doc_43B_id in
+    clients/itechvalet.json before triggering).
 
 ================================================
 
@@ -158,40 +198,48 @@ Cloudflare proxy (reused from AEO):
                Phase 1 session (Worker fires repository_dispatch to
                GitHub Actions; the browser never sees an API key)
 
-Subfolder layout (as of Session 4):
+Subfolder layout (as of Session 5):
 
-  AI-Visibility-Reporting/
-    package.json               # Declares googleapis ^144 + puppeteer ^23
-                               #   (Sessions 3 + 4)
-    index.html                 # VA-facing UI (HTML comment shell)
-    runner.js                  # Orchestrator end-to-end through step 7
-                               #   (Sessions 2 + 3 + 4) — only step 8
-                               #   (drive-writer) remains a typeof-guarded
-                               #   scaffold call
-    runner.config.js           # Platform configs (BUILT — Session 2)
-    parser.js                  # Haiku + heuristic + citations override
+  iTV-Tools/
+    .github/
+      workflows/
+        run-report.yml         # GitHub Actions workflow — workflow_dispatch
+                               #   + repository_dispatch (BUILT — Session 5)
+    AI-Visibility-Reporting/
+      package.json             # @anthropic-ai/sdk ^0.40 + googleapis ^144
+                               #   + puppeteer ^23 (Sessions 3-5)
+      index.html               # VA-facing UI (BUILT — Session 5)
+      runner.js                # Orchestrator end-to-end, 13 steps,
+                               #   Drive upload included (Sessions 2-5)
+      runner.config.js         # Platform configs (BUILT — Session 2)
+      parser.js                # Haiku + heuristic + citations override
                                #   + x-api-key Worker fix (Sessions 2-4)
-    score-engine.js            # Score math (BUILT — Session 3)
-    sheet-reader.js            # Summary history reader + AEO inventory
-                               #   reader (Sessions 3 + 4)
-    sheet-writer.js            # Raw + Summary writer (BUILT — Session 3)
-    github-archiver.js         # Raw JSON archive (BUILT — Session 3)
-    narrative-engine.js        # Claude Sonnet direct call (BUILT — Session 4)
-    pdf-builder.js             # Puppeteer renderer (BUILT — Session 4)
-    drive-writer.js            # PDF upload (scaffold)
-    prompts/
-      prompt-templates.js      # 13 run-prompt templates (Sessions 1 + 3)
-      parser-prompt.js         # Haiku system + few-shot (BUILT — Session 2)
-      narrative-prompt.js      # Sonnet system + section instructions
+      score-engine.js          # Score math (BUILT — Session 3)
+      sheet-reader.js          # Summary history + AEO inventory +
+                               #   citation history (Sessions 3-5)
+      sheet-writer.js          # Raw + Summary writer (BUILT — Session 3)
+      github-archiver.js       # Raw JSON archive (BUILT — Session 3)
+      analysis-engine.js       # Strategic Brief — Sonnet @ temp 0.3
+                               #   (BUILT — Session 5)
+      narrative-engine.js      # Claude Sonnet narrative call @ temp 0.7
                                #   (BUILT — Session 4)
-    templates/
-      report.html              # PDF template — Brighton Gold design
+      pdf-builder.js           # Puppeteer renderer (BUILT — Session 4)
+      drive-writer.js          # PDF upload to client Drive folder
+                               #   (BUILT — Session 5)
+      prompts/
+        prompt-templates.js    # 13 run-prompt templates (Sessions 1 + 3)
+        parser-prompt.js       # Haiku system + few-shot (BUILT — Session 2)
+        narrative-prompt.js    # Sonnet system + section instructions +
+                               #   Strategic Brief + citation context
+                               #   (Sessions 4 + 5)
+      templates/
+        report.html            # PDF template — Brighton Gold design
                                #   (BUILT — Session 4)
-    clients/
-      itechvalet.json          # Test client config (BUILT — Session 1)
-    archive/
-      .gitkeep                 # Placeholder until first run writes archive
-    outputs/                   # Created by pdf-builder on first run;
+      clients/
+        itechvalet.json        # Test client config (BUILT — Session 1)
+      archive/
+        .gitkeep               # Placeholder until first run writes archive
+      outputs/                 # Created by pdf-builder on first run;
                                # holds <client_id>_AI_Visibility_<YYYY-MM>.pdf
 
 Every JS/HTML shell carries a top header block stating what the file does,
@@ -582,35 +630,222 @@ WHAT HAS BEEN BUILT — DETAIL
 
   package.json — version 0.4.0; puppeteer ^23.0.0 added.
 
+[ Session 5 — May 2026 ]
+
+  TWO-CALL ARCHITECTURE LOCKED
+    Analysis and writing are now separate cognitive jobs. The analysis
+    call (Sonnet @ temp 0.3, max_tokens 3000) produces a structured
+    Strategic Brief; the narrative call (Sonnet @ temp 0.7, max_tokens
+    4000) reads the brief and writes the 8-section client-facing prose.
+    The two calls run sequentially in the runner — analysis first, then
+    narrative — so the writer has every framing decision pre-made.
+    Analysis sees ALL 13 platform runs (including Run 6 — competitor
+    intelligence is useful for the writer's frame, just never quoted
+    to the client). Narrative only sees the 12 client-eligible runs.
+
+  analysis-engine.js — generateAnalysis(context)
+    Single Claude Sonnet call. Same direct path as narrative-engine
+    (https://api.anthropic.com/v1/messages, x-api-key from
+    process.env.ANTHROPIC_API_KEY). Model claude-sonnet-4-20250514,
+    max_tokens 3000, temperature 0.3 (LOW — analysis, not creative
+    writing). 90s AbortController timeout.
+
+    System prompt locks the role ("senior data analyst for iTech
+    Valet"), the contract ("Your output must be a single valid JSON
+    object. No preamble. No markdown fences. Just the JSON."), and
+    the honesty rule ("Do not manufacture wins. Do not hide problems.").
+
+    User prompt assembles every fact the analyst needs: client
+    identity + month, score block (current, prior, delta, trend,
+    benchmark, subscores, platforms_available), full content
+    inventory (totalLiveNodes + currentCluster + nextCluster), the
+    nap_cleanup flag, all 13 run summaries, all 13 raw responses
+    (each truncated to 2500 chars — these power ALIGNMENT SIGNAL
+    detection), the full AI_Visibility_Summary history, and the
+    citation history (URLs cited in 2+ distinct months). Closes with
+    the Strategic Brief JSON schema verbatim.
+
+    Output recovery: stripCodeFences (handles ```json wrappers) →
+    direct JSON.parse → last-resort slice from first { to last }.
+    validateStrategicBrief checks every top-level key is present.
+    Any failure (auth error, network, malformed JSON, schema
+    violation): return null + log. The runner forwards null to the
+    narrative engine which has a documented "no brief" branch.
+
+  sheet-reader.js — readCitationHistory(clientConfig) added
+    Reads the full AI_Visibility_Raw tab and groups cited_urls by URL.
+    Columns resolved by NAME via RAW_COLUMN_ALIASES (cited_urls,
+    report_period, platform). Per row: split cited_urls on commas/
+    semicolons, filter for http(s)://, dedupe within the row, then per
+    unique URL bump months Set (report_period), platforms Set, total
+    count. Final filter keeps only URLs whose months Set size >= 2 —
+    single-month citations are noise, multi-month citations are the
+    locked-in signal. Returns array sorted by times_cited desc then
+    url asc. Months emitted as human labels ("April 2026") via a
+    periodToLabel helper that matches reportPeriodLabel. Every failure
+    path returns [] + logs.
+
+  drive-writer.js — uploadPDF(pdfPath, clientConfig)
+    googleapis Drive v3, same GOOGLE_SERVICE_ACCOUNT_JSON pattern as
+    the Sheet modules. Scope: drive.file. PLACEHOLDER or missing
+    drive_reports_folder_id short-circuits to null + a clear "skipping
+    upload" log. Otherwise:
+      1. Read the PDF as a Buffer.
+      2. files.list with q "name = '<n>' and '<folder>' in parents
+         and trashed = false" — finds an existing file with the same
+         filename in the same folder. Escapes \\ and ' via escapeQueryString.
+      3. If found: files.update with the new media body (stream from
+         buffer). Returns { fileId, fileName, webViewLink, updated: true }.
+      4. If not: files.create with parents=[folderId]. Returns
+         { fileId, fileName, webViewLink, updated: false }.
+    Any thrown error returns null + logs. supportsAllDrives is set on
+    every call so Shared Drive folders work.
+
+  index.html — VA-facing trigger UI
+    Single self-contained HTML file. No external resources except
+    system fonts. Two operator-config values at the top of the inline
+    script: INTERNAL_ACCESS_KEY (placeholder "REPLACE_WITH_YOUR_KEY"
+    the operator edits during deploy) and CLIENT_LIST (array of
+    { label, client_id }). Click handler POSTs JSON
+    { client_id, internal_key } to
+    https://anthropic-proxy.gerek.workers.dev/trigger-report and ALSO
+    sends the key as the x-internal-key header so either path on the
+    Worker works. On 2xx: green "Report triggered" + button stays
+    disabled (prevents double-fires). On non-2xx: red error with the
+    HTTP status + a 140-char body excerpt. Pre-flight check prints a
+    setup error if INTERNAL_ACCESS_KEY hasn't been replaced.
+
+  .github/workflows/run-report.yml
+    Two triggers: workflow_dispatch (with a client_id input) and
+    repository_dispatch (event type "run-report" — the Worker fires
+    this). Single job on ubuntu-latest, 30-min timeout,
+    contents:write permission for the archive commit. Steps: checkout
+    → setup-node 20 → npm install in AI-Visibility-Reporting →
+    apt-get install all Puppeteer/Chromium system deps (libnss3,
+    libgbm-dev, libgtk-3-0, etc.) → node runner.js --client=$CLIENT_ID
+    with all six secrets injected as env → git add archive/ + commit
+    + push when there are new files. CLIENT_ID resolves from
+    github.event.inputs.client_id OR client_payload.client_id.
+
+  prompts/narrative-prompt.js — Strategic Brief integration
+    buildNarrativePrompt now reads analysisResult and repeatedCitations
+    from the context. Adds two new sections to the user prompt:
+      - REPEATED CITATIONS block — one bullet per URL cited in 2+ months
+        (or a "(no repeated citations yet)" placeholder).
+      - STRATEGIC BRIEF FROM ANALYSIS ENGINE block — full brief JSON
+        pretty-printed PLUS a "How to use this brief" cheat sheet.
+        When analysisResult is null, replaces the brief with a clear
+        "Analysis engine unavailable this run" instruction directing
+        the writer back to the original Month 1 / Month 2+ win priority
+        order.
+    A WIN WORTH NOTING section instructions rewritten: primary source
+    is now recommended_wow_moment.callout_text (rewrite in Gerek's voice,
+    keep every data point); when wins[] is empty, write the exact
+    "This month's numbers are building the foundation. Next month we'll
+    have more to show." sentence; original priority order survives as
+    the explicit fallback when no brief is available.
+    Exported formatStrategicBrief + formatRepeatedCitations for tests.
+
+  runner.js — re-numbered to 13-step architecture
+    Step 1  client config loaded (log only).
+    Step 2  fetchDriveDocText for 4.3A + 4.3B.
+    Step 3  readSheetHistory + readAEOInventory + readCitationHistory
+            (the citation reader is the NEW call this session).
+    Step 4  13 platform runs, serial, exponential-backoff retry.
+    Step 5  parser.parseResponse for each (fused per-run with Step 4).
+    Step 6  score-engine.calculateScore.
+    Step 7  sheet-writer.writeToSheet.
+    Step 8  github-archiver.archiveRun.
+    Step 9  analysis-engine.generateAnalysis(analysisContext)  → NEW.
+            analysisContext.runs is the FULL 13-row array (Run 6 included).
+    Step 10 narrative-engine.generateNarrative(narrativeContext) →
+            narrativeContext.runs is the 12-row filtered array (Run 6
+            stripped); narrativeContext also carries analysisResult.
+    Step 11 pdf-builder.buildPDF(narrative, narrativeContext).
+    Step 12 drive-writer.uploadPDF(pdfPath, clientConfig)  → NEW.
+            No more typeof guard — real call.
+    Step 13 Completion log: client, period label, score, PDF path,
+            Drive link, elapsed seconds. Single line, easy to grep.
+
+  package.json — bumped to 0.5.0; @anthropic-ai/sdk ^0.40.0 added per
+    Session 5 spec. The SDK is declared but not imported — parser,
+    narrative, and analysis all use raw fetch. Reserved for any
+    future module that prefers the SDK's tool-use / streaming helpers.
+
 ================================================
 
-WHAT IS PENDING — SESSIONS 5+
------------------------------
+MANUAL SETUP — CLOUDFLARE WORKER /trigger-report ENDPOINT
+---------------------------------------------------------
 
-Sessions 5+ will, in some order:
+The existing Worker at anthropic-proxy.gerek.workers.dev needs a new
+route added. This is a manual Cloudflare Worker code addition — not
+automated by this tool.
 
-  drive-writer.js
-    Service-account upload of the PDF produced by pdf-builder.js to the
-    client's "Monthly Reports" folder (drive_reports_folder_id from the
-    client config). Returns a sharable Drive link the VA can copy.
+New route: POST /trigger-report
 
-  index.html
-    VA-facing single-page UI: client dropdown populated from
-    clients/*.json, "Run Report" button, confirmation panel. POSTs to
-    the Cloudflare Worker /trigger-report endpoint with an internal
-    access key. No API keys ever live in the browser.
+Logic:
+  1. Read x-internal-key header from the request.
+  2. Compare against INTERNAL_ACCESS_KEY environment variable in the
+     Worker.
+  3. If mismatch: return 401.
+  4. If match: read client_id from the request body (JSON).
+  5. POST to GitHub API:
+       https://api.github.com/repos/iTechValet/iTV-Tools/dispatches
+     Headers:
+       Authorization: Bearer ${GITHUB_PAT}
+       Accept: application/vnd.github+json
+       X-GitHub-Api-Version: 2022-11-28
+       User-Agent: anthropic-proxy
+     Body:
+       { "event_type": "run-report",
+         "client_payload": { "client_id": client_id } }
+  6. Return 200 on success, 500 on GitHub API failure (forward the
+     status + a body excerpt back to index.html so the VA sees the
+     real reason in red).
 
-  Cloudflare Worker — /trigger-report dispatch endpoint
-    Validates the access key, fires GitHub repository_dispatch with the
-    client_id as payload, returns confirmation to the browser.
+Environment variables to add to the Worker:
+  - INTERNAL_ACCESS_KEY   any secure string you choose (paired to
+                          index.html's INTERNAL_ACCESS_KEY constant).
+  - GITHUB_PAT            GitHub Personal Access Token with the "repo"
+                          scope on iTechValet/iTV-Tools.
 
-  .github/workflows/<name>.yml
-    Defines workflow_dispatch (manual) and repository_dispatch
-    (Cloudflare-triggered) entry points. Runs npm ci then node
-    runner.js --client=<client_id>. Secrets injected as env vars:
-    OPENAI_API_KEY, GEMINI_API_KEY, PERPLEXITY_API_KEY, GROK_API_KEY,
-    ANTHROPIC_API_KEY (now consumed by both parser.js and
-    narrative-engine.js), GOOGLE_SERVICE_ACCOUNT_JSON.
+When ready, .github/workflows/run-report.yml consumes the GitHub
+repository_dispatch with types: [run-report] — already wired on the
+GitHub side; only the Worker route is missing.
+
+================================================
+
+WHAT IS PENDING — OPERATIONAL ONLY
+----------------------------------
+
+Phase 1 is feature-complete in code. The remaining work is operational:
+
+  1. Cloudflare Worker /trigger-report route (manual — see above).
+  2. GitHub Secrets provisioning:
+       ANTHROPIC_API_KEY
+       OPENAI_API_KEY
+       GEMINI_API_KEY
+       PERPLEXITY_API_KEY
+       GROK_API_KEY
+       GOOGLE_SERVICE_ACCOUNT_JSON
+  3. Replace INTERNAL_ACCESS_KEY in index.html with the real value
+     paired to the Worker, then deploy via GitHub Pages.
+  4. Replace the PLACEHOLDER_* values in clients/itechvalet.json with
+     the real Google Sheet ID, Drive folder ID, and 4.3A / 4.3B Doc
+     IDs.
+  5. Confirm the iTech Valet Google Sheet has the four required tabs
+     (AEO_Inventory, AEO_Run_Data, AI_Visibility_Raw,
+     AI_Visibility_Summary) — duplicate from the master template if not.
+  6. Share the Google Sheet AND the Drive Monthly Reports folder with
+     the service account email (read+write on the Sheet, read+write
+     on the folder).
+  7. First end-to-end test run — manually fire workflow_dispatch in
+     the GitHub Actions UI with client_id=itechvalet, watch the logs.
+
+After the first successful run, the same workflow works for any new
+client: add their JSON to clients/, add them to CLIENT_LIST in
+index.html, confirm their sheet has the four tabs, share the sheet +
+folder with the service account.
 
 ================================================
 
@@ -827,27 +1062,39 @@ KNOWN LIMITATIONS — DEFERRED TO LATER PHASE 1 SESSIONS
     the field should now read true on Run 3 most of the time even
     without the parser knowing the exact string.
 
-  - drive-writer.js is still a scaffold — the PDF is written locally
-    to outputs/ but not yet pushed to the client's Drive folder. The
-    runner's typeof guard keeps the pipeline running through step 8
-    without crashing. Session 5+.
+  - Cloudflare Worker /trigger-report route is NOT YET ADDED. Until
+    it is (see "MANUAL SETUP" section above), index.html cannot
+    actually trigger a run — pressing Run Report will hit the existing
+    Worker, which doesn't know that route and will return 404 or
+    forward to the Anthropic proxy path. The GitHub Actions
+    workflow_dispatch entry point is unaffected — the operator can
+    fire a run from the GitHub Actions UI immediately.
 
-  - index.html is still a comment-only shell. The VA cannot trigger a
-    run from a browser yet. The Cloudflare Worker /trigger-report
-    endpoint also doesn't exist yet. Manual runs are still possible
-    via `node runner.js --client=<client_id>` from a local shell with
-    all GitHub Secret env vars set. Session 5+.
+  - INTERNAL_ACCESS_KEY in index.html is the placeholder string
+    "REPLACE_WITH_YOUR_KEY". The page's pre-flight check refuses to
+    fire the trigger until the operator edits this value. Same
+    placeholder needs to be set as an env var on the Worker side.
 
-  - GitHub Actions workflow file (.github/workflows/) is still
-    unwritten. End-to-end execution against real client sheets in CI
-    requires that workflow file + the GitHub Secrets it consumes.
-    Session 5+.
+  - clients/itechvalet.json holds PLACEHOLDER_* values for every live
+    Google ID (sheet_id, drive_reports_folder_id, doc_43A_id,
+    doc_43B_id, looker_dashboard_id, client_email). The runner is
+    coded to short-circuit gracefully on each (Drive doc fetch
+    returns "", Drive upload logs "skipping", Sheet read returns
+    defaults), but a meaningful first run requires real IDs.
 
-  - Puppeteer + Chromium need to be installable in the GitHub Actions
-    runner. The recommended approach is `npm ci` + the puppeteer
-    install hook that downloads its bundled Chromium; the workflow
-    file built in Session 5+ will need to allow that download (the
-    runner has internet access by default).
+  - First end-to-end run against a real sheet has not happened yet.
+    Every module is unit-smoke-tested but the full Anthropic + Google
+    + OpenAI/Gemini/Perplexity/Grok integration in CI is still to be
+    exercised.
+
+  - Puppeteer + Chromium download in the GitHub Actions runner: the
+    .github/workflows/run-report.yml file does `npm install`, which
+    triggers Puppeteer's post-install Chromium download. ubuntu-latest
+    has internet access by default; the apt step also installs the
+    Chromium system libraries (libnss3, libgbm-dev, libgtk-3-0, etc.).
+    Ubuntu 22.04+ may rename libasound2 → libasound2t64; the workflow
+    currently asks for libasound2 — if a CI run errors on this we'll
+    update the package name.
 
 ================================================
 
@@ -858,6 +1105,7 @@ Session 1 | May 2026 | Scaffold: full repo structure, iTech Valet client config,
 Session 2 | May 2026 | Built: runner.config.js, runner.js (full pipeline orchestrator), parser.js (Haiku + heuristic fallback). Build plan corrected from 12 to 13 runs.
 Session 3 | May 2026 | Fixed: authority_figure injected for Run 3, Perplexity citations array captured. Built: score-engine.js, sheet-reader.js, sheet-writer.js, github-archiver.js. runner.js wired through step 8.
 Session 4 | May 2026 | Fixed: Cloudflare Worker 400 error in parser.js. Built: narrative-prompt.js (full 8-section report spec with emotional arc, alignment signal detection, Month 1 NAP flag, wow moment priority logic), narrative-engine.js (Claude Sonnet direct call), pdf-builder.js (Puppeteer), templates/report.html (Brighton Gold design reference). runner.js fully wired Sessions 1–4. AEO_Inventory reader added to runner. Pipeline complete from trigger to PDF generation.
+Session 5 | May 2026 | Built: analysis-engine.js (Strategic Brief two-call architecture), citation history tracking in sheet-reader.js, drive-writer.js (PDF upload to Google Drive), index.html VA UI (Cloudflare dispatch trigger), .github/workflows/run-report.yml (GitHub Actions workflow). Runner fully wired Steps 1-13. Cloudflare Worker /trigger-report documented as manual setup step. Tool is feature-complete pending secrets setup and first test run.
 
 ================================================
 END OF DOCUMENT
