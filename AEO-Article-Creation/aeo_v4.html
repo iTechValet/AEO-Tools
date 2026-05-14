@@ -998,7 +998,7 @@
     const sel = document.getElementById('clientSelect');
     const clients = JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');
     S.client = sel.value !== '' ? clients[parseInt(sel.value)] : null;
-    S.research=null; S.frame=null; S.v1=null; S.v1Frozen=false; S.validation=null; S.intentLayer=''; S.voiceExemplars=''; S.v2=null; S.v3=null; S.htmlStub=''; S.docs={doc43A:'',doc43B:'',doc44:''}; S.focusTrunkPath='';
+    S.research=null; S.frame=null; S.v1=null; S.v1Frozen=false; S.validation=null; S.intentLayer=''; S.voiceExemplars=''; S.v2=null; S.v3=null; S.htmlStub=''; S.docs={doc43A:'',doc43B:'',doc44:''}; S.validClusterUrls=new Set();
     S.sheetRow=''; S.sheetRowCols={}; S.cta43BWarned=false; S._extraLinksWarned=false; S.tokens={gi:0,go:0,ci:0,co:0,cacheRead:0,cacheCreate:0}; S.cacheLog=[];
     if(_activeImgAbort){ try { _activeImgAbort.abort(new Error('Client changed.')); } catch(_){} _activeImgAbort=null; }
     S.imagePrompts=[]; S.imageData={}; S.imageUrls={}; S.imageAttemptId=''; S.imageArtifactKey=''; S.expectedImageCount=0; imagesValidated=false; _phase6Resolve=null;
@@ -1625,14 +1625,9 @@ PROJECT CONTEXT — PROMPT REFERENCE (4.4):
 ${S.docs.doc44}
 
 PHASE 1 RESEARCH BRIEF (sources, anchorTextTargets, faqSeeds, factClaims [each carries an id like factClaim_03 — cite these in table rows], semanticAnchor, clientSpecificThesis):
-${JSON.stringify(
-  (S.focusTrunkPath
-    ? filterTrunksFromAnchorTargets(S.research, S.focusTrunkPath, (typeof getClientDomainV4 === 'function') ? getClientDomainV4() : '')
-    : S.research),
-  null, 2
-)}${S.focusTrunkPath ? `
+${JSON.stringify(S.research, null, 2)}
 
-NLM FOCUS-TRUNK LOCK: This article is locked to the focus trunk "${S.focusTrunkPath}". The anchorTextTargets list above has been FILTERED — only the focus trunk, the homepage, branches/blog posts, and external citations are visible. Every OTHER internal service trunk has been intentionally omitted. Do NOT invent links to client URLs that are not in this list. If a service-page URL surfaces in your prose that isn't the focus trunk, Phase 7A will strip the markdown deterministically.` : ''}
+EXPLICIT CLUSTER LOCK (4.2 NLM): The anchorTextTargets list above is the ARTICLE'S COMPLETE LINK INVENTORY for this cluster. Every internal link you write in the article body MUST point to a URL in that list (or the client's homepage). Do NOT invent links to other client pages — even if they sound plausible. Every URL is also a SINGLE-USE token: a given URL may appear at most once across the entire article body (Direct Answer, content_sections, FAQ, conclusion). External citations follow the same single-use rule. Phase 7A enforces this deterministically: any off-cluster internal link or any second occurrence of any URL (internal or external) is regex-stripped to plain anchor text before the HTML is assembled, so a violation here costs you the hyperlink without breaking the prose.
 
 CLIENT-SPECIFIC THESIS (the article's spine — anchor everything around this):
 ${S.research?.clientSpecificThesis?.thesisStatement || '(missing — escalate F1)'}
@@ -3004,83 +2999,89 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
     });
   }
 
-  // ── 4.2 NLM "TRUNK PROTECTOR" — hard governance over which service URLs the AI may use. ──
-  // The 4.2 NLM (next-link-mapping) sheet defines a focus trunk per article so the article
-  // doesn't "trunk-hop" and dilute its cluster authority. Implementation here treats a TRUNK as
-  // an internal URL with exactly ONE non-empty path segment (e.g., "/seo/" is a trunk; "/" is
-  // the homepage and NOT a trunk; "/blog/article/" is a branch and NOT a trunk). The FOCUS
-  // trunk is the FIRST trunk found in research.anchorTextTargets — the 4.2 list is authored in
-  // priority order, so position 0 wins. If the 4.2 list ever changes shape (e.g., a "trunk"
-  // flag column), upgrade these helpers to read that column instead of inferring from path shape.
-  function isServiceTrunkPath(path){
-    if(!path || path === '/') return false;
-    const segments = path.replace(/^\/|\/$/g, '').split('/').filter(Boolean);
-    return segments.length === 1;
-  }
-  function computeFocusTrunkPath(research, clientDomain){
-    const targets = (research && Array.isArray(research.anchorTextTargets)) ? research.anchorTextTargets : [];
-    for(const t of targets){
-      if(!t || !t.url) continue;
-      if(t.type === 'external') continue;
-      if(!isInternalLinkUrlP2(t.url, clientDomain)) continue;
-      const path = normLinkUrlForCompare(t.url);
-      if(isServiceTrunkPath(path)) return path;
+  // ── 4.2 NLM EXPLICIT CLUSTER FIREWALL — hard governance over every body link. ──
+  // The 4.2 NLM (next-link-mapping) sheet defines a per-article CLUSTER: an explicit list of
+  // valid URLs the article is allowed to link to. We no longer infer the cluster from URL
+  // path shape (the prior commit's "single-segment trunk" heuristic) — instead we use the
+  // ENTIRE matched row's anchorTextTargets as the source of truth, plus the homepage. Any
+  // markdown link whose URL is not in that list, or any second occurrence of a URL that IS
+  // in the list, is regex-stripped to plain text by enforceLinkGovernance() at Phase 7A.
+  //
+  // The cluster is computed once per run from research.anchorTextTargets and stored on S.
+  // Returns a Set of normalized URL paths.
+  function computeValidClusterUrls(research){
+    const set = new Set();
+    set.add('/');  // homepage always valid (may not appear explicitly in 4.2 row)
+    if(research && Array.isArray(research.anchorTextTargets)){
+      research.anchorTextTargets.forEach(t => {
+        if(!t || !t.url) return;
+        const path = normLinkUrlForCompare(t.url);
+        if(path) set.add(path);
+      });
     }
-    return '';
+    return set;
   }
-  // Filter anchorTextTargets so downstream prompts only see the Focus Trunk + Homepage +
-  // branch/blog URLs. Every OTHER internal trunk is dropped entirely — the AI's "Blinder"
-  // discipline. Externals are preserved (cite-worthy sources aren't trunk-restricted).
-  function filterTrunksFromAnchorTargets(research, focusTrunkPath, clientDomain){
-    if(!research || !Array.isArray(research.anchorTextTargets)) return research;
-    if(!focusTrunkPath) return research; // no focus → no filter (defensive)
-    const filtered = research.anchorTextTargets.filter(t => {
-      if(!t || !t.url) return true;
-      if(t.type === 'external') return true;
-      if(!isInternalLinkUrlP2(t.url, clientDomain)) return true;
-      const path = normLinkUrlForCompare(t.url);
-      if(!path || path === '/') return true;       // homepage — keep
-      if(!isServiceTrunkPath(path)) return true;   // branch / blog post — keep
-      return path === focusTrunkPath;              // same trunk → keep; other trunks → drop
-    });
-    return Object.assign({}, research, { anchorTextTargets: filtered });
-  }
-  // Phase 7A final regex sweep: any inline markdown link whose URL is an internal SERVICE TRUNK
-  // that is NOT the focus trunk gets stripped to plain anchor text. The deterministic backstop
-  // for the Blinder discipline — if Phase 5/6 hallucinated a non-focus trunk past the filter,
-  // this strips it before HTML assembly. (sanitizeInternalLinkDupesInArticle covers DUPLICATES;
-  // this function covers OFF-TRUNK service URLs — same regex, different filter logic.)
-  function stripNonFocusTrunkLinks(article, focusTrunkPath, clientDomain){
-    if(!article || typeof article !== 'object' || !focusTrunkPath) return;
+  // PHASE 7A LINK GOVERNANCE — single sweep that enforces every link rule deterministically.
+  //   • cta.hookProse: ALL markdown links stripped to plain text (CTA hook is prose-only;
+  //     the button is rendered separately by the JS template).
+  //   • Everywhere else, for each inline [anchor](url) in render order:
+  //       - URL is internal:
+  //           · In validClusterUrls AND not yet seen → keep this occurrence, add to seen-set
+  //           · In validClusterUrls AND already seen → strip to anchor text (duplicate)
+  //           · NOT in validClusterUrls → strip immediately (off-cluster)
+  //       - URL is external:
+  //           · Not yet seen → keep this occurrence, add to seen-set
+  //           · Already seen → strip to anchor text (universal dedup, internal + external)
+  //   By construction the final HTML cannot contain (a) an off-cluster internal URL,
+  //   (b) the same URL twice, or (c) any markdown link inside the CTA hook prose.
+  function enforceLinkGovernance(article, validClusterUrls, clientDomain){
+    if(!article || typeof article !== 'object') return;
+    const cluster = (validClusterUrls instanceof Set) ? validClusterUrls : new Set();
+    const seen = new Set();        // every URL (internal + external) we've allowed past, normalized
     const RE = /\[([^\]]*)\]\(([^)]+)\)/g;
-    let stripCount = 0;
-    const sanitize = (text) => {
+    let stripDup = 0, stripOffCluster = 0, stripCtaHook = 0;
+    const sanitizeBody = (text) => {
       if(!text || typeof text !== 'string') return text;
       return text.replace(RE, (m, anchor, url) => {
-        if(!isInternalLinkUrlP2(url, clientDomain)) return m;        // external — leave
-        const path = normLinkUrlForCompare(url);
-        if(!path || path === '/') return m;                          // homepage — leave
-        if(!isServiceTrunkPath(path)) return m;                      // branch — leave
-        if(path === focusTrunkPath) return m;                        // focus trunk — leave
-        stripCount++;
-        return anchor;                                                // off-trunk service URL — strip
+        const isInternal = isInternalLinkUrlP2(url, clientDomain);
+        const key = isInternal ? normLinkUrlForCompare(url) : String(url).trim().toLowerCase().replace(/\/+$/,'');
+        if(!key) return m;
+        if(isInternal && cluster.size && !cluster.has(key)){      // off-cluster internal — strip immediately
+          stripOffCluster++;
+          return anchor;
+        }
+        if(seen.has(key)){                                         // duplicate (internal OR external)
+          stripDup++;
+          return anchor;
+        }
+        seen.add(key);
+        return m;
       });
     };
+    // CTA HOOK — strip ALL markdown links unconditionally before the main sweep walks any prose.
+    // The CTA hook prose is required to be plain text (the deterministic Phase 7A template adds
+    // the link as a separate <a> element).
+    if(article.cta && article.cta.hookProse){
+      const before = article.cta.hookProse;
+      article.cta.hookProse = before.replace(RE, (m, anchor) => { stripCtaHook++; return anchor; });
+    }
     const walkSection = (sec) => {
       if(!sec || typeof sec !== 'object') return;
-      toArray(sec.paragraphs).forEach(p => { if(p && p.prose) p.prose = sanitize(p.prose); });
+      toArray(sec.paragraphs).forEach(p => { if(p && p.prose) p.prose = sanitizeBody(p.prose); });
       toArray(sec.h3sections).forEach(h3 => {
-        toArray(h3.paragraphs).forEach(p => { if(p && p.prose) p.prose = sanitize(p.prose); });
+        toArray(h3.paragraphs).forEach(p => { if(p && p.prose) p.prose = sanitizeBody(p.prose); });
       });
     };
-    if(article.directAnswer && article.directAnswer.prose) article.directAnswer.prose = sanitize(article.directAnswer.prose);
+    // Walk in RENDER order so "first occurrence wins" matches what the operator sees.
+    if(article.directAnswer && article.directAnswer.prose) article.directAnswer.prose = sanitizeBody(article.directAnswer.prose);
     (_secs(article)||[]).forEach(walkSection);
-    _faqIntro(article).forEach(p => { if(p && p.prose) p.prose = sanitize(p.prose); });
-    _qaPairs(article).forEach(qp => { if(qp && qp.answer && qp.answer.prose) qp.answer.prose = sanitize(qp.answer.prose); });
+    _faqIntro(article).forEach(p => { if(p && p.prose) p.prose = sanitizeBody(p.prose); });
+    _qaPairs(article).forEach(qp => { if(qp && qp.answer && qp.answer.prose) qp.answer.prose = sanitizeBody(qp.answer.prose); });
     walkSection(_concl(article));
-    if(article.cta && article.cta.hookProse) article.cta.hookProse = sanitize(article.cta.hookProse);
-    if(stripCount > 0 && typeof log === 'function'){
-      log(`Phase 7A — NLM trunk firewall stripped ${stripCount} off-trunk service link(s) to plain text (focus trunk: ${focusTrunkPath}).`, 'warn');
+    // (cta.hookProse already had all its markdown links stripped above — running it through
+    //  sanitizeBody is a no-op since no [a](u) remain.)
+    if(typeof log === 'function' && (stripDup + stripOffCluster + stripCtaHook) > 0){
+      log(`Phase 7A — link governance: ${stripDup} duplicate(s), ${stripOffCluster} off-cluster internal(s), ${stripCtaHook} CTA-hook link(s) stripped to plain text. Cluster size: ${cluster.size}.`, 'warn');
     }
   }
 
@@ -4647,7 +4648,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     S.topic = topic;
     S.tokens = { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 };
     S.cacheLog = [];
-    S.research = null; S.frame = null; S.v1 = null; S.v1Frozen = false; S.validation = null; S.intentLayer = ''; S.voiceExemplars = ''; S.v2 = null; S.v3 = null; S.htmlStub = ''; S.cta43BWarned = false; S._extraLinksWarned = false; S.focusTrunkPath = '';
+    S.research = null; S.frame = null; S.v1 = null; S.v1Frozen = false; S.validation = null; S.intentLayer = ''; S.voiceExemplars = ''; S.v2 = null; S.v3 = null; S.htmlStub = ''; S.cta43BWarned = false; S._extraLinksWarned = false; S.validClusterUrls = new Set();
     // M3.5 — image queue: hard-reset and clear the panel for the new run
     if(_activeImgAbort){ try { _activeImgAbort.abort(new Error('New run started.')); } catch(_){} _activeImgAbort = null; }
     S.imagePrompts = []; S.imageData = {}; S.imageUrls = {}; S.imageAttemptId = ''; S.imageArtifactKey = ''; S.expectedImageCount = 0;
@@ -4733,17 +4734,19 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       }
       S.research = phase1Json;
       assignFactClaimIds(S.research); // JS stamps factClaim_01… so the Phase 2 hydration relay's table rows can cite them
-      // 4.2 NLM Trunk Protector — compute the article's Focus Trunk URL from anchorTextTargets.
-      // First internal trunk URL in the list wins (4.2 sheet is authored in priority order).
-      // Stored on S so buildPhase2ContextBlock can filter every downstream Claude call, and
-      // Phase 7A's stripNonFocusTrunkLinks sweep can strip any off-trunk links that slipped past.
+      // 4.2 NLM EXPLICIT CLUSTER FIREWALL — extract the article's valid URL cluster from the
+      // matched row's anchorTextTargets. The Set contains every normalized URL path from the
+      // row PLUS the homepage "/" (always valid). Phase 7A's enforceLinkGovernance reads this
+      // Set to: (a) strip any internal markdown link whose URL is NOT in the cluster, and
+      // (b) dedup any URL (internal OR external) that appears more than once across the
+      // entire article. Cluster size = anchorTextTargets count + 1 (for "/" if not present).
       {
-        const _cd = (typeof getClientDomainV4 === 'function') ? getClientDomainV4() : '';
-        S.focusTrunkPath = computeFocusTrunkPath(S.research, _cd);
-        if(S.focusTrunkPath){
-          log(`Phase 1 — NLM Focus Trunk detected: "${S.focusTrunkPath}". All OTHER internal service trunks will be filtered out of every downstream prompt; Phase 7A strips any off-trunk service link that slips through.`, 'warn');
+        S.validClusterUrls = computeValidClusterUrls(S.research);
+        if(S.validClusterUrls.size > 1){
+          const preview = [...S.validClusterUrls].slice(0, 6).join(', ');
+          log(`Phase 1 — NLM cluster locked: ${S.validClusterUrls.size} valid URL(s) (${preview}${S.validClusterUrls.size > 6 ? ' …' : ''}). Phase 7A's link governance will strip any off-cluster internal link AND deduplicate every repeat (internal + external) before HTML assembly.`, 'warn');
         } else {
-          log(`Phase 1 — no Focus Trunk detected in research.anchorTextTargets (no single-segment internal URLs found). NLM firewall is OFF for this run.`, 'warn');
+          log(`Phase 1 — cluster has only the homepage (anchorTextTargets empty). Off-cluster firewall is effectively OFF; dedup still applies in Phase 7A.`, 'warn');
         }
       }
       const elapsed1 = ((Date.now()-t1)/1000).toFixed(1);
@@ -5865,15 +5868,19 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     const s = String(doc43B || '');
     const get = (pattern, fallback='') => { const m = s.match(pattern); return m ? m[1].trim() : fallback; };
     const fontsUrl = get(/Google Fonts Import:[^\r\n]*(https:\/\/fonts\.googleapis\.com\/[^\s\r\n]+)/i, '');
-    const h1Color   = get(/H1:\s*(#[0-9a-fA-F]{3,6})/i, '#063a6c');
-    const h2Color   = get(/H2:\s*(#[0-9a-fA-F]{3,6})/i, '#2494e0');
-    const h3Color   = get(/H3:\s*(#[0-9a-fA-F]{3,6})/i, '#dd6b00');
-    const bodyColor = get(/Body text:\s*(#[0-9a-fA-F]{3,6})/i, '#063a6c');
-    const linkColor = get(/All links:\s*(#[0-9a-fA-F]{3,6})/i, '#2494e0');
-    const daBackground = get(/Direct Answer box background:\s*(#[0-9a-fA-F]{3,6})/i, '#063a6c');
-    const daText    = get(/Direct Answer box.*?text:\s*(#[0-9a-fA-F]{3,6})/i, '#ffffff');
-    const luColor   = get(/Last Updated text:\s*(#[0-9a-fA-F]{3,6})/i, '#dd6b00');
-    const tocBg     = get(/(?:ToC|Table of Contents).*?[Hh]eader background:\s*(#[0-9a-fA-F]{3,6})/i, '#063a6c');
+    // Accept either a hex value (#xxx / #xxxxxx) OR a single-word CSS color name (e.g., "Black",
+    // "Navy", "white") so a 4.3B that specifies branding in plain English still resolves
+    // correctly. Browsers safely fall back if the captured word isn't a real CSS color name.
+    const COLOR = '(#[0-9a-fA-F]{3,6}|[A-Za-z]+)';
+    const h1Color   = get(new RegExp(`H1:\\s*${COLOR}`, 'i'), '#063a6c');
+    const h2Color   = get(new RegExp(`H2:\\s*${COLOR}`, 'i'), '#2494e0');
+    const h3Color   = get(new RegExp(`H3:\\s*${COLOR}`, 'i'), '#dd6b00');
+    const bodyColor = get(new RegExp(`Body text:\\s*${COLOR}`, 'i'), '#063a6c');
+    const linkColor = get(new RegExp(`All links:\\s*${COLOR}`, 'i'), '#2494e0');
+    const daBackground = get(new RegExp(`Direct Answer box background:\\s*${COLOR}`, 'i'), '#063a6c');
+    const daText    = get(new RegExp(`Direct Answer box.*?text:\\s*${COLOR}`, 'i'), '#ffffff');
+    const luColor   = get(new RegExp(`Last Updated text:\\s*${COLOR}`, 'i'), '#dd6b00');
+    const tocBg     = get(new RegExp(`(?:ToC|Table of Contents).*?[Hh]eader background:\\s*${COLOR}`, 'i'), '#063a6c');
     const tableBorder = get(/(?:Table.*?[Bb]order|[Bb]order):\s*(#[0-9a-fA-F]{3,6})/im, '#063a6c');
     const hFontMatch = s.match(/(?:Headings?\s*\([^)]*\)|H1,?\s*H2)\s*:\s*([A-Za-z][A-Za-z\s]+?)(?:\s*\||\s*weight|\s*[\r\n])/i);
     const hFont = hFontMatch ? hFontMatch[1].trim() : 'Bebas Neue';
@@ -5909,17 +5916,14 @@ a:hover { text-decoration: underline; }
 .article-wrap img { width: 100%; height: auto; border-radius: 15px; box-shadow: 3px 2px 5px #3d3d3d; margin-bottom: 20px; }
 .direct-answer { background: ${daBackground}; color: ${daText}; padding: ${daPadDesk}; border-radius: ${daRadius}; margin-bottom: 24px; line-height: 1.5; }
 .direct-answer p, .direct-answer li, .direct-answer a { color: ${daText}; }
-/* NUCLEAR DA HOVER FIX — hardcoded iTech Valet brand colors + !important so no global
-   :hover rule (in this stylesheet OR an injected iframe hoverStyle) can change the DA
-   contrast. White text stays visible on the dark blue background regardless of mouse
-   position. Per spec: "ensure the white text remains visible on the dark blue background
-   regardless of mouse position." */
-.direct-answer:hover { background-color: #063a6c !important; color: #ffffff !important; }
-.direct-answer:hover p, .direct-answer:hover li, .direct-answer:hover a { color: #ffffff !important; }
-/* DETERMINISTIC CTA BUTTON — the Phase 7A template emits <a class="cta-button"> as a sibling
-   of the hook <p>. This style turns it into an actual button regardless of branding. */
-.cta-button { display: inline-block; padding: 14px 28px; background: ${linkColor}; color: #ffffff; border-radius: 6px; text-decoration: none; font-weight: 600; margin-top: 16px; transition: opacity 0.2s; }
-.cta-button:hover { opacity: 0.85; text-decoration: none; color: #ffffff; }
+/* NUCLEAR DA HOVER — !important so no global :hover (in this stylesheet OR an iframe
+   hoverStyle overlay) can change DA contrast. Now uses the DYNAMIC ${daBackground} +
+   ${daText} variables from 4.3B (single-word color names like "Black" supported), so the
+   hover state matches whatever the client's 4.3B specifies. The descendant selectors
+   ensure paragraphs / list items / links inside the DA also keep their daText color
+   regardless of inheritance quirks. */
+.direct-answer:hover { background-color: ${daBackground} !important; color: ${daText} !important; }
+.direct-answer:hover p, .direct-answer:hover li, .direct-answer:hover a { color: ${daText} !important; }
 .last-updated { color: ${luColor}; font-style: italic; text-align: center; margin-bottom: 100px !important; }
 .last-updated + .author-byline { margin-top: 8px; }
 .last-updated:has(+ .author-byline) { margin-bottom: 0 !important; }
@@ -6063,56 +6067,11 @@ table td { background: #ffffff; }
     if(article.cta && article.cta.hookProse) article.cta.hookProse = fixProseLinks(article.cta.hookProse);
   }
 
-  // ── 7A FINAL LINK SANITIZER (deterministic duplicate strip) ──
-  // Runs AFTER normalizeArticleUrls (so it sees canonical URLs), BEFORE HTML assembly.
-  // Walks every prose container in article RENDER order; for each inline [anchor](url)
-  // markdown link whose URL is INTERNAL and already seen earlier in the walk, regex-
-  // strips the markdown to plain anchor text. First occurrence of each internal URL
-  // wins; every subsequent occurrence collapses.
-  //
-  // This is the deterministic backstop for the Phase 2 Inline Validation's rolling-
-  // state Rule B (commit 6c271c7) — Phase 5/6 revoice passes can re-introduce a
-  // previously-stripped URL because they only see the prose being rewritten, not
-  // the full article. The sweep here guarantees the FINAL HTML cannot contain the
-  // same internal URL twice no matter what any upstream phase did. External URLs
-  // are intentionally left untouched (extra citations are fine).
-  function sanitizeInternalLinkDupesInArticle(article){
-    if(!article || typeof article !== 'object') return;
-    const finalGlobalSeenUrls = new Set();
-    const clientDomain = (typeof getClientDomainV4 === 'function') ? getClientDomainV4() : '';
-    const PROSE_LINK_RE = /\[([^\]]*)\]\(([^)]+)\)/g;
-    let stripCount = 0;
-    const sanitize = (text) => {
-      if(!text || typeof text !== 'string') return text;
-      return text.replace(PROSE_LINK_RE, (match, anchor, url) => {
-        if(!isInternalLinkUrlP2(url, clientDomain)) return match;  // external — leave intact
-        const normalizedUrl = normLinkUrlForCompare(url);
-        if(!normalizedUrl) return match;
-        if(finalGlobalSeenUrls.has(normalizedUrl)){ stripCount++; return anchor; }  // duplicate — strip to plain text
-        finalGlobalSeenUrls.add(normalizedUrl);
-        return match;
-      });
-    };
-    const walkSection = (sec) => {
-      if(!sec || typeof sec !== 'object') return;
-      toArray(sec.paragraphs).forEach(p => { if(p && p.prose) p.prose = sanitize(p.prose); });
-      toArray(sec.h3sections).forEach(h3 => {
-        toArray(h3.paragraphs).forEach(p => { if(p && p.prose) p.prose = sanitize(p.prose); });
-      });
-    };
-    // Article RENDER order per assemblePhase7HTML: DA → content_sections → faq_section
-    // (intro then qa_pair answers) → conclusion_section → cta.hookProse. The walk MUST
-    // match render order so "first occurrence wins" matches what the operator sees.
-    if(article.directAnswer && article.directAnswer.prose) article.directAnswer.prose = sanitize(article.directAnswer.prose);
-    (_secs(article)||[]).forEach(walkSection);
-    _faqIntro(article).forEach(p => { if(p && p.prose) p.prose = sanitize(p.prose); });
-    _qaPairs(article).forEach(qp => { if(qp && qp.answer && qp.answer.prose) qp.answer.prose = sanitize(qp.answer.prose); });
-    walkSection(_concl(article));
-    if(article.cta && article.cta.hookProse) article.cta.hookProse = sanitize(article.cta.hookProse);
-    if(stripCount > 0 && typeof log === 'function'){
-      log(`Phase 7A — final link sanitizer stripped ${stripCount} duplicate internal link(s) to plain text (first occurrence kept; later duplicates collapsed).`, 'warn');
-    }
-  }
+  // (The prior sanitizeInternalLinkDupesInArticle helper + the trunk-firewall stripNonFocus
+  //  TrunkLinks helper were merged into enforceLinkGovernance() — defined alongside the cluster
+  //  helpers earlier in the file — when the Explicit Cluster firewall replaced the URL-path-shape
+  //  heuristic. enforceLinkGovernance does universal dedup (internal + external), off-cluster
+  //  strip, AND the CTA-hook full-strip in a single pass over the article.)
 
   // ── 7A — assemble the complete article HTML from the article JSON ──
   // Returns { styleBlock, articleWrap, finalTxt, fullDoc }.
@@ -6122,10 +6081,12 @@ table td { background: #ffffff; }
   function assemblePhase7HTML(article){
     if(!article || typeof article !== 'object') throw new Error('no article object');
     normalizeArticleUrls(article);                  // silent URL canonicalization — runs BEFORE any HTML is generated
-    sanitizeInternalLinkDupesInArticle(article);    // deterministic dup-strip — first occurrence wins, later duplicates collapse to plain text
-    if(S.focusTrunkPath){                            // 4.2 NLM trunk firewall — strip every off-trunk service link to plain text
-      stripNonFocusTrunkLinks(article, S.focusTrunkPath, (typeof getClientDomainV4 === 'function') ? getClientDomainV4() : '');
-    }
+    // 4.2 NLM EXPLICIT CLUSTER FIREWALL — universal link governance in one pass:
+    //   (a) cta.hookProse → ALL markdown links stripped (CTA is text-only; the button is a
+    //       separate JS-rendered <a> element rendered by the template below)
+    //   (b) body prose → off-cluster internal URLs stripped immediately; in-cluster URLs and
+    //       external URLs allowed once and then deduplicated (first occurrence wins).
+    enforceLinkGovernance(article, S.validClusterUrls instanceof Set ? S.validClusterUrls : new Set(), (typeof getClientDomainV4 === 'function') ? getClientDomainV4() : '');
     const styleBlock = buildStylesheetFrom43B(S.docs.doc43B);
     const branding = extractBrandingFrom43B(S.docs.doc43B);
     const pubFormatted = formatPublishDateP7((document.getElementById('publishDate')?.value || '').trim());
@@ -6247,24 +6208,23 @@ table td { background: #ffffff; }
       log(`Phase 7A — skipped ${_dupSkipped} consecutive-duplicate paragraph(s) during assembly.`, 'warn');
     }
     // CTA renders exactly once — outside all loops, after conclusion + FAQ. The _ctaRendered
-    // guard makes a second emit mathematically impossible even if a future refactor inadvertently
-    // hits this block twice. The template is HARD-CODED per spec:
+    // guard makes a second emit mathematically impossible. The template per spec:
     //   <div class="article-cta">
-    //     <p>${ctaHookText}</p>
-    //     <a href="${ctaUrl}" class="cta-button">${ctaButtonText}</a>
+    //     <p>${cleanCtaHook}</p>
+    //     <p><a href="${ctaUrl}" style="text-decoration:underline; font-weight:700; font-size:1.2em;">${ctaButtonText}</a></p>
     //   </div>
-    // The hook prose lands in a single <p> (mdInline preserves any inline **bold**); the button
-    // is a deterministic .cta-button anchor — styled separately in the canonical stylesheet so
-    // Claude can never collide with it by writing a markdown link in the hook (the prompt lock
-    // forbids it; Phase 7A's sanitizer + trunk firewall strip any leakage before this point).
+    // No button class — the link is a high-visibility STANDARD TEXT LINK with inline styling,
+    // not a styled button. The hook prose is rendered via mdInline so any inline **bold**
+    // survives; enforceLinkGovernance has already stripped every markdown link from the hook
+    // by this point, so mdInline only emits text + bold spans.
     if(article.cta && typeof article.cta === 'object' && !_ctaRendered){
       _ctaRendered = true;
-      const ctaHookText = String(article.cta.hookProse || '').trim();
+      const cleanCtaHook = String(article.cta.hookProse || '').trim();
       const ctaUrl = String(article.cta.url || '').trim();
       const ctaButtonText = String(article.cta.anchorText || '').trim() || 'Learn more';
       parts.push(`  <div class="article-cta"${ea(article.cta.id || '__cta')}>`);
-      if(ctaHookText) parts.push(`    <p>${mdInline(ctaHookText)}</p>`);
-      if(ctaUrl) parts.push(`    <a href="${escapeHtml(ctaUrl)}" class="cta-button">${escapeHtml(ctaButtonText)}</a>`);
+      if(cleanCtaHook) parts.push(`    <p>${mdInline(cleanCtaHook)}</p>`);
+      if(ctaUrl) parts.push(`    <p><a href="${escapeHtml(ctaUrl)}" style="text-decoration:underline; font-weight:700; font-size:1.2em;">${escapeHtml(ctaButtonText)}</a></p>`);
       parts.push(`  </div>`);
     }
     parts.push(`</div>`);
