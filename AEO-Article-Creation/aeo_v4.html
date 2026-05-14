@@ -191,6 +191,11 @@
   .img-panel-head { display:flex; align-items:center; gap:10px; padding:11px 16px; background:#eef3f8; border-bottom:1px solid var(--border); }
   .img-panel-title { font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:1.5px; color:var(--blue); flex:1; }
   .img-panel-badge { font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1px; padding:3px 8px; border-radius:4px; background:#ececec; color:var(--faint); }
+  .img-panel-toggle { background:none; border:none; color:var(--faint); font-size:18px; line-height:1; cursor:pointer; padding:0 4px; transition:color .2s, transform .2s; }
+  .img-panel-toggle:hover { color:var(--accent); }
+  .image-panel.collapsed .img-panel-toggle { transform:rotate(-90deg); }
+  .image-panel.collapsed #imgGrid,
+  .image-panel.collapsed #p7Inputs { display:none; }
   .img-grid { padding:10px 14px; max-height:760px; overflow-y:auto; }
   .img-card { background:#fff; border:1px solid var(--border); border-radius:10px; margin-bottom:10px; overflow:hidden; }
   .img-card:last-child { margin-bottom:0; }
@@ -617,19 +622,26 @@
       <div class="img-panel-title">Images <span style="font-size:10px;letter-spacing:1px;color:var(--faint);">(M3.5)</span></div>
       <span class="img-fail-indicator" id="imgFailIndicator" style="display:none;"></span>
       <div class="img-panel-badge" id="imgBadge">Waiting for the Phase 2 frame…</div>
+      <button class="img-panel-toggle" id="imgPanelToggle" onclick="togglePhase7ImgPanel()" title="Collapse / expand the image grid" aria-label="Collapse image panel">▾</button>
+    </div>
+    <!-- #p7Inputs holds the Phase 7 gate inputs (Publish Date + Validate + Download). Per the
+         M3.5 UI relocation it sits ABOVE the image cards so the operator sees gate controls
+         first; the card grid below is the working surface. Auto-collapses when the GREEN
+         "all URLs + date" state fires in validateImages(). -->
+    <div id="p7Inputs">
+      <div class="pub-row">
+        <label for="publishDate">Publish Date</label>
+        <input type="date" id="publishDate" onchange="checkUrls()" />
+        <span class="pub-hint">Required before Phase 7 (Final Assembly) — used for the Last Updated line, the byline, and the schema dates.</span>
+      </div>
+      <div class="img-assemble-row">
+        <button class="btn-assemble" id="imgValidateBtn" onclick="validateImages()" disabled>Validate Images</button>
+        <button class="btn-assemble" id="imgDlAllBtn" onclick="downloadAllImages()" disabled style="background:var(--blue);font-size:14px;">↓ All Images</button>
+        <div class="img-assemble-hint" id="imgHint">No images yet — they appear after the Phase 2 frame validates.</div>
+      </div>
     </div>
     <div class="img-grid" id="imgGrid">
       <div style="padding:18px;text-align:center;color:var(--faint);font-size:11px;line-height:1.6;">Images generate here automatically the moment the Phase 2 structure frame passes validation — they render in the background alongside Phases 2–5. Upload each to WordPress, paste the media URL into the card, and Phase 7 unblocks.</div>
-    </div>
-    <div class="pub-row">
-      <label for="publishDate">Publish Date</label>
-      <input type="date" id="publishDate" onchange="checkUrls()" />
-      <span class="pub-hint">Required before Phase 7 (Final Assembly) — used for the Last Updated line, the byline, and the schema dates.</span>
-    </div>
-    <div class="img-assemble-row">
-      <button class="btn-assemble" id="imgValidateBtn" onclick="validateImages()" disabled>Validate Images</button>
-      <button class="btn-assemble" id="imgDlAllBtn" onclick="downloadAllImages()" disabled style="background:var(--blue);font-size:14px;">↓ All Images</button>
-      <div class="img-assemble-hint" id="imgHint">No images yet — they appear after the Phase 2 frame validates.</div>
     </div>
   </div>
 </div>
@@ -1625,9 +1637,31 @@ PROJECT CONTEXT — PROMPT REFERENCE (4.4):
 ${S.docs.doc44}
 
 PHASE 1 RESEARCH BRIEF (sources, anchorTextTargets, faqSeeds, factClaims [each carries an id like factClaim_03 — cite these in table rows], semanticAnchor, clientSpecificThesis):
-${JSON.stringify(S.research, null, 2)}
+${(() => {
+  // PROMPT-LEVEL "BLINDER" — defensively filter anchorTextTargets to only the URLs in
+  // S.validClusterUrls (which already contains every URL from the matched 4.2 NLM row +
+  // homepage). Today this is effectively a no-op because computeValidClusterUrls reads from
+  // research.anchorTextTargets to build the Set in the first place — but it gives operators
+  // a single chokepoint for future cluster-curation (manual overrides, sheet-derived denylist,
+  // etc.) without touching every prompt template. If the filter ever removes URLs the AI
+  // never sees them; Phase 7A still strips off-cluster + duplicate links as the JS backstop.
+  if(!S.research) return JSON.stringify(S.research, null, 2);
+  if(!(S.validClusterUrls instanceof Set) || S.validClusterUrls.size <= 1) return JSON.stringify(S.research, null, 2);
+  const filtered = Object.assign({}, S.research, {
+    anchorTextTargets: (Array.isArray(S.research.anchorTextTargets) ? S.research.anchorTextTargets : []).filter(t => {
+      if(!t || !t.url) return true;                                                                      // keep weird/empty entries (defensive)
+      if(t.type === 'external') return true;                                                             // externals aren't cluster-restricted
+      const cd = (typeof getClientDomainV4 === 'function') ? getClientDomainV4() : '';
+      if(!isInternalLinkUrlP2(t.url, cd)) return true;                                                   // not internal — leave (defensive)
+      return S.validClusterUrls.has(normLinkUrlForCompare(t.url));                                       // keep only if in the cluster
+    })
+  });
+  return JSON.stringify(filtered, null, 2);
+})()}
 
-EXPLICIT CLUSTER LOCK (4.2 NLM): The anchorTextTargets list above is the ARTICLE'S COMPLETE LINK INVENTORY for this cluster. Every internal link you write in the article body MUST point to a URL in that list (or the client's homepage). Do NOT invent links to other client pages — even if they sound plausible. Every URL is also a SINGLE-USE token: a given URL may appear at most once across the entire article body (Direct Answer, content_sections, FAQ, conclusion). External citations follow the same single-use rule. Phase 7A enforces this deterministically: any off-cluster internal link or any second occurrence of any URL (internal or external) is regex-stripped to plain anchor text before the HTML is assembled, so a violation here costs you the hyperlink without breaking the prose.
+EXPLICIT CLUSTER LOCK (4.2 NLM): The anchorTextTargets list above has already been filtered to this article's cluster — it is the COMPLETE LINK INVENTORY you may use. Every internal link you write in the article body MUST point to a URL in that list (or the client's homepage). Every URL is also a SINGLE-USE token: a given URL may appear at most once across the entire article body (Direct Answer, content_sections, FAQ, conclusion). External citations follow the same single-use rule. Phase 7A enforces this deterministically: any off-cluster internal link or any second occurrence of any URL (internal or external) is regex-stripped to plain anchor text before the HTML is assembled, so a violation here costs you the hyperlink without breaking the prose.
+
+CRITICAL: You are only permitted to use the following internal links. Do not reference other service trunks or pages.
 
 CLIENT-SPECIFIC THESIS (the article's spine — anchor everything around this):
 ${S.research?.clientSpecificThesis?.thesisStatement || '(missing — escalate F1)'}
@@ -5635,6 +5669,22 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
   }
   function getFeatured(){ const s = document.querySelector('input[name="featImg"]:checked'); return s ? parseInt(s.value,10) : 0; }
 
+  // M3.5 — Phase 7 image-panel collapse/expand toggle. Operator-facing affordance plus the
+  // programmatic auto-collapse target for validateImages()'s GREEN state (once all URLs +
+  // Publish Date are validated, the panel auto-collapses so the right pane has more room).
+  //   togglePhase7ImgPanel()                 → toggle
+  //   togglePhase7ImgPanel({ collapse:true }) → force collapse (idempotent)
+  //   togglePhase7ImgPanel({ expand:true })   → force expand (idempotent)
+  function togglePhase7ImgPanel(opts){
+    const panel = document.getElementById('imagePanel');
+    if(!panel) return;
+    const isCollapsed = panel.classList.contains('collapsed');
+    const wantCollapsed = (opts && opts.collapse) ? true : (opts && opts.expand) ? false : !isCollapsed;
+    panel.classList.toggle('collapsed', wantCollapsed);
+    const btn = document.getElementById('imgPanelToggle');
+    if(btn) btn.setAttribute('aria-label', wantCollapsed ? 'Expand image panel' : 'Collapse image panel');
+  }
+
   // VA pastes WordPress URLs (and sets the Publish Date) → tracked here; when everything is in, auto-validate (300ms debounce, V3.1 pattern).
   // GATE RULE: the Phase 7 gate releases (and the button goes green) ONLY when ALL of these hold simultaneously —
   //   (1) there is at least one expected image, (2) every expected image URL field is filled, (3) the Publish Date is set.
@@ -5694,6 +5744,9 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     if(hint) hint.textContent = _phase6Resolve ? 'All set — continuing to Phase 7 assembly…' : 'All set ✓ — images + Publish Date locked in.';
     updateArtifactImageUrls();
     log(`M3.5 — Phase 7 inputs validated: ${Object.keys(S.imageUrls).length}/${S.expectedImageCount} image URL(s), featured = image ${getFeatured()+1}, publish date ${pubDate}.`, 'ok');
+    // M3.5 — GREEN state: collapse the image panel to free vertical real estate for the
+    // right-pane tabs. Idempotent + reversible via the chevron in .img-panel-head.
+    togglePhase7ImgPanel({ collapse: true });
     // release the Phase 7 prerequisite hard stop if the pipeline is parked on it
     if(_phase6Resolve){ const r = _phase6Resolve; _phase6Resolve = null; r(); }
   }
@@ -5864,6 +5917,11 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
   }
 
   // ── CANONICAL STYLESHEET — built from 4.3B branding (ported verbatim from V3.1's buildStylesheetFrom43B) ──
+  // IDENTITY-AWARE FALLBACKS: when the client is NOT iTech Valet, the safe fallback for color
+  // properties (H1, H2, TOC header background, body text) is plain black (#000000) — iTV's signature
+  // blue (#063a6c) was a brand-leaking default for every other client. The `brand` object centralizes
+  // every fallback so the 4.3B-extracted value takes precedence and we never accidentally tint a
+  // partner client's output with iTV blue when their 4.3B is silent on a given field.
   function buildStylesheetFrom43B(doc43B){
     const s = String(doc43B || '');
     const get = (pattern, fallback='') => { const m = s.match(pattern); return m ? m[1].trim() : fallback; };
@@ -5872,16 +5930,33 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     // "Navy", "white") so a 4.3B that specifies branding in plain English still resolves
     // correctly. Browsers safely fall back if the captured word isn't a real CSS color name.
     const COLOR = '(#[0-9a-fA-F]{3,6}|[A-Za-z]+)';
-    const h1Color   = get(new RegExp(`H1:\\s*${COLOR}`, 'i'), '#063a6c');
-    const h2Color   = get(new RegExp(`H2:\\s*${COLOR}`, 'i'), '#2494e0');
-    const h3Color   = get(new RegExp(`H3:\\s*${COLOR}`, 'i'), '#dd6b00');
-    const bodyColor = get(new RegExp(`Body text:\\s*${COLOR}`, 'i'), '#063a6c');
-    const linkColor = get(new RegExp(`All links:\\s*${COLOR}`, 'i'), '#2494e0');
-    const daBackground = get(new RegExp(`Direct Answer box background:\\s*${COLOR}`, 'i'), '#063a6c');
-    const daText    = get(new RegExp(`Direct Answer box.*?text:\\s*${COLOR}`, 'i'), '#ffffff');
-    const luColor   = get(new RegExp(`Last Updated text:\\s*${COLOR}`, 'i'), '#dd6b00');
-    const tocBg     = get(new RegExp(`(?:ToC|Table of Contents).*?[Hh]eader background:\\s*${COLOR}`, 'i'), '#063a6c');
-    const tableBorder = get(/(?:Table.*?[Bb]order|[Bb]order):\s*(#[0-9a-fA-F]{3,6})/im, '#063a6c');
+    const isITV = /itech\s*valet/i.test(String((S.client && S.client.name) || ''));
+    const brand = {
+      h1:        isITV ? '#063a6c' : '#000000',
+      h2:        isITV ? '#2494e0' : '#000000',
+      h3:        isITV ? '#dd6b00' : '#000000',
+      body:      isITV ? '#063a6c' : '#000000',
+      link:      isITV ? '#2494e0' : '#000000',
+      daBg:      isITV ? '#063a6c' : '#000000',
+      daText:    '#ffffff',                       // white-on-dark is brand-agnostic (DA box reads as a callout)
+      lu:        isITV ? '#dd6b00' : '#000000',
+      tocBg:     isITV ? '#063a6c' : '#000000',
+      tableBorder: isITV ? '#063a6c' : '#000000'
+    };
+    const h1Color   = get(new RegExp(`H1:\\s*${COLOR}`, 'i'), brand.h1);
+    const h2Color   = get(new RegExp(`H2:\\s*${COLOR}`, 'i'), brand.h2);
+    const h3Color   = get(new RegExp(`H3:\\s*${COLOR}`, 'i'), brand.h3);
+    const bodyColor = get(new RegExp(`Body text:\\s*${COLOR}`, 'i'), brand.body);
+    const linkColor = get(new RegExp(`All links:\\s*${COLOR}`, 'i'), brand.link);
+    const daBackground = get(new RegExp(`Direct Answer box background:\\s*${COLOR}`, 'i'), brand.daBg);
+    const daText    = get(new RegExp(`Direct Answer box.*?text:\\s*${COLOR}`, 'i'), brand.daText);
+    const luColor   = get(new RegExp(`Last Updated text:\\s*${COLOR}`, 'i'), brand.lu);
+    // TOC HEADER background: 4.3B may declare it under "ToC Header background:" OR fall back to a
+    // top-level "Primary Brand Color:" field. Either keyword resolves to the same dynamic variable;
+    // browsers ignore an unknown captured value (cascade falls through to the brand-aware default).
+    const tocBg     = get(new RegExp(`(?:ToC|Table of Contents).*?[Hh]eader background:\\s*${COLOR}`, 'i'),
+                       get(new RegExp(`Primary Brand Color:\\s*${COLOR}`, 'i'), brand.tocBg));
+    const tableBorder = get(/(?:Table.*?[Bb]order|[Bb]order):\s*(#[0-9a-fA-F]{3,6})/im, brand.tableBorder);
     const hFontMatch = s.match(/(?:Headings?\s*\([^)]*\)|H1,?\s*H2)\s*:\s*([A-Za-z][A-Za-z\s]+?)(?:\s*\||\s*weight|\s*[\r\n])/i);
     const hFont = hFontMatch ? hFontMatch[1].trim() : 'Bebas Neue';
     const bFontMatch = s.match(/Body[^\r\n]*:\s*([A-Za-z][A-Za-z\s]+?)(?:\s*\||\s*weight|\s*[\r\n])/i);
@@ -5905,17 +5980,17 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     return `<style>
 ${fontImport}
 h1, h2, h3 { font-family: '${hFont}', sans-serif; font-weight: ${hWeight}; text-transform: ${hTransform}; line-height: 1; }
-h1 { font-size: ${h1Size}; color: ${h1Color}; text-align: center; padding-top: 40px; margin-bottom: 40px; }
-h2 { font-size: ${h2Size}; color: ${h2Color}; margin-top: 80px; margin-bottom: 20px; }
-h3 { font-size: ${h3Size}; color: ${h3Color}; margin-top: 40px; margin-bottom: 20px; }
-body, p, li, td, th, .article-wrap { font-family: '${bFont}', sans-serif; font-weight: ${bWeight}; color: ${bodyColor}; font-size: ${bodySize}; line-height: 1.5; }
+h1 { font-size: ${h1Size}; color: ${h1Color} !important; text-align: center; padding-top: 40px; margin-bottom: 40px; }
+h2 { font-size: ${h2Size}; color: ${h2Color} !important; margin-top: 80px; margin-bottom: 20px; }
+h3 { font-size: ${h3Size}; color: ${h3Color} !important; margin-top: 40px; margin-bottom: 20px; }
+body, p, li, td, th, .article-wrap { font-family: '${bFont}', sans-serif; font-weight: ${bWeight}; color: ${bodyColor} !important; font-size: ${bodySize}; line-height: 1.5; }
 p { margin-bottom: 20px; }
 .punch { font-weight: 500; }
-a { color: ${linkColor}; text-decoration: none; }
+a { color: ${linkColor} !important; text-decoration: none; }
 a:hover { text-decoration: underline; }
 .article-wrap img { width: 100%; height: auto; border-radius: 15px; box-shadow: 3px 2px 5px #3d3d3d; margin-bottom: 20px; }
-.direct-answer { background: ${daBackground}; color: ${daText}; padding: ${daPadDesk}; border-radius: ${daRadius}; margin-bottom: 24px; line-height: 1.5; }
-.direct-answer p, .direct-answer li, .direct-answer a { color: ${daText}; }
+.direct-answer { background: ${daBackground} !important; color: ${daText} !important; padding: ${daPadDesk}; border-radius: ${daRadius}; margin-bottom: 24px; line-height: 1.5; }
+.direct-answer p, .direct-answer li, .direct-answer a { color: ${daText} !important; }
 /* NUCLEAR DA HOVER — !important so no global :hover (in this stylesheet OR an iframe
    hoverStyle overlay) can change DA contrast. Now uses the DYNAMIC ${daBackground} +
    ${daText} variables from 4.3B (single-word color names like "Black" supported), so the
@@ -5924,12 +5999,12 @@ a:hover { text-decoration: underline; }
    regardless of inheritance quirks. */
 .direct-answer:hover { background-color: ${daBackground} !important; color: ${daText} !important; }
 .direct-answer:hover p, .direct-answer:hover li, .direct-answer:hover a { color: ${daText} !important; }
-.last-updated { color: ${luColor}; font-style: italic; text-align: center; margin-bottom: 100px !important; }
+.last-updated { color: ${luColor} !important; font-style: italic; text-align: center; margin-bottom: 100px !important; }
 .last-updated + .author-byline { margin-top: 8px; }
 .last-updated:has(+ .author-byline) { margin-bottom: 0 !important; }
-.author-byline { color: ${luColor}; font-style: italic; text-align: center; margin-bottom: 100px !important; }
+.author-byline { color: ${luColor} !important; font-style: italic; text-align: center; margin-bottom: 100px !important; }
 .toc { background: #f5f8fb; padding: 0; border-radius: 6px; margin-bottom: 80px; overflow: hidden; }
-.toc-header { background: ${tocBg}; color: white; padding: 16px 36px; font-family: '${hFont}', sans-serif; font-size: 28px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; margin: 0; }
+.toc-header { background: ${tocBg} !important; color: white !important; padding: 16px 36px; font-family: '${hFont}', sans-serif; font-size: 28px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; margin: 0; }
 .toc-toggle { font-size: 24px; font-weight: bold; }
 .toc-body { padding: 28px 36px; display: block; }
 .toc-body.collapsed { display: none; }
@@ -5937,12 +6012,12 @@ a:hover { text-decoration: underline; }
 .toc ul li { margin-bottom: 12px; }
 .toc ul ul { margin-top: 8px; margin-left: 20px; }
 .toc ul ul li { font-size: 20px; margin-bottom: 4px; }
-.toc a { color: ${linkColor}; text-decoration: none; }
+.toc a { color: ${linkColor} !important; text-decoration: none; }
 .toc a:hover { text-decoration: underline; }
 .h3-link { font-size: 20px; }
-table, .article-table { width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 20px; font-family: '${bFont}', sans-serif !important; font-size: ${bodySize}; background: #ffffff; border: 1px solid ${tableBorder}; overflow-x: auto; display: block; -webkit-overflow-scrolling: touch; }
-table thead { color: ${bodyColor}; font-weight: 700; }
-table th, table td { padding: 12px 16px; border: 1px solid ${tableBorder}; text-align: left; }
+table, .article-table { width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 20px; font-family: '${bFont}', sans-serif !important; font-size: ${bodySize}; background: #ffffff; border: 1px solid ${tableBorder} !important; overflow-x: auto; display: block; -webkit-overflow-scrolling: touch; }
+table thead { color: ${bodyColor} !important; font-weight: 700; }
+table th, table td { padding: 12px 16px; border: 1px solid ${tableBorder} !important; text-align: left; }
 table td { background: #ffffff; }
 .article-wrap { padding-bottom: 100px; }
 .article-cta { margin-top: 60px; padding: 0; background: none; }
@@ -6245,11 +6320,16 @@ table td { background: #ffffff; }
     // so hovering produces NO background change at all. The outline + outline-offset from
     // the general rule still fire (the click affordance), but the DA's dark background +
     // white text stay 100% intact on hover. No further contrast variability is possible.
-    // Re-derive daBackground here from S.docs.doc43B with the same regex + default
-    // buildStylesheetFrom43B uses (daBackground itself is scoped private to that function).
+    // Re-derive daBackground here from S.docs.doc43B with the same regex + IDENTITY-AWARE
+    // fallback buildStylesheetFrom43B uses (daBackground itself is scoped private to that
+    // function). The fallback flips to plain black (#000000) when the active client is NOT
+    // iTech Valet — keeps the iframe hover overlay aligned with the canonical stylesheet's
+    // own identity-aware defaults so a partner client's DA can't be tinted iTV blue.
     const _daBgForHover = (() => {
-      const m = String(S.docs.doc43B || '').match(/Direct Answer box background:\s*(#[0-9a-fA-F]{3,6})/i);
-      return (m && m[1].trim()) || '#063a6c';
+      const m = String(S.docs.doc43B || '').match(/Direct Answer box background:\s*(#[0-9a-fA-F]{3,6}|[A-Za-z]+)/i);
+      if(m) return m[1].trim();
+      const _isITV = /itech\s*valet/i.test(String((S.client && S.client.name) || ''));
+      return _isITV ? '#063a6c' : '#000000';
     })();
     const hoverStyle = `<style>[data-node-id]{cursor:pointer;}[data-node-id]:hover{outline:2px dashed #2494e0;outline-offset:3px;background:rgba(36,148,224,.08);}.direct-answer[data-node-id]:hover,.direct-answer [data-node-id]:hover{background:${_daBgForHover};}</style>`;
     const clickScript = `<scr`+`ipt>document.addEventListener("click",function(e){var el=e.target&&e.target.closest&&e.target.closest("[data-node-id]");if(el){e.preventDefault();e.stopPropagation();try{window.parent.postMessage({__p7ctx:true,nodeId:el.getAttribute("data-node-id"),text:(el.textContent||"")},"*");}catch(_){}}},true);<\/scr`+`ipt>`;
