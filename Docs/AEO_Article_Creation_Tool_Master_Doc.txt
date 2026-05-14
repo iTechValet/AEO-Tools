@@ -2647,6 +2647,69 @@ Confirmed costs: ~$1.33-1.58 per article + ~$0.05-0.10 VCI.
 
 CHANGE LOG
 ----------
+May 14, 2026 (Claude Code build session — 4.2 NLM tab targeting): PHASE 1 FETCHES AEO_INVENTORY TAB EXPLICITLY. Commit 134ae72 — 39 insertions, 4 deletions.
+
+  The 4.2 NLM spreadsheet now contains multiple tabs per client
+  (working notes, admin views, inventory). The tool must read from
+  the explicit AEO_Inventory tab so the inventory rows stay
+  separate from non-inventory tabs in the same file.
+
+  Architecture note. The existing code wasn't using gapi.client
+  .sheets — it was using the Drive API CSV-export endpoint
+  (drive/v3/files/{id}/export?mimeType=text/csv), which only ever
+  exports the FIRST tab and accepts no `range` parameter. To
+  target a specific tab by name, fetchSheet was switched to the
+  Sheets API values.get endpoint:
+    https://sheets.googleapis.com/v4/spreadsheets/{id}/values/{range}
+  The range parameter accepts A1-notation with tab prefix:
+    AEO_Inventory!A:Z
+  Tab name + range are HARDCODED at the top of fetchSheet so the
+  call-site signature (`fetchSheet(id, key)`) is unchanged. Single
+  call site at line 4734 needed no edits.
+
+  Sheets API returns JSON `{ range, values: [[row1cells], ...] }`
+  rather than raw CSV text. To preserve the existing downstream
+  parsing (parseCSV + findRow), fetchSheet converts the values
+  array back into CSV text before returning — RFC 4180 quoting:
+  any cell containing a comma, quote, or newline is wrapped in
+  double quotes; embedded quotes are doubled. The conversion is
+  roundtrip-tested with 12 cases covering simple rows, rows with
+  commas inside cells, embedded quotes, em-dashes, and smart-
+  quote normalization — all pass.
+
+  AUTHENTICATION unchanged. The Sheets API accepts the same
+  `x-goog-api-key` header the Drive API was using (single Google
+  Cloud API key covers both endpoints when both APIs are enabled
+  on the project). No new credential needed; no Client Manager
+  config change required.
+
+  OPERATOR-FACING LOGS (per spec):
+    • Function entry: "Phase 1 — Accessing 4.2 NLM tab:
+      [AEO_Inventory] (range AEO_Inventory!A:Z)…"
+    • Load success: "Phase 1 — 4.2 NLM tab [AEO_Inventory]
+      loaded: N row(s), M column(s)."
+    • Post-fetch confirmation at line 4781 updated to:
+      "Docs loaded — ..., 4.2 NLM row matched in
+       [AEO_Inventory] tab."
+
+  ACTIONABLE ERROR MESSAGE. If the Sheets API returns 400 with
+  "Unable to parse range" (which fires when the named tab
+  doesn't exist), fetchSheet throws a clear operator-facing
+  error: "4.2 sheet '{id}' has no 'AEO_Inventory' tab — add a
+  tab named exactly 'AEO_Inventory' (case-sensitive) containing
+  the AEO inventory rows. Sheets API error: {msg}". So a
+  migration miss surfaces as a one-line fix instruction, not a
+  generic HTTP failure.
+
+  VERIFICATION. Inline <script> parses clean via Node Function
+  (1/1 PASS). 12-case smoke test on the Sheets-API → CSV →
+  parseCSV → findRow pipeline passes: header parses correctly,
+  simple topic match works, edge cases with commas + embedded
+  quotes + em-dashes parse cleanly, smart-quote normalization
+  preserves matching, miss returns null, and the CSV quote-
+  escaping roundtrip is reversible.
+
+
 May 14, 2026 (Claude Code build session — multi-client polish pass): IDENTITY-AWARE BRANDING + UI RELOCATION + AUTO-COLLAPSE + PROMPT-LEVEL CLUSTER FILTER. Commit c8313fe — 120 insertions, 40 deletions.
 
   (1) IDENTITY-AWARE BRANDING FALLBACKS. buildStylesheetFrom43B
