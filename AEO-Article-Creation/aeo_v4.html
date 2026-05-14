@@ -7,8 +7,18 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600&display=swap');
   :root {
-    --blue: #063a6c; --accent: #2494e0; --orange: #dd6b00;
-    --green: #4caf50; --red: #c0392b; --bg: #ffffff; --surface: #f9f9f9;
+    /* PROFESSIONAL RUN LOG PALETTE (semantic roles, not brand expression):
+       --blue   = Deep Navy — primary operator-UI text + buttons that should read as "core action"
+       --indigo = Purple/Indigo — infrastructure / Phase milestones in the run log
+       --amber  = High-contrast Gold — warnings + QC notes (replaces the previous orange/yellow that
+                  read too close to red and was hard to scan in the run log)
+       --green  = Emerald — success (forward-progress signals, validated states)
+       --red    = Crimson — errors + manual stops (use ONLY for critical/abort, never warnings)
+       --accent + --orange retained for legacy UI elements (badges, brand chrome) so this change
+       doesn't ripple into the brand-expression layer in the rendered article. */
+    --blue: #2c3e50; --accent: #2494e0; --orange: #dd6b00;
+    --indigo: #667eea; --amber: #d48806;
+    --green: #27ae60; --red: #c0392b; --bg: #ffffff; --surface: #f9f9f9;
     --border: #e0e0e0; --muted: #888; --faint: #aaa;
   }
   * { box-sizing: border-box; }
@@ -126,9 +136,16 @@
 
   .runlog { font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.6; }
   .runlog .line { padding:3px 6px; border-bottom:1px solid #eef0f3; }
-  .runlog .line.info { color:var(--blue); }
+  /* Log-level color semantics:
+     .info  = infrastructure / Phase milestones / Docs Loaded   → indigo
+     .ok    = success / forward-progress                         → emerald green
+     .warn  = QC warnings / retries / inline-validation rejects  → amber gold
+     .err   = critical errors / operator aborts                  → crimson red (reserved)
+     Existing call sites that pass 'info' / 'ok' / 'warn' / 'err' to log() now resolve
+     to the new palette automatically — no per-call-site change needed. */
+  .runlog .line.info { color:var(--indigo); }
   .runlog .line.ok { color:var(--green); }
-  .runlog .line.warn { color:var(--orange); }
+  .runlog .line.warn { color:var(--amber); }
   .runlog .line.err { color:var(--red); font-weight:500; }
   .runlog .ts { color:var(--faint); margin-right:8px; }
 
@@ -868,6 +885,31 @@
   let yellowWarnings = [];    // rolling, persisted to localStorage, capped at 10
   let running = false;
   let pipelineHalted = false; // set true by escalateRed — stops the orchestrator
+  // NUCLEAR STOP — single global AbortController whose signal is forwarded into EVERY in-flight
+  // Claude / Gemini / Drive / Sheets fetch and checked at the top of every Phase 2 + Phase 5
+  // section-loop iteration. stopPipeline() calls .abort() on it; that kills network requests
+  // instantly AND prevents any further section from starting. Reset to a fresh AbortController
+  // at the start of every run.
+  let currentAbortController = new AbortController();
+  // Compose 1+ AbortSignals into a single signal that aborts when ANY input signal aborts.
+  // Used by fetchWithRetry to combine an optional per-call signal (timeout / per-controller)
+  // with currentAbortController.signal so a STOP kills the in-flight fetch alongside any
+  // per-call timeout. Uses native AbortSignal.any when available; polyfills otherwise.
+  function combineAbortSignals(){
+    const signals = Array.prototype.slice.call(arguments).filter(Boolean);
+    if(signals.length === 0) return undefined;
+    if(signals.length === 1) return signals[0];
+    if(typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function'){
+      try { return AbortSignal.any(signals); } catch(_){ /* fall through to polyfill */ }
+    }
+    const ctrl = new AbortController();
+    const onAbort = sig => () => { try { ctrl.abort(sig.reason); } catch(_){} };
+    for(const s of signals){
+      if(s.aborted){ try { ctrl.abort(s.reason); } catch(_){} return ctrl.signal; }
+      s.addEventListener('abort', onAbort(s), { once: true });
+    }
+    return ctrl.signal;
+  }
   let timerStart=0, timerInterval=null;
   // ── M3.5 image-queue control ──
   let imagesValidated = false;       // VA has pasted + validated every image URL
@@ -2177,6 +2219,13 @@ CRITICAL: Write the persuasive hook prose ONLY. DO NOT write a markdown link or 
     // (Per Change 2 spec: any section that fails the 2-retry Save State cap RED-escalates immediately
     //  via escalateRed and returns; no per-relay aggregation of failed sections.)
     for(let i = 0; i < total; i++){
+      // NUCLEAR STOP — before starting ANY section's hydration, check the global abort signal.
+      // A STOP that fires mid-section will also tear down in-flight fetches (via combineAbortSignals)
+      // — this check ensures the LOOP itself exits cleanly without starting the next section.
+      if(currentAbortController.signal.aborted){
+        log(`Phase 2 — hydration relay aborted by operator at block ${i+1}/${total} (no further sections will start).`, 'err');
+        return hydratedFrame;
+      }
       const job = queue[i];
       const reqIds = job.requiredIds || [];
       const reqSet = new Set(reqIds.map(String));
@@ -2928,6 +2977,12 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
   async function fetchWithRetry(url, opts, label){
     let lastErr = null;
     for(let attempt = 0; attempt <= BACKOFF_MS.length; attempt++){
+      // NUCLEAR STOP — bail before EVERY attempt if the operator hit STOP.
+      if(currentAbortController.signal.aborted){
+        const e = new Error(`OPERATOR ABORT: ${label} request cancelled before send.`);
+        e.name = 'AbortError';
+        throw e;
+      }
       if(attempt > 0){
         const wait = BACKOFF_MS[attempt - 1];
         warnYellow('F4', `${label} unavailable (attempt ${attempt}/${BACKOFF_MS.length + 1}) — retrying in ${wait/1000}s. ${lastErr ? '('+lastErr+')' : ''}`);
@@ -2935,7 +2990,11 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
         await sleep(wait);
       }
       try {
-        const r = await fetch(url, opts);
+        // Combine the caller's signal (if any) with the global STOP signal so an in-flight
+        // fetch dies instantly when stopPipeline() fires — and the caller's per-call timeout
+        // / per-controller abort still works alongside it.
+        const composedSignal = combineAbortSignals((opts && opts.signal) || null, currentAbortController.signal);
+        const r = await fetch(url, Object.assign({}, opts || {}, composedSignal ? { signal: composedSignal } : {}));
         if(r.status >= 500 && r.status <= 599){ lastErr = `HTTP ${r.status}`; if(attempt < BACKOFF_MS.length) continue; const t = await r.text().catch(()=>'(unreadable)'); const e = new Error(`F4: ${label} returned HTTP ${r.status} after ${BACKOFF_MS.length + 1} attempts. ${t.slice(0,200)}`); e.f4 = true; e.label = label; throw e; }
         return r; // success or 4xx — caller decides
       } catch(err){
@@ -4132,6 +4191,11 @@ CRITICAL: Call the revoice_content_block tool and return a "nodes" array contain
     const instrBlock = buildPhase5InstrBlock(intentLayer, exemplarText); // uncached: voice rules + AI-tells + intent + exemplars + tone-anchor rule
     let rollingV2Draft = '', voiceArchitecture = null, allValid = [], failedBlocks = 0, droppedTotal = 0;
     for(let i = 0; i < total; i++){
+      // NUCLEAR STOP — bail before starting any new voice block when the operator pressed STOP.
+      if(currentAbortController.signal.aborted){
+        log(`Phase 5 — voice relay aborted by operator at block ${i+1}/${total} (no further blocks will be re-voiced).`, 'err');
+        break;
+      }
       const job = queue[i];
       const reqIds = job.requiredIds || [];
       const reqSet = new Set(reqIds.map(String));
@@ -4732,6 +4796,8 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     clearYellowWarnings();   // YELLOW warnings reset at the start of every run (RED behavior unchanged)
     clearRunEscalations();   // clears this run's RED list + re-renders the panel (now empty of both)
     pipelineHalted = false;
+    // NUCLEAR STOP — fresh AbortController per run so a prior abort can't poison this run's fetches.
+    currentAbortController = new AbortController();
     ['1','2','3','4','5','6','7'].forEach(n => { setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
     document.getElementById('o3').textContent=''; document.getElementById('o4').textContent='';
     { const e=document.getElementById('metaPre'); if(e) e.textContent='Metadata appears here after the Phase 2 frame, and is refreshed after Phases 5 & 6.'; }
@@ -5359,19 +5425,35 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     }
   }
 
+  // NUCLEAR STOP — operator pressed the ⬛ Stop button. Hard-abort everything in-flight:
+  //   1. currentAbortController.abort() fires the global signal that's woven into every
+  //      Claude / Gemini / Drive / Sheets fetch via fetchWithRetry's combineAbortSignals
+  //      composition — any in-flight network request dies instantly.
+  //   2. The per-call legacy abort hooks (_activeClaudeAbort, _activeImgAbort) are also
+  //      called for belt-and-suspenders coverage of the watchdog/timeout paths.
+  //   3. flushQueue() clears the image generation queue (stops the background gen loop +
+  //      wipes pasted URLs + resets the panel) so no orphaned image work continues.
+  //   4. pipelineHalted = true so the orchestrator's pipelineHalted guards short-circuit
+  //      every subsequent phase. running = false so the run state flag is consistent.
+  //   5. Resolve any parked Phase 7 prerequisite / 7B finalize hard-stops so the run can
+  //      unwind cleanly rather than leak a never-resolved Promise.
+  //   6. Force a RED final log line so the operator sees an unambiguous abort confirmation.
   function stopPipeline(){
-    log('Stop requested — aborting the in-flight Claude call.', 'warn');
+    try { currentAbortController.abort(new Error('OPERATOR ABORT — Stop button pressed.')); } catch(_){}
     if(_activeClaudeAbort){ try { _activeClaudeAbort.abort(new Error('Stopped by operator.')); } catch(_){} }
     if(_activeImgAbort){ try { _activeImgAbort.abort(new Error('Stopped by operator.')); } catch(_){} _activeImgAbort = null; }
+    pipelineHalted = true;
     running = false;
-    // if the pipeline is parked on the Phase 7 prerequisite hard stop or the 7B operator-QC checkpoint, release it so the run can unwind cleanly
+    try { if(S.imageAttemptId) flushQueue(S.imageAttemptId); } catch(_){}
+    // Release any parked Promises so the orchestrator can unwind cleanly.
     if(_phase6Resolve){ const r = _phase6Resolve; _phase6Resolve = null; r(); }
     if(_phase7FinalizeResolve){ const r = _phase7FinalizeResolve; _phase7FinalizeResolve = null; r(); }
-    setG('Stop requested — call aborted.', false, true);
+    setG('🛑 OPERATOR ABORT — execution terminated.', false, true);
     stopTimer();
     document.getElementById('runBtn').disabled = false;
     if(S.research && S.docs.doc43A) setCacheBtnsDisabled(false);
     document.getElementById('stopBtn').style.display = 'none';
+    log('🛑 OPERATOR ABORT: Execution terminated. System reset.', 'err');
   }
 
   // ─── STRUCTURE ACCESSORS (array-safe — never assume Claude gave us real arrays) ──
@@ -5592,10 +5674,13 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       _activeImgAbort = controller;
       const timeoutId = setTimeout(()=>controller.abort(new Error('Image generation timed out')), ATTEMPT_TIMEOUTS[a]);
       try {
+        // Compose the per-attempt timeout signal with the global STOP signal so a STOP kills
+        // an in-flight image fetch alongside any timeout. (genOneImage doesn't go through
+        // fetchWithRetry — direct fetch — so the composition lives here.)
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMG_MODEL}:generateContent?key=${gkey}`, {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{ responseModalities:['Text','Image'] } }),
-          signal: controller.signal
+          signal: combineAbortSignals(controller.signal, currentAbortController.signal)
         });
         clearTimeout(timeoutId); _activeImgAbort = null;
         if(attemptId !== S.imageAttemptId) return;
