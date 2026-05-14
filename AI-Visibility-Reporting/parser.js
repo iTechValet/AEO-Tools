@@ -25,6 +25,15 @@
  *   orchestrator's responsibility (runner.js), not this module's — this
  *   module simply tags each call.
  *
+ *   Citations override: parseResponse accepts an optional third argument
+ *   `citations` (string[]). Perplexity returns its sources in a top-level
+ *   `citations` array on the response object, separate from the prose, so
+ *   the runner captures that array and forwards it here. When citations is
+ *   non-empty, it REPLACES whatever cited_urls the Haiku or heuristic path
+ *   produced — the platform's own citations are authoritative. When citations
+ *   is empty or omitted (every non-Perplexity run), the parser falls back
+ *   to URLs the Haiku call extracted from the prose. Wired in Session 3.
+ *
  * WHAT CALLS THIS FILE:
  *   - runner.js  (one call per platform run, immediately after the raw
  *                 response returns from ChatGPT / Gemini / Perplexity / Grok).
@@ -193,14 +202,33 @@ function heuristicParse(rawResponse, clientConfig) {
   return fields;
 }
 
-async function parseResponse(rawResponse, clientConfig) {
+/**
+ * parseResponse(rawResponse, clientConfig, citations?)
+ *
+ *   citations — optional array of URL strings supplied directly by the
+ *   platform (Perplexity returns a top-level `citations` array on the
+ *   response object, separate from the prose). When provided and non-empty,
+ *   it OVERRIDES whatever cited_urls the Haiku or heuristic path produced,
+ *   because the platform's own citations are authoritative. When omitted or
+ *   empty, the parser falls back to whatever URLs were extracted from the
+ *   prose (Haiku) or to the safe default [] (heuristic). Wired in Session 3.
+ */
+async function parseResponse(rawResponse, clientConfig, citations) {
+  let fields;
+  let status;
   try {
-    const llmFields = await callHaiku(rawResponse, clientConfig);
-    return { ...normalizeFields(llmFields), parser_status: 'llm' };
+    fields = normalizeFields(await callHaiku(rawResponse, clientConfig));
+    status = 'llm';
   } catch (err) {
     console.error(`[parser] Haiku failed, using heuristic fallback: ${err.message}`);
-    return { ...heuristicParse(rawResponse, clientConfig), parser_status: 'heuristic' };
+    fields = heuristicParse(rawResponse, clientConfig);
+    status = 'heuristic';
   }
+  const platformCitations = normalizeStringArray(citations);
+  if (platformCitations.length > 0) {
+    fields.cited_urls = platformCitations;
+  }
+  return { ...fields, parser_status: status };
 }
 
 module.exports = { parseResponse, heuristicParse, normalizeFields };

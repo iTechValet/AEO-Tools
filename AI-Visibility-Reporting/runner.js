@@ -51,11 +51,14 @@
  *   - OpenAI, Gemini, Perplexity (sonar), xAI Grok APIs — direct calls
  *     here, serially, with the 5-attempt exponential-backoff retry loop.
  *
- * STATUS: Implemented in Session 2 — orchestrator end-to-end; downstream
- *   modules (sheet-reader, sheet-writer, github-archiver, narrative-engine,
- *   pdf-builder, drive-writer, score-engine) are still scaffolds and their
- *   calls here are wrapped in try/catch so the pipeline degrades gracefully
- *   while those modules are built in later Phase 1 sessions.
+ * STATUS: Updated in Session 3. score-engine, sheet-reader, sheet-writer,
+ *   and github-archiver are now wired through with real signatures. The
+ *   remaining downstream calls (narrative-engine, pdf-builder, drive-writer)
+ *   are still scaffolds and stay wrapped in try/catch so the pipeline keeps
+ *   running while those modules are built in later Phase 1 sessions.
+ *   Session 3 also: Perplexity's `citations` array is now captured by the
+ *   platform call and forwarded to parser.parseResponse(...), where it
+ *   overrides cited_urls when present.
  */
 
 'use strict';
@@ -163,6 +166,19 @@ async function withTimeout(fn, ms) {
   finally { clearTimeout(t); }
 }
 
+function extractCitationsArray(data) {
+  // Perplexity (sonar) returns citations as a top-level array of URL strings
+  // separate from the message content. Defensive: accept either the
+  // top-level field or one nested under choices[0] (some sonar variants).
+  const fromTop = Array.isArray(data && data.citations) ? data.citations : null;
+  if (fromTop) return fromTop.filter(u => typeof u === 'string' && u.length > 0);
+  const fromChoice = data && data.choices && data.choices[0] && Array.isArray(data.choices[0].citations)
+    ? data.choices[0].citations
+    : null;
+  if (fromChoice) return fromChoice.filter(u => typeof u === 'string' && u.length > 0);
+  return [];
+}
+
 async function callPlatform(platformId, prompt, timeoutMs) {
   const platform = config.platforms[platformId];
   if (!platform) throw new Error(`Unknown platform: ${platformId}`);
@@ -188,7 +204,7 @@ async function callPlatform(platformId, prompt, timeoutMs) {
         data.candidates[0].content && data.candidates[0].content.parts &&
         data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text;
       if (!text) throw new Error('gemini returned empty response');
-      return text;
+      return { text, citations: [] };
     }
 
     // openai-compatible (OpenAI, Perplexity sonar, xAI Grok)
@@ -213,7 +229,11 @@ async function callPlatform(platformId, prompt, timeoutMs) {
       data && data.choices && data.choices[0] && data.choices[0].message &&
       data.choices[0].message.content;
     if (!text) throw new Error(`${platformId} returned empty response`);
-    return text;
+    // Perplexity is the only platform that ships a top-level citations array
+    // today; for openai/grok this returns [] and parser.js falls back to URL
+    // extraction from the prose.
+    const citations = platformId === 'perplexity' ? extractCitationsArray(data) : [];
+    return { text, citations };
   }, timeoutMs);
 }
 
@@ -223,9 +243,10 @@ async function callWithRetry(runId, platformId, prompt) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const t0 = Date.now();
     try {
-      const text = await callPlatform(platformId, prompt, config.timeoutMs);
-      log(`  ✓ ${runId} ${platformId} attempt ${attempt}/${maxAttempts} succeeded in ${Date.now() - t0}ms (${text.length} chars)`);
-      return text;
+      const result = await callPlatform(platformId, prompt, config.timeoutMs);
+      const citationsLog = result.citations.length > 0 ? `, ${result.citations.length} citations` : '';
+      log(`  ✓ ${runId} ${platformId} attempt ${attempt}/${maxAttempts} succeeded in ${Date.now() - t0}ms (${result.text.length} chars${citationsLog})`);
+      return result;
     } catch (err) {
       lastErr = err;
       log(`  ✗ ${runId} ${platformId} attempt ${attempt}/${maxAttempts} failed: ${err.message}`);
@@ -317,15 +338,15 @@ async function main() {
 
   // Step 1: read prior Sheet history
   log('Step 1/8: Reading prior AI_Visibility_Summary history');
-  let history = { history: [], priorScore: null };
+  let priorScore = null;
+  let summaryHistory = [];
   try {
-    if (typeof sheetReader.readHistory === 'function') {
-      history = (await sheetReader.readHistory(clientConfig)) || history;
-    } else {
-      log('  sheet-reader.readHistory not implemented yet — using empty history');
-    }
+    const history = (await sheetReader.readSheetHistory(clientConfig)) || {};
+    priorScore = history.priorScore == null ? null : history.priorScore;
+    summaryHistory = Array.isArray(history.summaryHistory) ? history.summaryHistory : [];
+    log(`  history: ${summaryHistory.length} prior monthly rows; priorScore=${priorScore === null ? 'null' : priorScore}`);
   } catch (err) {
-    logErr('sheet-reader.readHistory', err);
+    logErr('sheet-reader.readSheetHistory', err);
   }
 
   // Step 2: 13 platform runs, serial
@@ -355,8 +376,11 @@ async function main() {
     }
 
     let rawResponse;
+    let citations = [];
     try {
-      rawResponse = await callWithRetry(runId, platform, prompt);
+      const result = await callWithRetry(runId, platform, prompt);
+      rawResponse = result.text;
+      citations = result.citations;
     } catch (err) {
       logErr(`Run ${runId} all attempts failed`, err);
       rows.push(placeholderRow(runId, platform, signal, ctx, 'n/a'));
@@ -366,12 +390,14 @@ async function main() {
 
     let parsed;
     try {
-      parsed = await parser.parseResponse(rawResponse, clientConfig);
+      parsed = await parser.parseResponse(rawResponse, clientConfig, citations);
     } catch (err) {
       logErr(`parser ${runId}`, err);
-      parsed = { ...parser.heuristicParse(rawResponse, clientConfig), parser_status: 'heuristic' };
+      const fallback = { ...parser.heuristicParse(rawResponse, clientConfig), parser_status: 'heuristic' };
+      if (citations.length > 0) fallback.cited_urls = citations;
+      parsed = fallback;
     }
-    log(`Run ${runId} parsed (parser_status=${parsed.parser_status})`);
+    log(`Run ${runId} parsed (parser_status=${parsed.parser_status}${citations.length > 0 ? `, citations:${citations.length}` : ''})`);
     rows.push(builtRow(runId, platform, signal, ctx, rawResponse, parsed));
     log(`Run ${runId} END (ok)`);
   }
@@ -381,55 +407,67 @@ async function main() {
   const heuristicWarning = heuristicCount >= 4;
   log(`Parser heuristic count: ${heuristicCount}/${rows.length}${heuristicWarning ? ' ⚠ THRESHOLD EXCEEDED' : ''}`);
 
-  // Step 3: score
+  // Step 3: score (pure JS — score-engine.js owns the formula)
   log('Step 3/8: Calculating AI Visibility Score');
-  let summary = {};
+  let scoreResult;
   try {
-    if (typeof scoreEngine.calculateScore === 'function') {
-      summary = scoreEngine.calculateScore(rows, history.priorScore, clientConfig) || {};
-    } else {
-      log('  score-engine.calculateScore not implemented yet — summary will be partial');
-    }
+    scoreResult = scoreEngine.calculateScore(rows, priorScore);
   } catch (err) {
     logErr('score-engine.calculateScore', err);
+    scoreResult = {
+      ai_visibility_score: null,
+      mention_rate: 0, recommendation_rate: 0, sentiment_score: 0,
+      score_delta: null, trend_direction: 'baseline',
+      benchmark: { low: '', high: '', label: '' },
+      insufficient_data: true,
+      platforms_available: 0,
+      heuristic_fallback_count: heuristicCount,
+      prior_score: priorScore
+    };
   }
-  summary.heuristic_fallback_count = heuristicCount;
-  summary.heuristic_warning = heuristicWarning;
-  summary.run_date = runDate;
-  summary.report_period = period;
-  summary.client_month = clientMonth;
+  log(`  score=${scoreResult.ai_visibility_score} trend=${scoreResult.trend_direction} delta=${scoreResult.score_delta} platforms_available=${scoreResult.platforms_available} heuristic=${scoreResult.heuristic_fallback_count}`);
 
-  // Step 4: sheet write
+  // Step 4: sheet write (Raw + Summary, by tab name, duplicate-month protected)
   log('Step 4/8: Writing Sheet rows (AI_Visibility_Raw + AI_Visibility_Summary)');
   try {
-    if (typeof sheetWriter.writeResults === 'function') {
-      await sheetWriter.writeResults(clientConfig, rows, summary);
-    } else {
-      log('  sheet-writer.writeResults not implemented yet — skipping');
+    const result = await sheetWriter.writeToSheet(
+      clientConfig, rows, scoreResult, period, runDate, clientMonth
+    );
+    if (result && result.skipped) {
+      log(`  sheet-writer skipped (${result.reason})`);
+    } else if (result) {
+      log(`  sheet-writer wrote ${result.rawAppended} Raw rows + ${result.summaryAppended} Summary row`);
     }
   } catch (err) {
-    logErr('sheet-writer.writeResults', err);
+    logErr('sheet-writer.writeToSheet', err);
   }
 
-  // Step 5: archive raw JSON
-  log('Step 5/8: Archiving raw JSON to /archive/[YYYY-MM]/[client_id]_raw.json');
+  // Step 5: archive raw JSON to /archive/[YYYY-MM]/[client_id]_raw.json
+  log('Step 5/8: Archiving raw JSON');
   try {
-    if (typeof archiver.archive === 'function') {
-      await archiver.archive(clientConfig, { runDate, reportPeriod: period, rows, summary });
-    } else {
-      log('  github-archiver.archive not implemented yet — skipping');
+    const archiveResult = await archiver.archiveRun(
+      clientConfig.client_id, period, rows, scoreResult
+    );
+    if (archiveResult && archiveResult.written) {
+      log(`  archive written: ${archiveResult.path} (${archiveResult.bytes} bytes)`);
+    } else if (archiveResult) {
+      log(`  archive skipped: ${archiveResult.reason}`);
     }
   } catch (err) {
-    logErr('github-archiver.archive', err);
+    logErr('github-archiver.archiveRun', err);
   }
 
-  // Step 6: narrative — Run 6 stripped (INTERNAL ONLY, never to Claude)
+  // Step 6: narrative — Run 6 stripped (INTERNAL ONLY, never to Claude).
+  // narrative-engine.js is still a scaffold; this call is wrapped in a
+  // typeof check so it no-ops gracefully until that module is built.
   log('Step 6/8: Generating Claude Sonnet narrative (Run 6 excluded)');
   const narrativeRows = rows.filter(r => r.run_id !== '6');
   let narrative = null;
   try {
     if (typeof narrativeEngine.generateNarrative === 'function') {
-      narrative = await narrativeEngine.generateNarrative(clientConfig, narrativeRows, summary, history.history);
+      narrative = await narrativeEngine.generateNarrative(
+        clientConfig, narrativeRows, scoreResult, summaryHistory
+      );
     } else {
       log('  narrative-engine.generateNarrative not implemented yet — skipping');
     }
@@ -437,12 +475,12 @@ async function main() {
     logErr('narrative-engine.generateNarrative', err);
   }
 
-  // Step 7: PDF
+  // Step 7: PDF — pdf-builder.js is still a scaffold.
   log('Step 7/8: Building PDF');
   let pdf = null;
   try {
     if (typeof pdfBuilder.buildPdf === 'function') {
-      pdf = await pdfBuilder.buildPdf(clientConfig, narrative, narrativeRows, summary);
+      pdf = await pdfBuilder.buildPdf(clientConfig, narrative, narrativeRows, scoreResult);
     } else {
       log('  pdf-builder.buildPdf not implemented yet — skipping');
     }
@@ -450,7 +488,7 @@ async function main() {
     logErr('pdf-builder.buildPdf', err);
   }
 
-  // Step 8: drive upload
+  // Step 8: drive upload — drive-writer.js is still a scaffold.
   log('Step 8/8: Uploading PDF to client Drive folder');
   let driveLink = null;
   try {

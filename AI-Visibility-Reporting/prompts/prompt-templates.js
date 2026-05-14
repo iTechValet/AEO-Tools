@@ -34,6 +34,7 @@
  *   Template variables (all sourced from clientConfig):
  *     {service}          {market_scope}      {primary_topic}
  *     {top_competitor}   {business_name}     {customer_term}
+ *     {authority_figure} {authority_title}   (used by Run 3 — added Session 3)
  *
  *   Public API (single function, named export):
  *     getPrompt(runId, clientConfig)  →  string
@@ -59,7 +60,11 @@ const TEMPLATES = {
   '2': 'Compare the authority and expertise of {top_competitor} vs. {business_name} {market_scope}. Who does AI trust more for {primary_topic}?',
 
   // Signal 2 — How are they being described?
-  '3': "Who is the recognized expert or authority figure behind {business_name}? They are a {service} {market_scope}. What is this person's personal reputation and professional standing?",
+  // Run 3 names the authority figure by name + title so the platform's response
+  // can be measured for whether it actually recognizes them; without pre-naming,
+  // most platforms guess or refuse and the authority_figure_named signal is
+  // useless. Fix applied in Session 3.
+  '3': "Who is {authority_figure}, the {authority_title} of {business_name}? They run a {service} {market_scope}. What is this person's personal reputation and professional standing for {primary_topic}?",
   '4A': 'What do people say about {business_name} as a {service}? What are the common reviews, complaints, and reasons people recommend or avoid them?',
   '4B': 'What do people say about {business_name} as a {service}? What are the common reviews, complaints, and reasons people recommend or avoid them?',
 
@@ -81,7 +86,9 @@ const REQUIRED_VARS = [
   'primary_topic',
   'top_competitor',
   'business_name',
-  'customer_term'
+  'customer_term',
+  'authority_figure',
+  'authority_title'
 ];
 
 function getPrompt(runId, clientConfig) {
