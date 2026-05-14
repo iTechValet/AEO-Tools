@@ -2647,6 +2647,122 @@ Confirmed costs: ~$1.33-1.58 per article + ~$0.05-0.10 VCI.
 
 CHANGE LOG
 ----------
+May 14, 2026 (Claude Code build session — multi-client polish pass): IDENTITY-AWARE BRANDING + UI RELOCATION + AUTO-COLLAPSE + PROMPT-LEVEL CLUSTER FILTER. Commit c8313fe — 120 insertions, 40 deletions.
+
+  (1) IDENTITY-AWARE BRANDING FALLBACKS. buildStylesheetFrom43B
+  was leaking iTV blue (#063a6c) as the default for every client
+  whose 4.3B was silent on a given color field (e.g., a partner
+  client whose 4.3B specifies H1 + body but omits "ToC header
+  background:" would get an iTV-blue ToC). Refactor centralizes
+  every fallback in a `brand` object whose values are gated on
+  whether `S.client.name` matches /itech\s*valet/i:
+    isITV  → keep the iTV palette (blue/orange/etc.)
+    !isITV → fall back to plain #000000 for H1, H2, H3, body
+             color, link color, DA background, last-updated,
+             TOC background, table border
+  daText stays #ffffff regardless — white-on-dark is the brand-
+  agnostic callout convention. The 4.3B-extracted value always
+  takes precedence over the fallback; the brand object only
+  controls what we emit when the regex doesn't match. iTV
+  clients get an exact-match-by-name carve-out so existing
+  behavior is preserved; everyone else gets safe black defaults.
+
+  (2) CSS SPECIFICITY (!IMPORTANT). Every color property emitted
+  by buildStylesheetFrom43B's template now carries the !important
+  flag: h1/h2/h3 color, body/p/li/td/th color, anchor color,
+  .direct-answer background + color (+ descendant overrides),
+  .last-updated color, .author-byline color, .toc-header
+  background + color (white !important), .toc a color, table
+  thead color, table border. The nuclear DA hover (commit 2676d1d)
+  was already !important; this commit extends the same posture
+  across the rest of the canonical stylesheet so a partner
+  client's WordPress theme can't override iTV-generated colors
+  via cascade specificity. Non-color rules (padding, margins,
+  layout) are NOT marked !important — only properties that
+  control brand expression.
+
+  (3) TOC HEADER — Primary Brand Color alias. The TOC background
+  regex previously only matched "ToC header background:" or
+  "Table of Contents header background:". 4.3B documents
+  authored before that convention often used a top-level
+  "Primary Brand Color: <value>" field instead. The new lookup
+  is a two-step fallback chain: try the explicit ToC header key
+  first; if no match, try "Primary Brand Color:"; if still no
+  match, fall back to brand.tocBg (iTV blue OR black depending
+  on client identity).
+
+  (4) IDENTITY-AWARE HOVER. _daBgForHover in assemblePhase7HTML
+  (the iframe-overlay-derived hover background for the DA box)
+  also updated to flip to #000000 when the active client is not
+  iTV. Same regex update (accepts hex OR color name); same
+  identity gate. The canonical stylesheet's nuclear DA hover
+  rule (which uses ${daBackground} !important) is the primary
+  enforcement — this iframe overlay is the belt-and-suspenders.
+
+  (5) UI RELOCATION — Phase 7 inputs above the grid. The image
+  panel's gate controls (Publish Date input + Validate Images +
+  ↓ All Images buttons) used to sit BELOW the .img-grid card
+  list, which meant the operator had to scroll past every image
+  card to find the Publish Date field. Both rows are now wrapped
+  in a new #p7Inputs container and placed ABOVE #imgGrid. The
+  operator sees gate controls first; the cards (the working
+  surface) are below.
+
+  (6) IMAGE PANEL — collapse toggle + auto-collapse on GREEN.
+  New chevron toggle (▾) added to .img-panel-head; clicking it
+  calls togglePhase7ImgPanel(), which toggles a .collapsed class
+  on #imagePanel. CSS hides #p7Inputs + #imgGrid when collapsed;
+  the chevron rotates -90° to indicate collapsed state. The
+  toggle accepts optional { collapse:true } / { expand:true }
+  arguments for programmatic control. validateImages() — which
+  fires the GREEN state when all URLs + Publish Date are
+  validated — now calls togglePhase7ImgPanel({ collapse: true })
+  immediately after marking imagesValidated = true. The operator
+  can re-expand the panel any time via the chevron; collapse is
+  cosmetic, not gating (the gate releases independently via
+  _phase6Resolve).
+
+  (7) PROMPT-LEVEL CLUSTER FILTER (Blinder, restored). The prior
+  commit (2676d1d) had REMOVED the prompt-level filter on
+  anchorTextTargets in favor of an "EXPLICIT CLUSTER LOCK"
+  paragraph — the theory being that S.validClusterUrls is
+  constructed FROM research.anchorTextTargets so the filter
+  would be a no-op. This commit re-introduces the filter
+  defensively: buildPhase2ContextBlock now serializes a
+  filtered copy of S.research where anchorTextTargets is
+  intersected with S.validClusterUrls (externals + entries
+  without a URL are preserved as-is). Today it remains
+  effectively a no-op for normal Phase 1 output — but it gives
+  operators a single chokepoint for future cluster curation
+  (manual overrides via the Phase 7B drawer, sheet-derived
+  denylists, etc.) that takes effect without editing per-phase
+  prompt code. New CRITICAL line added below the EXPLICIT
+  CLUSTER LOCK paragraph (verbatim per spec):
+    "CRITICAL: You are only permitted to use the following
+     internal links. Do not reference other service trunks or
+     pages."
+
+  (8) UNIVERSAL LINK SANITIZER (Phase 7A) — already in place.
+  Verified: enforceLinkGovernance (commit 2676d1d) handles
+  (a) universal dedup (Internal + External, first occurrence
+  wins, every later occurrence regex-stripped to anchor text)
+  AND (b) cluster protection (any internal URL not in
+  S.validClusterUrls — including any non-homepage URL outside
+  the matched 4.2 row — is stripped immediately). No code
+  change needed for this requirement.
+
+  VERIFICATION. Inline <script> parses clean via Node Function
+  (1/1 PASS). 16-case smoke test on the identity-aware fallback
+  + color-name regex passes: non-iTV defaults (4 cases),
+  iTV-match defaults (2 cases), case-insensitive + whitespace-
+  tolerant name match (4 positive), negative match (4 cases),
+  Primary Brand Color: Navy capture, Direct Answer background:
+  Black capture. Grep audit confirms each anchor at the
+  expected location (togglePhase7ImgPanel function, #p7Inputs
+  container, .img-panel-toggle button, isITV gate, brand object,
+  prompt filter IIFE, CRITICAL instruction line).
+
+
 May 14, 2026 (Claude Code build session — cluster-aware multi-client refactor): EXPLICIT CLUSTER FIREWALL + UNIVERSAL DEDUP + DYNAMIC BRANDING + TEXT-LINK CTA. Commit 2676d1d — 126 insertions, 166 deletions (NET −40; old trunk-firewall + dup-sanitizer helpers removed in favor of one unified enforceLinkGovernance function).
 
   This commit SUPERSEDES the URL-path-shape "trunk firewall" from
