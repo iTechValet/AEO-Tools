@@ -2647,6 +2647,52 @@ Confirmed costs: ~$1.33-1.58 per article + ~$0.05-0.10 VCI.
 
 CHANGE LOG
 ----------
+May 13, 2026 (Claude Code build session — Phase 5 rhythm fix): PHASE 5 RHYTHM MANDATE. Commit bba51f8 — 3 insertions, 1 deletion.
+
+  Live runs were producing dense, 4-6 sentence academic paragraph slabs
+  during Phase 5 voice draft, diluting the typographic rhythm 4.3A
+  explicitly mandates. Adding the link-rule block at the bottom of
+  buildPhase5InstrBlock (b2be0c1) didn't fix this — Claude was still
+  treating the existing PARAGRAPH STRUCTURE rule as advisory because
+  voice-context took priority over a buried "max 3 sentences" line.
+
+  Fix: lifted the rhythm guidance to the TOP of buildPhase5InstrBlock
+  as a CRITICAL RHYTHM MANDATE (from 4.3A) header — the very first
+  directive Claude sees on every Phase 5 hydration call, ahead of
+  Option-E framing, intent layer, AI-Tell kill list, exemplars, and
+  the markdown rules. The injected text reads verbatim:
+    "CRITICAL RHYTHM MANDATE (from 4.3A): You must shatter dense
+     academic text blocks. Do not write paragraphs longer than 3
+     sentences. You must frequently use 3-5 word, single-sentence
+     paragraphs for emphasis and pacing. Use periods instead of
+     conjunctions to link claims. One core idea per sentence.
+     Prioritize punchy, authoritative brevity."
+  Client-agnostic phrasing (no client name; cites 4.3A as the
+  upstream authority) so the rule travels across every iTV client.
+
+  The PARAGRAPH STRUCTURE clause already present at the bottom of the
+  same block (added in commit 77458f5) stays in place as a reinforcing
+  guardrail; the new top-of-prompt clause is the prominent first
+  impression. Likewise the CRITICAL LINK PRESERVATION RULES (b2be0c1)
+  remain anchored at the bottom of the same block — they're checked at
+  validation time so prompt-position matters less for that one.
+
+  This change targets Phase 5 only — Phase 6's forensic critique is
+  paragraph-level surgical, not a full rewrite, so the rhythm rule
+  doesn't apply there (the surrounding PARAGRAPH STRUCTURE rule in
+  Phase 2B is what governs initial paragraph length; Phase 6 only
+  rewrites paragraphs it flags). Note also that nothing else in this
+  request needed code changes — items 2-5 in the spec (Phase 5/6 link
+  rules, 40s image timeout, alt-text on image cards, DA hover fix) all
+  shipped in commit b2be0c1 + 7ee0f57 ahead of this batch and were
+  re-verified in place via grep before the rhythm change.
+
+  VERIFICATION. Single inline <script> parses clean via Node Function
+  (1/1 PASS). Grep confirms exactly one CRITICAL RHYTHM MANDATE
+  occurrence in the file, at the head of buildPhase5InstrBlock's
+  template literal.
+
+
 May 13, 2026 (Claude Code build session — operator polish pass): FOUR TARGETED FIXES — Phase 5/6 link preservation, image-gen fail-fast timeout, alt-text on image cards, DA hover contrast. Commit b2be0c1 — 31 insertions, 11 deletions.
 
   (1) PHASE 5/6 LINK PRESERVATION GAP CLOSED. Phase 2 Inline Validation
