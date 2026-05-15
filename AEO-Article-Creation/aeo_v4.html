@@ -117,24 +117,27 @@
 
   .gstatus { font-size:12px; color:var(--accent); min-height:16px; font-weight:400; padding:6px 0 2px; }
 
-  /* V4.1.3 ZONE 3 — OPERATIONAL WORKSPACE (light-blue surface, white floating cards).
-     The .layout wrapper picks up --secondary (#cfe8fc — the same light-blue token used by the
-     preview tab bar) so the whole workspace reads as one zone. Inner cards (phases / images /
-     preview) flip to white so they appear to float on the light-blue surface. */
+  /* V4.1.4 ZONE 3 — OPERATIONAL WORKSPACE.
+     Outer wrapper is white (inherits the page canvas); inner phase cards flip to light-blue so
+     the operator's eye is drawn to the working surfaces, not the empty gutter. */
   .layout {
     max-width:1700px; margin:0 auto;
     display:grid; grid-template-columns:2fr 3fr; gap:20px;
     align-items:start;
-    background: var(--secondary);
+    background: #ffffff;
     padding: 18px;
     border-radius: 12px;
   }   /* 40% left (phase cards + images) / 60% right (tabs + preview) */
+  /* Left column scrolls when the phase-card stack + image panel exceed the viewport (Change 3). */
   .left-col, .right-col { min-width:0; }
+  .left-col { overflow-y:auto; }
 
   .pipeline { display:flex; flex-direction:column; gap:7px; }
-  /* V4.1.3 — phase cards float as WHITE cards on the light-blue workspace; dark-navy border ties
-     them back to Zone 0. Active border bumps to --primary (dark navy) for the Zone 0/3 bookend. */
-  .phase-card { background:#ffffff; border:1px solid var(--primary); border-radius:10px; overflow:hidden; transition:border-color .3s; box-shadow:0 1px 2px rgba(6,58,108,0.06); }
+  /* V4.1.4 — phase cards now carry the light-blue (--secondary) interior so the working surfaces
+     read against the white workspace gutter. Dark-navy border ties them back to Zone 0; active
+     state still bumps to --primary border + ring. Green phase numbers, dark-navy text, and all
+     badge colors are unchanged (operator visual cues kept stable). */
+  .phase-card { background:var(--secondary); border:1px solid var(--primary); border-radius:10px; overflow:hidden; transition:border-color .3s; box-shadow:0 1px 2px rgba(6,58,108,0.06); }
   .phase-card.active { border-color:var(--primary); box-shadow:0 0 0 2px rgba(6,58,108,0.18); }
   .phase-card.done { border-color:var(--green); }
   .phase-card.error { border-color:var(--red); }
@@ -375,12 +378,24 @@
     will-change:transform, opacity, max-height;
   }
   .image-panel.collapsed #imgGrid,
-  .image-panel.collapsed #p7Inputs {
+  .image-panel.collapsed #p7Inputs,
+  .image-panel.images-collapsed #imgGrid,
+  .image-panel.images-collapsed #p7Inputs {
     transform:translateX(-110%); opacity:0;
     max-height:0;
     pointer-events:none;
   }
-  .img-grid { padding:10px 14px; max-height:760px; overflow-y:auto; }
+  /* V4.1.4 — .images-collapsed is the auto-applied "completion" state from validateImages():
+     after all WordPress URLs are pasted + Publish Date set + validation passes, the panel
+     compresses to a single header row (matching a phase-card row height) so the operator can
+     still see "IMAGES (M3.5) ✓ Ready" without the working surface taking up vertical space.
+     Header overflow:hidden caps the collapsed bounds; the toggle chevron remains clickable to
+     re-expand. */
+  .image-panel.images-collapsed { overflow:hidden; }
+  .image-panel.images-collapsed .img-panel-toggle { transform:rotate(-90deg); }
+  /* V4.1.4 — image grid is permanently scrollable; max-height:none lets the operator scroll the
+     panel itself when content overflows, with .left-col supplying the outer scroll boundary. */
+  .img-grid { padding:10px 14px; max-height:none; overflow-y:auto; }
   .img-card { background:#fff; border:1px solid var(--border); border-radius:10px; margin-bottom:10px; overflow:hidden; }
   .img-card:last-child { margin-bottom:0; }
   .img-card-head { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--border); gap:8px; flex-wrap:wrap; }
@@ -441,8 +456,12 @@
   .btn-p7.sb { background:none; border:1px solid var(--border); color:var(--blue); font-size:11px; padding:6px 10px; }
   .btn-p7.sb:hover { border-color:var(--accent); color:var(--accent); opacity:1; }
   .p7-main { display:flex; gap:12px; align-items:flex-start; }
-  .p7-frame { flex:1; min-width:0; height:760px; border:1px solid var(--border); border-radius:8px; background:#fff; }
-  .p7-sidebar { width:252px; flex-shrink:0; display:flex; flex-direction:column; gap:10px; }
+  /* V4.1.4 — preview / sidebar split bumped from ~75/25 to 80/20. The iframe gets a flex:4 share,
+     the sidebar flex:1, giving the preview ~20% more horizontal real estate for body copy and
+     the link audit table. Min-widths protect the sidebar inputs from squashing on smaller
+     viewports. */
+  .p7-frame { flex:4; min-width:0; height:760px; border:1px solid var(--border); border-radius:8px; background:#fff; }
+  .p7-sidebar { flex:1; min-width:200px; flex-shrink:0; display:flex; flex-direction:column; gap:10px; }
   /* V4.1.1 — Phase 7 sidebar sections float on --sidebar to match the Property Cards' depth
      treatment; box-shadow gives them the same "raised panel" affordance. Previous background
      was hardcoded #fff which read as a white box on the dark canvas. */
@@ -519,6 +538,14 @@
   /* Schema code block — white inset card with a --primary border, dark-blue monospace text. Reads
      as a clear code container against the --secondary parent card. */
   .mc-card.mc-schema .mc-value { white-space:pre-wrap; max-height:360px; overflow:auto; background:#ffffff; border:1px solid var(--primary); border-radius:6px; padding:10px 12px; font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.55; color:var(--primary); }
+  /* V4.1.4 — META TITLE / META DESCRIPTION / SLUG values render as white inset boxes matching
+     the schema block, so the operator can scan all four fields with a consistent affordance.
+     Each card pairs the white-box value with its own copy button in the header. */
+  .mc-card:not(.mc-schema) .mc-value:not(.muted) {
+    background:#ffffff; border:1px solid var(--primary); border-radius:6px;
+    padding:10px 12px; color:var(--primary);
+  }
+  .mc-card.mc-slug .mc-value { font-family:'SF Mono',Menlo,monospace; font-size:12px; }
   .mc-copy { background:var(--primary); color:#ffffff; border:none; border-radius:6px; padding:5px 12px; font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1px; cursor:pointer; transition:opacity .15s; }
   .mc-copy:hover { opacity:.85; }
   .mc-copy.copied { background:var(--emerald); }
@@ -927,6 +954,7 @@
           <div class="mc-card-head">
             <div class="mc-label">Meta Title</div>
             <div class="mc-counter" id="mcTitleCount">0 / 60</div>
+            <button class="mc-copy" id="mcTitleCopy" onclick="copyMetaField('metaTitle', this)" title="Copy the Meta Title to the clipboard">⎘ Copy</button>
           </div>
           <div class="mc-value muted" id="mcTitleVal">(not generated yet — appears after the Phase 2 frame)</div>
         </div>
@@ -934,12 +962,14 @@
           <div class="mc-card-head">
             <div class="mc-label">Meta Description</div>
             <div class="mc-counter" id="mcDescriptionCount">0 / 160</div>
+            <button class="mc-copy" id="mcDescriptionCopy" onclick="copyMetaField('metaDescription', this)" title="Copy the Meta Description to the clipboard">⎘ Copy</button>
           </div>
           <div class="mc-value muted" id="mcDescriptionVal">(not generated yet)</div>
         </div>
-        <div class="mc-card" id="mcSlug">
+        <div class="mc-card mc-slug" id="mcSlug">
           <div class="mc-card-head">
             <div class="mc-label">Slug / Permalink</div>
+            <button class="mc-copy" id="mcSlugCopy" onclick="copyMetaField('permalink', this)" title="Copy the Slug / Permalink to the clipboard">⎘ Copy</button>
           </div>
           <div class="mc-value mono muted" id="mcSlugVal">(not generated yet)</div>
         </div>
@@ -1586,6 +1616,28 @@
       // Prefer the finalized schema block once Phase 7 ran; fall back to the stub the right-panel always builds.
       const schemaText = S.finalSchema || buildSchemaStub(obj) || '';
       scVal.textContent = schemaText.trim() || '(generated after Phase 5 — refreshed on finalize)';
+    }
+  }
+  // V4.1.4 — Copy a single metadata field (metaTitle / metaDescription / permalink) to the
+  // clipboard. Mirrors copySchema()'s done-state + execCommand fallback so the per-field copy
+  // buttons in the Metadata tab share the same behavior (and the same green ✓ confirmation).
+  function copyMetaField(field, btn){
+    const obj = S.v3 || S.v2 || S.v1;
+    const c = (obj && obj.checklist) || {};
+    const text = String(c[field] || '').trim();
+    if(!text){ alert('Nothing to copy yet — this field appears after the Phase 2 frame.'); return; }
+    const done = () => {
+      if(!btn) return;
+      const prev = btn.textContent;
+      btn.classList.add('copied'); btn.textContent = '✓ Copied';
+      setTimeout(()=>{ btn.classList.remove('copied'); btn.textContent = prev; }, 1500);
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(()=>{
+        try { const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done(); } catch(_){ alert('Copy failed — select & copy manually from the card.'); }
+      });
+    } else {
+      try { const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done(); } catch(_){ alert('Copy failed.'); }
     }
   }
   // Copy the JSON-LD (finalized if available, otherwise the stub) to the clipboard.
@@ -5274,7 +5326,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
         S.validClusterUrls = computeValidClusterUrls(S.research);
         if(S.validClusterUrls.size > 1){
           const preview = [...S.validClusterUrls].slice(0, 6).join(', ');
-          log(`Phase 1 — NLM cluster locked: ${S.validClusterUrls.size} valid URL(s) (${preview}${S.validClusterUrls.size > 6 ? ' …' : ''}). Phase 7A's link governance will strip any off-cluster internal link AND deduplicate every repeat (internal + external) before HTML assembly.`, 'warn');
+          log(`Phase 1 — NLM cluster locked: ${S.validClusterUrls.size} valid URL(s) (${preview}${S.validClusterUrls.size > 6 ? ' …' : ''}). Phase 7A's link governance will strip any off-cluster internal link AND deduplicate every repeat (internal + external) before HTML assembly.`, 'ok');
         } else {
           log(`Phase 1 — cluster has only the homepage (anchorTextTargets empty). Off-cluster firewall is effectively OFF; dedup still applies in Phase 7A.`, 'warn');
         }
@@ -6199,9 +6251,13 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
   function togglePhase7ImgPanel(opts){
     const panel = document.getElementById('imagePanel');
     if(!panel) return;
-    const isCollapsed = panel.classList.contains('collapsed');
+    const isCollapsed = panel.classList.contains('collapsed') || panel.classList.contains('images-collapsed');
     const wantCollapsed = (opts && opts.collapse) ? true : (opts && opts.expand) ? false : !isCollapsed;
+    // V4.1.4 — keep both collapse classes in sync so the chevron always re-expands the panel
+    // regardless of whether it was collapsed manually (.collapsed) or auto-collapsed by
+    // validateImages() on the GREEN gate (.images-collapsed).
     panel.classList.toggle('collapsed', wantCollapsed);
+    panel.classList.toggle('images-collapsed', wantCollapsed);
     const btn = document.getElementById('imgPanelToggle');
     if(btn) btn.setAttribute('aria-label', wantCollapsed ? 'Expand image panel' : 'Collapse image panel');
   }
