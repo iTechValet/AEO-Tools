@@ -285,50 +285,9 @@
   .mode-badge.calibration { background:#fff3cd; color:#8a6d00; border:1px solid #e0c000; }
   .mode-badge.production { background:#e6f4ea; color:#1b5e20; border:1px solid #4caf50; }
 
-  /* V4.1.3 ZONE 2 — ESCALATION PANEL (light-yellow caution zone).
-     Permanent #fffbeb (warm light yellow) background + a 3px solid amber (#f59e0b) left rail
-     even when there are no active alerts — this is the standing "caution zone" by design.
-     The other three borders flip color when alerts are active so the panel still telegraphs
-     state at a glance; the amber left rail stays put. */
-  .escalation-panel {
-    background:#fffbeb;
-    border:1px solid var(--border);
-    border-left:3px solid #f59e0b;
-    border-radius:12px;
-    margin-bottom:16px;
-    overflow:hidden;
-    transition:border-color .3s;
-  }
-  .escalation-panel.has-red {
-    border-top-color:var(--red);
-    border-right-color:var(--red);
-    border-bottom-color:var(--red);
-  }
-  .escalation-panel.has-yellow {
-    border-top-color:var(--orange);
-    border-right-color:var(--orange);
-    border-bottom-color:var(--orange);
-  }
-  .esc-header { display:flex; align-items:center; gap:10px; padding:11px 16px; cursor:pointer; user-select:none; }
-  /* "ESCALATION PANEL" heading — dark amber per V4.1.3 (readable on #fffbeb). */
-  .esc-title { font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:1.5px; color:#92400e; flex:1; }
-  .esc-count { font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1px; padding:2px 8px; border-radius:4px; background:#ececec; color:var(--faint); }
-  .esc-count.red { background:rgba(192,57,43,.15); color:var(--red); }
-  .esc-count.yellow { background:rgba(221,107,0,.15); color:var(--orange); }
-  .esc-body { display:none; padding:0 16px 14px; }
-  .esc-body.open { display:block; }
-  .esc-entry { border-radius:8px; padding:10px 12px; margin-top:8px; font-size:12px; line-height:1.5; }
-  .esc-entry.red { background:#fdecea; border:1px solid #f5c6c0; }
-  .esc-entry.yellow { background:#fff8e6; border:1px solid #ffd99a; }
-  .esc-entry .esc-code { font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; }
-  .esc-entry.red .esc-code { color:var(--red); }
-  .esc-entry.yellow .esc-code { color:var(--orange); }
-  .esc-entry .esc-msg { color:#333; margin-top:3px; white-space:pre-wrap; word-break:break-word; }
-  .esc-entry .esc-ts { color:var(--faint); font-size:10px; }
-  .esc-notify { margin-top:8px; background:var(--red); color:#fff; border:none; border-radius:6px; padding:7px 14px; font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1px; cursor:pointer; }
-  .esc-notify:hover { opacity:.85; }
-  /* V4.1.3 — empty state recolored from slate-400 to a brown that reads on the #fffbeb panel. */
-  .esc-empty { padding:10px 0 2px; font-size:11px; color:#8a6d00; font-style:italic; }
+  /* V4.1.8 — Escalation Panel CSS removed (panel deleted; Run Log is single source of truth).
+     The light-yellow caution-zone styling + .esc-* entry/count/header rules are no longer
+     referenced anywhere in the markup or JS. */
 
   .password-gate { position:fixed; top:0; left:0; width:100%; height:100%; background:#fff; z-index:9999; display:flex; align-items:center; justify-content:center; }
   .password-gate-inner { text-align:center; max-width:340px; width:100%; padding:36px 24px; }
@@ -645,11 +604,11 @@
         <select class="cp-select" id="testInjection" style="margin-top:3px; min-width:280px;">
           <option value="off">Off — normal pipeline</option>
           <option value="recover">Drop a section on attempt 1 only — demo auto-recovery (3A catches it → Phase 2 retry → passes)</option>
-          <option value="escalate">Drop a section on every attempt — demo RED escalation (2 retries exhausted → CHK1 in the panel)</option>
+          <option value="escalate">Drop a section on every attempt — demo RED escalation (2 retries exhausted → CHK1 in the Run Log)</option>
         </select>
       </div>
       <div style="font-size:11px; color:var(--muted); line-height:1.5;">
-        For verifying Milestone 2 only. When set, JS removes sections past index 2 from the V1 (leaving 3, below the ≥4 minimum) right before Phase 3A. Watch the Phase 3 card + Escalation Panel. Reset to "Off" for real runs.
+        For verifying Milestone 2 only. When set, JS removes sections past index 2 from the V1 (leaving 3, below the ≥4 minimum) right before Phase 3A. Watch the Phase 3 card + the Run Log. Reset to "Off" for real runs.
       </div>
     </div>
   </div>
@@ -707,32 +666,17 @@
         <div class="stat-label">Run Time</div>
         <div class="stat-value" id="timerDisplay">0:00</div>
       </div>
-      <div class="stat-divider"></div>
-      <div class="stat-item">
-        <div class="stat-label">Pipeline Health</div>
-        <div class="stat-value green" id="pipelineHealth" title="0 RED escalation(s) · 0 YELLOW warning(s)"><span class="health-dot"></span>HEALTHY</div>
-      </div>
+      <!-- V4.1.8 — Pipeline Health stat removed alongside the Escalation Panel. The Run Log is
+           the canonical view; counts at-a-glance aren't needed when the log is right there. -->
     </div>
   </div>
 
 </div>
 </div>
 
-<!-- ESCALATION PANEL — single VA-facing panel. Empty in 95%+ of runs. -->
-<div class="top-section">
-  <div class="escalation-panel" id="escPanel">
-    <div class="esc-header" onclick="toggleEsc()">
-      <span class="esc-title">⚠ Escalation Panel</span>
-      <span class="esc-count" id="escRedCount">0 RED</span>
-      <span class="esc-count" id="escYellowCount">0 YELLOW</span>
-      <span class="schev closed" id="escChev">▼</span>
-    </div>
-    <div class="esc-body" id="escBody">
-      <div class="esc-empty" id="escEmpty">No escalations. The pipeline auto-recovers from F1–F4 where it can; RED flags appear here only when retries are exhausted.</div>
-      <div id="escEntries"></div>
-    </div>
-  </div>
-</div>
+<!-- V4.1.8 — Escalation Panel removed. The Run Log (right column) is now the single source
+     of truth for RED escalations + YELLOW warnings — both still log with their normal err/warn
+     levels, just no separate panel summary. -->
 
 <div class="layout">
 
@@ -1101,7 +1045,6 @@
   const MODE_KEY_PREFIX = 'aeo_v4_mode_';                 // + clientName  → "calibration" | "production"
   const CALCOUNT_KEY_PREFIX = 'aeo_v4_calibrated_count_'; // + clientName  → integer (informational only)
   const ARTIFACT_V1_PREFIX = 'aeo_v4_artifact_v1_';       // + clientName + "_" + ts → frozen V1 JSON (F16)
-  const YELLOW_KEY = 'aeo_v4_yellow_warnings';            // rolling last-10 YELLOW warnings across runs
   const ARTIFACT_TTL_MS = 7 * 24 * 60 * 60 * 1000;       // 7-day auto-purge (F16)
   const PROXY = 'https://anthropic-proxy.gerek.workers.dev';
   const GEMINI_MODEL = 'gemini-2.5-pro';
@@ -1133,7 +1076,6 @@
     p7AuthorByline: '',       // Phase 7 — operator override for the author byline (blank = use the 4.3B-derived byline)
     tokens: { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 },
     cacheLog: [],             // [{phase, callIndex, cacheCreate, cacheRead, input, output, verdict, ts}]
-    escalationsRed: [],       // per-run RED escalations [{code, msg, ts}]
     cta43BWarned: false,      // so the "4.3B CTA URL not parseable" YELLOW only fires once per run
     _extraLinksWarned: false, // so the "extra external links" YELLOW only fires once per run
     // ── M3.5 image generation (background queue; bound to the active Phase 2A frame attempt) ──
@@ -1193,7 +1135,6 @@
     return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
   }
 
-  let yellowWarnings = [];    // rolling, persisted to localStorage, capped at 10
   let running = false;
   let pipelineHalted = false; // set true by escalateRed — stops the orchestrator
   // NUCLEAR STOP — single global AbortController whose signal is forwarded into EVERY in-flight
@@ -1237,9 +1178,7 @@
     loadClients();
     loadKeys();
     loadGlobals();
-    clearYellowWarnings();   // refreshing the tool starts a clean slate — no stale YELLOWs from a previous article (RED behavior unchanged)
     purgeOldArtifacts();
-    renderEscalationPanel();
     renderModeUI();
     resetPhase7UI();   // initialise the Final HTML tab (placeholder preview, disabled 7B/7C controls)
   }
@@ -1489,7 +1428,6 @@
           `Last call — input (uncached): ${g('lastInput')}`,
           `Last call — output: ${g('lastOutput')}`,
           `Most recent cache verdict: ${(S.cacheLog && S.cacheLog.length) ? S.cacheLog[S.cacheLog.length-1].verdict : '—'}`,
-          `Pipeline health: ${((document.getElementById('pipelineHealth')?.textContent) || '').trim() || '—'}`,
           '',
           '# | Phase | Cache Write | Cache Read | Verdict | Time'
         ];
@@ -2986,8 +2924,9 @@ CRITICAL: Write the persuasive hook prose ONLY. DO NOT write a markdown link or 
     }
     return null;
   }
-  // Standard kill-only RED message body. Renders as three labelled lines (the escalation panel CSS
-  // sets white-space:pre-wrap so newlines show). No resume, no fix options, no remediation paths.
+  // Standard kill-only RED message body. Three labelled lines — they render in the Run Log as
+  // a single error entry (the runlog .line.err white-space:pre-wrap shows the newlines). No
+  // resume, no fix options, no remediation paths.
   function buildKillOnlyRed(stage, sectionH2, reason){
     return `Stage: ${stage}\nSection: "${sectionH2}"\nFailure reason: ${reason}\nThis run has been stopped after 2 retry attempts. Start a new run or move to the next topic.`;
   }
@@ -3283,100 +3222,25 @@ SURGICAL CORRECTION PASS. Call submit_v1_corrections with replacements for ONLY 
   }
 
   // ═══════════════════════════════════════════════════════════
-  // MILESTONE 2 — ERROR RECOVERY (F1–F4), CALIBRATION/PRODUCTION MODES, ESCALATION PANEL,
+  // MILESTONE 2 — ERROR RECOVERY (F1–F4), CALIBRATION/PRODUCTION MODES,
   // PHASE 3 DUAL VALIDATION, PHASE 4 FREEZE
   // ═══════════════════════════════════════════════════════════
 
-  // ─── ESCALATION SYSTEM ─────────────────────────────────────
-  // RED  = pipeline hard-stops, surfaced to VA with code + remediation, operator handles.
-  // YELLOW = pipeline continues, logged, accumulates in a rolling last-10 list.
+  // ─── ESCALATION SYSTEM (V4.1.8 — Run-Log-only) ─────────────
+  // The Escalation Panel was removed in V4.1.8; the Run Log is now the single source of truth
+  // for RED escalations + YELLOW warnings. escalateRed/warnYellow no longer maintain side lists
+  // or render any UI — they just write to the log at the appropriate level. escalateRed STILL
+  // sets pipelineHalted = true (the orchestrator's checkpoint guards depend on this — without
+  // it, a hard-stop wouldn't actually stop the pipeline).
   function escalateRed(code, msg){
-    const entry = { code, msg, ts: new Date().toLocaleString() };
-    S.escalationsRed.push(entry);
     pipelineHalted = true;
     log(`RED ESCALATION [${code}]: ${msg}`, 'err');
-    renderEscalationPanel();
-    setEscOpen(true);
   }
-  // Codes that are informational (no retry, no dropped content) → logged BLUE in the run log, not orange.
-  // (They still count as YELLOW warnings for the rolling list + the Pipeline Health indicator.)
+  // Codes that are informational (no retry, no dropped content) → logged BLUE in the run log,
+  // not orange. The visual distinction in the log is the only "rolling list" we need now.
   const INFO_YELLOW_CODES = new Set(['F11','F12','F16']);
   function warnYellow(code, msg){
-    const entry = { code, msg, ts: new Date().toLocaleString() };
-    yellowWarnings.unshift(entry);
-    if(yellowWarnings.length > 10) yellowWarnings = yellowWarnings.slice(0, 10);
-    saveYellowWarnings();
     log(`YELLOW [${code}]: ${msg}`, INFO_YELLOW_CODES.has(code) ? 'info' : 'warn');
-    renderEscalationPanel();
-  }
-  function loadYellowWarnings(){
-    try { yellowWarnings = JSON.parse(localStorage.getItem(YELLOW_KEY)) || []; } catch(_){ yellowWarnings = []; }
-  }
-  function saveYellowWarnings(){
-    try { localStorage.setItem(YELLOW_KEY, JSON.stringify(yellowWarnings)); } catch(_){}
-  }
-  // YELLOW warnings are run-scoped: cleared on page load, on a new run start, and when an
-  // article finishes (Phase 7 / final docs). RED escalations are NOT affected by this.
-  function clearYellowWarnings(){ yellowWarnings = []; saveYellowWarnings(); renderEscalationPanel(); }
-  function clearRunEscalations(){ S.escalationsRed = []; renderEscalationPanel(); }
-  function setEscOpen(open){
-    document.getElementById('escBody').classList.toggle('open', open);
-    document.getElementById('escChev').classList.toggle('closed', !open);
-  }
-  function toggleEsc(){ setEscOpen(!document.getElementById('escBody').classList.contains('open')); }
-  // Header "Pipeline Health" indicator — green dot + HEALTHY (no REDs, <3 YELLOWs) · orange dot +
-  // WARNINGS (no REDs, ≥3 YELLOWs) · red dot + ERROR (any RED escalation). Re-rendered by
-  // renderEscalationPanel() so it tracks every warnYellow / escalateRed / clear* in real time.
-  function renderPipelineHealth(){
-    const el = document.getElementById('pipelineHealth'); if(!el) return;
-    const reds = (S.escalationsRed || []).length, yels = (yellowWarnings || []).length;
-    let cls, label;
-    if(reds > 0){ cls = 'red'; label = 'ERROR'; }
-    else if(yels >= 3){ cls = 'orange'; label = 'WARNINGS'; }
-    else { cls = 'green'; label = 'HEALTHY'; }
-    el.className = 'stat-value ' + cls;
-    el.innerHTML = '<span class="health-dot"></span>' + label;
-    el.title = `${reds} RED escalation(s) · ${yels} YELLOW warning(s)`;
-  }
-  function renderEscalationPanel(){
-    const panel = document.getElementById('escPanel');
-    const redN = S.escalationsRed.length, yelN = yellowWarnings.length;
-    renderPipelineHealth();   // keep the header health indicator in sync with every change
-    document.getElementById('escRedCount').textContent = `${redN} RED`;
-    document.getElementById('escRedCount').className = 'esc-count' + (redN ? ' red' : '');
-    document.getElementById('escYellowCount').textContent = `${yelN} YELLOW`;
-    document.getElementById('escYellowCount').className = 'esc-count' + (yelN ? ' yellow' : '');
-    panel.classList.toggle('has-red', redN > 0);
-    panel.classList.toggle('has-yellow', redN === 0 && yelN > 0);
-    const empty = document.getElementById('escEmpty');
-    const entriesEl = document.getElementById('escEntries');
-    if(!redN && !yelN){ empty.style.display = 'block'; entriesEl.innerHTML = ''; return; }
-    empty.style.display = 'none';
-    let html = '';
-    if(redN){
-      html += S.escalationsRed.map(e => `<div class="esc-entry red"><span class="esc-code">RED · ${escapeHtml(e.code)}</span> <span class="esc-ts">${escapeHtml(e.ts)}</span><div class="esc-msg">${escapeHtml(e.msg)}</div></div>`).join('');
-      html += `<button class="esc-notify" onclick="notifyOperator()">📨 Notify Operator</button>`;
-    }
-    if(yelN){
-      html += `<div style="margin-top:12px; font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1px; color:var(--orange);">YELLOW WARNINGS (last 10)</div>`;
-      html += yellowWarnings.map(e => `<div class="esc-entry yellow"><span class="esc-code">YELLOW · ${escapeHtml(e.code)}</span> <span class="esc-ts">${escapeHtml(e.ts)}</span><div class="esc-msg">${escapeHtml(e.msg)}</div></div>`).join('');
-    }
-    entriesEl.innerHTML = html;
-  }
-  function notifyOperator(){
-    const lines = [];
-    lines.push(`AEO V4.0 ESCALATION — ${new Date().toLocaleString()}`);
-    lines.push(`Client: ${S.client?.name || '(none)'}  |  Topic: ${S.topic || '(none)'}`);
-    lines.push('');
-    if(S.escalationsRed.length){ lines.push('RED:'); S.escalationsRed.forEach(e => lines.push(`  [${e.code}] ${e.msg}  (${e.ts})`)); }
-    if(yellowWarnings.length){ lines.push('YELLOW (recent):'); yellowWarnings.forEach(e => lines.push(`  [${e.code}] ${e.msg}  (${e.ts})`)); }
-    const text = lines.join('\n');
-    if(navigator.clipboard?.writeText){
-      navigator.clipboard.writeText(text).then(()=>alert('Escalation details copied to clipboard — forward to the operator (Gerek).')).catch(()=>prompt('Copy this and send to the operator:', text));
-    } else {
-      prompt('Copy this and send to the operator:', text);
-    }
-    log('Operator notification prepared (clipboard). Email/SMS integration is post-M2.', 'warn');
   }
 
   // ─── CALIBRATION / PRODUCTION MODE (per client) ────────────
@@ -5277,8 +5141,6 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     _idCounter = 0; // ids are unique per run; reset once here, not per assignIds() call
     updateCost(); renderCacheLog();
     setCacheBtnsDisabled(true);
-    clearYellowWarnings();   // YELLOW warnings reset at the start of every run (RED behavior unchanged)
-    clearRunEscalations();   // clears this run's RED list + re-renders the panel (now empty of both)
     pipelineHalted = false;
     // NUCLEAR STOP — fresh AbortController per run so a prior abort can't poison this run's fetches.
     currentAbortController = new AbortController();
@@ -5820,7 +5682,6 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
       if(pipelineHalted || !running) return; // operator stop / new run while parked
       // 7C ran inside finalizePhase7() — it built S.checklistHTML + S.finalSchema + S.finalTXT, enabled the downloads, and set Phase 7 → 'Finalized ✓'.
       log('Phase 7 — finalized by the operator (7C). Checklist .html + final .txt are ready in the Final HTML tab.', 'ok');
-      clearYellowWarnings();   // article finished / final docs produced → YELLOW list resets (RED escalations unaffected)
 
       // ── Calibration counter (informational only — never auto-promotes) ──
       if(mode === 'calibration'){ incrementCalibratedCount(S.client.name); renderModeUI(); }
