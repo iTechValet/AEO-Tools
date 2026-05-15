@@ -1814,49 +1814,47 @@
   // (missing tab, missing sheet, no write scope, network error), we DO NOT throw — Phase 7C must
   // not be blocked by telemetry export. We surface a muted-indigo info-level log: the exact line
   // "Telemetry export skipped: Tab 'AEO_Run_Data' not found." per the V4.1 spec.
+  // V4.1.5 — telemetry export routes through an Apps Script Web App (not the raw Sheets v4 API).
+  // The web app's doPost() appends a row to AEO_Run_Data on the client's 4.2 sheet. Google Apps
+  // Script REQUIRES Content-Type: text/plain for cross-origin POST — the body is still valid
+  // JSON, only the header reads text/plain (sending application/json triggers a CORS preflight
+  // that Apps Script doesn't answer, so the fetch fails before doPost() ever runs). The Drive
+  // API key is no longer needed (the web app handles auth via its deployed identity).
   async function exportTelemetryToSheets(){
     try {
       if(!sessionTelemetry.startTime){ return; }
       if(!sessionTelemetry.endTime){ sessionTelemetry.endTime = Date.now(); }
-      const dkey = (document.getElementById('keyDrive')?.value || '').trim();
       const sheetId = S.client && S.client.sheet42;
-      if(!dkey || !sheetId){
-        log("Telemetry export skipped: Tab 'AEO_Run_Data' not found.", 'info');
+      if(!sheetId){
+        log('Telemetry export skipped — no sheet ID for this client.', 'warn');
         return;
       }
       const dateStr = new Date(sessionTelemetry.startTime).toISOString().slice(0,10);
       const elapsedMs = Math.max(0, sessionTelemetry.endTime - sessionTelemetry.startTime);
-      const row = [
-        dateStr,
-        (S.client && S.client.name) || '—',
-        S.topic || '—',
-        fmtElapsedMMSS(elapsedMs),
-        '$' + calculateTotalCost().toFixed(3),
-        String(totalTelemetryTokens()),
-        sessionTelemetry.status || 'Success'
-      ];
-      const tabName = 'AEO_Run_Data';
-      const range = `${tabName}!A:G`;
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS&key=${encodeURIComponent(dkey)}`;
-      let r;
-      try {
-        r = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ values: [row] })
-        });
-      } catch(_){
-        log("Telemetry export skipped: Tab 'AEO_Run_Data' not found.", 'info');
-        return;
+      const payload = {
+        sheetId,
+        date:    dateStr,
+        client:  (S.client && S.client.name) || '—',
+        topic:   S.topic || '—',
+        runTime: fmtElapsedMMSS(elapsedMs),
+        cost:    '$' + calculateTotalCost().toFixed(3),
+        tokens:  String(totalTelemetryTokens()),
+        status:  sessionTelemetry.status || 'Success'
+      };
+      const WEBHOOK = 'https://script.google.com/macros/s/AKfycbwM3wEawyByZhfD3vTRoI7xXIoPr5LnRLHKDQ1FGTsgBfOrmsc9F9SpuMpTnUyR9eTU/exec';
+      const r = await fetch(WEBHOOK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(payload)
+      });
+      const json = await r.json();
+      if(json.result === 'success'){
+        log(`Telemetry exported → AEO_Run_Data (${payload.date} · ${payload.client} · ${payload.topic} · ${payload.cost}).`, 'ok');
+      } else {
+        log(`Telemetry export failed: ${json.message || 'unknown error'}`, 'warn');
       }
-      if(!r.ok){
-        log("Telemetry export skipped: Tab 'AEO_Run_Data' not found.", 'info');
-        return;
-      }
-      log(`Telemetry exported → AEO_Run_Data (${row.join(' · ')}).`, 'ok');
-    } catch(_){
-      // Defensive — never let telemetry break the finalize flow.
-      log("Telemetry export skipped: Tab 'AEO_Run_Data' not found.", 'info');
+    } catch(e){
+      log(`Telemetry export error: ${e.message || e}`, 'warn');
     }
   }
 
@@ -7436,7 +7434,12 @@ ${schemaRow}
     refreshMetadataCards(article);   // V4.1 — refresh Property Cards now that the finalized schema is bound
     const dlc = document.getElementById('btnDlChecklist'), dlf = document.getElementById('btnDlFinal');
     if(dlc) dlc.disabled = false; if(dlf) dlf.disabled = false;
-    const st = document.getElementById('p7Status'); if(st) st.textContent = `✓ Finalized — ${(S.finalTXT.length).toLocaleString()} chars. Downloads ready below. (Any further formatting change will require re-finalizing.)`;
+    // V4.1.5 — Auto-download both files on Finalize. The buttons stay enabled below as a
+    // manual fallback if the browser blocks the second download (some browsers throttle
+    // consecutive a.click() download triggers).
+    dlChecklistHTML();
+    dlFinalTxt();
+    const st = document.getElementById('p7Status'); if(st) st.textContent = `✓ Finalized — both files downloaded automatically. Use the buttons below if either download failed.`;
     if(typeof updateArtifactImageUrls === 'function') updateArtifactImageUrls();
     log(`Phase 7C — article FINALIZED (${S.finalTXT.length} chars; schema: BlogPosting + FAQPage + BreadcrumbList). Checklist .html + final .txt ready.`, 'ok');
     setG('✓ Phase 7 complete — article finalized. Download the checklist .html and the final .txt in the Final HTML tab.');
