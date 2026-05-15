@@ -9,11 +9,12 @@
   "authority_title": "Founder",
   "customer_term": "clients",
   "contract_start": "2026-01-01",
-  "sheet_id": "PLACEHOLDER_ITECHVALET_SHEET_ID",
-  "drive_reports_folder_id": "PLACEHOLDER_DRIVE_FOLDER_ID",
+  "sheet_id": "1fpcIyt-hImvlyw69vdanI6OkMOpbDFl83XlhTuUgarE",
+  "drive_reports_folder_id": "1ohn1M_9a1pCekEKYS78CL2q4u-APsC0t",
   "looker_dashboard_id": "PLACEHOLDER_LOOKER_ID",
   "client_email": "PLACEHOLDER_CLIENT_EMAIL",
-  "doc_43A_id": "PLACEHOLDER_43A_DRIVE_ID",
-  "doc_43B_id": "PLACEHOLDER_43B_DRIVE_ID",
+  "doc_43A_id": "1RhgU_FtsXsJ1-zEUv2xweHrzD2eI31mm",
+  "doc_43B_id": "1ZHnsqr7HGK3n_fgTVnVxonCkVxENzrC7",
+  "nap_cleanup_complete": false,
   "run_cadence": "monthly"
 }
