@@ -1,6 +1,92 @@
 AEO ARTICLE CREATION PIPELINE — MASTER REFERENCE DOC  (WORKING COPY — sessions of May 11–14, 2026)
-Last Updated: May 14, 2026 (V4.1 "STUDIO & TELEMETRY" UPGRADE — high-contrast Slate/Indigo theme applied to the global CSS variables [--bg / --sidebar / --text / --indigo / --amber / --emerald / --crimson — legacy var names retained as aliases]; Deployment Log entries rebuilt as "Timeline Nodes" with a vertical Indigo rail + per-node connector dot, 1px slate border, 8px radius, semantic color per log level [indigo info · emerald ok · amber warn · crimson err]; sliding-drawer transition wired into the #imagePanel inner content [transform: translateX(-110%) + max-height + opacity, 280ms ease-in-out] so the panel slides rather than snapping; the Metadata tab now renders Meta Title / Meta Description / Slug / Schema as discrete "Property Cards" — Title and Description each carry a live char-counter that flips amber on overflow [60 / 160 limits], Schema is a monospace JSON-LD block with a Copy Schema button; AEO_Run_Data telemetry system added — a global sessionTelemetry object tracks startTime/endTime/status + all Gemini and Claude token deltas at the same call sites the Cost stat is updated, calculateTotalCost() applies the V4.1 hardcoded rate card [Claude 3.5 Sonnet: $3.00 in / $15.00 out / $3.75 cache write / $0.30 cache read; Gemini 1.5 Pro: $3.50 in / $10.50 out], exportTelemetryToSheets() appends a row [Date · Client · Topic · Total Time MM:SS · Total Cost USD · Total Tokens · Status] to the AEO_Run_Data tab on the client's 4.2 sheet at Phase 7C [finalizeArticle], failing soft with a muted-indigo info log [exact text: "Telemetry export skipped: Tab 'AEO_Run_Data' not found."] if the tab/sheet/key is missing; validClusterUrls firewall + Universal Sanitizer + Ghost CTA default all left untouched and active per spec) | May 13, 2026 (Claude Code build session — V4.0 schema refactor + hallucination-sweep recalibration + assembly-time delivery polish + multiple live end-to-end runs against real iTV topics — bugs surfaced + patched in-session + a SECOND WAVE of M5.5 polish at the end of the day: conclusion regex expansion, Phase 3B link/entity recalibration, structural threshold loosening, Phase 6 QC1/QC3 demotion to informational, Phase 2A final-section constraint + Phase 3A granularity trap, Phase 7A render order swapped to FAQ-before-conclusion per 4.3A, Phase 2A Unique Link Mandate + Phase 3A duplicate_internal_url trap, Phase 2A CTA URL Reservation + Phase 3A cta_url_in_body trap, Phase 7A silent URL normalization + Phase 7B Link Manager rebuilt as a status-toggled Link Audit drawer, DA hover contrast fix + paragraph structure rule appended to Phase 2B/5 uncached instruction blocks) | V3.1 (production) | V4.0 → V4.1 (V4.1 STUDIO + TELEMETRY UPGRADE LIVE-DEPLOYED; ALL 7 PHASES BUILT [M1–M5] + post-M5 schema upgrade [content_sections / conclusion_section / faq_section / sectional fact allocation / framework_labels / table_type / Save State per-section rollback / inline citation tokens / Phase 3B is now hallucination-sweep-only with FLAG/IGNORE recalibration + link_/entity carveouts]; multiple end-to-end runs completed against real iTV topics; live-run bug catches patched same-day [byline title duplication, consecutive duplicate paragraphs, conclusion content landing in content_sections, narrative-climax sections like "The Widening Gap" / "The Verdict" getting an image + ToC entry instead of going to conclusion_section, FAQ rendering after conclusion]; M6 side-by-side V3.1↔V4.0 + M7 ship still pending)
+Last Updated: May 14, 2026 (V4.1.3 FOUR-ZONE COLOR SYSTEM — visual zoning overhaul on top of the V4.1.2 brand-first light theme: Zone 0 is the tool header [solid --primary dark navy #063a6c, no border, no shadow, "ITECH VALET" white + "AEO V4.1" --secondary light blue, subtitle/right-side Client Mode chrome retinted to #8aa8c4 / --secondary so they read on navy]; Zone 1 is the unchanged off-white configuration panel; Zone 2 is the escalation panel rebuilt as a standing caution zone [permanent #fffbeb warm-yellow surface + permanent 3px solid #f59e0b amber left rail even when there are no active alerts, "ESCALATION PANEL" heading #92400e, empty-state copy #8a6d00; has-red / has-yellow recolor the OTHER three borders, never the amber rail]; Zone 3 is the operational workspace — .layout wrapper takes --secondary [#cfe8fc, same token as the preview tab bar] with 18px padding + 12px radius, all inner cards [.phase-card / .image-panel / .preview-panel / left + right columns] flip to white with 1px --primary border + soft drop-shadow so they "float" on the light blue; Zone 0↔Zone 3 bookend reinforced via .phase-card.active border + 2px --primary box-shadow ring + .phase-card.active .phase-num resolving to --primary [waiting phase-num drops to --faint so the active state still telegraphs via the badge + ring]; badge contrast checked end-to-end [Waiting/Running/Done/Error/Stub on the new white phase cards; Red/Yellow esc-count chips on #fffbeb]; pipeline guarantees still in force [validClusterUrls firewall + Universal Sanitizer + Ghost CTA + AEO_Run_Data telemetry all untouched]) | May 14, 2026 (V4.1.2 BRAND-FIRST LIGHT THEME — removed the dark/slate canvas; :root flipped to a white surface + iTV blue token system [--bg #ffffff, --sidebar/--header-bg/--surface #f8fafc, --primary #063a6c iTV dark blue, --secondary #cfe8fc iTV light blue, --accent #2494e0 iTV middle blue, --orange #dd6b00, --emerald #27ae60, --crimson #c0392b; legacy var names retained as aliases so existing rules cascade]; Run Log re-skinned to white cards with --primary border + --primary rail + 30×30 --primary phase badges with white bold numbers via the data-phase attr() pipeline from V4.1.1; preview tabs inactive=--secondary/--primary, active=--primary/white; Property Cards = --secondary bg + --primary border + --primary text + --accent labels; Schema box flipped to white inset with --primary border + dark-blue monospace; #imagePanel sliding drawer kept its 280ms transition, surface flipped to --sidebar with a 2px solid --primary right border) | May 14, 2026 (V4.1.1 HIGH-CONTRAST UI POLISH — V4.1 STUDIO regression pass: --indigo / --accent restored to iTV light blue #2494e0 [removed the previous Studio purple #6366f1]; new --header-bg variable applied to .top-bar so the header reads as a raised panel; 1px slate border + 0 4px 6px -1px rgba(0,0,0,0.3) drop shadow on .top-bar / .mc-card / .p7-sb-section so panels float against the dark canvas [.p7-sb-section background switched from hardcoded #fff to --sidebar]; Run Log gained NUMBERED PHASE BADGES — log() extracts a leading "Phase N" from each message and sets data-phase on the rendered line, CSS swaps the 9px connector dot for a 28×28 iTV-blue circle with white bold number for any data-phase line, non-phase lines keep the small dot, rail + dots + badges centered consistently on a 21px vertical axis with runlog padding-left widened to 48px; .mc-label color flipped from --text-muted to --indigo, schema box bg dropped to #0f172a) | May 14, 2026 (V4.1 "STUDIO & TELEMETRY" UPGRADE — high-contrast Slate/Indigo theme applied to the global CSS variables [--bg / --sidebar / --text / --indigo / --amber / --emerald / --crimson — legacy var names retained as aliases]; Deployment Log entries rebuilt as "Timeline Nodes" with a vertical Indigo rail + per-node connector dot, 1px slate border, 8px radius, semantic color per log level [indigo info · emerald ok · amber warn · crimson err]; sliding-drawer transition wired into the #imagePanel inner content [transform: translateX(-110%) + max-height + opacity, 280ms ease-in-out] so the panel slides rather than snapping; the Metadata tab now renders Meta Title / Meta Description / Slug / Schema as discrete "Property Cards" — Title and Description each carry a live char-counter that flips amber on overflow [60 / 160 limits], Schema is a monospace JSON-LD block with a Copy Schema button; AEO_Run_Data telemetry system added — a global sessionTelemetry object tracks startTime/endTime/status + all Gemini and Claude token deltas at the same call sites the Cost stat is updated, calculateTotalCost() applies the V4.1 hardcoded rate card [Claude 3.5 Sonnet: $3.00 in / $15.00 out / $3.75 cache write / $0.30 cache read; Gemini 1.5 Pro: $3.50 in / $10.50 out], exportTelemetryToSheets() appends a row [Date · Client · Topic · Total Time MM:SS · Total Cost USD · Total Tokens · Status] to the AEO_Run_Data tab on the client's 4.2 sheet at Phase 7C [finalizeArticle], failing soft with a muted-indigo info log [exact text: "Telemetry export skipped: Tab 'AEO_Run_Data' not found."] if the tab/sheet/key is missing; validClusterUrls firewall + Universal Sanitizer + Ghost CTA default all left untouched and active per spec) | May 13, 2026 (Claude Code build session — V4.0 schema refactor + hallucination-sweep recalibration + assembly-time delivery polish + multiple live end-to-end runs against real iTV topics — bugs surfaced + patched in-session + a SECOND WAVE of M5.5 polish at the end of the day: conclusion regex expansion, Phase 3B link/entity recalibration, structural threshold loosening, Phase 6 QC1/QC3 demotion to informational, Phase 2A final-section constraint + Phase 3A granularity trap, Phase 7A render order swapped to FAQ-before-conclusion per 4.3A, Phase 2A Unique Link Mandate + Phase 3A duplicate_internal_url trap, Phase 2A CTA URL Reservation + Phase 3A cta_url_in_body trap, Phase 7A silent URL normalization + Phase 7B Link Manager rebuilt as a status-toggled Link Audit drawer, DA hover contrast fix + paragraph structure rule appended to Phase 2B/5 uncached instruction blocks) | V3.1 (production) | V4.0 → V4.1 (V4.1 STUDIO + TELEMETRY UPGRADE LIVE-DEPLOYED; ALL 7 PHASES BUILT [M1–M5] + post-M5 schema upgrade [content_sections / conclusion_section / faq_section / sectional fact allocation / framework_labels / table_type / Save State per-section rollback / inline citation tokens / Phase 3B is now hallucination-sweep-only with FLAG/IGNORE recalibration + link_/entity carveouts]; multiple end-to-end runs completed against real iTV topics; live-run bug catches patched same-day [byline title duplication, consecutive duplicate paragraphs, conclusion content landing in content_sections, narrative-climax sections like "The Widening Gap" / "The Verdict" getting an image + ToC entry instead of going to conclusion_section, FAQ rendering after conclusion]; M6 side-by-side V3.1↔V4.0 + M7 ship still pending)
 ================================================
+
+────────────────────────────────────────────────
+V4.1.3 FOUR-ZONE COLOR SYSTEM — May 14, 2026
+────────────────────────────────────────────────
+Visual zoning overhaul on top of the V4.1.2 brand-first light theme. Four
+distinct color zones, one coherent system. NO pipeline-logic changes.
+
+ZONE 0 — TOOL HEADER (dark navy).
+  Selector: .top-bar
+  Background: var(--primary) (#063a6c) — solid fill, no border, no shadow.
+              The dark surface handles separation against the white page on
+              its own; box-shadow + border were removed.
+  "ITECH VALET" h1: #ffffff.
+  "AEO V4.1" span:  var(--secondary) (#cfe8fc) — the same light-blue token
+              already used by the inactive preview tab row.
+  .subtitle inside .top-bar: #8aa8c4 (muted-but-readable on navy).
+  .top-bar .cp-label / #modeCount / #modeCountAdmin: retinted to var(--secondary)
+              / #8aa8c4 with !important so the inline opacity:0.55 + inline
+              color:var(--faint) styles in the markup don't disappear into navy.
+
+ZONE 1 — CONFIGURATION (unchanged).
+  Selector: .control-panel (inside the .top-section after the header)
+  Surface stays var(--surface) (#f8fafc off-white) with var(--border) (#063a6c
+  dark blue) border per V4.1.2. API keys row, Operator Setup, Client/Topic
+  controls, stats bar — all kept as-is by spec.
+
+ZONE 2 — ESCALATION PANEL (light-yellow caution zone).
+  Selector: .escalation-panel
+  Background: #fffbeb (warm light yellow) — PERMANENT, regardless of alert
+              state. The escalation panel is the standing caution zone by
+              design; it's yellow even when empty.
+  Left border: 3px solid #f59e0b (amber — the universal caution signal).
+              Permanent, kept even when has-red / has-yellow are applied.
+  has-red / has-yellow now recolor border-top / border-right / border-bottom
+              ONLY — the amber left rail stays put.
+  .esc-title heading: #92400e (dark amber, reads on #fffbeb).
+  .esc-empty empty-state copy: #8a6d00 (the old --faint slate-400 washed out
+              on yellow; this brown reads cleanly).
+  .esc-count.red / .esc-count.yellow badge chips kept on their existing red /
+              orange tints — they communicate state regardless of the yellow
+              panel surface.
+
+ZONE 3 — OPERATIONAL WORKSPACE (light-blue surface, white floating cards).
+  Selector: .layout
+  Background: var(--secondary) (#cfe8fc) — the same light-blue token used by
+              the preview tab bar, so the workspace + tab strip read as one
+              cohesive surface.
+  Padding: 18px; border-radius: 12px — gives the workspace breathing room
+              and rounds the bottom of the page composition.
+  Inner cards (.phase-card / .image-panel / .preview-panel) all flip to:
+              background:#ffffff;
+              border:1px solid var(--primary);
+              box-shadow:0 1px 2px rgba(6,58,108,0.06);
+              → they "float" as white cards on the light-blue surface.
+  Tab states (kept from V4.1.2):
+    inactive .ptab → background:var(--secondary), color:var(--primary)
+    active   .ptab → background:var(--primary), color:#ffffff
+    The light-blue tab bar (the .ptabs container) intentionally matches the
+    workspace background so the tab strip blends INTO Zone 3.
+
+ZONE 0 ↔ ZONE 3 BOOKEND.
+  The dark navy from Zone 0 reappears in Zone 3 as the accent color so the two
+  zones read as one composition:
+    - .phase-card { border: 1px solid var(--primary); }
+    - .phase-card.active { border-color:var(--primary); box-shadow:0 0 0 2px rgba(6,58,108,0.18); }
+    - .phase-card.active .phase-num { color:var(--primary); }
+    - .phase-num default → var(--faint) so waiting vs active still differentiate
+      via the box-shadow ring + per-state badge (Waiting / Running / Done / Error).
+
+BADGE CONTRAST AUDIT (against the new surfaces).
+  On white .phase-card surfaces (Zone 3 cards):
+    .b-waiting  bg #ececec  / color var(--faint)  → readable
+    .b-running  bg accent@15/ color --accent       → readable
+    .b-done     bg green@15 / color --green        → readable
+    .b-error    bg red@15   / color --red          → readable
+    .b-stub     bg #fff8e6  / color #b8860b        → readable
+  On the Zone 2 #fffbeb yellow panel:
+    .esc-count           bg #ececec / color --faint  → readable
+    .esc-count.red       red tint                    → readable
+    .esc-count.yellow    orange tint                 → readable
+
+PIPELINE GUARANTEES (unchanged in V4.1.3).
+  - validClusterUrls firewall + Universal Sanitizer (Phase 7A) — untouched.
+  - Ghost CTA (text-link-only) — still the default conclusion render.
+  - AEO_Run_Data telemetry + sessionTelemetry / calculateTotalCost() /
+    exportTelemetryToSheets() — all V4.1 telemetry plumbing left in place.
 
 ────────────────────────────────────────────────
 V4.1 "STUDIO & TELEMETRY" UPGRADE — May 14, 2026
