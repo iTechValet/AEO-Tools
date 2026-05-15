@@ -3,23 +3,42 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>iTech Valet — AEO V4.0 (Milestone 2)</title>
+<title>iTech Valet — AEO V4.1 (Studio & Telemetry)</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600&display=swap');
   :root {
-    /* PROFESSIONAL RUN LOG PALETTE (semantic roles, not brand expression):
-       --blue   = Deep Navy — primary operator-UI text + buttons that should read as "core action"
-       --indigo = Purple/Indigo — infrastructure / Phase milestones in the run log
-       --amber  = High-contrast Gold — warnings + QC notes (replaces the previous orange/yellow that
-                  read too close to red and was hard to scan in the run log)
-       --green  = Emerald — success (forward-progress signals, validated states)
-       --red    = Crimson — errors + manual stops (use ONLY for critical/abort, never warnings)
-       --accent + --orange retained for legacy UI elements (badges, brand chrome) so this change
-       doesn't ripple into the brand-expression layer in the rendered article. */
-    --blue: #2c3e50; --accent: #2494e0; --orange: #dd6b00;
-    --indigo: #667eea; --amber: #d48806;
-    --green: #27ae60; --red: #c0392b; --bg: #ffffff; --surface: #f9f9f9;
-    --border: #e0e0e0; --muted: #888; --faint: #aaa;
+    /* V4.1 STUDIO PALETTE — high-contrast Slate/Indigo production-studio theme.
+       Legacy variable names (--blue / --accent / --orange / --green / --red / --surface / --muted)
+       are kept as aliases of the new named tokens (--text / --indigo / --amber / --emerald /
+       --crimson / --sidebar / --text-muted) so the rest of the file's rules don't have to change. */
+    --bg: #0f172a;             /* slate-900 — main dark canvas */
+    --sidebar: #1e293b;        /* slate-800 — panel + drawer surface */
+    --surface: #1e293b;        /* alias of --sidebar (legacy var name retained for ~300 existing selectors) */
+    --border: #334155;         /* slate-700 — borders visible on slate-800 */
+    --text: #f8fafc;           /* slate-50 — primary text on dark surfaces */
+    --text-muted: #94a3b8;     /* slate-400 — secondary text */
+    --muted: #94a3b8;          /* alias of --text-muted */
+    --faint: #64748b;          /* slate-500 — tertiary text */
+    /* --blue is now LIGHT — almost every existing rule that says `color:var(--blue)` is text that
+       sits on the (now-dark) --surface, so making it light keeps that text legible. Form fields
+       (which still have hardcoded white backgrounds) get an explicit dark-text override below. */
+    --blue: #f8fafc;
+    --indigo: #6366f1;         /* primary accent · Phase milestones · info logs */
+    --accent: #6366f1;         /* alias of --indigo */
+    --amber: #f59e0b;          /* warnings · QC · "in flight" */
+    --orange: #f59e0b;         /* alias of --amber */
+    --emerald: #10b981;        /* success · validated · forward-progress */
+    --green: #10b981;          /* alias of --emerald */
+    --crimson: #ef4444;        /* errors · operator aborts */
+    --red: #ef4444;            /* alias of --crimson */
+  }
+  /* Form fields keep white backgrounds (most have hardcoded background:#fff), so their text must
+     stay dark for legibility. !important is used because the legacy class rules below have
+     specificity 0,0,1,0 and we need this generic override to win without re-writing each one. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+  select,
+  textarea {
+    color: #0f172a !important;
   }
   * { box-sizing: border-box; }
   body { font-family:'Lexend',sans-serif; font-weight:300; background:var(--bg); color:var(--blue); min-height:100vh; padding:20px 24px; margin:0; }
@@ -134,20 +153,46 @@
   .cache-log-row .verdict.partial { color:var(--accent); font-weight:600; } /* PARTIAL — expected on every relay call; informational (blue), not a warning */
   .cache-log-row .verdict.miss { color:var(--red); font-weight:600; }       /* MISS */
 
-  .runlog { font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.6; }
-  .runlog .line { padding:3px 6px; border-bottom:1px solid #eef0f3; }
-  /* Log-level color semantics:
-     .info  = infrastructure / Phase milestones / Docs Loaded   → indigo
-     .ok    = success / forward-progress                         → emerald green
-     .warn  = QC warnings / retries / inline-validation rejects  → amber gold
-     .err   = critical errors / operator aborts                  → crimson red (reserved)
-     Existing call sites that pass 'info' / 'ok' / 'warn' / 'err' to log() now resolve
-     to the new palette automatically — no per-call-site change needed. */
-  .runlog .line.info { color:var(--indigo); }
-  .runlog .line.ok { color:var(--green); }
-  .runlog .line.warn { color:var(--amber); }
-  .runlog .line.err { color:var(--red); font-weight:500; }
-  .runlog .ts { color:var(--faint); margin-right:8px; }
+  /* V4.1 DEPLOYMENT LOG — Studio "Timeline Nodes."
+     Each .line is a card (1px slate border, 8px radius) connected by a vertical Indigo rail.
+     The rail is the runlog's left ::before; each node's left padding clears the rail and a 7px
+     connector dot sits over it. Empty :empty rule is unchanged from before. */
+  .runlog { font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.6; position:relative; padding:6px 4px 6px 22px; }
+  .runlog:before {
+    content:''; position:absolute; left:10px; top:8px; bottom:8px;
+    width:2px; background:var(--indigo); opacity:.45; border-radius:1px;
+  }
+  .runlog .line {
+    position:relative;
+    background:rgba(30,41,59,0.55);   /* slate-800 @ 55% — sits above the page bg without competing with the rail */
+    border:1px solid #334155;
+    border-radius:8px;
+    padding:6px 10px;
+    margin:0 0 6px 0;
+    color:var(--text);
+  }
+  .runlog .line:last-child { margin-bottom:0; }
+  /* Node dot — sits on the Indigo rail (left:-16px aligns it with the 10px rail offset accounting for line padding) */
+  .runlog .line:before {
+    content:''; position:absolute; top:9px; left:-16px;
+    width:9px; height:9px; border-radius:50%;
+    background:var(--indigo); border:2px solid var(--bg);
+    box-shadow:0 0 0 1px var(--indigo);
+  }
+  /* Log-level color semantics — Studio palette:
+     .info  = infrastructure / Phase milestones / Docs Loaded   → muted indigo
+     .ok    = success / forward-progress                         → emerald
+     .warn  = QC warnings / retries / inline-validation rejects  → amber
+     .err   = critical errors / operator aborts                  → crimson */
+  .runlog .line.info  { color:var(--indigo); border-color:rgba(99,102,241,.45); }
+  .runlog .line.info:before  { background:var(--indigo); box-shadow:0 0 0 1px var(--indigo); }
+  .runlog .line.ok    { color:var(--emerald); border-color:rgba(16,185,129,.45); }
+  .runlog .line.ok:before    { background:var(--emerald); box-shadow:0 0 0 1px var(--emerald); }
+  .runlog .line.warn  { color:var(--amber); border-color:rgba(245,158,11,.5); }
+  .runlog .line.warn:before  { background:var(--amber); box-shadow:0 0 0 1px var(--amber); }
+  .runlog .line.err   { color:var(--crimson); border-color:rgba(239,68,68,.55); font-weight:500; }
+  .runlog .line.err:before   { background:var(--crimson); box-shadow:0 0 0 1px var(--crimson); }
+  .runlog .ts { color:var(--text-muted); margin-right:8px; }
 
   .legend-box { background:#fff8f4; border:1px solid #ffd4a3; border-radius:6px; padding:8px 12px; font-size:11px; color:#8a4a00; margin-bottom:10px; line-height:1.5; }
 
@@ -211,8 +256,24 @@
   .img-panel-toggle { background:none; border:none; color:var(--faint); font-size:18px; line-height:1; cursor:pointer; padding:0 4px; transition:color .2s, transform .2s; }
   .img-panel-toggle:hover { color:var(--accent); }
   .image-panel.collapsed .img-panel-toggle { transform:rotate(-90deg); }
+  /* V4.1 SLIDING DRAWER (operator collapse). The header always stays in place so the toggle button
+     remains reachable; the BODY (#imgGrid + #p7Inputs) translates off to the left and fades when
+     .collapsed is applied. Height collapses in lockstep so the layout doesn't keep the empty space.
+     Restoring the panel reverses the translation. visibility:hidden after the transition keeps the
+     hidden content from receiving focus/clicks. */
+  #imgGrid, #p7Inputs {
+    transform:translateX(0); opacity:1;
+    max-height:1200px;
+    overflow:hidden;
+    transition: transform .28s ease-in-out, opacity .22s ease-in-out, max-height .32s ease-in-out;
+    will-change:transform, opacity, max-height;
+  }
   .image-panel.collapsed #imgGrid,
-  .image-panel.collapsed #p7Inputs { display:none; }
+  .image-panel.collapsed #p7Inputs {
+    transform:translateX(-110%); opacity:0;
+    max-height:0;
+    pointer-events:none;
+  }
   .img-grid { padding:10px 14px; max-height:760px; overflow-y:auto; }
   .img-card { background:#fff; border:1px solid var(--border); border-radius:10px; margin-bottom:10px; overflow:hidden; }
   .img-card:last-child { margin-bottom:0; }
@@ -324,6 +385,24 @@
   .p7-ctx-modal .pcx-input { width:100%; background:#fff; border:1px solid var(--border); border-radius:6px; padding:7px 9px; color:var(--blue); font-family:'Lexend',sans-serif; font-weight:300; font-size:12px; outline:none; margin:6px 0 8px; }
   .p7-ctx-modal .pcx-input:focus { border-color:var(--accent); }
   .p7-ctx-modal .pcx-note { font-size:10px; color:var(--muted); line-height:1.45; margin-top:6px; }
+  /* ── V4.1 METADATA PROPERTY CARDS ── (Phase 7 Preview Pane > Metadata tab)
+     Each metadata field renders as a self-contained card. Title + Description carry live char
+     counters (60 / 160) that flip to amber when the limit is exceeded. The Schema card uses
+     a monospace JSON block + a Copy button. */
+  .mc-grid { display:grid; grid-template-columns:1fr; gap:10px; padding:2px 0; }
+  .mc-card { background:var(--sidebar); border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
+  .mc-card-head { display:flex; align-items:baseline; gap:10px; margin-bottom:4px; }
+  .mc-label { font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:2px; color:var(--text-muted); text-transform:uppercase; flex:1; }
+  .mc-counter { font-family:'SF Mono',Menlo,monospace; font-size:11px; color:var(--text-muted); }
+  .mc-counter.over { color:var(--amber); font-weight:600; }
+  .mc-value { font-family:'Lexend',sans-serif; font-size:13px; line-height:1.55; color:var(--text); word-break:break-word; }
+  .mc-value.muted { color:var(--text-muted); font-style:italic; }
+  .mc-value.mono { font-family:'SF Mono',Menlo,monospace; font-size:12px; }
+  .mc-card.mc-schema .mc-value { white-space:pre-wrap; max-height:360px; overflow:auto; background:#0b1220; border:1px solid #334155; border-radius:6px; padding:10px 12px; font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.55; color:#d1d5db; }
+  .mc-copy { background:var(--indigo); color:#fff; border:none; border-radius:6px; padding:5px 12px; font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1px; cursor:pointer; transition:opacity .15s; }
+  .mc-copy:hover { opacity:.85; }
+  .mc-copy.copied { background:var(--emerald); }
+
   .pub-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 16px; border-top:1px solid var(--border); background:#fff8f4; }
   .pub-row label { font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1.5px; color:var(--orange); }
   .pub-row input[type=date] { background:#fff; border:1px solid var(--orange); border-radius:6px; padding:5px 9px; color:var(--blue); font-family:'Lexend',sans-serif; font-size:12px; outline:none; }
@@ -348,7 +427,7 @@
 
 <div class="top-bar">
   <div style="flex:1;">
-    <h1>iTech Valet <span>AEO V4.0</span><span class="ver-badge">M2</span><span class="build-stamp" id="buildStamp">build …</span></h1>
+    <h1>iTech Valet <span>AEO V4.1</span><span class="ver-badge">STUDIO</span><span class="build-stamp" id="buildStamp">build …</span></h1>
     <p class="subtitle">Phase 1 (research+thesis) → Phase 2 (V1 frame → frame validation → [M3.5: fire image gen, bound to the frame attempt_id] → hydration relay, table rows cite factClaims) → Phase 3 dual validation + surgical fixes (node-level, never a full regen) → Phase 4 freeze → Phase 5 voice draft (section-level relay race) → Phase 6 forensic critique + 6 JS quality checks (section-level relay) → Phase 7 final assembly (7A JS HTML build with silent URL normalization → 7B read-only preview + pure-JS formatting QC: Link Audit banner+drawer / Metadata / Re-Sync ToC / click-a-block modal → 7C finalize → checklist .html + final .txt + schema; hard-stops on image URLs + Publish Date). Error recovery F1–F4 + F13/F16/F19. Calibration/Production modes.</p>
   </div>
   <div style="text-align:right;">
@@ -683,7 +762,7 @@
       <div class="legend-box">
         <strong>What to look for:</strong> First Phase 2 frame call → <code>cache_creation_input_tokens &gt; 0</code>, <code>cache_read_input_tokens = 0</code> (verdict <strong style="color:var(--green);">CREATED</strong> — the shared context block is being written). Every later call (the hydration relay, the surgical fix, and "↻ Verify Cache") within ~5 min → <code>cache_read_input_tokens &gt; 0</code> (verdict <strong style="color:var(--green);">YES</strong> — same context block replayed). The "↻ Verify Cache" button in the Cache Stats tab re-runs the Phase 2 frame call to prove the round trip.
       </div>
-      <div class="runlog" id="runlogBody"><div class="line info"><span class="ts">—</span>V4.0 ready.</div></div>
+      <div class="runlog" id="runlogBody"><div class="line info"><span class="ts">—</span>V4.1 Studio ready.</div></div>
     </div>
 
     <div class="ppane" id="pane-cache">
@@ -721,7 +800,41 @@
     </div>
 
     <div class="ppane" id="pane-meta">
-      <pre id="metaPre">Metadata (the 7 SEO/URL checklist fields + thesis + intent layer) appears here after the Phase 2 frame, and is refreshed after Phases 5 & 6.</pre>
+      <!-- V4.1 PROPERTY CARDS — Meta Title / Meta Description / Slug / Schema render as discrete
+           cards with live char-counters (Title 60, Description 160) + Copy Schema button. -->
+      <div class="mc-grid" id="mcGrid">
+        <div class="mc-card" id="mcTitle">
+          <div class="mc-card-head">
+            <div class="mc-label">Meta Title</div>
+            <div class="mc-counter" id="mcTitleCount">0 / 60</div>
+          </div>
+          <div class="mc-value muted" id="mcTitleVal">(not generated yet — appears after the Phase 2 frame)</div>
+        </div>
+        <div class="mc-card" id="mcDescription">
+          <div class="mc-card-head">
+            <div class="mc-label">Meta Description</div>
+            <div class="mc-counter" id="mcDescriptionCount">0 / 160</div>
+          </div>
+          <div class="mc-value muted" id="mcDescriptionVal">(not generated yet)</div>
+        </div>
+        <div class="mc-card" id="mcSlug">
+          <div class="mc-card-head">
+            <div class="mc-label">Slug / Permalink</div>
+          </div>
+          <div class="mc-value mono muted" id="mcSlugVal">(not generated yet)</div>
+        </div>
+        <div class="mc-card mc-schema" id="mcSchema">
+          <div class="mc-card-head">
+            <div class="mc-label">Schema (JSON-LD)</div>
+            <button class="mc-copy" id="mcSchemaCopy" onclick="copySchema()" title="Copy the JSON-LD block to the clipboard">⎘ Copy Schema</button>
+          </div>
+          <div class="mc-value" id="mcSchemaVal">(generated after Phase 5 — refreshed on finalize)</div>
+        </div>
+        <details style="margin-top:6px;">
+          <summary style="font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:1.5px;color:var(--text-muted);cursor:pointer;padding:6px 0;">▸ Other fields (H1 · fullUrl · keywords · category · thesis · intentLayer)</summary>
+          <pre id="metaPre" style="margin:6px 0 0;background:var(--sidebar);border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:var(--text);font-family:'SF Mono',Menlo,monospace;font-size:11px;line-height:1.55;white-space:pre-wrap;">Metadata (the remaining checklist fields + thesis + intent layer) appears here after the Phase 2 frame, and is refreshed after Phases 5 & 6.</pre>
+        </details>
+      </div>
     </div>
 
     <div class="ppane" id="pane-da">
@@ -882,6 +995,54 @@
     expectedImageCount: 0,    // Phase 7 hard stop: needs imagesValidated && imageUrls.length === expectedImageCount
     phaseBuf: {}              // Item 4: per-phase output buffer (n → accumulated text) so retries APPEND, never overwrite
   };
+  // ── V4.1 SESSION TELEMETRY ──
+  // Mirrors the per-run token deltas in S.tokens (gi / go / ci / co / cacheRead / cacheCreate) so
+  // we can preserve them after the run unwinds and export them to the AEO_Run_Data sheet tab.
+  // calculateTotalCost() applies the V4.1 hardcoded cost table; updateCost()'s existing display
+  // still drives the header stat (so the in-flight cost display matches V4.0's behaviour byte-for-byte).
+  let sessionTelemetry = {
+    startTime: 0,
+    endTime: 0,
+    status: 'Pending',          // 'Success' | 'Aborted' | 'Error' (set at the end of the run)
+    tokens: {
+      geminiIn: 0,
+      geminiOut: 0,
+      claudeIn: 0,
+      claudeOut: 0,
+      claudeCacheRead: 0,
+      claudeCacheWrite: 0
+    }
+  };
+  function resetSessionTelemetry(){
+    sessionTelemetry.startTime = Date.now();
+    sessionTelemetry.endTime = 0;
+    sessionTelemetry.status = 'Pending';
+    sessionTelemetry.tokens = { geminiIn:0, geminiOut:0, claudeIn:0, claudeOut:0, claudeCacheRead:0, claudeCacheWrite:0 };
+  }
+  // V4.1 cost rates (per MTok). Hardcoded — not derived from updateCost()'s rates so V4.1 can
+  // diverge cleanly if pricing changes again.
+  //   Claude 3.5 Sonnet:  $3.00 in / $15.00 out / $3.75 cache write / $0.30 cache read
+  //   Gemini 1.5 Pro:     $3.50 in / $10.50 out
+  function calculateTotalCost(){
+    const t = sessionTelemetry.tokens;
+    const claude = (t.claudeIn / 1e6 * 3.00)
+                 + (t.claudeOut / 1e6 * 15.00)
+                 + (t.claudeCacheWrite / 1e6 * 3.75)
+                 + (t.claudeCacheRead  / 1e6 * 0.30);
+    const gemini = (t.geminiIn / 1e6 * 3.50)
+                 + (t.geminiOut / 1e6 * 10.50);
+    return claude + gemini;
+  }
+  function totalTelemetryTokens(){
+    const t = sessionTelemetry.tokens;
+    return t.geminiIn + t.geminiOut + t.claudeIn + t.claudeOut + t.claudeCacheRead + t.claudeCacheWrite;
+  }
+  // Format an elapsed-ms window as MM:SS (no hour wrap-around — runs are always <1h).
+  function fmtElapsedMMSS(ms){
+    const s = Math.max(0, Math.floor(ms / 1000));
+    return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  }
+
   let yellowWarnings = [];    // rolling, persisted to localStorage, capped at 10
   let running = false;
   let pipelineHalted = false; // set true by escalateRed — stops the orchestrator
@@ -1282,6 +1443,50 @@
     const da   = document.getElementById('daPre');   if(da)   da.textContent   = String((obj.directAnswer && obj.directAnswer.prose) || '').trim() || '(Direct Answer not written yet)';
     const v2   = document.getElementById('v2Pre');   if(v2)   v2.textContent   = formatArticleText(obj);
     const sc   = document.getElementById('schemaPre'); if(sc) sc.textContent = buildSchemaStub(obj);
+    refreshMetadataCards(obj);
+  }
+  // V4.1 — Property Cards for Title / Description / Slug / Schema with live char counters.
+  // Title soft-limit 60, Description soft-limit 160 — over-limit flips the counter to amber.
+  function refreshMetadataCards(obj){
+    obj = obj || S.v3 || S.v2 || S.v1;
+    const c = (obj && obj.checklist) || {};
+    const title = String(c.metaTitle || '').trim();
+    const desc  = String(c.metaDescription || '').trim();
+    const slug  = String(c.permalink || '').trim();
+    const tVal = document.getElementById('mcTitleVal'); const tCnt = document.getElementById('mcTitleCount');
+    if(tVal){ tVal.textContent = title || '(not generated yet)'; tVal.classList.toggle('muted', !title); }
+    if(tCnt){ tCnt.textContent = `${title.length} / 60`; tCnt.classList.toggle('over', title.length > 60); }
+    const dVal = document.getElementById('mcDescriptionVal'); const dCnt = document.getElementById('mcDescriptionCount');
+    if(dVal){ dVal.textContent = desc || '(not generated yet)'; dVal.classList.toggle('muted', !desc); }
+    if(dCnt){ dCnt.textContent = `${desc.length} / 160`; dCnt.classList.toggle('over', desc.length > 160); }
+    const sVal = document.getElementById('mcSlugVal');
+    if(sVal){ sVal.textContent = slug || '(not generated yet)'; sVal.classList.toggle('muted', !slug); }
+    const scVal = document.getElementById('mcSchemaVal');
+    if(scVal){
+      // Prefer the finalized schema block once Phase 7 ran; fall back to the stub the right-panel always builds.
+      const schemaText = S.finalSchema || buildSchemaStub(obj) || '';
+      scVal.textContent = schemaText.trim() || '(generated after Phase 5 — refreshed on finalize)';
+    }
+  }
+  // Copy the JSON-LD (finalized if available, otherwise the stub) to the clipboard.
+  function copySchema(){
+    const obj = S.v3 || S.v2 || S.v1;
+    const text = (S.finalSchema && S.finalSchema.trim()) || buildSchemaStub(obj) || '';
+    if(!text){ alert('No schema to copy yet — generate the article first.'); return; }
+    const btn = document.getElementById('mcSchemaCopy');
+    const done = () => {
+      if(!btn) return;
+      const prev = btn.textContent;
+      btn.classList.add('copied'); btn.textContent = '✓ Copied';
+      setTimeout(()=>{ btn.classList.remove('copied'); btn.textContent = prev; }, 1500);
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(()=>{
+        try { const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done(); } catch(_){ alert('Copy failed — select & copy manually from the Schema card.'); }
+      });
+    } else {
+      try { const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done(); } catch(_){ alert('Copy failed.'); }
+    }
   }
   function log(msg, level='info'){
     const body = document.getElementById('runlogBody');
@@ -1423,6 +1628,60 @@
     return '';
   }
 
+  // ─── V4.1 TELEMETRY EXPORT ────────────────────────────────────
+  // Phase 7C writes a row to the AEO_Run_Data tab on the same 4.2 sheet the run pulls from.
+  // Columns: Date · Client · Topic · Total Time (MM:SS) · Total Cost (USD) · Total Tokens · Status.
+  // The Sheets API .values:append endpoint requires write scope; this tool authenticates with the
+  // Drive API key (read-only). If the tab is missing OR the append is rejected for any reason
+  // (missing tab, missing sheet, no write scope, network error), we DO NOT throw — Phase 7C must
+  // not be blocked by telemetry export. We surface a muted-indigo info-level log: the exact line
+  // "Telemetry export skipped: Tab 'AEO_Run_Data' not found." per the V4.1 spec.
+  async function exportTelemetryToSheets(){
+    try {
+      if(!sessionTelemetry.startTime){ return; }
+      if(!sessionTelemetry.endTime){ sessionTelemetry.endTime = Date.now(); }
+      const dkey = (document.getElementById('keyDrive')?.value || '').trim();
+      const sheetId = S.client && S.client.sheet42;
+      if(!dkey || !sheetId){
+        log("Telemetry export skipped: Tab 'AEO_Run_Data' not found.", 'info');
+        return;
+      }
+      const dateStr = new Date(sessionTelemetry.startTime).toISOString().slice(0,10);
+      const elapsedMs = Math.max(0, sessionTelemetry.endTime - sessionTelemetry.startTime);
+      const row = [
+        dateStr,
+        (S.client && S.client.name) || '—',
+        S.topic || '—',
+        fmtElapsedMMSS(elapsedMs),
+        '$' + calculateTotalCost().toFixed(3),
+        String(totalTelemetryTokens()),
+        sessionTelemetry.status || 'Success'
+      ];
+      const tabName = 'AEO_Run_Data';
+      const range = `${tabName}!A:G`;
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS&key=${encodeURIComponent(dkey)}`;
+      let r;
+      try {
+        r = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ values: [row] })
+        });
+      } catch(_){
+        log("Telemetry export skipped: Tab 'AEO_Run_Data' not found.", 'info');
+        return;
+      }
+      if(!r.ok){
+        log("Telemetry export skipped: Tab 'AEO_Run_Data' not found.", 'info');
+        return;
+      }
+      log(`Telemetry exported → AEO_Run_Data (${row.join(' · ')}).`, 'ok');
+    } catch(_){
+      // Defensive — never let telemetry break the finalize flow.
+      log("Telemetry export skipped: Tab 'AEO_Run_Data' not found.", 'info');
+    }
+  }
+
   // ─── CRITICAL DIRECTIVE #1: MARKDOWN WRAPPER STRIPPING ──────
   // Every Claude/Gemini text response that should be JSON MUST run this first.
   // Per V4.0 Build Plan F2 + Handoff Notes. Non-negotiable.
@@ -1484,6 +1743,9 @@
       const u = data.usageMetadata || {};
       S.tokens.gi += u.promptTokenCount || 0;
       S.tokens.go += u.candidatesTokenCount || 0;
+      // V4.1 — mirror into sessionTelemetry for the AEO_Run_Data export
+      sessionTelemetry.tokens.geminiIn  += u.promptTokenCount || 0;
+      sessionTelemetry.tokens.geminiOut += u.candidatesTokenCount || 0;
       updateCost();
       return text;
     } catch(err){
@@ -1623,6 +1885,11 @@
     S.tokens.co += usage.output;
     S.tokens.cacheCreate += usage.cacheCreate;
     S.tokens.cacheRead += usage.cacheRead;
+    // V4.1 — mirror into sessionTelemetry for the AEO_Run_Data export
+    sessionTelemetry.tokens.claudeIn         += usage.input || 0;
+    sessionTelemetry.tokens.claudeOut        += usage.output || 0;
+    sessionTelemetry.tokens.claudeCacheWrite += usage.cacheCreate || 0;
+    sessionTelemetry.tokens.claudeCacheRead  += usage.cacheRead || 0;
     updateCost();
 
     return { textOutput, toolCalls, usage, stopReason };
@@ -4780,6 +5047,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     S.client = clients[parseInt(sel.value)];
     S.topic = topic;
     S.tokens = { gi:0, go:0, ci:0, co:0, cacheRead:0, cacheCreate:0 };
+    resetSessionTelemetry();   // V4.1 — fresh AEO_Run_Data telemetry window for this run
     S.cacheLog = [];
     S.research = null; S.frame = null; S.v1 = null; S.v1Frozen = false; S.validation = null; S.intentLayer = ''; S.voiceExemplars = ''; S.v2 = null; S.v3 = null; S.htmlStub = ''; S.cta43BWarned = false; S._extraLinksWarned = false; S.validClusterUrls = new Set();
     // M3.5 — image queue: hard-reset and clear the panel for the new run
@@ -4801,6 +5069,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     ['1','2','3','4','5','6','7'].forEach(n => { setPhase(n,'waiting','Waiting'); const o=document.getElementById('o'+n), m=document.getElementById('m'+n); if(o)o.textContent=''; if(m)m.textContent=''; });
     document.getElementById('o3').textContent=''; document.getElementById('o4').textContent='';
     { const e=document.getElementById('metaPre'); if(e) e.textContent='Metadata appears here after the Phase 2 frame, and is refreshed after Phases 5 & 6.'; }
+    refreshMetadataCards(null);   // V4.1 — reset Property Cards to their empty/muted state
     { const e=document.getElementById('daPre'); if(e) e.textContent='The Direct Answer prose appears here after the Phase 2 hydration relay, and is re-voiced after Phase 5, then forensic-critiqued in Phase 6.'; }
     { const e=document.getElementById('v2Pre'); if(e) e.textContent='The V2 article appears here after Phases 5–6 (voice draft & forensic critique). During Phase 2 it shows the V1 article-in-progress (the structured JSON, streaming).'; }
     { const e=document.getElementById('schemaPre'); if(e) e.textContent='A basic Article + FAQPage JSON-LD stub appears here after Phase 5. The full schema graph = Milestone 5.'; }
@@ -5454,6 +5723,12 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     if(S.research && S.docs.doc43A) setCacheBtnsDisabled(false);
     document.getElementById('stopBtn').style.display = 'none';
     log('🛑 OPERATOR ABORT: Execution terminated. System reset.', 'err');
+    // V4.1 — capture the abort state so a finalize that arrives after an operator stop still
+    // writes an accurate row; if no finalize ever happens, the telemetry just doesn't export.
+    if(sessionTelemetry.startTime && !sessionTelemetry.endTime){
+      sessionTelemetry.endTime = Date.now();
+      sessionTelemetry.status = 'Aborted';
+    }
   }
 
   // ─── STRUCTURE ACCESSORS (array-safe — never assume Claude gave us real arrays) ──
@@ -6976,6 +7251,7 @@ ${schemaRow}
     S.checklistHTML = buildChecklistHTML(article);
     renderPhase7Preview();   // re-render (clean) from the finalized JSON
     const sc = document.getElementById('schemaPre'); if(sc) sc.textContent = S.finalSchema;
+    refreshMetadataCards(article);   // V4.1 — refresh Property Cards now that the finalized schema is bound
     const dlc = document.getElementById('btnDlChecklist'), dlf = document.getElementById('btnDlFinal');
     if(dlc) dlc.disabled = false; if(dlf) dlf.disabled = false;
     const st = document.getElementById('p7Status'); if(st) st.textContent = `✓ Finalized — ${(S.finalTXT.length).toLocaleString()} chars. Downloads ready below. (Any further formatting change will require re-finalizing.)`;
@@ -6984,6 +7260,10 @@ ${schemaRow}
     setG('✓ Phase 7 complete — article finalized. Download the checklist .html and the final .txt in the Final HTML tab.');
     setPhase(7, 'done', 'Finalized ✓');
     if(_phase7FinalizeResolve){ const r = _phase7FinalizeResolve; _phase7FinalizeResolve = null; r(); }   // release the 7B operator-QC checkpoint
+    // V4.1 — telemetry row to AEO_Run_Data. Fire-and-forget: never blocks the finalize flow.
+    sessionTelemetry.endTime = Date.now();
+    sessionTelemetry.status = 'Success';
+    exportTelemetryToSheets();
   }
   function dlChecklistHTML(){
     if(!S.checklistHTML){ alert('Click "Finalize Article" first to build the checklist.'); return; }

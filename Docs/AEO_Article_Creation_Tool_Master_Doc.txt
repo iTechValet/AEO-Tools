@@ -1,5 +1,115 @@
-AEO ARTICLE CREATION PIPELINE — MASTER REFERENCE DOC  (WORKING COPY — sessions of May 11–13, 2026)
-Last Updated: May 13, 2026 (Claude Code build session — V4.0 schema refactor + hallucination-sweep recalibration + assembly-time delivery polish + multiple live end-to-end runs against real iTV topics — bugs surfaced + patched in-session + a SECOND WAVE of M5.5 polish at the end of the day: conclusion regex expansion, Phase 3B link/entity recalibration, structural threshold loosening, Phase 6 QC1/QC3 demotion to informational, Phase 2A final-section constraint + Phase 3A granularity trap, Phase 7A render order swapped to FAQ-before-conclusion per 4.3A, Phase 2A Unique Link Mandate + Phase 3A duplicate_internal_url trap, Phase 2A CTA URL Reservation + Phase 3A cta_url_in_body trap, Phase 7A silent URL normalization + Phase 7B Link Manager rebuilt as a status-toggled Link Audit drawer, DA hover contrast fix + paragraph structure rule appended to Phase 2B/5 uncached instruction blocks) | V3.1 (production) | V4.0 (LIVE-TESTED — ALL 7 PHASES BUILT [M1–M5] + post-M5 schema upgrade [content_sections / conclusion_section / faq_section / sectional fact allocation / framework_labels / table_type / Save State per-section rollback / inline citation tokens / Phase 3B is now hallucination-sweep-only with FLAG/IGNORE recalibration + link_/entity carveouts]; multiple end-to-end runs completed against real iTV topics this session; live-run bug catches patched same-day [byline title duplication, consecutive duplicate paragraphs, conclusion content landing in content_sections, narrative-climax sections like "The Widening Gap" / "The Verdict" getting an image + ToC entry instead of going to conclusion_section, FAQ rendering after conclusion]; M6 side-by-side V3.1↔V4.0 + M7 ship still pending)
+AEO ARTICLE CREATION PIPELINE — MASTER REFERENCE DOC  (WORKING COPY — sessions of May 11–14, 2026)
+Last Updated: May 14, 2026 (V4.1 "STUDIO & TELEMETRY" UPGRADE — high-contrast Slate/Indigo theme applied to the global CSS variables [--bg / --sidebar / --text / --indigo / --amber / --emerald / --crimson — legacy var names retained as aliases]; Deployment Log entries rebuilt as "Timeline Nodes" with a vertical Indigo rail + per-node connector dot, 1px slate border, 8px radius, semantic color per log level [indigo info · emerald ok · amber warn · crimson err]; sliding-drawer transition wired into the #imagePanel inner content [transform: translateX(-110%) + max-height + opacity, 280ms ease-in-out] so the panel slides rather than snapping; the Metadata tab now renders Meta Title / Meta Description / Slug / Schema as discrete "Property Cards" — Title and Description each carry a live char-counter that flips amber on overflow [60 / 160 limits], Schema is a monospace JSON-LD block with a Copy Schema button; AEO_Run_Data telemetry system added — a global sessionTelemetry object tracks startTime/endTime/status + all Gemini and Claude token deltas at the same call sites the Cost stat is updated, calculateTotalCost() applies the V4.1 hardcoded rate card [Claude 3.5 Sonnet: $3.00 in / $15.00 out / $3.75 cache write / $0.30 cache read; Gemini 1.5 Pro: $3.50 in / $10.50 out], exportTelemetryToSheets() appends a row [Date · Client · Topic · Total Time MM:SS · Total Cost USD · Total Tokens · Status] to the AEO_Run_Data tab on the client's 4.2 sheet at Phase 7C [finalizeArticle], failing soft with a muted-indigo info log [exact text: "Telemetry export skipped: Tab 'AEO_Run_Data' not found."] if the tab/sheet/key is missing; validClusterUrls firewall + Universal Sanitizer + Ghost CTA default all left untouched and active per spec) | May 13, 2026 (Claude Code build session — V4.0 schema refactor + hallucination-sweep recalibration + assembly-time delivery polish + multiple live end-to-end runs against real iTV topics — bugs surfaced + patched in-session + a SECOND WAVE of M5.5 polish at the end of the day: conclusion regex expansion, Phase 3B link/entity recalibration, structural threshold loosening, Phase 6 QC1/QC3 demotion to informational, Phase 2A final-section constraint + Phase 3A granularity trap, Phase 7A render order swapped to FAQ-before-conclusion per 4.3A, Phase 2A Unique Link Mandate + Phase 3A duplicate_internal_url trap, Phase 2A CTA URL Reservation + Phase 3A cta_url_in_body trap, Phase 7A silent URL normalization + Phase 7B Link Manager rebuilt as a status-toggled Link Audit drawer, DA hover contrast fix + paragraph structure rule appended to Phase 2B/5 uncached instruction blocks) | V3.1 (production) | V4.0 → V4.1 (V4.1 STUDIO + TELEMETRY UPGRADE LIVE-DEPLOYED; ALL 7 PHASES BUILT [M1–M5] + post-M5 schema upgrade [content_sections / conclusion_section / faq_section / sectional fact allocation / framework_labels / table_type / Save State per-section rollback / inline citation tokens / Phase 3B is now hallucination-sweep-only with FLAG/IGNORE recalibration + link_/entity carveouts]; multiple end-to-end runs completed against real iTV topics; live-run bug catches patched same-day [byline title duplication, consecutive duplicate paragraphs, conclusion content landing in content_sections, narrative-climax sections like "The Widening Gap" / "The Verdict" getting an image + ToC entry instead of going to conclusion_section, FAQ rendering after conclusion]; M6 side-by-side V3.1↔V4.0 + M7 ship still pending)
+================================================
+
+────────────────────────────────────────────────
+V4.1 "STUDIO & TELEMETRY" UPGRADE — May 14, 2026
+────────────────────────────────────────────────
+Scope: surgical UI refresh + cost-tracking infrastructure. NO pipeline-logic changes.
+Pipeline guarantees still in force: validClusterUrls firewall + Universal Sanitizer
++ "Ghost CTA" (text-link-only) default render for the conclusion all untouched.
+
+(1) STUDIO PALETTE (high-contrast Slate/Indigo).
+    Global :root CSS variables remapped to a dark-canvas theme:
+      --bg            #0f172a   slate-900 (main canvas)
+      --sidebar       #1e293b   slate-800 (panel/drawer surface)
+      --surface       #1e293b   alias of --sidebar (legacy var name retained so ~300
+                                existing rules don't have to change)
+      --border        #334155   slate-700 (visible-on-dark borders)
+      --text          #f8fafc   slate-50  (primary text on dark surfaces)
+      --text-muted    #94a3b8   slate-400 (secondary text)
+      --indigo        #6366f1   primary accent + Phase milestone color
+      --amber         #f59e0b   warnings + QC
+      --emerald       #10b981   success + forward-progress
+      --crimson       #ef4444   errors + operator aborts
+    Legacy vars (--blue/--accent/--orange/--green/--red/--muted) kept as aliases of the
+    new tokens so every existing selector keeps rendering. --blue is now LIGHT (text-on-
+    dark); form fields explicitly override text color back to dark via a global
+    `input,select,textarea { color:#0f172a !important; }` rule, since their hardcoded
+    white backgrounds are unchanged.
+
+(2) DEPLOYMENT LOG — "TIMELINE NODES."
+    .runlog gains left padding + a vertical Indigo rail (::before, opacity .45, 2px).
+    Each .line is now a card: slate-800 @ 55% background, 1px slate-700 border, 8px
+    border-radius, 6px vertical gap, with a 9px circular connector dot on the rail
+    (left:-16px, 2px ring of --bg). Border and dot color shift with log level:
+      .info   muted indigo  (Phase starts)
+      .ok     emerald       (success)
+      .warn   amber         (QC / retries)
+      .err    crimson       (errors + aborts)
+
+(3) SLIDING SIDEBAR DRAWER.
+    #imagePanel collapse/expand is now a CSS transform slide rather than display:none.
+    The header stays in place (the operator can re-summon the panel). The body
+    (#imgGrid + #p7Inputs) animates transform:translateX(-110%) + opacity:0 +
+    max-height:0 with a 280ms ease-in-out cubic-ish transition.
+
+(4) METADATA PROPERTY CARDS (Phase 7 Preview Pane > Metadata tab).
+    Replaced the single <pre id="metaPre"> with a grid of self-contained .mc-card
+    elements:
+      Meta Title         — live char counter, "X / 60", flips amber when > 60
+      Meta Description   — live char counter, "X / 160", flips amber when > 160
+      Slug / Permalink   — monospace
+      Schema (JSON-LD)   — dark monospace block + "⎘ Copy Schema" button
+                           (Copy reads S.finalSchema when finalized, else the stub
+                           from buildSchemaStub; uses navigator.clipboard with a
+                           document.execCommand fallback)
+    H1 / fullUrl / keywords / category / thesis / intentLayer relegated to a
+    <details> "▸ Other fields" disclosure so the cards stay the primary surface.
+    refreshMetadataCards(obj) populates the cards from the current article state
+    (S.v3 || S.v2 || S.v1); called from refreshRightPanels() and at run reset.
+    Schema card refreshes again at Phase 7C finalize so the finalized JSON-LD
+    (BlogPosting + FAQPage + BreadcrumbList) replaces the stub.
+
+(5) AEO_Run_Data TELEMETRY (Phase 7C).
+    Global object: sessionTelemetry { startTime, endTime, status, tokens:{geminiIn,
+    geminiOut, claudeIn, claudeOut, claudeCacheRead, claudeCacheWrite} }.
+      - resetSessionTelemetry() runs at every ⚡ Run (alongside S.tokens reset).
+      - Token deltas mirror at the SAME call sites the existing S.tokens accumulator
+        uses: the Gemini block ("S.tokens.gi += ...") and the Claude block
+        ("S.tokens.ci += usage.input..."). One source of truth — if S.tokens is
+        accurate, sessionTelemetry is accurate.
+      - status: 'Success' set at finalizePhase7; 'Aborted' set at stopPipeline.
+    calculateTotalCost() — V4.1 hardcoded rates (NOT shared with updateCost()'s
+    display, which keeps V4.0's slightly different Gemini rate so the live cost
+    stat doesn't jump on this release):
+      Claude 3.5 Sonnet: $3.00 in / $15.00 out / $3.75 cache write / $0.30 cache read
+      Gemini 1.5 Pro:    $3.50 in / $10.50 out
+    exportTelemetryToSheets() — fired from finalizePhase7 (Phase 7C):
+      URL: sheets.googleapis.com/v4/spreadsheets/{S.client.sheet42}/values/AEO_Run_Data!A:G:append
+           ?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS&key={DriveKey}
+      Body: { values: [[ Date, Client, Topic, Total Time MM:SS, $Cost, Total Tokens, Status ]] }
+    Failure modes (any of them → fail-soft):
+      - keyDrive empty, S.client.sheet42 empty → log info, return
+      - network/CORS/auth error → log info, return
+      - HTTP non-OK (typically 400 "Unable to parse range" when the tab is missing,
+        or 403 when the key has no write scope) → log info, return
+    Failure-mode log line — exact text per V4.1 spec:
+      "Telemetry export skipped: Tab 'AEO_Run_Data' not found."
+    Success path logs: "Telemetry exported → AEO_Run_Data ({row})." at level 'ok'.
+
+(6) HEADER + BADGE.
+    <title> bumped: "iTech Valet — AEO V4.1 (Studio & Telemetry)".
+    Top-bar h1: "AEO V4.1" + a new "STUDIO" version chip in place of "M2".
+    Initial run-log node text: "V4.1 Studio ready."
+
+LOGIC CLEANUP (per spec § 4):
+    - validClusterUrls firewall (Phase 2A Unique Link Mandate + 4.2 NLM cluster
+      enforcement) — untouched, fully active.
+    - "Universal Sanitizer" (text-pipe normalization that already runs in Phase 7A) —
+      untouched, fully active.
+    - "Ghost CTA" (text-link-only) — remains the default conclusion render.
+
+NOT IN SCOPE (deferred):
+    - Comprehensive dark-mode rework of every hardcoded #fff/white element. The
+      palette swap re-skins the major surfaces; some legacy form fields and toast
+      backgrounds retain their hardcoded colors. They remain legible (form fields
+      have dark-text override) but a pixel-perfect dark sweep is a follow-up.
+    - Authenticated Sheets write (OAuth). The current export uses the same API
+      key as the read path; it will only succeed if the AEO_Run_Data tab is
+      writable by API key (which depends on the sheet's sharing settings). The
+      muted-indigo fallback covers the not-yet-configured case cleanly.
+
 ================================================
 
 ⚠️ V4.0 ARCHITECTURAL REBUILD — LIVE-TESTING IN PROGRESS (Claude Code)
