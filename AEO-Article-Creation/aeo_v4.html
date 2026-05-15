@@ -130,7 +130,7 @@
   }   /* 40% left (phase cards + images) / 60% right (tabs + preview) */
   /* Left column scrolls when the phase-card stack + image panel exceed the viewport (Change 3). */
   .left-col, .right-col { min-width:0; }
-  .left-col { overflow-y:auto; }
+  .left-col { overflow-y:auto; height:100vh; position:sticky; top:0; }
 
   .pipeline { display:flex; flex-direction:column; gap:7px; }
   /* V4.1.4 — phase cards now carry the light-blue (--secondary) interior so the working surfaces
@@ -371,18 +371,18 @@
      Restoring the panel reverses the translation. visibility:hidden after the transition keeps the
      hidden content from receiving focus/clicks. */
   #imgGrid, #p7Inputs {
-    transform:translateX(0); opacity:1;
-    max-height:1200px;
-    overflow:hidden;
-    transition: transform .28s ease-in-out, opacity .22s ease-in-out, max-height .32s ease-in-out;
-    will-change:transform, opacity, max-height;
+    opacity:1;
+    max-height:520px;
+    overflow-y:auto;
+    transition: opacity .22s ease-in-out, max-height .32s ease-in-out;
   }
   .image-panel.collapsed #imgGrid,
   .image-panel.collapsed #p7Inputs,
   .image-panel.images-collapsed #imgGrid,
   .image-panel.images-collapsed #p7Inputs {
-    transform:translateX(-110%); opacity:0;
+    opacity:0;
     max-height:0;
+    overflow:hidden;
     pointer-events:none;
   }
   /* V4.1.4 — .images-collapsed is the auto-applied "completion" state from validateImages():
@@ -6255,7 +6255,7 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     // regardless of whether it was collapsed manually (.collapsed) or auto-collapsed by
     // validateImages() on the GREEN gate (.images-collapsed).
     panel.classList.toggle('collapsed', wantCollapsed);
-    panel.classList.toggle('images-collapsed', wantCollapsed);
+    if(!wantCollapsed) panel.classList.remove('images-collapsed');
     const btn = document.getElementById('imgPanelToggle');
     if(btn) btn.setAttribute('aria-label', wantCollapsed ? 'Expand image panel' : 'Collapse image panel');
   }
@@ -6319,9 +6319,12 @@ Return via the revoice_content_block tool a "nodes" array — ONE object per FLA
     if(hint) hint.textContent = _phase6Resolve ? 'All set — continuing to Phase 7 assembly…' : 'All set ✓ — images + Publish Date locked in.';
     updateArtifactImageUrls();
     log(`M3.5 — Phase 7 inputs validated: ${Object.keys(S.imageUrls).length}/${S.expectedImageCount} image URL(s), featured = image ${getFeatured()+1}, publish date ${pubDate}.`, 'ok');
-    // M3.5 — GREEN state: collapse the image panel to free vertical real estate for the
-    // right-pane tabs. Idempotent + reversible via the chevron in .img-panel-head.
-    togglePhase7ImgPanel({ collapse: true });
+    // M3.5 — GREEN state: collapse via chevron (images-collapsed class only — no slide animation).
+    // Panel header stays visible; chevron reopens it.
+    const _panel = document.getElementById('imagePanel');
+    if(_panel){ _panel.classList.add('images-collapsed'); }
+    const _chevron = document.getElementById('imgPanelToggle');
+    if(_chevron){ _chevron.setAttribute('aria-label','Expand image panel'); }
     // release the Phase 7 prerequisite hard stop if the pipeline is parked on it
     if(_phase6Resolve){ const r = _phase6Resolve; _phase6Resolve = null; r(); }
   }
