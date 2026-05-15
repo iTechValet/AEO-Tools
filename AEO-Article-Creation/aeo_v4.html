@@ -1814,12 +1814,20 @@
   // (missing tab, missing sheet, no write scope, network error), we DO NOT throw — Phase 7C must
   // not be blocked by telemetry export. We surface a muted-indigo info-level log: the exact line
   // "Telemetry export skipped: Tab 'AEO_Run_Data' not found." per the V4.1 spec.
-  // V4.1.5 — telemetry export routes through an Apps Script Web App (not the raw Sheets v4 API).
-  // The web app's doPost() appends a row to AEO_Run_Data on the client's 4.2 sheet. Google Apps
-  // Script REQUIRES Content-Type: text/plain for cross-origin POST — the body is still valid
-  // JSON, only the header reads text/plain (sending application/json triggers a CORS preflight
-  // that Apps Script doesn't answer, so the fetch fails before doPost() ever runs). The Drive
-  // API key is no longer needed (the web app handles auth via its deployed identity).
+  // V4.1.7 — telemetry export expanded to a 16-column schema, with all numeric columns sent as
+  // JS numbers (NOT formatted strings) so the Apps Script appendRow() writes them as Sheets
+  // numeric types — Looker Studio + pivot tables can then aggregate without a parse step. Cost
+  // columns are pre-rounded to 4 decimals; token columns are raw integers; run time is integer
+  // seconds. Schema:
+  //   Date · Time (UTC) · Client · Topic · Total Cost · Run Time (sec) · Word Count · Image Count
+  //   · Claude Cost · Gemini Cost · Claude In · Claude Out · Claude Cache Write · Claude Cache Read
+  //   · Gemini Tokens · Model Version
+  // The Apps Script doPost() auto-creates the AEO_Run_Data tab with this header row on first
+  // write to a new client sheet (the client's 4.2 sheet must be shared with the script's owning
+  // Google account at Editor level, or the webhook fails silently on openById).
+  // Apps Script web app contract is unchanged from V4.1.5: Content-Type: text/plain + JSON body.
+  // sending application/json triggers a CORS preflight that Apps Script doesn't answer, so the
+  // fetch fails before doPost() ever runs.
   async function exportTelemetryToSheets(){
     try {
       if(!sessionTelemetry.startTime){ return; }
@@ -1829,18 +1837,50 @@
         log('Telemetry export skipped — no sheet ID for this client.', 'warn');
         return;
       }
-      const dateStr = new Date(sessionTelemetry.startTime).toISOString().slice(0,10);
-      const elapsedMs = Math.max(0, sessionTelemetry.endTime - sessionTelemetry.startTime);
+
+      const now        = new Date(sessionTelemetry.startTime);
+      const dateStr    = now.toISOString().slice(0,10);
+      const timeStr    = now.toISOString().slice(11,19) + ' UTC';
+      const elapsedSec = Math.max(0, Math.floor((sessionTelemetry.endTime - sessionTelemetry.startTime) / 1000));
+      const t          = sessionTelemetry.tokens;
+
+      const claudeCost = (t.claudeIn       / 1e6 * 3.00)
+                       + (t.claudeOut      / 1e6 * 15.00)
+                       + (t.claudeCacheWrite / 1e6 * 3.75)
+                       + (t.claudeCacheRead  / 1e6 * 0.30);
+      const geminiCost = (t.geminiIn  / 1e6 * 3.50)
+                       + (t.geminiOut / 1e6 * 10.50);
+      const totalCost  = claudeCost + geminiCost;
+
+      const wordCount  = S.finalTXT
+        ? S.finalTXT.replace(/<[^>]*>/g, ' ').trim().split(/\s+/).filter(Boolean).length
+        : 0;
+
+      const modelVersion = `${CLAUDE_MODEL} / ${GEMINI_MODEL}`;
+
       const payload = {
         sheetId,
-        date:    dateStr,
-        client:  (S.client && S.client.name) || '—',
-        topic:   S.topic || '—',
-        runTime: fmtElapsedMMSS(elapsedMs),
-        cost:    '$' + calculateTotalCost().toFixed(3),
-        tokens:  String(totalTelemetryTokens()),
-        status:  sessionTelemetry.status || 'Success'
+        row: [
+          dateStr,
+          timeStr,
+          (S.client && S.client.name) || '—',
+          S.topic                     || '—',
+          parseFloat(totalCost.toFixed(4)),
+          elapsedSec,
+          wordCount,
+          S.expectedImageCount        || 0,
+          parseFloat(claudeCost.toFixed(4)),
+          parseFloat(geminiCost.toFixed(4)),
+          t.claudeIn,
+          t.claudeOut,
+          t.claudeCacheWrite,
+          t.claudeCacheRead,
+          t.geminiIn + t.geminiOut,
+          modelVersion
+        ]
       };
+
+      log('Telemetry — sending to AEO_Run_Data…', 'info');
       const WEBHOOK = 'https://script.google.com/macros/s/AKfycbwM3wEawyByZhfD3vTRoI7xXIoPr5LnRLHKDQ1FGTsgBfOrmsc9F9SpuMpTnUyR9eTU/exec';
       const r = await fetch(WEBHOOK, {
         method: 'POST',
@@ -1849,7 +1889,7 @@
       });
       const json = await r.json();
       if(json.result === 'success'){
-        log(`Telemetry exported → AEO_Run_Data (${payload.date} · ${payload.client} · ${payload.topic} · ${payload.cost}).`, 'ok');
+        log(`Telemetry exported → AEO_Run_Data (${dateStr} · ${S.client.name} · ${S.topic} · $${totalCost.toFixed(3)} · ${wordCount} words).`, 'ok');
       } else {
         log(`Telemetry export failed: ${json.message || 'unknown error'}`, 'warn');
       }
