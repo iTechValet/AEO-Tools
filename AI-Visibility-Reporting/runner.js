@@ -341,7 +341,8 @@ async function callWithRetry(runId, platformId, prompt) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const t0 = Date.now();
     try {
-      const result = await callPlatform(platformId, prompt, config.timeoutMs);
+      const platformTimeout = config.platforms[platformId].timeoutMs || config.timeoutMs;
+      const result = await callPlatform(platformId, prompt, platformTimeout);
       const citationsLog = result.citations.length > 0 ? `, ${result.citations.length} citations` : '';
       log(`  ✓ ${runId} ${platformId} attempt ${attempt}/${maxAttempts} succeeded in ${Date.now() - t0}ms (${result.text.length} chars${citationsLog})`);
       return result;

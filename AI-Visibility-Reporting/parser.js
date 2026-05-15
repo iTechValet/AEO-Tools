@@ -4,17 +4,18 @@
  * WHAT THIS FILE DOES:
  *   Two-tier parser for a single raw platform response.
  *
- *   Primary path — Claude Haiku (claude-haiku-4-5-20251001) via the
- *   existing Cloudflare Worker proxy at anthropic-proxy.gerek.workers.dev.
- *   The Worker is a pass-through proxy — it does NOT inject the Anthropic
- *   key. The runner must send `x-api-key: <ANTHROPIC_API_KEY>` from
- *   GitHub Secrets (Session 4 fix — Session 3 smoke testing surfaced HTTP
- *   400 "Missing x-api-key header" because parser.js was assuming
- *   injection). System prompt + 3 few-shot examples (positive / negative
- *   / mixed) come from prompts/parser-prompt.js. Strict JSON output is
- *   enforced by prompt; the parser also strips stray markdown fences and
- *   extracts the largest {...} block as a last-resort recovery before
- *   declaring the LLM output malformed.
+ *   Primary path — Claude Haiku (claude-haiku-4-5-20251001) called DIRECT
+ *   against api.anthropic.com — NOT through the Cloudflare Worker proxy.
+ *   The Worker streams responses (SSE), which broke the parser's JSON
+ *   extraction in the first test run. Since the runner executes in GitHub
+ *   Actions (server-side, no browser), there's no key to hide — same
+ *   pattern as narrative-engine.js and analysis-engine.js. Auth via
+ *   process.env.ANTHROPIC_API_KEY sent as `x-api-key`. System prompt + 3
+ *   few-shot examples (positive / negative / mixed) come from
+ *   prompts/parser-prompt.js. Strict JSON output is enforced by prompt;
+ *   the parser also strips stray markdown fences and extracts the
+ *   largest {...} block as a last-resort recovery before declaring the
+ *   LLM output malformed.
  *
  *   Fallback path — heuristic regex over the three score-critical fields
  *   only (per build plan): brand_mentioned, brand_recommended,
@@ -43,15 +44,14 @@
  *
  * WHAT THIS FILE CALLS:
  *   - prompts/parser-prompt.js  (builds the { system, messages } payload)
- *   - Anthropic Messages API via the Cloudflare Worker proxy
- *     https://anthropic-proxy.gerek.workers.dev/v1/messages
+ *   - Anthropic Messages API directly (https://api.anthropic.com/v1/messages)
  *
  * STATUS: Implemented in Session 2.
  */
 
 const parserPrompt = require('./prompts/parser-prompt.js');
 
-const PROXY_URL = 'https://anthropic-proxy.gerek.workers.dev/v1/messages';
+const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 const HAIKU_TIMEOUT_MS = 30000;
 const HAIKU_MAX_TOKENS = 1024;
@@ -138,7 +138,7 @@ async function callHaiku(rawResponse, clientConfig) {
   }
   const { system, messages } = parserPrompt.buildMessages(rawResponse, clientConfig);
   return withTimeout(async (signal) => {
-    const res = await fetch(PROXY_URL, {
+    const res = await fetch(ANTHROPIC_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -155,11 +155,11 @@ async function callHaiku(rawResponse, clientConfig) {
     });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      throw new Error(`Haiku proxy HTTP ${res.status}: ${body.slice(0, 200)}`);
+      throw new Error(`Haiku HTTP ${res.status}: ${body.slice(0, 200)}`);
     }
     const data = await res.json();
     const text = data && Array.isArray(data.content) && data.content[0] && data.content[0].text;
-    if (!text) throw new Error('Haiku proxy returned empty content');
+    if (!text) throw new Error('Haiku returned empty content');
     const parsed = extractJson(text);
     if (!parsed || typeof parsed !== 'object') {
       throw new Error('Haiku output was not valid JSON');

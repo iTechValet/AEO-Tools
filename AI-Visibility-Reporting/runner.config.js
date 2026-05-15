@@ -29,8 +29,8 @@ module.exports = {
       secretKey: 'OPENAI_API_KEY'   // GitHub Secret name — never hardcode the value
     },
     gemini: {
-      model: 'gemini-1.5-pro',
-      endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
+      model: 'gemini-2.0-flash',
+      endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
       secretKey: 'GEMINI_API_KEY'
     },
     perplexity: {
@@ -41,7 +41,8 @@ module.exports = {
     grok: {
       model: 'grok-3',
       endpoint: 'https://api.x.ai/v1/chat/completions',
-      secretKey: 'GROK_API_KEY'
+      secretKey: 'GROK_API_KEY',
+      timeoutMs: 60000   // Grok is slower to respond — override the 30s default
     }
   },
   retry: {
