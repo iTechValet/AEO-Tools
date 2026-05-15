@@ -13,6 +13,7 @@
        --crimson / --sidebar / --text-muted) so the rest of the file's rules don't have to change. */
     --bg: #0f172a;             /* slate-900 — main dark canvas */
     --sidebar: #1e293b;        /* slate-800 — panel + drawer surface */
+    --header-bg: #1e293b;      /* V4.1.1 — top-bar header surface (matches --sidebar) */
     --surface: #1e293b;        /* alias of --sidebar (legacy var name retained for ~300 existing selectors) */
     --border: #334155;         /* slate-700 — borders visible on slate-800 */
     --text: #f8fafc;           /* slate-50 — primary text on dark surfaces */
@@ -23,8 +24,12 @@
        sits on the (now-dark) --surface, so making it light keeps that text legible. Form fields
        (which still have hardcoded white backgrounds) get an explicit dark-text override below. */
     --blue: #f8fafc;
-    --indigo: #6366f1;         /* primary accent · Phase milestones · info logs */
-    --accent: #6366f1;         /* alias of --indigo */
+    /* V4.1.1 BRAND RESTORATION — --indigo is iTech Valet light blue (NOT the previous purple #6366f1).
+       Every existing rule that references --indigo (timeline rail, info log color, accent button bg,
+       phase-badge bg, mc-label color) instantly picks up the brand color via the cascade — no
+       per-callsite change required. */
+    --indigo: #2494e0;         /* iTV light blue · primary accent · Phase milestones · info logs */
+    --accent: #2494e0;         /* alias of --indigo */
     --amber: #f59e0b;          /* warnings · QC · "in flight" */
     --orange: #f59e0b;         /* alias of --amber */
     --emerald: #10b981;        /* success · validated · forward-progress */
@@ -43,7 +48,9 @@
   * { box-sizing: border-box; }
   body { font-family:'Lexend',sans-serif; font-weight:300; background:var(--bg); color:var(--blue); min-height:100vh; padding:20px 24px; margin:0; }
 
-  .top-bar { max-width:1700px; margin:0 auto 12px; border-bottom:2px solid var(--border); padding-bottom:12px; display:flex; align-items:center; gap:16px; }
+  /* V4.1.1 — top-bar reads as a distinct header panel: --header-bg surface, slate border, soft
+     drop shadow. Keeps the existing flex layout untouched. */
+  .top-bar { max-width:1700px; margin:0 auto 12px; background:var(--header-bg); border:1px solid var(--border); border-radius:12px; padding:14px 18px; display:flex; align-items:center; gap:16px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.3); }
   .top-bar h1 { font-family:'Bebas Neue',sans-serif; font-size:28px; text-transform:uppercase; letter-spacing:3px; margin:0; }
   .top-bar h1 span { color:var(--accent); }
   .ver-badge { font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:2px; color:var(--orange); margin-left:8px; padding:2px 8px; border:1px solid var(--orange); border-radius:4px; }
@@ -153,38 +160,63 @@
   .cache-log-row .verdict.partial { color:var(--accent); font-weight:600; } /* PARTIAL — expected on every relay call; informational (blue), not a warning */
   .cache-log-row .verdict.miss { color:var(--red); font-weight:600; }       /* MISS */
 
-  /* V4.1 DEPLOYMENT LOG — Studio "Timeline Nodes."
-     Each .line is a card (1px slate border, 8px radius) connected by a vertical Indigo rail.
-     The rail is the runlog's left ::before; each node's left padding clears the rail and a 7px
-     connector dot sits over it. Empty :empty rule is unchanged from before. */
-  .runlog { font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.6; position:relative; padding:6px 4px 6px 22px; }
+  /* V4.1.1 DEPLOYMENT LOG — Studio "Timeline Nodes" with NUMBERED PHASE BADGES.
+     Layout: the .runlog is a vertical track with 48px left padding to clear a 28×28 phase badge.
+     A 2px vertical iTV-blue rail (::before) runs behind the badges. Each .line is a card (slate
+     border + 8px radius + 6px row gap). When a line carries data-phase="N" (set by log() when
+     the message starts with "Phase N"), its ::before becomes a 28×28 indigo circle with the
+     number; otherwise ::before is a small 9px connector dot. Numbered badges are the most
+     visible thing in the log per V4.1.1 spec. */
+  .runlog { font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.6; position:relative; padding:6px 4px 6px 48px; }
   .runlog:before {
-    content:''; position:absolute; left:10px; top:8px; bottom:8px;
+    content:''; position:absolute; left:20px; top:8px; bottom:8px;
     width:2px; background:var(--indigo); opacity:.45; border-radius:1px;
   }
   .runlog .line {
     position:relative;
     background:rgba(30,41,59,0.55);   /* slate-800 @ 55% — sits above the page bg without competing with the rail */
-    border:1px solid #334155;
+    border:1px solid var(--border);
     border-radius:8px;
     padding:6px 10px;
     margin:0 0 6px 0;
     color:var(--text);
+    min-height:32px;                  /* room for the 28px badge */
   }
   .runlog .line:last-child { margin-bottom:0; }
-  /* Node dot — sits on the Indigo rail (left:-16px aligns it with the 10px rail offset accounting for line padding) */
+  /* Default node dot (no phase number) — small 9px dot centered on the rail (left:-32px puts
+     the 9px dot's center at runlog-left+20.5, which sits over the 2px rail at left:20). */
   .runlog .line:before {
-    content:''; position:absolute; top:9px; left:-16px;
+    content:''; position:absolute; top:9px; left:-32px;
     width:9px; height:9px; border-radius:50%;
     background:var(--indigo); border:2px solid var(--bg);
     box-shadow:0 0 0 1px var(--indigo);
   }
-  /* Log-level color semantics — Studio palette:
-     .info  = infrastructure / Phase milestones / Docs Loaded   → muted indigo
+  /* V4.1.1 PHASE BADGE — when the line has data-phase="N", the ::before becomes a 28×28 indigo
+     circle with the phase number rendered inside via attr(). This is the most visible affordance
+     in the log. White text + bold + Lexend to match the rest of the operator UI. left:-41px puts
+     the 28px badge centered on the rail (runlog padding-left 48 - 41 + 14 = 21 = rail center). */
+  .runlog .line[data-phase]:before {
+    content: attr(data-phase);
+    position:absolute; top:2px; left:-41px;
+    width:28px; height:28px;
+    display:flex; align-items:center; justify-content:center;
+    background: var(--indigo);
+    color: #ffffff !important;
+    border:2px solid var(--bg);
+    border-radius:50%;
+    font-family:'Lexend',sans-serif;
+    font-weight:700;
+    font-size:13px;
+    line-height:1;
+    box-shadow:0 0 0 1px var(--indigo);
+    margin-right:12px;
+  }
+  /* Log-level color semantics — V4.1.1 palette:
+     .info  = infrastructure / Phase milestones / Docs Loaded   → iTV blue (--indigo)
      .ok    = success / forward-progress                         → emerald
      .warn  = QC warnings / retries / inline-validation rejects  → amber
      .err   = critical errors / operator aborts                  → crimson */
-  .runlog .line.info  { color:var(--indigo); border-color:rgba(99,102,241,.45); }
+  .runlog .line.info  { color:var(--indigo); border-color:rgba(36,148,224,.45); }
   .runlog .line.info:before  { background:var(--indigo); box-shadow:0 0 0 1px var(--indigo); }
   .runlog .line.ok    { color:var(--emerald); border-color:rgba(16,185,129,.45); }
   .runlog .line.ok:before    { background:var(--emerald); box-shadow:0 0 0 1px var(--emerald); }
@@ -192,6 +224,12 @@
   .runlog .line.warn:before  { background:var(--amber); box-shadow:0 0 0 1px var(--amber); }
   .runlog .line.err   { color:var(--crimson); border-color:rgba(239,68,68,.55); font-weight:500; }
   .runlog .line.err:before   { background:var(--crimson); box-shadow:0 0 0 1px var(--crimson); }
+  /* Numbered badges keep their iTV-blue surface regardless of log level — the level color cues
+     the line border + body text, the badge stays brand-consistent. */
+  .runlog .line[data-phase].info:before,
+  .runlog .line[data-phase].ok:before,
+  .runlog .line[data-phase].warn:before,
+  .runlog .line[data-phase].err:before { background: var(--indigo); box-shadow:0 0 0 1px var(--indigo); color:#ffffff !important; }
   .runlog .ts { color:var(--text-muted); margin-right:8px; }
 
   .legend-box { background:#fff8f4; border:1px solid #ffd4a3; border-radius:6px; padding:8px 12px; font-size:11px; color:#8a4a00; margin-bottom:10px; line-height:1.5; }
@@ -337,7 +375,10 @@
   .p7-main { display:flex; gap:12px; align-items:flex-start; }
   .p7-frame { flex:1; min-width:0; height:760px; border:1px solid var(--border); border-radius:8px; background:#fff; }
   .p7-sidebar { width:252px; flex-shrink:0; display:flex; flex-direction:column; gap:10px; }
-  .p7-sb-section { background:#fff; border:1px solid var(--border); border-radius:8px; padding:10px 12px; }
+  /* V4.1.1 — Phase 7 sidebar sections float on --sidebar to match the Property Cards' depth
+     treatment; box-shadow gives them the same "raised panel" affordance. Previous background
+     was hardcoded #fff which read as a white box on the dark canvas. */
+  .p7-sb-section { background:var(--sidebar); border:1px solid var(--border); border-radius:8px; padding:10px 12px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.3); }
   .p7-sb-title { font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1.5px; color:var(--blue); margin-bottom:6px; }
   .p7-sb-hint { font-size:10px; color:var(--muted); line-height:1.45; margin-bottom:6px; }
   .p7-sb-lbl { display:block; font-size:9px; text-transform:uppercase; letter-spacing:1.5px; color:var(--faint); margin:7px 0 3px; font-weight:400; }
@@ -390,15 +431,27 @@
      counters (60 / 160) that flip to amber when the limit is exceeded. The Schema card uses
      a monospace JSON block + a Copy button. */
   .mc-grid { display:grid; grid-template-columns:1fr; gap:10px; padding:2px 0; }
-  .mc-card { background:var(--sidebar); border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
+  /* V4.1.1 — Property Cards float above the panel surface via a 1px slate border + a soft drop
+     shadow. Background is --sidebar so the card reads as a raised panel against --bg. */
+  .mc-card {
+    background:var(--sidebar);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:12px 14px;
+    box-shadow:0 4px 6px -1px rgba(0,0,0,0.3);
+  }
   .mc-card-head { display:flex; align-items:baseline; gap:10px; margin-bottom:4px; }
-  .mc-label { font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:2px; color:var(--text-muted); text-transform:uppercase; flex:1; }
+  /* V4.1.1 — Property-Card labels (Meta Title / Meta Description / Slug / Schema) use iTV blue
+     so they pop against the slate card surface. */
+  .mc-label { font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:2px; color:var(--indigo); text-transform:uppercase; flex:1; }
   .mc-counter { font-family:'SF Mono',Menlo,monospace; font-size:11px; color:var(--text-muted); }
   .mc-counter.over { color:var(--amber); font-weight:600; }
   .mc-value { font-family:'Lexend',sans-serif; font-size:13px; line-height:1.55; color:var(--text); word-break:break-word; }
   .mc-value.muted { color:var(--text-muted); font-style:italic; }
   .mc-value.mono { font-family:'SF Mono',Menlo,monospace; font-size:12px; }
-  .mc-card.mc-schema .mc-value { white-space:pre-wrap; max-height:360px; overflow:auto; background:#0b1220; border:1px solid #334155; border-radius:6px; padding:10px 12px; font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.55; color:#d1d5db; }
+  /* V4.1.1 — Schema box drops to --bg (#0f172a) so the JSON-LD code stands out against the
+     #1e293b card surface. */
+  .mc-card.mc-schema .mc-value { white-space:pre-wrap; max-height:360px; overflow:auto; background:#0f172a; border:1px solid var(--border); border-radius:6px; padding:10px 12px; font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.55; color:#d1d5db; }
   .mc-copy { background:var(--indigo); color:#fff; border:none; border-radius:6px; padding:5px 12px; font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1px; cursor:pointer; transition:opacity .15s; }
   .mc-copy:hover { opacity:.85; }
   .mc-copy.copied { background:var(--emerald); }
@@ -1493,6 +1546,12 @@
     const ts = new Date().toLocaleTimeString();
     const line = document.createElement('div');
     line.className = 'line ' + level;
+    // V4.1.1 — if the message starts with "Phase N" (any digit run, with optional A/B suffix and
+    // an optional separator), expose the number as data-phase so the CSS renders a 28×28 indigo
+    // badge in place of the small connector dot. Pure presentation hook; falls back gracefully
+    // when no phase is detected.
+    const phaseMatch = /^\s*Phase\s+(\d+)/i.exec(String(msg||''));
+    if(phaseMatch) line.setAttribute('data-phase', phaseMatch[1]);
     line.innerHTML = `<span class="ts">${ts}</span>${escapeHtml(msg)}`;
     body.appendChild(line);
     body.scrollTop = body.scrollHeight;
