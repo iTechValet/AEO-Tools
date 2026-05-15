@@ -7,43 +7,42 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lexend:wght@300;400;500;600&display=swap');
   :root {
-    /* V4.1 STUDIO PALETTE — high-contrast Slate/Indigo production-studio theme.
-       Legacy variable names (--blue / --accent / --orange / --green / --red / --surface / --muted)
-       are kept as aliases of the new named tokens (--text / --indigo / --amber / --emerald /
-       --crimson / --sidebar / --text-muted) so the rest of the file's rules don't have to change. */
-    --bg: #0f172a;             /* slate-900 — main dark canvas */
-    --sidebar: #1e293b;        /* slate-800 — panel + drawer surface */
-    --header-bg: #1e293b;      /* V4.1.1 — top-bar header surface (matches --sidebar) */
-    --surface: #1e293b;        /* alias of --sidebar (legacy var name retained for ~300 existing selectors) */
-    --border: #334155;         /* slate-700 — borders visible on slate-800 */
-    --text: #f8fafc;           /* slate-50 — primary text on dark surfaces */
-    --text-muted: #94a3b8;     /* slate-400 — secondary text */
-    --muted: #94a3b8;          /* alias of --text-muted */
-    --faint: #64748b;          /* slate-500 — tertiary text */
-    /* --blue is now LIGHT — almost every existing rule that says `color:var(--blue)` is text that
-       sits on the (now-dark) --surface, so making it light keeps that text legible. Form fields
-       (which still have hardcoded white backgrounds) get an explicit dark-text override below. */
-    --blue: #f8fafc;
-    /* V4.1.1 BRAND RESTORATION — --indigo is iTech Valet light blue (NOT the previous purple #6366f1).
-       Every existing rule that references --indigo (timeline rail, info log color, accent button bg,
-       phase-badge bg, mc-label color) instantly picks up the brand color via the cascade — no
-       per-callsite change required. */
-    --indigo: #2494e0;         /* iTV light blue · primary accent · Phase milestones · info logs */
-    --accent: #2494e0;         /* alias of --indigo */
-    --amber: #f59e0b;          /* warnings · QC · "in flight" */
-    --orange: #f59e0b;         /* alias of --amber */
-    --emerald: #10b981;        /* success · validated · forward-progress */
-    --green: #10b981;          /* alias of --emerald */
-    --crimson: #ef4444;        /* errors · operator aborts */
-    --red: #ef4444;            /* alias of --crimson */
+    /* V4.1.2 BRAND-FIRST LIGHT PALETTE — high-contrast white canvas + iTech Valet blues.
+       Legacy variable names (--blue / --indigo / --amber / --emerald / --crimson / --surface /
+       --green / --red / --muted) are kept as aliases of the brand tokens so the rest of the file
+       (and all V4.1 / V4.1.1 rules) keep rendering without per-callsite edits. */
+    --bg: #ffffff;             /* white canvas */
+    --sidebar: #f8fafc;         /* off-white panel + drawer surface */
+    --header-bg: #f8fafc;       /* top-bar header surface (matches --sidebar) */
+    --surface: #f8fafc;         /* legacy alias of --sidebar */
+    --primary: #063a6c;         /* iTV DARK BLUE — headers · borders · timeline rail · phase badges · info logs */
+    --secondary: #cfe8fc;       /* iTV LIGHT BLUE — Property Cards · inactive tabs · subtle fills */
+    --accent: #2494e0;          /* iTV MIDDLE BLUE — Property-Card labels · in-flight accents */
+    --orange: #dd6b00;          /* high-contrast orange — warnings + QC */
+    --amber: #dd6b00;           /* alias of --orange so amber-coded callsites inherit the new warning hue */
+    --emerald: #27ae60;         /* success — forward-progress */
+    --green: #27ae60;           /* alias of --emerald */
+    --crimson: #c0392b;         /* errors + operator aborts (brand-friendly red) */
+    --red: #c0392b;             /* alias of --crimson */
+    --text: #063a6c;            /* primary text — iTV dark blue on the white canvas */
+    --text-muted: #4a5568;      /* secondary text — slate-700-ish, reads well on white */
+    --muted: #4a5568;           /* alias of --text-muted */
+    --faint: #94a3b8;           /* tertiary text — slate-400 */
+    --border: #063a6c;          /* iTV dark blue — borders per spec */
+    /* Legacy aliases — every existing `color:var(--blue)` or `color:var(--indigo)` rule resolves
+       through these to the brand tokens, so timeline rails, info logs, phase badges, and the
+       hundreds of dark-text uses all stay in sync. */
+    --blue: #063a6c;            /* alias of --primary — restores dark-blue text on white */
+    --indigo: #2494e0;          /* alias of --accent — middle-blue accent (rail/badge color is overridden to --primary below) */
   }
-  /* Form fields keep white backgrounds (most have hardcoded background:#fff), so their text must
-     stay dark for legibility. !important is used because the legacy class rules below have
-     specificity 0,0,1,0 and we need this generic override to win without re-writing each one. */
+  /* Form fields — explicit dark text + white background.
+     Override is kept generic (input/select/textarea) because there are ~30 form-field rules in
+     the file and we want one source of truth for their text color. !important wins against the
+     legacy 0,0,1,0 class rules (.cp-input, .krow input, .pg-input, etc). */
   input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
   select,
   textarea {
-    color: #0f172a !important;
+    color: var(--primary) !important;
   }
   * { box-sizing: border-box; }
   body { font-family:'Lexend',sans-serif; font-weight:300; background:var(--bg); color:var(--blue); min-height:100vh; padding:20px 24px; margin:0; }
@@ -136,10 +135,14 @@
   .phase-meta { font-size:11px; color:var(--muted); margin-top:6px; }
 
   .preview-panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:0; overflow:hidden; }
-  .ptabs { display:flex; gap:0; background:#eef3f8; border-bottom:1px solid var(--border); }
-  .ptab { flex:1; padding:11px 14px; cursor:pointer; font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1.5px; text-align:center; color:var(--muted); border-right:1px solid var(--border); transition:background .2s,color .2s; }
+  /* V4.1.2 PREVIEW TABS — high-contrast brand:
+       inactive → --secondary (iTV light blue) bg, --primary (iTV dark blue) text
+       active   → --primary bg, white text                                          */
+  .ptabs { display:flex; gap:0; background:var(--secondary); border-bottom:1px solid var(--primary); }
+  .ptab { flex:1; padding:11px 14px; cursor:pointer; font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1.5px; text-align:center; background:var(--secondary); color:var(--primary); border-right:1px solid var(--primary); transition:background .2s, color .2s; }
   .ptab:last-child { border-right:none; }
-  .ptab.active { background:#fff; color:var(--blue); border-bottom:2px solid var(--accent); }
+  .ptab:hover:not(.active) { background:#bcdef9; }
+  .ptab.active { background:var(--primary); color:#ffffff; border-bottom:2px solid var(--primary); }
   .pane-toolbar { display:flex; align-items:center; gap:10px; padding:6px 14px; background:#fff; border-bottom:1px solid var(--border); }
   .pane-toolbar-label { flex:1; font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1.5px; color:var(--blue); opacity:0.55; }
   .btn-copy-pane { background:none; border:1px solid var(--border); color:var(--muted); border-radius:5px; padding:3px 11px; font-family:'Bebas Neue',sans-serif; font-size:10px; letter-spacing:1px; cursor:pointer; transition:border-color .2s,color .2s; }
@@ -160,76 +163,76 @@
   .cache-log-row .verdict.partial { color:var(--accent); font-weight:600; } /* PARTIAL — expected on every relay call; informational (blue), not a warning */
   .cache-log-row .verdict.miss { color:var(--red); font-weight:600; }       /* MISS */
 
-  /* V4.1.1 DEPLOYMENT LOG — Studio "Timeline Nodes" with NUMBERED PHASE BADGES.
-     Layout: the .runlog is a vertical track with 48px left padding to clear a 28×28 phase badge.
-     A 2px vertical iTV-blue rail (::before) runs behind the badges. Each .line is a card (slate
-     border + 8px radius + 6px row gap). When a line carries data-phase="N" (set by log() when
-     the message starts with "Phase N"), its ::before becomes a 28×28 indigo circle with the
-     number; otherwise ::before is a small 9px connector dot. Numbered badges are the most
-     visible thing in the log per V4.1.1 spec. */
-  .runlog { font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.6; position:relative; padding:6px 4px 6px 48px; }
+  /* V4.1.2 DEPLOYMENT LOG — light-theme "Timeline Nodes" with NUMBERED PHASE BADGES.
+     Layout: the .runlog is a vertical track with 50px left padding to clear a 30×30 phase badge.
+     A 2px vertical iTV-DARK-BLUE (--primary) rail (::before) runs behind the badges. Each .line
+     is a WHITE card with a 1px --primary border + 8px radius. When a line carries data-phase="N"
+     (set by log() when the message starts with "Phase N"), its ::before becomes a 30×30 --primary
+     circle with white bold number; otherwise ::before is a small 10px connector dot. Numbered
+     badges are the most visible thing in the log per V4.1.2 spec. */
+  .runlog { font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.6; position:relative; padding:6px 4px 6px 50px; }
   .runlog:before {
-    content:''; position:absolute; left:20px; top:8px; bottom:8px;
-    width:2px; background:var(--indigo); opacity:.45; border-radius:1px;
+    content:''; position:absolute; left:21px; top:8px; bottom:8px;
+    width:2px; background:var(--primary); opacity:.85; border-radius:1px;
   }
   .runlog .line {
     position:relative;
-    background:rgba(30,41,59,0.55);   /* slate-800 @ 55% — sits above the page bg without competing with the rail */
-    border:1px solid var(--border);
+    background:#ffffff;
+    border:1px solid var(--primary);
     border-radius:8px;
-    padding:6px 10px;
+    padding:7px 11px;
     margin:0 0 6px 0;
     color:var(--text);
-    min-height:32px;                  /* room for the 28px badge */
+    min-height:34px;                  /* room for the 30px badge */
   }
   .runlog .line:last-child { margin-bottom:0; }
-  /* Default node dot (no phase number) — small 9px dot centered on the rail (left:-32px puts
-     the 9px dot's center at runlog-left+20.5, which sits over the 2px rail at left:20). */
+  /* Default node dot (no phase number) — small 10px --primary dot centered on the rail. The 22px
+     rail center (left:21 + width:2 / 2) aligns with the dot's center at runlog-left+22 → with
+     padding-left:50 and line-left = runlog-left+50, the dot needs left:-33px to span -33..-23
+     from the line, i.e. 17..27 from runlog-left → center 22. */
   .runlog .line:before {
-    content:''; position:absolute; top:9px; left:-32px;
-    width:9px; height:9px; border-radius:50%;
-    background:var(--indigo); border:2px solid var(--bg);
-    box-shadow:0 0 0 1px var(--indigo);
+    content:''; position:absolute; top:9px; left:-33px;
+    width:10px; height:10px; border-radius:50%;
+    background:var(--primary); border:2px solid var(--bg);
+    box-shadow:0 0 0 1px var(--primary);
   }
-  /* V4.1.1 PHASE BADGE — when the line has data-phase="N", the ::before becomes a 28×28 indigo
-     circle with the phase number rendered inside via attr(). This is the most visible affordance
-     in the log. White text + bold + Lexend to match the rest of the operator UI. left:-41px puts
-     the 28px badge centered on the rail (runlog padding-left 48 - 41 + 14 = 21 = rail center). */
+  /* V4.1.2 PHASE BADGE — 30px iTV DARK BLUE circle with white bold number.
+     left:-43px puts the badge centered on the rail (50 padding-left - 43 + 15 (badge half) = 22). */
   .runlog .line[data-phase]:before {
     content: attr(data-phase);
-    position:absolute; top:2px; left:-41px;
-    width:28px; height:28px;
+    position:absolute; top:1px; left:-43px;
+    width:30px; height:30px;
     display:flex; align-items:center; justify-content:center;
-    background: var(--indigo);
+    background: var(--primary);
     color: #ffffff !important;
     border:2px solid var(--bg);
     border-radius:50%;
     font-family:'Lexend',sans-serif;
     font-weight:700;
-    font-size:13px;
+    font-size:14px;
     line-height:1;
-    box-shadow:0 0 0 1px var(--indigo);
+    box-shadow:0 0 0 1px var(--primary);
     margin-right:12px;
   }
-  /* Log-level color semantics — V4.1.1 palette:
-     .info  = infrastructure / Phase milestones / Docs Loaded   → iTV blue (--indigo)
-     .ok    = success / forward-progress                         → emerald
-     .warn  = QC warnings / retries / inline-validation rejects  → amber
+  /* Log-level color semantics — V4.1.2 light palette:
+     .info  = infrastructure / Phase milestones / Docs Loaded   → iTV dark blue (--primary)
+     .ok    = success / forward-progress                         → emerald (#27ae60)
+     .warn  = QC warnings / retries / inline-validation rejects  → orange (--orange #dd6b00)
      .err   = critical errors / operator aborts                  → crimson */
-  .runlog .line.info  { color:var(--indigo); border-color:rgba(36,148,224,.45); }
-  .runlog .line.info:before  { background:var(--indigo); box-shadow:0 0 0 1px var(--indigo); }
-  .runlog .line.ok    { color:var(--emerald); border-color:rgba(16,185,129,.45); }
+  .runlog .line.info  { color:var(--primary); }
+  .runlog .line.info:before  { background:var(--primary); box-shadow:0 0 0 1px var(--primary); }
+  .runlog .line.ok    { color:var(--emerald); border-color:var(--emerald); }
   .runlog .line.ok:before    { background:var(--emerald); box-shadow:0 0 0 1px var(--emerald); }
-  .runlog .line.warn  { color:var(--amber); border-color:rgba(245,158,11,.5); }
-  .runlog .line.warn:before  { background:var(--amber); box-shadow:0 0 0 1px var(--amber); }
-  .runlog .line.err   { color:var(--crimson); border-color:rgba(239,68,68,.55); font-weight:500; }
+  .runlog .line.warn  { color:var(--orange); border-color:var(--orange); }
+  .runlog .line.warn:before  { background:var(--orange); box-shadow:0 0 0 1px var(--orange); }
+  .runlog .line.err   { color:var(--crimson); border-color:var(--crimson); font-weight:500; }
   .runlog .line.err:before   { background:var(--crimson); box-shadow:0 0 0 1px var(--crimson); }
-  /* Numbered badges keep their iTV-blue surface regardless of log level — the level color cues
-     the line border + body text, the badge stays brand-consistent. */
+  /* Numbered badges stay iTV dark blue regardless of log level — the level color cues the line
+     border + body text; the badge anchors the brand. */
   .runlog .line[data-phase].info:before,
   .runlog .line[data-phase].ok:before,
   .runlog .line[data-phase].warn:before,
-  .runlog .line[data-phase].err:before { background: var(--indigo); box-shadow:0 0 0 1px var(--indigo); color:#ffffff !important; }
+  .runlog .line[data-phase].err:before { background: var(--primary); box-shadow:0 0 0 1px var(--primary); color:#ffffff !important; }
   .runlog .ts { color:var(--text-muted); margin-right:8px; }
 
   .legend-box { background:#fff8f4; border:1px solid #ffd4a3; border-radius:6px; padding:8px 12px; font-size:11px; color:#8a4a00; margin-bottom:10px; line-height:1.5; }
@@ -287,7 +290,11 @@
 
   /* ── IMAGE PANEL (M3.5 — ported & adapted from V3.1 aeo_article_creation.html) ── */
   .sbadge { font-family:'Bebas Neue',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:1px; padding:3px 8px; border-radius:4px; white-space:nowrap; }
-  .image-panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  /* V4.1.2 — sliding drawer keeps its 280ms translateX/opacity/max-height transition (defined
+     on #imgGrid + #p7Inputs below). Background is --sidebar (off-white) per the brand-first
+     light theme; the right border is bumped to 2px solid --primary so the drawer reads as a
+     pinned vertical anchor against the white canvas. */
+  .image-panel { background:var(--sidebar); border:1px solid var(--border); border-right:2px solid var(--primary); border-radius:12px; overflow:hidden; }
   .img-panel-head { display:flex; align-items:center; gap:10px; padding:11px 16px; background:#eef3f8; border-bottom:1px solid var(--border); }
   .img-panel-title { font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:1.5px; color:var(--blue); flex:1; }
   .img-panel-badge { font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1px; padding:3px 8px; border-radius:4px; background:#ececec; color:var(--faint); }
@@ -431,28 +438,27 @@
      counters (60 / 160) that flip to amber when the limit is exceeded. The Schema card uses
      a monospace JSON block + a Copy button. */
   .mc-grid { display:grid; grid-template-columns:1fr; gap:10px; padding:2px 0; }
-  /* V4.1.1 — Property Cards float above the panel surface via a 1px slate border + a soft drop
-     shadow. Background is --sidebar so the card reads as a raised panel against --bg. */
+  /* V4.1.2 PROPERTY CARDS — iTV light blue (--secondary) surface, dark-blue (--primary) border,
+     dark-blue text. Labels use the middle iTV blue (--accent) so they pop against the card. */
   .mc-card {
-    background:var(--sidebar);
-    border:1px solid var(--border);
+    background:var(--secondary);
+    border:1px solid var(--primary);
     border-radius:8px;
     padding:12px 14px;
-    box-shadow:0 4px 6px -1px rgba(0,0,0,0.3);
+    box-shadow:0 4px 6px -1px rgba(6,58,108,0.10);
+    color:var(--primary);
   }
   .mc-card-head { display:flex; align-items:baseline; gap:10px; margin-bottom:4px; }
-  /* V4.1.1 — Property-Card labels (Meta Title / Meta Description / Slug / Schema) use iTV blue
-     so they pop against the slate card surface. */
-  .mc-label { font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:2px; color:var(--indigo); text-transform:uppercase; flex:1; }
-  .mc-counter { font-family:'SF Mono',Menlo,monospace; font-size:11px; color:var(--text-muted); }
-  .mc-counter.over { color:var(--amber); font-weight:600; }
-  .mc-value { font-family:'Lexend',sans-serif; font-size:13px; line-height:1.55; color:var(--text); word-break:break-word; }
-  .mc-value.muted { color:var(--text-muted); font-style:italic; }
+  .mc-label { font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:2px; color:var(--accent); text-transform:uppercase; flex:1; }
+  .mc-counter { font-family:'SF Mono',Menlo,monospace; font-size:11px; color:var(--primary); opacity:.7; }
+  .mc-counter.over { color:var(--orange); opacity:1; font-weight:600; }
+  .mc-value { font-family:'Lexend',sans-serif; font-size:13px; line-height:1.55; color:var(--primary); word-break:break-word; }
+  .mc-value.muted { color:var(--primary); opacity:.55; font-style:italic; }
   .mc-value.mono { font-family:'SF Mono',Menlo,monospace; font-size:12px; }
-  /* V4.1.1 — Schema box drops to --bg (#0f172a) so the JSON-LD code stands out against the
-     #1e293b card surface. */
-  .mc-card.mc-schema .mc-value { white-space:pre-wrap; max-height:360px; overflow:auto; background:#0f172a; border:1px solid var(--border); border-radius:6px; padding:10px 12px; font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.55; color:#d1d5db; }
-  .mc-copy { background:var(--indigo); color:#fff; border:none; border-radius:6px; padding:5px 12px; font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1px; cursor:pointer; transition:opacity .15s; }
+  /* Schema code block — white inset card with a --primary border, dark-blue monospace text. Reads
+     as a clear code container against the --secondary parent card. */
+  .mc-card.mc-schema .mc-value { white-space:pre-wrap; max-height:360px; overflow:auto; background:#ffffff; border:1px solid var(--primary); border-radius:6px; padding:10px 12px; font-family:'SF Mono',Menlo,monospace; font-size:11px; line-height:1.55; color:var(--primary); }
+  .mc-copy { background:var(--primary); color:#ffffff; border:none; border-radius:6px; padding:5px 12px; font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1px; cursor:pointer; transition:opacity .15s; }
   .mc-copy:hover { opacity:.85; }
   .mc-copy.copied { background:var(--emerald); }
 
