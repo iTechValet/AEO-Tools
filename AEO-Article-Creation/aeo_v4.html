@@ -47,14 +47,34 @@
   * { box-sizing: border-box; }
   body { font-family:'Lexend',sans-serif; font-weight:300; background:var(--bg); color:var(--blue); min-height:100vh; padding:20px 24px; margin:0; }
 
-  /* V4.1.1 — top-bar reads as a distinct header panel: --header-bg surface, slate border, soft
-     drop shadow. Keeps the existing flex layout untouched. */
-  .top-bar { max-width:1700px; margin:0 auto 12px; background:var(--header-bg); border:1px solid var(--border); border-radius:12px; padding:14px 18px; display:flex; align-items:center; gap:16px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.3); }
-  .top-bar h1 { font-family:'Bebas Neue',sans-serif; font-size:28px; text-transform:uppercase; letter-spacing:3px; margin:0; }
-  .top-bar h1 span { color:var(--accent); }
+  /* V4.1.3 ZONE 0 — TOOL HEADER (dark navy).
+     Solid --primary surface; no border, no shadow (the dark canvas handles separation against
+     the white page). Headline "ITECH VALET" stays white; the brand-emphasized "AEO V4.1" span
+     picks up the light-blue token (--secondary) already used by the tabs row. Subtitle/pipeline
+     description drops to #8aa8c4 — muted but readable on the navy bg. The right-side Client
+     Mode block is re-tinted to the same light-blue family so it doesn't disappear into the
+     header. */
+  .top-bar {
+    max-width:1700px; margin:0 auto 12px;
+    background: var(--primary);
+    border: none;
+    box-shadow: none;
+    border-radius: 12px;
+    padding: 14px 18px;
+    display:flex; align-items:center; gap:16px;
+  }
+  .top-bar h1 { font-family:'Bebas Neue',sans-serif; font-size:28px; text-transform:uppercase; letter-spacing:3px; margin:0; color:#ffffff; }
+  .top-bar h1 span { color:var(--secondary); }
   .ver-badge { font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:2px; color:var(--orange); margin-left:8px; padding:2px 8px; border:1px solid var(--orange); border-radius:4px; }
-  .build-stamp { font-family:'SF Mono',Menlo,monospace; font-size:10px; color:var(--faint); margin-left:10px; vertical-align:middle; }
+  .build-stamp { font-family:'SF Mono',Menlo,monospace; font-size:10px; color:#8aa8c4; margin-left:10px; vertical-align:middle; }
+  /* Pipeline-description subtitle — global rule kept on var(--muted) for use outside the
+     header; inside .top-bar it overrides to #8aa8c4 per the Zone 0 spec. */
   .subtitle { font-size:11px; color:var(--muted); margin:2px 0 0; }
+  .top-bar .subtitle { color:#8aa8c4; }
+  /* Right side of the header (Client Mode label + count). Inline opacity in the markup is
+     overridden so the label reads against the navy bg. */
+  .top-bar .cp-label { color: var(--secondary) !important; opacity: 0.85 !important; }
+  .top-bar #modeCount, .top-bar #modeCountAdmin { color: #8aa8c4 !important; }
 
   .top-section { max-width:1700px; margin:0 auto 16px; }
   .control-panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; }
@@ -97,20 +117,36 @@
 
   .gstatus { font-size:12px; color:var(--accent); min-height:16px; font-weight:400; padding:6px 0 2px; }
 
-  .layout { max-width:1700px; margin:0 auto; display:grid; grid-template-columns:2fr 3fr; gap:20px; align-items:start; }   /* 40% left (phase cards + images) / 60% right (tabs + preview) */
+  /* V4.1.3 ZONE 3 — OPERATIONAL WORKSPACE (light-blue surface, white floating cards).
+     The .layout wrapper picks up --secondary (#cfe8fc — the same light-blue token used by the
+     preview tab bar) so the whole workspace reads as one zone. Inner cards (phases / images /
+     preview) flip to white so they appear to float on the light-blue surface. */
+  .layout {
+    max-width:1700px; margin:0 auto;
+    display:grid; grid-template-columns:2fr 3fr; gap:20px;
+    align-items:start;
+    background: var(--secondary);
+    padding: 18px;
+    border-radius: 12px;
+  }   /* 40% left (phase cards + images) / 60% right (tabs + preview) */
   .left-col, .right-col { min-width:0; }
 
   .pipeline { display:flex; flex-direction:column; gap:7px; }
-  .phase-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; transition:border-color .3s; }
-  .phase-card.active { border-color:var(--accent); }
+  /* V4.1.3 — phase cards float as WHITE cards on the light-blue workspace; dark-navy border ties
+     them back to Zone 0. Active border bumps to --primary (dark navy) for the Zone 0/3 bookend. */
+  .phase-card { background:#ffffff; border:1px solid var(--primary); border-radius:10px; overflow:hidden; transition:border-color .3s; box-shadow:0 1px 2px rgba(6,58,108,0.06); }
+  .phase-card.active { border-color:var(--primary); box-shadow:0 0 0 2px rgba(6,58,108,0.18); }
   .phase-card.done { border-color:var(--green); }
   .phase-card.error { border-color:var(--red); }
   .phase-card.stub { opacity:.55; }
   .phase-card.stubdone { border-color:#d4a418; }
   .phase-card.stubdone .phase-num { color:#d4a418; }
   .phase-header { display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer; user-select:none; }
-  .phase-num { font-family:'Bebas Neue',sans-serif; font-size:24px; color:var(--border); line-height:1; min-width:36px; transition:color .3s; }
-  .phase-card.active .phase-num { color:var(--accent); }
+  .phase-num { font-family:'Bebas Neue',sans-serif; font-size:24px; color:var(--faint); line-height:1; min-width:36px; transition:color .3s; }
+  /* V4.1.3 — active phase number flips to --primary (dark navy) so it ties back to Zone 0; the
+     active-state cue is also reinforced by .phase-card.active's --primary border + dark-navy
+     box-shadow ring (set above). */
+  .phase-card.active .phase-num { color:var(--primary); }
   .phase-card.done .phase-num { color:var(--green); }
   .phase-card.error .phase-num { color:var(--red); }
   .phase-info { flex:1; }
@@ -134,7 +170,11 @@
   .phase-out:empty:before { content:'(no output yet)'; color:var(--faint); font-style:italic; }
   .phase-meta { font-size:11px; color:var(--muted); margin-top:6px; }
 
-  .preview-panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:0; overflow:hidden; }
+  /* V4.1.3 — preview panel flips to white so the right column reads as a floating card on the
+     Zone 3 light-blue workspace. The .ptabs row keeps its --secondary light-blue tab-bar; the
+     content panes (.ppane) inherit the white panel surface so prose / metadata / schema all
+     sit on white. */
+  .preview-panel { background:#ffffff; border:1px solid var(--primary); border-radius:12px; padding:0; overflow:hidden; box-shadow:0 1px 2px rgba(6,58,108,0.06); }
   /* V4.1.2 PREVIEW TABS — high-contrast brand:
        inactive → --secondary (iTV light blue) bg, --primary (iTV dark blue) text
        active   → --primary bg, white text                                          */
@@ -242,12 +282,33 @@
   .mode-badge.calibration { background:#fff3cd; color:#8a6d00; border:1px solid #e0c000; }
   .mode-badge.production { background:#e6f4ea; color:#1b5e20; border:1px solid #4caf50; }
 
-  /* ESCALATION PANEL */
-  .escalation-panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; margin-bottom:16px; overflow:hidden; transition:border-color .3s; }
-  .escalation-panel.has-red { border-color:var(--red); }
-  .escalation-panel.has-yellow { border-color:var(--orange); }
+  /* V4.1.3 ZONE 2 — ESCALATION PANEL (light-yellow caution zone).
+     Permanent #fffbeb (warm light yellow) background + a 3px solid amber (#f59e0b) left rail
+     even when there are no active alerts — this is the standing "caution zone" by design.
+     The other three borders flip color when alerts are active so the panel still telegraphs
+     state at a glance; the amber left rail stays put. */
+  .escalation-panel {
+    background:#fffbeb;
+    border:1px solid var(--border);
+    border-left:3px solid #f59e0b;
+    border-radius:12px;
+    margin-bottom:16px;
+    overflow:hidden;
+    transition:border-color .3s;
+  }
+  .escalation-panel.has-red {
+    border-top-color:var(--red);
+    border-right-color:var(--red);
+    border-bottom-color:var(--red);
+  }
+  .escalation-panel.has-yellow {
+    border-top-color:var(--orange);
+    border-right-color:var(--orange);
+    border-bottom-color:var(--orange);
+  }
   .esc-header { display:flex; align-items:center; gap:10px; padding:11px 16px; cursor:pointer; user-select:none; }
-  .esc-title { font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:1.5px; color:var(--blue); flex:1; }
+  /* "ESCALATION PANEL" heading — dark amber per V4.1.3 (readable on #fffbeb). */
+  .esc-title { font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:1.5px; color:#92400e; flex:1; }
   .esc-count { font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1px; padding:2px 8px; border-radius:4px; background:#ececec; color:var(--faint); }
   .esc-count.red { background:rgba(192,57,43,.15); color:var(--red); }
   .esc-count.yellow { background:rgba(221,107,0,.15); color:var(--orange); }
@@ -263,7 +324,8 @@
   .esc-entry .esc-ts { color:var(--faint); font-size:10px; }
   .esc-notify { margin-top:8px; background:var(--red); color:#fff; border:none; border-radius:6px; padding:7px 14px; font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1px; cursor:pointer; }
   .esc-notify:hover { opacity:.85; }
-  .esc-empty { padding:10px 0 2px; font-size:11px; color:var(--faint); font-style:italic; }
+  /* V4.1.3 — empty state recolored from slate-400 to a brown that reads on the #fffbeb panel. */
+  .esc-empty { padding:10px 0 2px; font-size:11px; color:#8a6d00; font-style:italic; }
 
   .password-gate { position:fixed; top:0; left:0; width:100%; height:100%; background:#fff; z-index:9999; display:flex; align-items:center; justify-content:center; }
   .password-gate-inner { text-align:center; max-width:340px; width:100%; padding:36px 24px; }
@@ -290,11 +352,10 @@
 
   /* ── IMAGE PANEL (M3.5 — ported & adapted from V3.1 aeo_article_creation.html) ── */
   .sbadge { font-family:'Bebas Neue',sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:1px; padding:3px 8px; border-radius:4px; white-space:nowrap; }
-  /* V4.1.2 — sliding drawer keeps its 280ms translateX/opacity/max-height transition (defined
-     on #imgGrid + #p7Inputs below). Background is --sidebar (off-white) per the brand-first
-     light theme; the right border is bumped to 2px solid --primary so the drawer reads as a
-     pinned vertical anchor against the white canvas. */
-  .image-panel { background:var(--sidebar); border:1px solid var(--border); border-right:2px solid var(--primary); border-radius:12px; overflow:hidden; }
+  /* V4.1.3 — sliding drawer keeps its 280ms transition (on #imgGrid + #p7Inputs below). Surface
+     flipped to WHITE so the panel reads as a floating card on the Zone 3 light-blue workspace;
+     2px solid --primary right border keeps the "pinned vertical anchor" affordance from V4.1.2. */
+  .image-panel { background:#ffffff; border:1px solid var(--primary); border-right:2px solid var(--primary); border-radius:12px; overflow:hidden; box-shadow:0 1px 2px rgba(6,58,108,0.06); }
   .img-panel-head { display:flex; align-items:center; gap:10px; padding:11px 16px; background:#eef3f8; border-bottom:1px solid var(--border); }
   .img-panel-title { font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:1.5px; color:var(--blue); flex:1; }
   .img-panel-badge { font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1px; padding:3px 8px; border-radius:4px; background:#ececec; color:var(--faint); }
